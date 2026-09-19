@@ -1,5 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useHospitals } from "../assets/context/HospitalsContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
 
 function Navbar() {
   const {
@@ -7,24 +9,33 @@ function Navbar() {
     selectHospital,
   } = usePatient()
 
-  const [isHospitalOpen, setIsHospitalOpen] =
-    useState(false)
+  const { hospitals: contextHospitals } = useHospitals()
+  const { activeRoleName, switchRole, roles } = useRole()
 
+  const [isHospitalOpen, setIsHospitalOpen] = useState(false)
+  const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false)
   const [search, setSearch] = useState("")
+  const [userLocation, setUserLocation] = useState(null)
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationError, setLocationError] = useState("")
+  const [language, setLanguage] = useState("EN")
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
 
-  const [userLocation, setUserLocation] =
-    useState(null)
+  const dropdownRef = useRef(null)
+  const notificationRef = useRef(null)
+  const roleRef = useRef(null)
 
-  const [locationLoading, setLocationLoading] =
-    useState(false)
+  // Default coordinate mapping for hospitals
+  const defaultCoords = {
+    1: { latitude: 25.4182, longitude: 86.1272 },
+    2: { latitude: 25.4145, longitude: 86.1215 },
+    3: { latitude: 25.4112, longitude: 86.1352 },
+    4: { latitude: 25.5941, longitude: 85.1376 },
+    5: { latitude: 25.6127, longitude: 85.1589 },
+  }
 
-  const [locationError, setLocationError] =
-    useState("")
-
-
-  // Demo hospital data
-  // Later Django API se aayega
-  const hospitals = [
+  // Combine context hospitals with coordinates and fallback
+  const fallbackHospitals = [
     {
       id: 1,
       name: "City Care Hospital",
@@ -72,55 +83,67 @@ function Navbar() {
     },
   ]
 
+  const hospitalsList = useMemo(() => {
+    if (contextHospitals && contextHospitals.length > 0) {
+      return contextHospitals.map((hospital) => {
+        const coords = defaultCoords[hospital.id] || {
+          latitude: 25.4182,
+          longitude: 86.1272,
+        }
+        return {
+          ...hospital,
+          latitude: hospital.latitude || coords.latitude,
+          longitude: hospital.longitude || coords.longitude,
+          type: hospital.type || "Multi-Speciality",
+        }
+      })
+    }
+    return fallbackHospitals
+  }, [contextHospitals])
+
+  // Automatically select first hospital if none is selected yet
+  useEffect(() => {
+    if (!selectedHospital && hospitalsList.length > 0) {
+      selectHospital(hospitalsList[0])
+    }
+  }, [selectedHospital, hospitalsList, selectHospital])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsHospitalOpen(false)
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setIsNotificationOpen(false)
+      }
+      if (roleRef.current && !roleRef.current.contains(event.target)) {
+        setIsRoleMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   // Distance calculation
-  const calculateDistance = (
-    lat1,
-    lon1,
-    lat2,
-    lon2
-  ) => {
-
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371
-
-    const dLat =
-      ((lat2 - lat1) * Math.PI) / 180
-
-    const dLon =
-      ((lon2 - lon1) * Math.PI) / 180
-
+    const dLat = ((lat2 - lat1) * Math.PI) / 180
+    const dLon = ((lon2 - lon1) * Math.PI) / 180
     const a =
-      Math.sin(dLat / 2) *
-      Math.sin(dLat / 2) +
-      Math.cos(
-        (lat1 * Math.PI) / 180
-      ) *
-      Math.cos(
-        (lat2 * Math.PI) / 180
-      ) *
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2)
-
-    const c =
-      2 *
-      Math.atan2(
-        Math.sqrt(a),
-        Math.sqrt(1 - a)
-      )
-
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
     return R * c
   }
 
-
   // Get user location
   const handleGetLocation = () => {
-
     if (!navigator.geolocation) {
-
-      setLocationError(
-        "Location is not supported by your browser."
-      )
-
+      setLocationError("Location is not supported by your browser.")
       return
     }
 
@@ -129,27 +152,16 @@ function Navbar() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-
         setUserLocation({
-          latitude:
-            position.coords.latitude,
-
-          longitude:
-            position.coords.longitude,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
         })
-
         setLocationLoading(false)
       },
-
       () => {
-
         setLocationLoading(false)
-
-        setLocationError(
-          "Location permission was denied."
-        )
+        setLocationError("Location permission was denied.")
       },
-
       {
         enableHighAccuracy: true,
         timeout: 10000,
@@ -158,470 +170,340 @@ function Navbar() {
     )
   }
 
-
   // Add distance
-  const hospitalsWithDistance =
-    hospitals.map((hospital) => {
-
-      if (!userLocation) {
-
-        return {
-          ...hospital,
-          distance: null,
-        }
-      }
-
-      const distance =
-        calculateDistance(
-          userLocation.latitude,
-          userLocation.longitude,
-          hospital.latitude,
-          hospital.longitude
-        )
-
+  const hospitalsWithDistance = hospitalsList.map((hospital) => {
+    if (!userLocation) {
       return {
         ...hospital,
-        distance,
+        distance: null,
       }
-    })
+    }
 
+    const distance = calculateDistance(
+      userLocation.latitude,
+      userLocation.longitude,
+      hospital.latitude,
+      hospital.longitude
+    )
+
+    return {
+      ...hospital,
+      distance,
+    }
+  })
 
   // Sort nearest first
-  const sortedHospitals =
-    [...hospitalsWithDistance].sort(
-      (a, b) => {
+  const sortedHospitals = [...hospitalsWithDistance].sort((a, b) => {
+    if (a.distance === null || b.distance === null) {
+      return 0
+    }
+    return a.distance - b.distance
+  })
 
-        if (
-          a.distance === null ||
-          b.distance === null
-        ) {
-          return 0
-        }
-
-        return a.distance - b.distance
-      }
-    )
-
-
-  // Search
-  const filteredHospitals =
-    sortedHospitals.filter(
-      (hospital) =>
-        `${hospital.name} ${hospital.address}`
-          .toLowerCase()
-          .includes(search.toLowerCase())
-    )
-
+  // Search filter
+  const filteredHospitals = sortedHospitals.filter((hospital) =>
+    `${hospital.name} ${hospital.address}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  )
 
   // Select hospital
-  const handleSelectHospital = (
-    hospital
-  ) => {
-
+  const handleSelectHospital = (hospital) => {
     selectHospital(hospital)
-
     setIsHospitalOpen(false)
     setSearch("")
   }
 
-
   // Open map
   const handleMap = (hospital) => {
-
-    const url =
-      `https://www.google.com/maps/search/?api=1&query=${hospital.latitude},${hospital.longitude}`
-
-    window.open(
-      url,
-      "_blank",
-      "noopener,noreferrer"
-    )
+    const url = `https://www.google.com/maps/search/?api=1&query=${hospital.latitude},${hospital.longitude}`
+    window.open(url, "_blank", "noopener,noreferrer")
   }
-
 
   // Directions
-  const handleDirections = (
-    hospital
-  ) => {
-
-    let url
-
-    if (userLocation) {
-
-      url =
-        `https://www.google.com/maps/dir/?api=1&origin=${userLocation.latitude},${userLocation.longitude}&destination=${hospital.latitude},${hospital.longitude}`
-
-    } else {
-
-      url =
-        `https://www.google.com/maps/dir/?api=1&destination=${hospital.latitude},${hospital.longitude}`
-    }
-
-    window.open(
-      url,
-      "_blank",
-      "noopener,noreferrer"
-    )
+  const handleDirections = (hospital) => {
+    let url = userLocation
+      ? `https://www.google.com/maps/dir/?api=1&origin=${userLocation.latitude},${userLocation.longitude}&destination=${hospital.latitude},${hospital.longitude}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${hospital.latitude},${hospital.longitude}`
+    window.open(url, "_blank", "noopener,noreferrer")
   }
 
-
   return (
-    <header className="bg-white border-b border-gray-200 shadow-sm">
+    <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 shadow-sm z-40">
+      <div className="h-full px-3 sm:px-6 flex items-center justify-between gap-4">
 
-      <div className="px-5 py-4 flex items-center justify-between gap-4">
+        {/* LEFT - Branding */}
+        <div className="flex items-center gap-2 sm:gap-3">
 
-        {/* LEFT - Logo */}
-        <div className="flex items-center gap-3">
-
-          <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-2xl">
-            🏥
-          </div>
-
-          <div>
-
-            <h1 className="text-xl font-bold text-gray-800">
-              HMS
-            </h1>
-
-            <p className="text-sm text-gray-500">
-              Hospital Management System
-            </p>
-
+          {/* Logo & Title */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-lg shadow-sm text-white flex-shrink-0">
+              🏥
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-gray-800 leading-tight">
+                HMS
+              </h1>
+              <p className="text-[11px] text-gray-500 hidden md:block leading-none">
+                Hospital Management
+              </p>
+            </div>
           </div>
 
         </div>
 
-
-        {/* RIGHT */}
+        {/* RIGHT - Actions & Profile */}
         <div className="flex items-center gap-3">
 
-
           {/* Hospital Selector */}
-          <div className="relative">
-
+          <div className="relative" ref={dropdownRef}>
             <button
-              onClick={() =>
-                setIsHospitalOpen(
-                  !isHospitalOpen
-                )
-              }
-              className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl hover:bg-blue-50 transition"
+              type="button"
+              onClick={() => setIsHospitalOpen(!isHospitalOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-blue-50 transition cursor-pointer"
+              title="Select Active Hospital"
             >
-
-              <span className="text-xl">
-                🏥
-              </span>
-
+              <span className="text-lg">🏥</span>
               <div className="hidden sm:block text-left">
-
-                <p className="text-xs text-gray-500">
+                <p className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">
                   Hospital
                 </p>
-
-                <p className="text-sm font-semibold text-gray-800 max-w-[180px] truncate">
-
-                  {selectedHospital
-                    ? selectedHospital.name
-                    : "Select Hospital"}
-
+                <p className="text-xs font-semibold text-gray-800 max-w-[170px] truncate">
+                  {selectedHospital ? selectedHospital.name : "Select Hospital"}
                 </p>
-
               </div>
-
-              <span className="text-gray-500 text-xs">
-                ▼
+              <span className="text-gray-400 text-xs ml-1">
+                {isHospitalOpen ? "▲" : "▼"}
               </span>
-
             </button>
 
-
-            {/* Dropdown */}
+            {/* Dropdown Menu */}
             {isHospitalOpen && (
-
-              <div className="absolute right-0 top-14 w-[350px] max-w-[90vw] bg-white border border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden">
-
+              <div className="absolute right-0 top-12 mt-1 w-[360px] max-w-[90vw] bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-hidden">
                 {/* Dropdown Header */}
-                <div className="p-4 border-b border-gray-100">
-
-                  <h3 className="font-bold text-gray-800">
+                <div className="p-4 border-b border-gray-100 bg-gray-50/70">
+                  <h3 className="font-bold text-gray-800 text-sm">
                     Select Hospital
                   </h3>
-
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-0.5">
                     Search or find a nearby hospital
                   </p>
-
                 </div>
 
-
-                {/* Search */}
-                <div className="p-3">
-
+                {/* Search Box */}
+                <div className="p-3 border-b border-gray-100">
                   <div className="relative">
-
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
                       🔍
                     </span>
-
                     <input
                       type="text"
                       value={search}
-                      onChange={(e) =>
-                        setSearch(
-                          e.target.value
-                        )
-                      }
-                      placeholder="Search hospital..."
-                      className="w-full border border-gray-300 rounded-xl pl-10 pr-3 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search hospital name or city..."
+                      className="w-full border border-gray-300 rounded-xl pl-9 pr-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500"
                     />
-
                   </div>
-
                 </div>
 
-
-                {/* Location */}
-                <div className="px-3">
-
+                {/* Location Detection */}
+                <div className="p-3 border-b border-gray-100 bg-blue-50/40">
                   <button
+                    type="button"
                     onClick={handleGetLocation}
                     disabled={locationLoading}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-700 rounded-xl font-semibold text-sm hover:bg-blue-100 disabled:opacity-60"
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-xl font-medium text-xs hover:bg-blue-700 disabled:opacity-60 transition cursor-pointer shadow-sm"
                   >
-
-                    <span className="text-lg">
-                      📍
-                    </span>
-
+                    <span>📍</span>
                     <span>
                       {locationLoading
-                        ? "Getting your location..."
-                        : "Use My Current Location"}
+                        ? "Detecting location..."
+                        : "Use Current Location"}
                     </span>
-
                   </button>
 
-
                   {locationError && (
-
-                    <p className="text-xs text-orange-600 mt-2 px-1">
-                      {locationError}
+                    <p className="text-[11px] text-orange-600 mt-1.5 px-1 font-medium">
+                      ⚠️ {locationError}
                     </p>
-
                   )}
 
                   {userLocation && (
-
-                    <p className="text-xs text-green-600 mt-2 px-1">
-                      ✓ Location detected — nearest hospitals shown first
+                    <p className="text-[11px] text-green-600 mt-1.5 px-1 font-medium">
+                      ✓ Location active — showing nearest hospitals first
                     </p>
-
                   )}
-
                 </div>
-
 
                 {/* Hospital List */}
-                <div className="max-h-[400px] overflow-y-auto p-3">
-
+                <div className="max-h-[300px] overflow-y-auto p-2 divide-y divide-gray-50">
                   {filteredHospitals.length > 0 ? (
+                    filteredHospitals.map((hospital) => {
+                      const isSelected = selectedHospital?.id === hospital.id
 
-                    filteredHospitals.map(
-                      (hospital) => {
-
-                        const isSelected =
-                          selectedHospital?.id ===
-                          hospital.id
-
-                        return (
-
-                          <div
-                            key={hospital.id}
-                            className={`p-3 rounded-xl mb-2 border transition ${isSelected
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-gray-100 hover:border-blue-200 hover:bg-gray-50"
-                              }`}
+                      return (
+                        <div
+                          key={hospital.id}
+                          className={`p-2.5 rounded-xl transition ${isSelected
+                            ? "bg-blue-50/80 border border-blue-200"
+                            : "hover:bg-gray-50 border border-transparent"
+                            }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleSelectHospital(hospital)}
+                            className="w-full text-left cursor-pointer"
                           >
-
-                            <button
-                              onClick={() =>
-                                handleSelectHospital(
-                                  hospital
-                                )
-                              }
-                              className="w-full text-left"
-                            >
-
-                              <div className="flex gap-3">
-
-                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                  🏥
-                                </div>
-
-
-                                <div className="flex-1 min-w-0">
-
-                                  <div className="flex items-center justify-between gap-2">
-
-                                    <p className="font-semibold text-gray-800 text-sm truncate">
-                                      {hospital.name}
-                                    </p>
-
-                                    {isSelected && (
-
-                                      <span className="text-blue-600 font-bold">
-                                        ✓
-                                      </span>
-
-                                    )}
-
-                                  </div>
-
-
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    📍 {hospital.address}
-                                  </p>
-
-
-                                  {hospital.distance !== null && (
-
-                                    <p className="text-xs text-green-600 font-semibold mt-1">
-
-                                      📏{" "}
-
-                                      {hospital.distance < 1
-                                        ? `${Math.round(
-                                          hospital.distance *
-                                          1000
-                                        )} m away`
-                                        : `${hospital.distance.toFixed(
-                                          1
-                                        )} km away`}
-
-                                    </p>
-
-                                  )}
-
-                                </div>
-
+                            <div className="flex gap-2.5 items-start">
+                              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 text-base">
+                                🏥
                               </div>
 
-                            </button>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1">
+                                  <p className="font-semibold text-gray-800 text-xs truncate">
+                                    {hospital.name}
+                                  </p>
+                                  {isSelected && (
+                                    <span className="text-blue-600 font-bold text-xs bg-blue-100 px-1.5 py-0.5 rounded-full">
+                                      Active
+                                    </span>
+                                  )}
+                                </div>
 
+                                <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                                  📍 {hospital.address || "Begusarai, Bihar"}
+                                </p>
 
-                            {/* Hospital actions */}
-                            <div className="flex gap-2 mt-3 ml-13">
-
-                              <button
-                                onClick={() =>
-                                  handleMap(
-                                    hospital
-                                  )
-                                }
-                                className="text-xs px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200"
-                              >
-                                🗺️ Map
-                              </button>
-
-
-                              <button
-                                onClick={() =>
-                                  handleDirections(
-                                    hospital
-                                  )
-                                }
-                                className="text-xs px-3 py-1.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100"
-                              >
-                                🚗 Directions
-                              </button>
-
+                                {hospital.distance !== null && (
+                                  <p className="text-[11px] text-green-600 font-medium mt-0.5">
+                                    📏{" "}
+                                    {hospital.distance < 1
+                                      ? `${Math.round(hospital.distance * 1000)} m away`
+                                      : `${hospital.distance.toFixed(1)} km away`}
+                                  </p>
+                                )}
+                              </div>
                             </div>
+                          </button>
 
+                          {/* Quick Map Actions */}
+                          <div className="flex gap-1.5 mt-2 pl-10">
+                            <button
+                              type="button"
+                              onClick={() => handleMap(hospital)}
+                              className="text-[11px] px-2 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition cursor-pointer"
+                            >
+                              🗺️ Map
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDirections(hospital)}
+                              className="text-[11px] px-2 py-1 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition cursor-pointer font-medium"
+                            >
+                              🚗 Directions
+                            </button>
                           </div>
-
-                        )
-                      }
-                    )
-
+                        </div>
+                      )
+                    })
                   ) : (
-
-                    <div className="text-center py-8">
-
-                      <div className="text-3xl">
-                        🔍
-                      </div>
-
-                      <p className="font-semibold text-gray-700 mt-2">
+                    <div className="text-center py-6">
+                      <p className="text-gray-400 text-2xl">🔍</p>
+                      <p className="font-medium text-gray-600 text-xs mt-1">
                         No hospital found
                       </p>
-
-                      <p className="text-xs text-gray-500 mt-1">
-                        Try another search
+                      <p className="text-[11px] text-gray-400">
+                        Try a different search term
                       </p>
-
                     </div>
-
                   )}
-
                 </div>
 
-
-                {/* Footer */}
-                <div className="border-t border-gray-100 p-3">
-
-                  <p className="text-xs text-center text-gray-400">
-                    Hospital locations will be loaded from the hospital database.
+                {/* Dropdown Footer */}
+                <div className="border-t border-gray-100 p-2.5 bg-gray-50/50 text-center">
+                  <p className="text-[10px] text-gray-400">
+                    Switching hospitals updates patients, appointments & queue
                   </p>
-
                 </div>
-
               </div>
-
             )}
-
           </div>
 
-
-          {/* Language */}
-          <div className="hidden sm:flex bg-gray-100 rounded-xl p-1">
-
-            <button className="px-3 py-2 bg-white rounded-lg text-blue-600 font-semibold text-sm shadow-sm">
+          {/* Language Switcher */}
+          <div className="hidden sm:flex bg-gray-100 rounded-xl p-0.5">
+            <button
+              type="button"
+              onClick={() => setLanguage("EN")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${language === "EN"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
+            >
               EN
             </button>
-
-            <button className="px-3 py-2 text-gray-600 text-sm">
+            <button
+              type="button"
+              onClick={() => setLanguage("HI")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${language === "HI"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
+            >
               हिंदी
             </button>
-
           </div>
 
+          {/* Notifications Button */}
+          <div className="relative" ref={notificationRef}>
+            <button
+              type="button"
+              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              className="relative w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-lg text-gray-600 transition cursor-pointer"
+              title="Notifications"
+            >
+              🔔
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+            </button>
 
-          {/* Notification */}
-          <button className="relative w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-xl">
-            🔔
+            {isNotificationOpen && (
+              <div className="absolute right-0 top-12 mt-1 w-72 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-3">
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                  <h4 className="text-xs font-bold text-gray-800">Notifications</h4>
+                  <span className="text-[10px] text-blue-600 font-medium">Mark all read</span>
+                </div>
+                <div className="divide-y divide-gray-50 max-h-48 overflow-y-auto">
+                  <div className="py-2">
+                    <p className="text-xs font-medium text-gray-800">New appointment booked</p>
+                    <p className="text-[10px] text-gray-400">Dr. Sharma • 10 mins ago</p>
+                  </div>
+                  <div className="py-2">
+                    <p className="text-xs font-medium text-gray-800">Pharmacy stock alert</p>
+                    <p className="text-[10px] text-gray-400">Paracetamol below minimum • 1 hr ago</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-
-          </button>
-
-
-          {/* User */}
-          <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-gray-200">
-
-            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-xl">
-              👤
+          {/* User Profile */}
+          <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-gray-200">
+            <div className="w-8 h-8 bg-blue-100 text-blue-700 font-bold rounded-full flex items-center justify-center text-xs shadow-sm">
+              A
             </div>
-
-            <span className="font-semibold text-gray-700">
-              Admin
-            </span>
-
+            <div className="hidden sm:block text-left">
+              <span className="text-xs font-semibold text-gray-800 block leading-tight">
+                Admin
+              </span>
+              <span className="text-[10px] text-gray-500 block leading-tight">
+                Super Admin
+              </span>
+            </div>
           </div>
 
         </div>
 
       </div>
-
     </header>
   )
 }

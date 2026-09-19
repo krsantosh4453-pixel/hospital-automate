@@ -28,32 +28,71 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 
+# ============================================================
 # Application definition
+# ============================================================
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'corsheaders',
-    'patients',
+    # Django built-in apps
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+
+    # REST API
+    "rest_framework",
+    "corsheaders",
+    "users",
+
+    # Existing hospital apps
+    "patients",
+    "home",
+    "doctors",
+    "appointments",
+    "nurses",
+    "compounder",
+    "pharmacy",
+    "laboratory",
+
+    # New hospital apps
+    "hospital",
+    "encounters",
+    "clinical",
+    "ipd",
+    "emergency",
+    "billing",
+    "bloodbank",
+    "notifications",
+    "audit",
+
+    # Pharmacy procurement / purchase / GRN
+    "procurement",
 ]
+
+
+# ============================================================
+# Middleware
+# ============================================================
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+
+    # CORS - React frontend ke liye
+    "corsheaders.middleware.CorsMiddleware",
+
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+
 ROOT_URLCONF = 'config.urls'
+
 
 TEMPLATES = [
     {
@@ -70,11 +109,13 @@ TEMPLATES = [
     },
 ]
 
+
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
+# ============================================================
 # Database
-# https://docs.djangoproject.com/en/6.1/ref/settings/#databases
+# ============================================================
 
 DATABASES = {
     'default': {
@@ -84,8 +125,9 @@ DATABASES = {
 }
 
 
+# ============================================================
 # Password validation
-# https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
+# ============================================================
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -103,8 +145,9 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# ============================================================
 # Internationalization
-# https://docs.djangoproject.com/en/6.1/topics/i18n/
+# ============================================================
 
 LANGUAGE_CODE = 'en-us'
 
@@ -115,14 +158,16 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.1/howto/static-files/
+# ============================================================
+# Static files
+# ============================================================
 
 STATIC_URL = 'static/'
 
 
+# ============================================================
 # Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
+# ============================================================
 
 MAILERS = {
     'default': {
@@ -130,15 +175,44 @@ MAILERS = {
     },
 }
 
+
+# ============================================================
 # CORS Configuration
+# ============================================================
+
 CORS_ALLOWED_ORIGINS = [
+    # Current Vite frontend
+    'http://localhost:5174',
+
+    # Existing frontend origins - preserved
     'http://localhost:5173',
     'http://localhost:3000',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:3000',
+
+    # Optional Vite localhost address
+    'http://127.0.0.1:5174',
 ]
 
+
+# ============================================================
+# Django REST Framework
+# ============================================================
+
 REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_PAGINATION_CLASS':
+        'rest_framework.pagination.PageNumberPagination',
+
     'PAGE_SIZE': 100,
 }
+# ============================================================
+# Django REST Framework
+# ============================================================
+
+
+
+# ============================================================
+# Google Authentication
+# ============================================================
+
+GOOGLE_CLIENT_ID = "1199500530711-s1ti1g061cno8d3tk2759hqrgitdect.apps.googleusercontent.com"

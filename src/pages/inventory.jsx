@@ -1,7 +1,21 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
+import { usePatient } from "../assets/context/PatientContext.jsx"
 
 function Inventory() {
+
+  // =====================================
+  // SELECTED HOSPITAL
+  // =====================================
+
+  const { selectedHospital } = usePatient()
+
+
+  // =====================================
+  // INVENTORY DATA
+  // =====================================
+
   const [items, setItems] = useState([
+
     {
       id: "INV001",
       name: "Surgical Gloves",
@@ -12,7 +26,9 @@ function Inventory() {
       supplier: "MedSupply India",
       expiry: "12/2027",
       status: "In Stock",
+      hospitalId: 1,
     },
+
     {
       id: "INV002",
       name: "Face Masks",
@@ -23,7 +39,9 @@ function Inventory() {
       supplier: "HealthCare Supplies",
       expiry: "08/2028",
       status: "Low Stock",
+      hospitalId: 1,
     },
+
     {
       id: "INV003",
       name: "IV Cannula 20G",
@@ -34,7 +52,9 @@ function Inventory() {
       supplier: "MediTech",
       expiry: "06/2029",
       status: "In Stock",
+      hospitalId: 2,
     },
+
     {
       id: "INV004",
       name: "Syringe 5ml",
@@ -45,138 +65,372 @@ function Inventory() {
       supplier: "SafeMed",
       expiry: "10/2028",
       status: "Low Stock",
+      hospitalId: 2,
     },
+
+    {
+      id: "INV005",
+      name: "IV Fluid",
+      category: "Medical Supplies",
+      unit: "Bottle",
+      quantity: 80,
+      minStock: 20,
+      supplier: "MediLife",
+      expiry: "05/2028",
+      status: "In Stock",
+      hospitalId: 3,
+    },
+
   ])
 
-  const [transactions, setTransactions] = useState([])
 
-  const [search, setSearch] = useState("")
+  // =====================================
+  // TRANSACTIONS
+  // =====================================
+
+  const [transactions, setTransactions] =
+    useState([])
+
+
+  // =====================================
+  // FILTER STATES
+  // =====================================
+
+  const [search, setSearch] =
+    useState("")
+
+
   const [categoryFilter, setCategoryFilter] =
     useState("All Categories")
+
 
   const [stockFilter, setStockFilter] =
     useState("All Stock")
 
-  const [showForm, setShowForm] = useState(false)
-  const [showView, setShowView] = useState(false)
-  const [showStock, setShowStock] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
 
-  const [selectedItem, setSelectedItem] = useState(null)
+  // =====================================
+  // MODALS
+  // =====================================
 
-  const [formData, setFormData] = useState({
-    name: "",
-    category: "",
-    unit: "",
-    quantity: "",
-    minStock: "",
-    supplier: "",
-    expiry: "",
-  })
+  const [showForm, setShowForm] =
+    useState(false)
 
-  const [stockData, setStockData] = useState({
-    type: "Add Stock",
-    quantity: "",
-    reason: "",
-  })
 
-  // =========================
-  // STATISTICS
-  // =========================
+  const [showView, setShowView] =
+    useState(false)
 
-  const totalItems = items.length
 
-  const totalQuantity = items.reduce(
-    (total, item) =>
-      total + Number(item.quantity),
-    0
-  )
+  const [showStock, setShowStock] =
+    useState(false)
 
-  const lowStockItems = items.filter(
-    (item) =>
-      Number(item.quantity) <=
-      Number(item.minStock)
-  ).length
 
-  const outOfStockItems = items.filter(
-    (item) => Number(item.quantity) === 0
-  ).length
+  const [showHistory, setShowHistory] =
+    useState(false)
 
-  // =========================
-  // FILTER
-  // =========================
 
-  const filteredItems = items.filter((item) => {
-    const matchesSearch =
-      item.name
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      item.id
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      item.supplier
-        .toLowerCase()
-        .includes(search.toLowerCase())
+  const [selectedItem, setSelectedItem] =
+    useState(null)
 
-    const matchesCategory =
-      categoryFilter === "All Categories" ||
-      item.category === categoryFilter
 
-    const matchesStock =
-      stockFilter === "All Stock" ||
-      (stockFilter === "In Stock" &&
-        item.quantity > item.minStock) ||
-      (stockFilter === "Low Stock" &&
-        item.quantity > 0 &&
-        item.quantity <= item.minStock) ||
-      (stockFilter === "Out of Stock" &&
-        item.quantity === 0)
+  // =====================================
+  // FORM DATA
+  // =====================================
+
+  const [formData, setFormData] =
+    useState({
+      name: "",
+      category: "",
+      unit: "",
+      quantity: "",
+      minStock: "",
+      supplier: "",
+      expiry: "",
+    })
+
+
+  // =====================================
+  // STOCK DATA
+  // =====================================
+
+  const [stockData, setStockData] =
+    useState({
+      type: "Add Stock",
+      quantity: "",
+      reason: "",
+    })
+
+
+  // =====================================
+  // NO HOSPITAL SELECTED
+  // =====================================
+
+  if (!selectedHospital) {
 
     return (
-      matchesSearch &&
-      matchesCategory &&
-      matchesStock
-    )
-  })
 
-  // =========================
-  // FORM
-  // =========================
+      <div>
+
+        <div className="mb-6">
+
+          <p className="text-blue-600 font-semibold text-sm">
+            INVENTORY MANAGEMENT
+          </p>
+
+          <h1 className="text-3xl font-bold text-gray-800 mt-1">
+            Inventory
+          </h1>
+
+        </div>
+
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+
+          <div className="text-5xl mb-4">
+            🏥
+          </div>
+
+          <h2 className="text-xl font-bold text-gray-800">
+            Select a Hospital
+          </h2>
+
+          <p className="text-gray-500 mt-2">
+            Select a hospital from the header to view its inventory.
+          </p>
+
+        </div>
+
+      </div>
+
+    )
+  }
+
+
+  // =====================================
+  // HOSPITAL INVENTORY
+  // =====================================
+
+  const hospitalItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          item.hospitalId ===
+          selectedHospital.id
+      ),
+    [items, selectedHospital]
+  )
+
+
+  // =====================================
+  // HOSPITAL TRANSACTIONS
+  // =====================================
+
+  const hospitalTransactions =
+    transactions.filter(
+      (transaction) =>
+        transaction.hospitalId ===
+        selectedHospital.id
+    )
+
+
+  // =====================================
+  // STATISTICS
+  // =====================================
+
+  const totalItems =
+    hospitalItems.length
+
+
+  const totalQuantity =
+    hospitalItems.reduce(
+      (total, item) =>
+        total +
+        Number(item.quantity),
+      0
+    )
+
+
+  const lowStockItems =
+    hospitalItems.filter(
+      (item) =>
+        Number(item.quantity) <=
+        Number(item.minStock) &&
+        Number(item.quantity) > 0
+    ).length
+
+
+  const outOfStockItems =
+    hospitalItems.filter(
+      (item) =>
+        Number(item.quantity) === 0
+    ).length
+
+
+  // =====================================
+  // FILTER
+  // =====================================
+
+  const filteredItems =
+    hospitalItems.filter(
+      (item) => {
+
+        const matchesSearch =
+
+          item.name
+            .toLowerCase()
+            .includes(
+              search.toLowerCase()
+            )
+
+          ||
+
+          item.id
+            .toLowerCase()
+            .includes(
+              search.toLowerCase()
+            )
+
+          ||
+
+          item.supplier
+            .toLowerCase()
+            .includes(
+              search.toLowerCase()
+            )
+
+
+        const matchesCategory =
+
+          categoryFilter ===
+          "All Categories"
+
+          ||
+
+          item.category ===
+          categoryFilter
+
+
+        const matchesStock =
+
+          stockFilter ===
+          "All Stock"
+
+          ||
+
+          (
+            stockFilter ===
+            "In Stock" &&
+            item.quantity >
+            item.minStock
+          )
+
+          ||
+
+          (
+            stockFilter ===
+            "Low Stock" &&
+            item.quantity > 0 &&
+            item.quantity <=
+            item.minStock
+          )
+
+          ||
+
+          (
+            stockFilter ===
+            "Out of Stock" &&
+            item.quantity === 0
+          )
+
+
+        return (
+          matchesSearch &&
+          matchesCategory &&
+          matchesStock
+        )
+
+      }
+    )
+
+
+  // =====================================
+  // FORM CHANGE
+  // =====================================
 
   const handleChange = (e) => {
-    const { name, value } = e.target
+
+    const {
+      name,
+      value,
+    } = e.target
+
 
     setFormData({
       ...formData,
       [name]: value,
     })
+
   }
 
-  const handleStockChange = (e) => {
-    const { name, value } = e.target
 
-    setStockData({
-      ...stockData,
-      [name]: value,
-    })
-  }
+  // =====================================
+  // STOCK CHANGE
+  // =====================================
 
-  const getStatus = (quantity, minStock) => {
-    const stock = Number(quantity)
-    const minimum = Number(minStock)
+  const handleStockChange =
+    (e) => {
 
-    if (stock === 0) {
-      return "Out of Stock"
+      const {
+        name,
+        value,
+      } = e.target
+
+
+      setStockData({
+        ...stockData,
+        [name]: value,
+      })
+
     }
 
-    if (stock <= minimum) {
-      return "Low Stock"
+
+  // =====================================
+  // GET STATUS
+  // =====================================
+
+  const getStatus =
+    (
+      quantity,
+      minStock
+    ) => {
+
+      const stock =
+        Number(quantity)
+
+      const minimum =
+        Number(minStock)
+
+
+      if (stock === 0) {
+        return "Out of Stock"
+      }
+
+
+      if (stock <= minimum) {
+        return "Low Stock"
+      }
+
+
+      return "In Stock"
+
     }
 
-    return "In Stock"
-  }
+
+  // =====================================
+  // RESET FORM
+  // =====================================
 
   const resetForm = () => {
+
     setFormData({
       name: "",
       category: "",
@@ -187,285 +441,519 @@ function Inventory() {
       expiry: "",
     })
 
+
     setSelectedItem(null)
+
     setShowForm(false)
+
   }
 
-  // =========================
+
+  // =====================================
   // ADD ITEM
-  // =========================
+  // =====================================
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
+  const handleSubmit =
+    (e) => {
 
-    const newItem = {
-      id: `INV${String(
-        items.length + 1
-      ).padStart(3, "0")}`,
+      e.preventDefault()
 
-      name: formData.name,
-      category: formData.category,
-      unit: formData.unit,
-      quantity: Number(formData.quantity),
-      minStock: Number(formData.minStock),
-      supplier: formData.supplier,
-      expiry: formData.expiry,
 
-      status: getStatus(
-        formData.quantity,
-        formData.minStock
-      ),
+      const hospitalItemsCount =
+        hospitalItems.length
+
+
+      const newItem = {
+
+        id:
+          `INV-${selectedHospital.id}-${String(
+            hospitalItemsCount + 1
+          ).padStart(3, "0")}`,
+
+        name:
+          formData.name,
+
+        category:
+          formData.category,
+
+        unit:
+          formData.unit,
+
+        quantity:
+          Number(
+            formData.quantity
+          ),
+
+        minStock:
+          Number(
+            formData.minStock
+          ),
+
+        supplier:
+          formData.supplier,
+
+        expiry:
+          formData.expiry,
+
+        status:
+          getStatus(
+            formData.quantity,
+            formData.minStock
+          ),
+
+        hospitalId:
+          selectedHospital.id,
+
+      }
+
+
+      setItems((prev) => [
+        ...prev,
+        newItem,
+      ])
+
+
+      resetForm()
+
     }
 
-    setItems([
-      ...items,
-      newItem,
-    ])
 
-    resetForm()
-  }
-
-  // =========================
+  // =====================================
   // EDIT ITEM
-  // =========================
+  // =====================================
 
-  const handleEdit = (item) => {
-    setSelectedItem(item)
+  const handleEdit =
+    (item) => {
 
-    setFormData({
-      name: item.name,
-      category: item.category,
-      unit: item.unit,
-      quantity: String(item.quantity),
-      minStock: String(item.minStock),
-      supplier: item.supplier,
-      expiry: item.expiry,
-    })
+      setSelectedItem(item)
 
-    setShowForm(true)
-  }
 
-  const handleUpdate = (e) => {
-    e.preventDefault()
+      setFormData({
 
-    const updatedItems = items.map(
-      (item) =>
-        item.id === selectedItem.id
-          ? {
-            ...item,
+        name:
+          item.name,
 
-            name: formData.name,
-            category: formData.category,
-            unit: formData.unit,
-            quantity: Number(
-              formData.quantity
-            ),
-            minStock: Number(
-              formData.minStock
-            ),
-            supplier: formData.supplier,
-            expiry: formData.expiry,
+        category:
+          item.category,
 
-            status: getStatus(
-              formData.quantity,
-              formData.minStock
-            ),
-          }
-          : item
-    )
+        unit:
+          item.unit,
 
-    setItems(updatedItems)
+        quantity:
+          String(
+            item.quantity
+          ),
 
-    resetForm()
-  }
+        minStock:
+          String(
+            item.minStock
+          ),
 
-  // =========================
-  // DELETE
-  // =========================
+        supplier:
+          item.supplier,
 
-  const handleDelete = (id) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this inventory item?"
-    )
+        expiry:
+          item.expiry,
 
-    if (!confirmed) {
-      return
+      })
+
+
+      setShowForm(true)
+
     }
 
-    setItems(
-      items.filter(
-        (item) => item.id !== id
-      )
-    )
-  }
 
-  // =========================
-  // VIEW
-  // =========================
+  // =====================================
+  // UPDATE ITEM
+  // =====================================
 
-  const handleView = (item) => {
-    setSelectedItem(item)
-    setShowView(true)
-  }
+  const handleUpdate =
+    (e) => {
 
-  // =========================
-  // STOCK UPDATE
-  // =========================
+      e.preventDefault()
 
-  const openStockModal = (item) => {
-    setSelectedItem(item)
 
-    setStockData({
-      type: "Add Stock",
-      quantity: "",
-      reason: "",
-    })
+      setItems((prev) =>
 
-    setShowStock(true)
-  }
+        prev.map(
+          (item) =>
 
-  const resetStock = () => {
-    setStockData({
-      type: "Add Stock",
-      quantity: "",
-      reason: "",
-    })
+            item.id ===
+              selectedItem.id &&
+              item.hospitalId ===
+              selectedHospital.id
 
-    setSelectedItem(null)
-    setShowStock(false)
-  }
+              ? {
 
-  const handleStockUpdate = (e) => {
-    e.preventDefault()
+                ...item,
 
-    if (!selectedItem) {
-      return
-    }
+                name:
+                  formData.name,
 
-    const quantity =
-      Number(stockData.quantity)
+                category:
+                  formData.category,
 
-    if (quantity <= 0) {
-      alert(
-        "Quantity must be greater than 0."
-      )
-      return
-    }
+                unit:
+                  formData.unit,
 
-    let newQuantity
+                quantity:
+                  Number(
+                    formData.quantity
+                  ),
 
-    if (
-      stockData.type === "Add Stock"
-    ) {
-      newQuantity =
-        Number(selectedItem.quantity) +
-        quantity
-    } else {
-      if (
-        quantity >
-        Number(selectedItem.quantity)
-      ) {
-        alert(
-          `Only ${selectedItem.quantity} ${selectedItem.unit} available.`
+                minStock:
+                  Number(
+                    formData.minStock
+                  ),
+
+                supplier:
+                  formData.supplier,
+
+                expiry:
+                  formData.expiry,
+
+                status:
+                  getStatus(
+                    formData.quantity,
+                    formData.minStock
+                  ),
+
+              }
+
+              : item
         )
+
+      )
+
+
+      resetForm()
+
+    }
+
+
+  // =====================================
+  // DELETE
+  // =====================================
+
+  const handleDelete =
+    (id) => {
+
+      const confirmed =
+        window.confirm(
+          "Are you sure you want to delete this inventory item?"
+        )
+
+
+      if (!confirmed) {
         return
       }
 
-      newQuantity =
-        Number(selectedItem.quantity) -
-        quantity
+
+      setItems((prev) =>
+        prev.filter(
+          (item) =>
+            !(
+              item.id === id &&
+              item.hospitalId ===
+              selectedHospital.id
+            )
+        )
+      )
+
     }
 
-    const updatedItems = items.map(
-      (item) =>
-        item.id === selectedItem.id
-          ? {
-            ...item,
 
-            quantity: newQuantity,
+  // =====================================
+  // VIEW
+  // =====================================
 
-            status: getStatus(
-              newQuantity,
-              item.minStock
-            ),
-          }
-          : item
-    )
+  const handleView =
+    (item) => {
 
-    setItems(updatedItems)
+      setSelectedItem(item)
 
-    // Transaction history
-    const newTransaction = {
-      id: `TRX${String(
-        transactions.length + 1
-      ).padStart(3, "0")}`,
+      setShowView(true)
 
-      itemId: selectedItem.id,
+    }
 
-      itemName: selectedItem.name,
 
-      type: stockData.type,
+  // =====================================
+  // OPEN STOCK MODAL
+  // =====================================
 
-      quantity,
+  const openStockModal =
+    (item) => {
+
+      setSelectedItem(item)
+
+
+      setStockData({
+
+        type:
+          "Add Stock",
+
+        quantity:
+          "",
+
+        reason:
+          "",
+
+      })
+
+
+      setShowStock(true)
+
+    }
+
+
+  // =====================================
+  // RESET STOCK
+  // =====================================
+
+  const resetStock = () => {
+
+    setStockData({
+
+      type:
+        "Add Stock",
+
+      quantity:
+        "",
 
       reason:
-        stockData.reason ||
-        "Manual stock update",
+        "",
 
-      date:
-        new Date().toLocaleDateString(
-          "en-IN"
-        ),
-    }
+    })
 
-    setTransactions([
-      newTransaction,
-      ...transactions,
-    ])
 
-    alert(
-      `${selectedItem.name} stock updated successfully.`
-    )
+    setSelectedItem(null)
 
-    resetStock()
+    setShowStock(false)
+
   }
 
-  // =========================
+
+  // =====================================
+  // UPDATE STOCK
+  // =====================================
+
+  const handleStockUpdate =
+    (e) => {
+
+      e.preventDefault()
+
+
+      if (!selectedItem) {
+        return
+      }
+
+
+      const quantity =
+        Number(
+          stockData.quantity
+        )
+
+
+      if (quantity <= 0) {
+
+        alert(
+          "Quantity must be greater than 0."
+        )
+
+        return
+
+      }
+
+
+      let newQuantity
+
+
+      if (
+        stockData.type ===
+        "Add Stock"
+      ) {
+
+        newQuantity =
+          Number(
+            selectedItem.quantity
+          ) +
+          quantity
+
+      } else {
+
+        if (
+          quantity >
+          Number(
+            selectedItem.quantity
+          )
+        ) {
+
+          alert(
+            `Only ${selectedItem.quantity} ${selectedItem.unit} available.`
+          )
+
+          return
+
+        }
+
+
+        newQuantity =
+          Number(
+            selectedItem.quantity
+          ) -
+          quantity
+
+      }
+
+
+      setItems((prev) =>
+
+        prev.map(
+          (item) =>
+
+            item.id ===
+              selectedItem.id &&
+              item.hospitalId ===
+              selectedHospital.id
+
+              ? {
+
+                ...item,
+
+                quantity:
+                  newQuantity,
+
+                status:
+                  getStatus(
+                    newQuantity,
+                    item.minStock
+                  ),
+
+              }
+
+              : item
+        )
+
+      )
+
+
+      // =====================================
+      // TRANSACTION
+      // =====================================
+
+      const newTransaction = {
+
+        id:
+          `TRX-${selectedHospital.id}-${Date.now()}`,
+
+        itemId:
+          selectedItem.id,
+
+        itemName:
+          selectedItem.name,
+
+        type:
+          stockData.type,
+
+        quantity,
+
+        reason:
+          stockData.reason ||
+          "Manual stock update",
+
+        date:
+          new Date()
+            .toLocaleDateString(
+              "en-IN"
+            ),
+
+        hospitalId:
+          selectedHospital.id,
+
+      }
+
+
+      setTransactions((prev) => [
+
+        newTransaction,
+
+        ...prev,
+
+      ])
+
+
+      alert(
+        `${selectedItem.name} stock updated successfully.`
+      )
+
+
+      resetStock()
+
+    }
+
+
+  // =====================================
   // STATUS STYLE
-  // =========================
+  // =====================================
 
-  const getStatusClass = (status) => {
-    if (status === "In Stock") {
-      return "bg-green-100 text-green-700"
+  const getStatusClass =
+    (status) => {
+
+      if (
+        status ===
+        "In Stock"
+      ) {
+
+        return "bg-green-100 text-green-700"
+
+      }
+
+
+      if (
+        status ===
+        "Low Stock"
+      ) {
+
+        return "bg-orange-100 text-orange-700"
+
+      }
+
+
+      return "bg-red-100 text-red-700"
+
     }
 
-    if (status === "Low Stock") {
-      return "bg-orange-100 text-orange-700"
-    }
-
-    return "bg-red-100 text-red-700"
-  }
 
   return (
+
     <div>
 
-      {/* =========================
+
+      {/* =====================================
           HEADER
-      ========================= */}
+      ===================================== */}
 
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
 
         <div>
 
-          <h1 className="text-3xl font-bold text-gray-800">
+          <p className="text-blue-600 font-semibold text-sm">
+            INVENTORY MANAGEMENT
+          </p>
+
+          <h1 className="text-3xl font-bold text-gray-800 mt-1">
             Inventory
           </h1>
 
           <p className="text-gray-500 mt-1">
-            Manage hospital supplies, equipment and stock
+            Manage supplies and stock for{" "}
+            <span className="font-semibold text-gray-700">
+              {selectedHospital.name}
+            </span>
           </p>
 
         </div>
+
 
         <div className="flex flex-wrap gap-3">
 
@@ -478,11 +966,14 @@ function Inventory() {
             📋 Stock History
           </button>
 
+
           <button
             onClick={() => {
+
               setSelectedItem(null)
 
               setFormData({
+
                 name: "",
                 category: "",
                 unit: "",
@@ -490,9 +981,11 @@ function Inventory() {
                 minStock: "",
                 supplier: "",
                 expiry: "",
+
               })
 
               setShowForm(true)
+
             }}
             className="px-5 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
           >
@@ -503,11 +996,46 @@ function Inventory() {
 
       </div>
 
-      {/* =========================
+
+      {/* =====================================
+          CURRENT HOSPITAL
+      ===================================== */}
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+
+        <div className="flex items-center gap-4">
+
+          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
+            🏥
+          </div>
+
+          <div>
+
+            <p className="text-xs text-gray-500">
+              Current Hospital
+            </p>
+
+            <h2 className="font-bold text-gray-800">
+              {selectedHospital.name}
+            </h2>
+
+            <p className="text-sm text-gray-500">
+              📍 {selectedHospital.address}
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      {/* =====================================
           STATISTICS
-      ========================= */}
+      ===================================== */}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
+
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
@@ -521,6 +1049,7 @@ function Inventory() {
 
         </div>
 
+
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
           <p className="text-sm text-gray-500">
@@ -533,6 +1062,7 @@ function Inventory() {
 
         </div>
 
+
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
           <p className="text-sm text-gray-500">
@@ -544,6 +1074,7 @@ function Inventory() {
           </h2>
 
         </div>
+
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
@@ -559,26 +1090,33 @@ function Inventory() {
 
       </div>
 
-      {/* =========================
+
+      {/* =====================================
           SEARCH & FILTER
-      ========================= */}
+      ===================================== */}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
+
           <input
             type="text"
             value={search}
             onChange={(e) =>
-              setSearch(e.target.value)
+              setSearch(
+                e.target.value
+              )
             }
             placeholder="Search item, ID or supplier..."
             className="border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
           />
 
+
           <select
-            value={categoryFilter}
+            value={
+              categoryFilter
+            }
             onChange={(e) =>
               setCategoryFilter(
                 e.target.value
@@ -609,8 +1147,11 @@ function Inventory() {
 
           </select>
 
+
           <select
-            value={stockFilter}
+            value={
+              stockFilter
+            }
             onChange={(e) =>
               setStockFilter(
                 e.target.value
@@ -641,16 +1182,17 @@ function Inventory() {
 
       </div>
 
-      {/* =========================
-          INVENTORY TABLE
-      ========================= */}
+
+      {/* =====================================
+          TABLE
+      ===================================== */}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
 
         <div className="p-6 border-b">
 
           <h2 className="text-xl font-bold text-gray-800">
-            Inventory Items
+            {selectedHospital.name} Inventory
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
@@ -658,6 +1200,7 @@ function Inventory() {
           </p>
 
         </div>
+
 
         <div className="overflow-x-auto">
 
@@ -707,6 +1250,7 @@ function Inventory() {
 
             </thead>
 
+
             <tbody>
 
               {filteredItems.length === 0 ? (
@@ -717,7 +1261,20 @@ function Inventory() {
                     colSpan="9"
                     className="text-center py-12 text-gray-500"
                   >
-                    No inventory items found
+
+                    <div className="text-4xl mb-3">
+                      📦
+                    </div>
+
+                    <p className="font-semibold">
+                      No inventory items found
+                    </p>
+
+                    <p className="text-sm mt-1">
+                      No matching items in{" "}
+                      {selectedHospital.name}.
+                    </p>
+
                   </td>
 
                 </tr>
@@ -736,6 +1293,7 @@ function Inventory() {
                         {item.id}
                       </td>
 
+
                       <td className="px-6 py-4">
 
                         <p className="font-semibold text-gray-800">
@@ -743,18 +1301,22 @@ function Inventory() {
                         </p>
 
                         <p className="text-xs text-gray-500">
-                          Expiry: {item.expiry}
+                          Expiry:{" "}
+                          {item.expiry}
                         </p>
 
                       </td>
+
 
                       <td className="px-6 py-4 text-gray-600">
                         {item.category}
                       </td>
 
+
                       <td className="px-6 py-4 text-gray-600">
                         {item.unit}
                       </td>
+
 
                       <td className="px-6 py-4">
 
@@ -771,13 +1333,16 @@ function Inventory() {
 
                       </td>
 
+
                       <td className="px-6 py-4 text-gray-600">
                         {item.minStock}
                       </td>
 
+
                       <td className="px-6 py-4 text-gray-600">
                         {item.supplier}
                       </td>
+
 
                       <td className="px-6 py-4">
 
@@ -791,36 +1356,46 @@ function Inventory() {
 
                       </td>
 
+
                       <td className="px-6 py-4">
 
                         <div className="flex gap-2 flex-wrap">
 
                           <button
                             onClick={() =>
-                              handleView(item)
+                              handleView(
+                                item
+                              )
                             }
                             className="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg"
                           >
                             View
                           </button>
 
+
                           <button
                             onClick={() =>
-                              handleEdit(item)
+                              handleEdit(
+                                item
+                              )
                             }
                             className="px-3 py-2 text-sm bg-green-50 text-green-700 rounded-lg"
                           >
                             Edit
                           </button>
 
+
                           <button
                             onClick={() =>
-                              openStockModal(item)
+                              openStockModal(
+                                item
+                              )
                             }
                             className="px-3 py-2 text-sm bg-purple-50 text-purple-700 rounded-lg"
                           >
                             Stock
                           </button>
+
 
                           <button
                             onClick={() =>
@@ -852,9 +1427,10 @@ function Inventory() {
 
       </div>
 
-      {/* =========================
+
+      {/* =====================================
           ADD / EDIT MODAL
-      ========================= */}
+      ===================================== */}
 
       {showForm && (
 
@@ -872,20 +1448,24 @@ function Inventory() {
                     : "Add Inventory Item"}
                 </h2>
 
-                <p className="text-sm text-gray-500 mt-1">
-                  Enter inventory details
+                <p className="text-sm text-blue-600 mt-1">
+                  {selectedHospital.name}
                 </p>
 
               </div>
 
+
               <button
-                onClick={resetForm}
+                onClick={
+                  resetForm
+                }
                 className="text-2xl text-gray-500"
               >
                 ×
               </button>
 
             </div>
+
 
             <form
               onSubmit={
@@ -899,17 +1479,26 @@ function Inventory() {
               <input
                 type="text"
                 name="name"
-                value={formData.name}
-                onChange={handleChange}
+                value={
+                  formData.name
+                }
+                onChange={
+                  handleChange
+                }
                 required
                 placeholder="Item Name"
                 className="w-full border border-gray-300 rounded-xl px-4 py-3"
               />
 
+
               <select
                 name="category"
-                value={formData.category}
-                onChange={handleChange}
+                value={
+                  formData.category
+                }
+                onChange={
+                  handleChange
+                }
                 required
                 className="w-full border border-gray-300 rounded-xl px-4 py-3"
               >
@@ -936,10 +1525,15 @@ function Inventory() {
 
               </select>
 
+
               <select
                 name="unit"
-                value={formData.unit}
-                onChange={handleChange}
+                value={
+                  formData.unit
+                }
+                onChange={
+                  handleChange
+                }
                 required
                 className="w-full border border-gray-300 rounded-xl px-4 py-3"
               >
@@ -966,37 +1560,53 @@ function Inventory() {
 
               </select>
 
+
               <input
                 type="number"
                 name="quantity"
                 min="0"
-                value={formData.quantity}
-                onChange={handleChange}
+                value={
+                  formData.quantity
+                }
+                onChange={
+                  handleChange
+                }
                 required
                 placeholder="Current Quantity"
                 className="w-full border border-gray-300 rounded-xl px-4 py-3"
               />
 
+
               <input
                 type="number"
                 name="minStock"
                 min="0"
-                value={formData.minStock}
-                onChange={handleChange}
+                value={
+                  formData.minStock
+                }
+                onChange={
+                  handleChange
+                }
                 required
                 placeholder="Minimum Stock Level"
                 className="w-full border border-gray-300 rounded-xl px-4 py-3"
               />
 
+
               <input
                 type="text"
                 name="supplier"
-                value={formData.supplier}
-                onChange={handleChange}
+                value={
+                  formData.supplier
+                }
+                onChange={
+                  handleChange
+                }
                 required
                 placeholder="Supplier Name"
                 className="w-full border border-gray-300 rounded-xl px-4 py-3"
               />
+
 
               <input
                 type="month"
@@ -1008,39 +1618,57 @@ function Inventory() {
                       .join("-")
                     : ""
                 }
-                onChange={(e) => {
+                onChange={
+                  (e) => {
 
-                  if (!e.target.value) {
+                    if (
+                      !e.target
+                        .value
+                    ) {
+
+                      setFormData({
+                        ...formData,
+                        expiry: "",
+                      })
+
+                      return
+
+                    }
+
+
+                    const [
+                      year,
+                      month,
+                    ] =
+                      e.target.value
+                        .split("-")
+
+
                     setFormData({
                       ...formData,
-                      expiry: "",
+                      expiry:
+                        `${month}/${year}`,
                     })
 
-                    return
                   }
-
-                  const [year, month] =
-                    e.target.value.split("-")
-
-                  setFormData({
-                    ...formData,
-                    expiry: `${month}/${year}`,
-                  })
-
-                }}
+                }
                 required
                 className="w-full border border-gray-300 rounded-xl px-4 py-3"
               />
+
 
               <div className="flex justify-end gap-3 pt-4">
 
                 <button
                   type="button"
-                  onClick={resetForm}
+                  onClick={
+                    resetForm
+                  }
                   className="px-5 py-3 border border-gray-300 rounded-xl"
                 >
                   Cancel
                 </button>
+
 
                 <button
                   type="submit"
@@ -1061,9 +1689,10 @@ function Inventory() {
 
       )}
 
-      {/* =========================
+
+      {/* =====================================
           STOCK MODAL
-      ========================= */}
+      ===================================== */}
 
       {showStock &&
         selectedItem && (
@@ -1076,18 +1705,25 @@ function Inventory() {
 
                 <div>
 
-                  <h2 className="text-xl font-bold text-gray-800">
+                  <h2 className="text-xl font-bold">
                     Update Stock
                   </h2>
 
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-blue-600 mt-1">
+                    {selectedHospital.name}
+                  </p>
+
+                  <p className="text-sm text-gray-500">
                     {selectedItem.name}
                   </p>
 
                 </div>
 
+
                 <button
-                  onClick={resetStock}
+                  onClick={
+                    resetStock
+                  }
                   className="text-2xl text-gray-500"
                 >
                   ×
@@ -1095,8 +1731,11 @@ function Inventory() {
 
               </div>
 
+
               <form
-                onSubmit={handleStockUpdate}
+                onSubmit={
+                  handleStockUpdate
+                }
                 className="p-6 space-y-5"
               >
 
@@ -1109,90 +1748,78 @@ function Inventory() {
                     </span>
 
                     <span className="font-bold">
-                      {selectedItem.quantity}{" "}
-                      {selectedItem.unit}
+                      {
+                        selectedItem.quantity
+                      }{" "}
+                      {
+                        selectedItem.unit
+                      }
                     </span>
 
                   </div>
 
                 </div>
 
-                <div>
 
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Operation
-                  </label>
+                <select
+                  name="type"
+                  value={
+                    stockData.type
+                  }
+                  onChange={
+                    handleStockChange
+                  }
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                >
 
-                  <select
-                    name="type"
-                    value={stockData.type}
-                    onChange={
-                      handleStockChange
-                    }
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
-                  >
+                  <option>
+                    Add Stock
+                  </option>
 
-                    <option>
-                      Add Stock
-                    </option>
+                  <option>
+                    Remove Stock
+                  </option>
 
-                    <option>
-                      Remove Stock
-                    </option>
+                </select>
 
-                  </select>
 
-                </div>
+                <input
+                  type="number"
+                  name="quantity"
+                  min="1"
+                  value={
+                    stockData.quantity
+                  }
+                  onChange={
+                    handleStockChange
+                  }
+                  required
+                  placeholder="Enter quantity"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                />
 
-                <div>
 
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantity
-                  </label>
+                <input
+                  type="text"
+                  name="reason"
+                  value={
+                    stockData.reason
+                  }
+                  onChange={
+                    handleStockChange
+                  }
+                  placeholder="Purchase, damaged, adjustment..."
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                />
 
-                  <input
-                    type="number"
-                    name="quantity"
-                    min="1"
-                    value={
-                      stockData.quantity
-                    }
-                    onChange={
-                      handleStockChange
-                    }
-                    required
-                    placeholder="Enter quantity"
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
-                  />
-
-                </div>
-
-                <div>
-
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reason
-                  </label>
-
-                  <input
-                    type="text"
-                    name="reason"
-                    value={
-                      stockData.reason
-                    }
-                    onChange={
-                      handleStockChange
-                    }
-                    placeholder="Purchase, damaged, adjustment..."
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
-                  />
-
-                </div>
 
                 <div className="flex justify-end gap-3">
 
                   <button
                     type="button"
-                    onClick={resetStock}
+                    onClick={
+                      resetStock
+                    }
                     className="px-5 py-3 border border-gray-300 rounded-xl"
                   >
                     Cancel
@@ -1215,9 +1842,10 @@ function Inventory() {
 
         )}
 
-      {/* =========================
+
+      {/* =====================================
           VIEW MODAL
-      ========================= */}
+      ===================================== */}
 
       {showView &&
         selectedItem && (
@@ -1235,10 +1863,11 @@ function Inventory() {
                   </h2>
 
                   <p className="text-sm text-blue-600">
-                    {selectedItem.id}
+                    {selectedHospital.name}
                   </p>
 
                 </div>
+
 
                 <button
                   onClick={() =>
@@ -1250,6 +1879,7 @@ function Inventory() {
                 </button>
 
               </div>
+
 
               <div className="p-6 space-y-5">
 
@@ -1265,6 +1895,7 @@ function Inventory() {
 
                 </div>
 
+
                 <div className="grid grid-cols-2 gap-4">
 
                   <div className="bg-gray-50 rounded-xl p-4">
@@ -1279,6 +1910,7 @@ function Inventory() {
 
                   </div>
 
+
                   <div className="bg-gray-50 rounded-xl p-4">
 
                     <p className="text-xs text-gray-500">
@@ -1291,6 +1923,7 @@ function Inventory() {
 
                   </div>
 
+
                   <div className="bg-gray-50 rounded-xl p-4">
 
                     <p className="text-xs text-gray-500">
@@ -1302,6 +1935,7 @@ function Inventory() {
                     </p>
 
                   </div>
+
 
                   <div className="bg-gray-50 rounded-xl p-4">
 
@@ -1317,6 +1951,7 @@ function Inventory() {
 
                 </div>
 
+
                 <div>
 
                   <p className="text-sm text-gray-500">
@@ -1328,6 +1963,7 @@ function Inventory() {
                   </p>
 
                 </div>
+
 
                 <div>
 
@@ -1346,6 +1982,7 @@ function Inventory() {
                 </div>
 
               </div>
+
 
               <div className="p-6 border-t flex justify-end">
 
@@ -1366,9 +2003,10 @@ function Inventory() {
 
         )}
 
-      {/* =========================
-          STOCK HISTORY MODAL
-      ========================= */}
+
+      {/* =====================================
+          HISTORY MODAL
+      ===================================== */}
 
       {showHistory && (
 
@@ -1384,11 +2022,12 @@ function Inventory() {
                   Stock History
                 </h2>
 
-                <p className="text-sm text-gray-500 mt-1">
-                  Inventory stock transactions
+                <p className="text-sm text-blue-600 mt-1">
+                  {selectedHospital.name}
                 </p>
 
               </div>
+
 
               <button
                 onClick={() =>
@@ -1401,10 +2040,24 @@ function Inventory() {
 
             </div>
 
-            {transactions.length === 0 ? (
+
+            {hospitalTransactions.length === 0 ? (
 
               <div className="p-12 text-center text-gray-500">
-                No stock transactions yet.
+
+                <div className="text-4xl mb-3">
+                  📋
+                </div>
+
+                <p className="font-semibold">
+                  No stock transactions
+                </p>
+
+                <p className="text-sm mt-1">
+                  No stock history available for{" "}
+                  {selectedHospital.name}.
+                </p>
+
               </div>
 
             ) : (
@@ -1445,9 +2098,10 @@ function Inventory() {
 
                   </thead>
 
+
                   <tbody>
 
-                    {transactions.map(
+                    {hospitalTransactions.map(
                       (transaction) => (
 
                         <tr
@@ -1505,6 +2159,7 @@ function Inventory() {
 
             )}
 
+
             <div className="p-6 border-t flex justify-end">
 
               <button
@@ -1527,5 +2182,6 @@ function Inventory() {
     </div>
   )
 }
+
 
 export default Inventory

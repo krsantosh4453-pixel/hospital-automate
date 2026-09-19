@@ -1,8 +1,12 @@
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useState } from "react"
 
 const PatientContext = createContext()
 
 export function PatientProvider({ children }) {
+
+  // =====================================================
+  // SELECTED HOSPITAL
+  // =====================================================
 
   const [selectedHospital, setSelectedHospital] = useState(() => {
     const savedHospital =
@@ -13,6 +17,11 @@ export function PatientProvider({ children }) {
       : null
   })
 
+
+  // =====================================================
+  // CURRENT LOGGED-IN / SELECTED PATIENT
+  // =====================================================
+
   const [patient, setPatient] = useState(() => {
     const savedPatient =
       localStorage.getItem("patientData")
@@ -22,7 +31,79 @@ export function PatientProvider({ children }) {
       : null
   })
 
+
+  // =====================================================
+  // PATIENT LIST
+  // =====================================================
+
+  const [patients, setPatients] = useState(() => {
+
+    const savedPatients =
+      localStorage.getItem("hospitalPatients")
+
+    return savedPatients
+      ? JSON.parse(savedPatients)
+      : [
+        {
+          id: 1,
+          name: "Rahul Kumar",
+          age: 32,
+          gender: "Male",
+          phone: "9876543210",
+          village: "Rajaur",
+          hospitalId: 1,
+          condition: "General Checkup",
+        },
+        {
+          id: 2,
+          name: "Priya Singh",
+          age: 28,
+          gender: "Female",
+          phone: "9876543211",
+          village: "Begusarai",
+          hospitalId: 1,
+          condition: "Fever",
+        },
+        {
+          id: 3,
+          name: "Amit Kumar",
+          age: 45,
+          gender: "Male",
+          phone: "9876543212",
+          village: "Barauni",
+          hospitalId: 2,
+          condition: "Diabetes",
+        },
+        {
+          id: 4,
+          name: "Neha Kumari",
+          age: 36,
+          gender: "Female",
+          phone: "9876543213",
+          village: "Begusarai",
+          hospitalId: 2,
+          condition: "Follow-up",
+        },
+        {
+          id: 5,
+          name: "Ravi Sharma",
+          age: 51,
+          gender: "Male",
+          phone: "9876543214",
+          village: "Rajaur",
+          hospitalId: 3,
+          condition: "Blood Pressure",
+        },
+      ]
+  })
+
+
+  // =====================================================
+  // CURRENT APPOINTMENT
+  // =====================================================
+
   const [appointment, setAppointment] = useState(() => {
+
     const savedAppointment =
       localStorage.getItem("patientAppointment")
 
@@ -31,12 +112,37 @@ export function PatientProvider({ children }) {
       : null
   })
 
+
+  // =====================================================
+  // CURRENT TOKEN
+  // =====================================================
+
   const [token, setToken] = useState(() => {
+
     return localStorage.getItem("patientToken") || null
+
   })
 
 
-  // Hospital select/change
+  // =====================================================
+  // SAVE PATIENT LIST
+  // =====================================================
+
+  const savePatients = (updatedPatients) => {
+
+    setPatients(updatedPatients)
+
+    localStorage.setItem(
+      "hospitalPatients",
+      JSON.stringify(updatedPatients)
+    )
+  }
+
+
+  // =====================================================
+  // HOSPITAL SELECT
+  // =====================================================
+
   const selectHospital = (hospital) => {
 
     setSelectedHospital(hospital)
@@ -47,7 +153,7 @@ export function PatientProvider({ children }) {
     )
 
     // Hospital change hone par
-    // hospital-specific patient data reset
+    // current appointment/token reset
     setAppointment(null)
     setToken(null)
 
@@ -61,7 +167,10 @@ export function PatientProvider({ children }) {
   }
 
 
-  // Patient save
+  // =====================================================
+  // SAVE CURRENT PATIENT
+  // =====================================================
+
   const savePatient = (patientData) => {
 
     setPatient(patientData)
@@ -73,7 +182,110 @@ export function PatientProvider({ children }) {
   }
 
 
-  // Appointment save
+  // =====================================================
+  // ADD PATIENT
+  // =====================================================
+
+  const addPatient = (patientData) => {
+
+    const newPatient = {
+
+      ...patientData,
+
+      id:
+        patientData.id ||
+        `PAT-${Date.now()}`,
+
+      hospitalId:
+        patientData.hospitalId ||
+        selectedHospital?.id,
+
+      createdAt:
+        patientData.createdAt ||
+        new Date().toLocaleString("en-IN"),
+
+    }
+
+    savePatients([
+      newPatient,
+      ...patients,
+    ])
+
+    return newPatient
+  }
+
+
+  // =====================================================
+  // UPDATE PATIENT
+  // =====================================================
+
+  const updatePatient = (id, data) => {
+
+    const updatedPatients =
+      patients.map((existingPatient) =>
+        String(existingPatient.id) === String(id)
+          ? {
+            ...existingPatient,
+            ...data,
+          }
+          : existingPatient
+      )
+
+    savePatients(updatedPatients)
+  }
+
+
+  // =====================================================
+  // DELETE PATIENT
+  // =====================================================
+
+  const deletePatient = (id) => {
+
+    const updatedPatients =
+      patients.filter(
+        (existingPatient) =>
+          String(existingPatient.id) !== String(id)
+      )
+
+    savePatients(updatedPatients)
+  }
+
+
+  // =====================================================
+  // GET PATIENTS OF SELECTED HOSPITAL
+  // =====================================================
+
+  const getHospitalPatients = (hospitalId) => {
+
+    if (!hospitalId) {
+      return []
+    }
+
+    return patients.filter(
+      (existingPatient) =>
+        String(existingPatient.hospitalId) ===
+        String(hospitalId)
+    )
+  }
+
+
+  // =====================================================
+  // FIND PATIENT
+  // =====================================================
+
+  const findPatient = (id) => {
+
+    return patients.find(
+      (existingPatient) =>
+        String(existingPatient.id) === String(id)
+    )
+  }
+
+
+  // =====================================================
+  // SAVE APPOINTMENT
+  // =====================================================
+
   const saveAppointment = (appointmentData) => {
 
     setAppointment(appointmentData)
@@ -85,7 +297,10 @@ export function PatientProvider({ children }) {
   }
 
 
-  // Token save
+  // =====================================================
+  // SAVE TOKEN
+  // =====================================================
+
   const saveToken = (tokenNumber) => {
 
     setToken(tokenNumber)
@@ -97,7 +312,10 @@ export function PatientProvider({ children }) {
   }
 
 
-  // Clear patient data
+  // =====================================================
+  // CLEAR PATIENT DATA
+  // =====================================================
+
   const clearPatientData = () => {
 
     setPatient(null)
@@ -112,9 +330,16 @@ export function PatientProvider({ children }) {
   }
 
 
+  // =====================================================
+  // PROVIDER
+  // =====================================================
+
   return (
+
     <PatientContext.Provider
       value={{
+
+        // Existing
         patient,
         selectedHospital,
         appointment,
@@ -125,14 +350,32 @@ export function PatientProvider({ children }) {
         saveAppointment,
         saveToken,
         clearPatientData,
+
+        // New
+        patients,
+        addPatient,
+        updatePatient,
+        deletePatient,
+        getHospitalPatients,
+        findPatient,
+
       }}
     >
+
       {children}
+
     </PatientContext.Provider>
+
   )
 }
 
 
+// =====================================================
+// HOOK
+// =====================================================
+
 export function usePatient() {
+
   return useContext(PatientContext)
+
 }

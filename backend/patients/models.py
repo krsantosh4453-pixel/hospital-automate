@@ -6,7 +6,18 @@ class Patient(models.Model):
     age = models.PositiveIntegerField()
     gender = models.CharField(max_length=20)
     phone = models.CharField(max_length=15)
-    doctor = models.CharField(max_length=100)
+    doctor = models.CharField(max_length=100, blank=True)
+    # Free-text condition/reason shown in the Patients UI
+    condition = models.CharField(max_length=150, blank=True)
+    # Direct hospital link used by the Patients UI.
+    # PatientHospital (membership) is kept for backward compatibility.
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="direct_patients"
+    )
     status = models.CharField(
         max_length=20,
         default="Active"
@@ -17,4 +28,41 @@ class Patient(models.Model):
         return self.name
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
+
+
+class PatientHospital(models.Model):
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name="hospital_memberships"
+    )
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.CASCADE,
+        related_name="patients"
+    )
+    uhid = models.CharField(max_length=50)
+    is_active = models.BooleanField(default=True)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("patient", "hospital")
+
+    def __str__(self):
+        return f"{self.patient.name} - {self.hospital.name}"
+
+
+class PatientDocument(models.Model):
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name="documents"
+    )
+    title = models.CharField(max_length=150)
+    folder = models.CharField(max_length=100, blank=True)
+    file = models.FileField(upload_to="patient_documents/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
