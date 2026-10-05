@@ -54,17 +54,10 @@ function Sidebar() {
         {/* Navigation */}
         <nav className="p-3 space-y-1">
 
-          {/* Home */}
+          {/* Home (main landing; staff Dashboard page removed) */}
           <NavLink to="/" className={menuClass}>
             🏠 Home
           </NavLink>
-
-          {/* Dashboard */}
-          {canView("Dashboard") && (
-            <NavLink to="/dashboard" className={menuClass}>
-              📊 Dashboard
-            </NavLink>
-          )}
 
           {/* Patients */}
           {canView("Patients") && (
@@ -161,6 +154,30 @@ function Sidebar() {
           {canView("Reports") && (
             <NavLink to="/reports" className={menuClass}>
               📊 Reports
+            </NavLink>
+          )}
+
+          {canView("Emergency") && (
+            <NavLink to="/emergency" className={menuClass}>
+              🚑 Emergency
+            </NavLink>
+          )}
+
+          {canView("BloodBank") && (
+            <NavLink to="/blood-bank" className={menuClass}>
+              🩸 Blood Bank
+            </NavLink>
+          )}
+
+          {canView("IPD") && (
+            <NavLink to="/ipd" className={menuClass}>
+              🏥 IPD / Ward / Beds
+            </NavLink>
+          )}
+
+          {canView("AIScribe") && (
+            <NavLink to="/ai-scribe" className={menuClass}>
+              🤖 AI Scribe
             </NavLink>
           )}
 

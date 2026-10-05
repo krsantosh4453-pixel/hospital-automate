@@ -228,7 +228,7 @@ function Home() {
             <div className="flex flex-wrap gap-4 mt-8">
 
               <Link
-                to="/appointment"
+                to="/appointments"
                 className="bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold hover:bg-blue-50 transition"
               >
                 📅 Book Appointment
@@ -280,7 +280,7 @@ function Home() {
 
 
           <Link
-            to="/appointment"
+            to="/appointments"
             className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition"
           >
 
@@ -711,22 +711,6 @@ function Home() {
 
 
       {/* =====================================
-          DASHBOARD BUTTON
-      ===================================== */}
-
-      <div>
-
-        <Link
-          to="/dashboard"
-          className="inline-block bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700"
-        >
-          Open Dashboard →
-        </Link>
-
-      </div>
-
-
-      {/* =====================================
           HOSPITAL STATISTICS
       ===================================== */}
 
@@ -803,7 +787,7 @@ function Home() {
 
 
           <Link
-            to="/appointment"
+            to="/appointments"
             className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition"
           >
 
@@ -1295,7 +1279,7 @@ function Home() {
 
 
           <Link
-            to="/appointment"
+            to="/appointments"
             className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:bg-blue-50 hover:border-blue-200 transition"
           >
 
