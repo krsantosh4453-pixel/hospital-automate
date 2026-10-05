@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useHospitals } from "../assets/context/HospitalsContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
+import { useAuth } from "../assets/context/AuthContext.jsx"
 
 function Navbar() {
+  const navigate = useNavigate()
   const {
     selectedHospital,
     selectHospital,
@@ -11,6 +14,7 @@ function Navbar() {
 
   const { hospitals: contextHospitals } = useHospitals()
   const { activeRoleName, switchRole, roles } = useRole()
+  const { isStaff, user, logout, isLoggedIn, patient } = useAuth()
 
   const [isHospitalOpen, setIsHospitalOpen] = useState(false)
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false)
@@ -486,19 +490,88 @@ function Navbar() {
             )}
           </div>
 
+          {/* Role Switcher */}
+          <div className="relative" ref={roleRef}>
+            <button
+              type="button"
+              onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-blue-50 transition cursor-pointer"
+              title="Switch role"
+            >
+              <span className="text-sm">👤</span>
+              <div className="hidden sm:block text-left">
+                <p className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">
+                  Role
+                </p>
+                <p className="text-xs font-semibold text-gray-800 max-w-[90px] truncate">
+                  {activeRoleName || "Admin"}
+                </p>
+              </div>
+            </button>
+            {isRoleMenuOpen && (
+              <div className="absolute right-0 top-12 mt-1 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 py-1">
+                {(roles || [])
+                  .filter((role) => {
+                    if (isStaff) {
+                      const backendRoles = user?.user?.roles || user?.roles || []
+                      if (!backendRoles.length) return role.name === activeRoleName
+                      return backendRoles.some(
+                        (item) =>
+                          String(item).toLowerCase() === role.name.toLowerCase() ||
+                          (item === "Reception" && role.name === "Receptionist")
+                      )
+                    }
+                    if (isLoggedIn && patient && !isStaff) {
+                      return role.name === "Patient"
+                    }
+                    return false
+                  })
+                  .map((role) => (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => {
+                      switchRole(role.name)
+                      setIsRoleMenuOpen(false)
+                    }}
+                    className={`w-full text-left px-4 py-2 text-xs hover:bg-blue-50 ${
+                      role.name === activeRoleName
+                        ? "text-blue-600 font-semibold"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {role.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* User Profile */}
           <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-gray-200">
             <div className="w-8 h-8 bg-blue-100 text-blue-700 font-bold rounded-full flex items-center justify-center text-xs shadow-sm">
-              A
+              {(user?.username || activeRoleName || "A").charAt(0).toUpperCase()}
             </div>
             <div className="hidden sm:block text-left">
               <span className="text-xs font-semibold text-gray-800 block leading-tight">
-                Admin
+                {user?.username || activeRoleName || "Admin"}
               </span>
               <span className="text-[10px] text-gray-500 block leading-tight">
-                Super Admin
+                {activeRoleName || "Guest"}
               </span>
             </div>
+            {isStaff && (
+              <button
+                type="button"
+                onClick={() => {
+                  logout()
+                  navigate("/")
+                }}
+                className="hidden md:inline text-[10px] text-gray-500 hover:text-red-600"
+              >
+                Logout
+              </button>
+            )}
           </div>
 
         </div>

@@ -130,6 +130,18 @@ class QueueTokenSerializer(serializers.ModelSerializer):
     # the token is still waiting; otherwise it reports 0.
     waiting_minutes = serializers.SerializerMethodField()
 
+    # Queue estimation fields
+    queue_position = serializers.IntegerField(read_only=True)
+    estimated_start_time = serializers.DateTimeField(read_only=True)
+    last_updated = serializers.DateTimeField(read_only=True)
+
+    # Timestamp fields
+    called_at = serializers.DateTimeField(read_only=True)
+    acknowledged_at = serializers.DateTimeField(read_only=True)
+    ready_at = serializers.DateTimeField(read_only=True)
+    consultation_started_at = serializers.DateTimeField(read_only=True)
+    completed_at = serializers.DateTimeField(read_only=True)
+
     # The token number is normally assigned server-side (see create()),
     # so the client is not required to send one.
     token_number = serializers.IntegerField(required=False)
@@ -147,7 +159,7 @@ class QueueTokenSerializer(serializers.ModelSerializer):
         validators = []
 
     def get_waiting_minutes(self, obj):
-        if obj.status and obj.status.lower() != "waiting":
+        if obj.status and obj.status != QueueToken.Status.WAITING:
             return 0
 
         if not obj.created_at:

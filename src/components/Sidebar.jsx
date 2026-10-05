@@ -91,11 +91,8 @@ function Sidebar() {
             </NavLink>
           )}
 
-          {/* Prescription
-              Prescription creation/management follows the same clinical
-              workflow as Consultation, so it reuses the existing Doctors
-              permission gate instead of adding a new module/permission. */}
-          {canView("Doctors") && (
+          {/* Prescription */}
+          {canView("Prescriptions") && (
             <NavLink to="/prescription" className={menuClass}>
               💊 Prescription
             </NavLink>
@@ -108,10 +105,10 @@ function Sidebar() {
             </NavLink>
           )}
 
-          {/* Nurses */}
+          {/* Nurses / Vitals */}
           {canView("Nurses") && (
             <NavLink to="/nurses" className={menuClass}>
-              👩‍⚕️ Nurses
+              👩‍⚕️ Nurses / Vitals
             </NavLink>
           )}
 

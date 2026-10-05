@@ -8,14 +8,19 @@ from hospital.models import Hospital
 
 from .models import Medicine, Sale
 from .serializers import MedicineSerializer, SaleSerializer
+from users.viewsets import HospitalScopedViewSet
+from users.permissions import IsAdmin, IsHospitalManager, IsPharmacist
 
 
-class MedicineViewSet(viewsets.ModelViewSet):
+class MedicineViewSet(HospitalScopedViewSet):
     queryset = Medicine.objects.all()
     serializer_class = MedicineSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist]
 
     def get_queryset(self):
-        queryset = Medicine.objects.select_related("hospital")
+        queryset = super().get_queryset()
+
+        queryset = queryset.select_related("hospital")
 
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
@@ -35,7 +40,7 @@ class MedicineViewSet(viewsets.ModelViewSet):
         return context
 
 
-class SaleViewSet(viewsets.ModelViewSet):
+class SaleViewSet(HospitalScopedViewSet):
     """Pharmacy sales.
 
     Sales are append-only: only list/create/retrieve are exposed
@@ -44,10 +49,13 @@ class SaleViewSet(viewsets.ModelViewSet):
 
     queryset = Sale.objects.all()
     serializer_class = SaleSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist]
     http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
-        queryset = Sale.objects.select_related(
+        queryset = super().get_queryset()
+
+        queryset = queryset.select_related(
             "medicine",
             "hospital",
             "prescription",

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import api from "../services/api.js"
 
 function Compounder() {
   const { selectedHospital } = usePatient()
@@ -130,6 +131,35 @@ function Compounder() {
         status: "Off Duty",
       },
     ])
+
+  useEffect(() => {
+    if (!selectedHospital?.id) return
+    let cancelled = false
+    api.compounder
+      .list(selectedHospital.id)
+      .then((data) => {
+        const results = Array.isArray(data) ? data : data?.results || []
+        if (cancelled || results.length === 0) return
+        setCompounders(
+          results.map((item) => ({
+            id: item.id,
+            hospitalId: item.hospital || selectedHospital.id,
+            name: item.name,
+            department: item.department || item.qualification || "Pharmacy",
+            shift: item.shift || "Morning",
+            phone: item.phone || "",
+            email: item.email || "",
+            qualification: item.qualification || "",
+            joiningDate: item.joining_date || item.joiningDate || "",
+            status: item.status || "On Duty",
+          }))
+        )
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [selectedHospital])
 
   // =====================================================
   // PATIENTS

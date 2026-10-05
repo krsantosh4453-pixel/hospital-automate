@@ -21,4 +21,5 @@ class ConsentSerializer(serializers.ModelSerializer):
 class OTPVerificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = OTPVerification
-        fields = "__all__"
+        fields = ["id", "phone", "is_verified", "attempts", "expires_at", "created_at"]
+        read_only_fields = fields

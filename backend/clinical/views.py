@@ -23,48 +23,61 @@ from .serializers import (
     PrescriptionSerializer,
     PrescriptionItemSerializer,
 )
+from users.viewsets import HospitalScopedViewSet
+from users.permissions import IsAdmin, IsHospitalManager, IsDoctor, IsNurse, IsPharmacist, IsPatientReadOnly
 
 
-class VitalSignViewSet(viewsets.ModelViewSet):
+class VitalSignViewSet(HospitalScopedViewSet):
     queryset = VitalSign.objects.all()
     serializer_class = VitalSignSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
 
 
-class AllergyViewSet(viewsets.ModelViewSet):
+class AllergyViewSet(HospitalScopedViewSet):
     queryset = Allergy.objects.all()
     serializer_class = AllergySerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
 
 
-class ClinicalNoteViewSet(viewsets.ModelViewSet):
+class ClinicalNoteViewSet(HospitalScopedViewSet):
     queryset = ClinicalNote.objects.all()
     serializer_class = ClinicalNoteSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
 
 
-class DiagnosisViewSet(viewsets.ModelViewSet):
+class DiagnosisViewSet(HospitalScopedViewSet):
     queryset = Diagnosis.objects.all()
     serializer_class = DiagnosisSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
 
 
-class ServiceOrderViewSet(viewsets.ModelViewSet):
+class ServiceOrderViewSet(HospitalScopedViewSet):
     queryset = ServiceOrder.objects.all()
     serializer_class = ServiceOrderSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
 
 
-class ProcedureViewSet(viewsets.ModelViewSet):
+class ProcedureViewSet(HospitalScopedViewSet):
     queryset = Procedure.objects.all()
     serializer_class = ProcedureSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
 
 
-class MedicalRecordViewSet(viewsets.ModelViewSet):
+class MedicalRecordViewSet(HospitalScopedViewSet):
     queryset = MedicalRecord.objects.all()
     serializer_class = MedicalRecordSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
 
 
-class PrescriptionViewSet(viewsets.ModelViewSet):
+class PrescriptionViewSet(HospitalScopedViewSet):
+    queryset = Prescription.objects.all()
     serializer_class = PrescriptionSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsPharmacist | IsPatientReadOnly]
 
     def get_queryset(self):
-        queryset = Prescription.objects.select_related(
+        queryset = super().get_queryset()
+
+        queryset = queryset.select_related(
             "patient", "doctor", "hospital", "visit"
         ).prefetch_related("items")
 
@@ -83,11 +96,15 @@ class PrescriptionViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class PrescriptionItemViewSet(viewsets.ModelViewSet):
+class PrescriptionItemViewSet(HospitalScopedViewSet):
+    queryset = PrescriptionItem.objects.all()
     serializer_class = PrescriptionItemSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsPharmacist]
 
     def get_queryset(self):
-        queryset = PrescriptionItem.objects.select_related("prescription")
+        queryset = super().get_queryset()
+
+        queryset = queryset.select_related("prescription")
 
         prescription_id = self.request.query_params.get("prescription")
         if prescription_id:

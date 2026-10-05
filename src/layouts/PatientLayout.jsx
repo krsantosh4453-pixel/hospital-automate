@@ -2,14 +2,14 @@ import { Outlet, NavLink, useLocation } from "react-router-dom"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 
 const patientRoutes = [
-  { path: "/patient", label: "Dashboard", icon: "🏠" },
-  { path: "/patient/appointments", label: "Appointments", icon: "📅" },
-  { path: "/patient/queue", label: "Queue Status", icon: "🎫" },
-  { path: "/patient/prescriptions", label: "Prescriptions", icon: "💊" },
-  { path: "/patient/lab-results", label: "Lab Results", icon: "🧪" },
-  { path: "/patient/bills", label: "Bills & Payments", icon: "💳" },
-  { path: "/patient/documents", label: "Documents", icon: "📄" },
-  { path: "/patient/consent", label: "Consent Forms", icon: "✍️" },
+  { path: "/patient", label: "Home", icon: "🏠" },
+  { path: "/patient/appointments", label: "My Appointments", icon: "📅" },
+  { path: "/patient/queue", label: "My Queue / Token", icon: "🎫" },
+  { path: "/patient/documents", label: "My Medical Records", icon: "📄" },
+  { path: "/patient/prescriptions", label: "My Prescriptions", icon: "💊" },
+  { path: "/patient/lab-results", label: "My Lab Reports", icon: "🧪" },
+  { path: "/patient/bills", label: "My Bills", icon: "💳" },
+  { path: "/patient/consent", label: "Notifications / Consent", icon: "🔔" },
 ]
 
 export default function PatientLayout() {

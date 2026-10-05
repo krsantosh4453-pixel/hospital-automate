@@ -1,15 +1,30 @@
 import { useEffect, useState, useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "../assets/context/AuthContext.jsx"
+import api from "../services/api.js"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
+import {
+  LOGIN_ROLES,
+  getSelectedLoginRole,
+  saveSelectedLoginRole,
+} from "../utils/roleRouting.js"
 
 function PatientLogin() {
   const navigate = useNavigate()
-  const { login } = useAuth()
-  const { savePatient, saveToken, patients } = usePatient()
+  const [searchParams] = useSearchParams()
+  const { patientLogin, staffLogin, adoptExternalSession } = useAuth()
+  const { savePatient } = usePatient()
+  const { switchRole } = useRole()
 
-  // Login modes: "mobile", "token"
-  const [loginMode, setLoginMode] = useState("mobile")
+  const [selectedRole, setSelectedRole] = useState(() => {
+    const fromQuery = searchParams.get("role")
+    if (LOGIN_ROLES.includes(fromQuery)) return saveSelectedLoginRole(fromQuery)
+    return getSelectedLoginRole()
+  })
+
+  // Login modes: "mobile", "token", "email"
+  const [loginMode, setLoginMode] = useState(searchParams.get("email") ? "email" : "mobile")
 
   // Mobile & OTP states
   const [step, setStep] = useState("mobile")
@@ -18,12 +33,32 @@ function PatientLogin() {
 
   // Token number states
   const [tokenInput, setTokenInput] = useState("")
+  const [tokenPassword, setTokenPassword] = useState("")
   const [tokenError, setTokenError] = useState("")
+  const [otpError, setOtpError] = useState("")
+  const [otpNotice, setOtpNotice] = useState("")
+  const [showEmailFallback, setShowEmailFallback] = useState(false)
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [emailAddress, setEmailAddress] = useState(searchParams.get("email") || "")
+  const [emailPassword, setEmailPassword] = useState("")
+  const [emailError, setEmailError] = useState("")
+  const [emailNotice, setEmailNotice] = useState("")
+  const [emailOtp, setEmailOtp] = useState("")
+  const [emailStep, setEmailStep] = useState("credentials")
 
   // Google login states
   const [googleLoading, setGoogleLoading] = useState(false)
   const [googleStatus, setGoogleStatus] = useState("")
   const googleBtnRef = useRef(null)
+
+  const [staffUsername, setStaffUsername] = useState("")
+  const [staffPassword, setStaffPassword] = useState("")
+  const [staffError, setStaffError] = useState("")
+  const [staffLoading, setStaffLoading] = useState(false)
+
+  useEffect(() => {
+    saveSelectedLoginRole(selectedRole)
+  }, [selectedRole])
 
   const GOOGLE_CLIENT_ID =
     "1199500530711-s1ti1g061cno8d3tk2759hqrgitdect.apps.googleusercontent.com"
@@ -99,27 +134,22 @@ function PatientLogin() {
 
       const data = await res.json()
 
-      if (!res.ok || data.status !== "success") {
+      if (!res.ok || data.status !== "success" || !data.access) {
         throw new Error(data.error || "Google verification failed.")
       }
 
-      // Success! Format patient data
-      const patientData = {
-        id: data.patient?.id || data.user?.id || `PAT-${Date.now()}`,
-        name: data.patient?.name || data.user?.name || "Google Patient",
-        email: data.user?.email || "",
-        picture: data.user?.picture || "",
-        phone: data.patient?.phone || "",
-        authProvider: "google",
+      await adoptExternalSession(data)
+      if (data.account_type === "staff") {
+        navigate("/")
+        return
       }
 
-      // Save in Auth Context and Patient Context
-      login(patientData)
-      savePatient(patientData)
+      if (data.patient) savePatient(data.patient)
+      switchRole(data.account_type === "staff" ? data.user?.staff_role : "Patient")
 
       setGoogleStatus("Login successful! Redirecting...")
       setTimeout(() => {
-        navigate("/hospital-selection")
+        navigate(data.account_type === "staff" ? "/" : "/patient")
       }, 500)
     } catch (error) {
       console.error("Google login error:", error)
@@ -149,129 +179,141 @@ function PatientLogin() {
     }
   }
 
-  // Demo Google Login (for testing without external OAuth popup restrictions)
-  const handleDemoGoogleLogin = async () => {
-    setGoogleLoading(true)
-    setGoogleStatus("Authenticating Google Account...")
-
-    // Dummy valid JWT format: header.payload.signature
-    const header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-    const payload = btoa(
-      JSON.stringify({
-        sub: "google_patient_1001",
-        email: "patient.google@gmail.com",
-        name: "Google Verified Patient",
-        picture: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100",
-      })
-    )
-    const dummyToken = `${header}.${payload}.signature`
-
-    try {
-      const res = await fetch("http://127.0.0.1:8000/api/auth/google/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential: dummyToken }),
-      })
-
-      const data = await res.json()
-
-      const patientData = {
-        id: data.patient?.id || 101,
-        name: data.patient?.name || "Google Verified Patient",
-        email: data.user?.email || "patient.google@gmail.com",
-        picture: data.user?.picture || "",
-        phone: data.patient?.phone || "9876543210",
-        authProvider: "google",
-      }
-
-      login(patientData)
-      savePatient(patientData)
-
-      setGoogleStatus("Welcome! Redirecting...")
-      setTimeout(() => {
-        navigate("/hospital-selection")
-      }, 500)
-    } catch (err) {
-      console.error("Demo login error:", err)
-      // Local fallback
-      const fallbackPatient = {
-        id: `PAT-${Date.now()}`,
-        name: "Google Patient",
-        email: "patient.google@gmail.com",
-        authProvider: "google",
-      }
-      login(fallbackPatient)
-      savePatient(fallbackPatient)
-      navigate("/hospital-selection")
-    } finally {
-      setGoogleLoading(false)
-      setGoogleStatus("")
-    }
-  }
-
-  // Send Mobile OTP
-  const handleSendOTP = (e) => {
-    e.preventDefault()
+  const handleSendOTP = async (e) => {
+    e?.preventDefault()
+    setOtpError("")
 
     if (mobile.length !== 10) {
-      alert("Please enter a valid 10-digit mobile number.")
+      setOtpError("Please enter a valid 10-digit mobile number.")
       return
     }
 
-    setStep("otp")
+    setOtpLoading(true)
+    try {
+      const data = await api.auth.requestPatientOtp(mobile)
+      if (data.delivery === "sms") {
+        setOtpNotice("")
+        setShowEmailFallback(false)
+        setStep("otp")
+      } else {
+        setOtpNotice(data.message || "Unable to send SMS OTP. SMS service is not configured.")
+        setShowEmailFallback(true)
+        if (data.delivery === "console" || data.delivery === "cache") {
+          setStep("otp")
+        }
+      }
+    } catch (error) {
+      setOtpError(error.message || "Unable to send SMS OTP. SMS service is not configured.")
+      setShowEmailFallback(true)
+    } finally {
+      setOtpLoading(false)
+    }
   }
 
-  // Verify Mobile OTP
-  const handleVerifyOTP = (e) => {
+  const handleVerifyOTP = async (e) => {
     e.preventDefault()
-
-    if (otp.length !== 6) {
-      alert("Please enter a valid 6-digit OTP.")
-      return
+    setOtpError("")
+    setOtpLoading(true)
+    try {
+      const data = await api.auth.verifyPatientOtp(mobile, otp)
+      patientLogin(data)
+      if (data.patient) savePatient(data.patient)
+      switchRole("Patient")
+      navigate("/patient")
+    } catch (error) {
+      setOtpError(error.message || "Invalid or expired verification code.")
+    } finally {
+      setOtpLoading(false)
     }
-
-    const patientData = {
-      id: `PAT-${Date.now()}`,
-      name: `Patient (${mobile})`,
-      phone: mobile,
-      mobile: mobile,
-      authProvider: "mobile",
-    }
-
-    login(patientData)
-    savePatient(patientData)
-    navigate("/hospital-selection")
   }
 
-  // Token Number Login
-  const handleTokenLogin = (e) => {
+  const handleTokenLogin = async (e) => {
     e.preventDefault()
     setTokenError("")
 
     const cleanToken = tokenInput.trim()
-    if (!cleanToken) {
-      setTokenError("Please enter a token or patient ID.")
+    if (!cleanToken || !tokenPassword) {
+      setTokenError("Enter your patient ID and password.")
       return
     }
 
-    // Try finding existing patient by ID
-    const foundPatient = patients?.find(
-      (p) =>
-        String(p.id).toLowerCase() === cleanToken.toLowerCase() ||
-        String(p.phone) === cleanToken
-    )
-
-    const patientData = foundPatient || {
-      id: cleanToken.startsWith("T-") ? cleanToken : `T-${cleanToken}`,
-      name: `Patient (${cleanToken})`,
-      tokenNumber: cleanToken,
-      authProvider: "token",
+    try {
+      const data = await api.auth.patientTokenLogin(cleanToken, tokenPassword)
+      patientLogin(data)
+      if (data.patient) savePatient(data.patient)
+      switchRole("Patient")
+      navigate("/patient")
+    } catch (error) {
+      setTokenError(error.message || "Invalid patient credentials.")
     }
+  }
 
-    saveToken(cleanToken)
-    login(patientData)
-    savePatient(patientData)
-    navigate("/hospital-selection")
+  const handleEmailLogin = async (e) => {
+    e.preventDefault()
+    setEmailError("")
+    try {
+      const data = await api.auth.patientEmailLogin(emailAddress.trim(), emailPassword)
+      patientLogin(data)
+      if (data.patient) savePatient(data.patient)
+      switchRole("Patient")
+      navigate("/patient")
+    } catch (error) {
+      const message = error.message || "Invalid email or password."
+      setEmailError(message)
+      if (message.toLowerCase().includes("not verified")) {
+        setEmailStep("otp")
+      }
+    }
+  }
+
+  const handleSendEmailOtp = async (e) => {
+    e?.preventDefault()
+    setEmailError("")
+    setEmailNotice("")
+    if (!emailAddress.trim()) {
+      setEmailError("A valid email address is required.")
+      return
+    }
+    setOtpLoading(true)
+    try {
+      const data = await api.auth.requestEmailOtp(emailAddress.trim())
+      setEmailNotice(data.message || "Verification email requested.")
+      setEmailStep("otp")
+    } catch (error) {
+      setEmailError(error.message || "Unable to send verification email. Please check email configuration.")
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  const handleVerifyEmailOtp = async (e) => {
+    e.preventDefault()
+    setEmailError("")
+    setOtpLoading(true)
+    try {
+      const data = await api.auth.verifyEmailOtp(emailAddress.trim(), emailOtp)
+      setEmailNotice(data.message || "Email verified. Sign in with your email and password.")
+      setEmailStep("credentials")
+      setEmailOtp("")
+    } catch (error) {
+      setEmailError(error.message || "Invalid OTP.")
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  const handleStaffPasswordLogin = async (e) => {
+    e.preventDefault()
+    setStaffError("")
+    setStaffLoading(true)
+    try {
+      await staffLogin(staffUsername, staffPassword)
+      navigate("/")
+    } catch (err) {
+      setStaffError(err.message || "Staff login failed.")
+    } finally {
+      setStaffLoading(false)
+    }
   }
 
   return (
@@ -287,8 +329,30 @@ function PatientLogin() {
             Hospital Management System
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Patient Portal Login
+            Hospital Portal Login
           </p>
+        </div>
+
+        <div className="mb-6">
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-center mb-3">
+            Select Role
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {LOGIN_ROLES.map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setSelectedRole(role)}
+                className={`py-2 px-2 text-[11px] font-semibold rounded-xl border transition cursor-pointer ${
+                  selectedRole === role
+                    ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-blue-300"
+                }`}
+              >
+                {role}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Main Card */}
@@ -324,6 +388,20 @@ function PatientLogin() {
             >
               🎫 Token / ID
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode("email")
+                setEmailError("")
+              }}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                loginMode === "email"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              ✉️ Email
+            </button>
           </div>
 
           {/* ==================================================== */}
@@ -341,6 +419,17 @@ function PatientLogin() {
                       We'll send a 6-digit verification code
                     </p>
                   </div>
+
+                  {otpError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                      {otpError}
+                    </div>
+                  )}
+                  {otpNotice && (
+                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                      {otpNotice}
+                    </div>
+                  )}
 
                   <form onSubmit={handleSendOTP} className="space-y-4">
                     <div>
@@ -367,11 +456,24 @@ function PatientLogin() {
 
                     <button
                       type="submit"
-                      className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm"
+                      className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+                      disabled={otpLoading}
                     >
-                      Send OTP
+                      {otpLoading ? "Sending..." : "Send OTP"}
                     </button>
                   </form>
+                  {showEmailFallback && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMode("email")
+                        setEmailStep("otp")
+                      }}
+                      className="w-full mt-3 border border-blue-600 text-blue-600 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-50 transition cursor-pointer"
+                    >
+                      Verify using Email
+                    </button>
+                  )}
                 </>
               ) : (
                 <>
@@ -380,9 +482,19 @@ function PatientLogin() {
                       Verify OTP
                     </h2>
                     <p className="text-gray-500 text-xs mt-0.5">
-                      Enter 6-digit OTP sent to <span className="font-semibold text-gray-800">+91 {mobile}</span>
+                      {otpNotice || (
+                        <>
+                          Enter 6-digit OTP sent to <span className="font-semibold text-gray-800">+91 {mobile}</span>
+                        </>
+                      )}
                     </p>
                   </div>
+
+                  {otpError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                      {otpError}
+                    </div>
+                  )}
 
                   <form onSubmit={handleVerifyOTP} className="space-y-4">
                     <div>
@@ -406,9 +518,10 @@ function PatientLogin() {
 
                     <button
                       type="submit"
-                      className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm"
+                      className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+                      disabled={otpLoading}
                     >
-                      Verify & Continue
+                      {otpLoading ? "Verifying..." : "Verify & Continue"}
                     </button>
                   </form>
 
@@ -425,15 +538,133 @@ function PatientLogin() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => alert("Demo OTP: 123456")}
+                      onClick={handleSendOTP}
                       className="text-gray-500 hover:text-gray-700 cursor-pointer"
                     >
                       Resend OTP
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginMode("email")
+                      setEmailStep("otp")
+                    }}
+                    className="w-full mt-3 border border-blue-600 text-blue-600 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-50 transition cursor-pointer"
+                  >
+                    Verify using Email
+                  </button>
                 </>
               )}
             </>
+          )}
+
+          {loginMode === "email" && (
+            <div>
+              <div className="mb-5">
+                <h2 className="text-lg font-bold text-gray-800">
+                  {emailStep === "otp" ? "Verify using Email" : "Login with Email"}
+                </h2>
+                <p className="text-gray-500 text-xs mt-0.5">
+                  {emailStep === "otp"
+                    ? "We will send a verification code to your registered email."
+                    : "Use the email and password from your patient account."}
+                </p>
+              </div>
+              {emailError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {emailError}
+                </div>
+              )}
+              {emailNotice && (
+                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                  {emailNotice}
+                </div>
+              )}
+              {emailStep === "credentials" ? (
+                <form onSubmit={handleEmailLogin} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Email</label>
+                    <input
+                      type="email"
+                      value={emailAddress}
+                      onChange={(e) => setEmailAddress(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Password</label>
+                    <input
+                      type="password"
+                      value={emailPassword}
+                      onChange={(e) => setEmailPassword(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      autoComplete="current-password"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmailStep("otp")}
+                    className="w-full text-xs text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    Email not verified? Send email OTP
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyEmailOtp} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Email</label>
+                    <input
+                      type="email"
+                      value={emailAddress}
+                      onChange={(e) => setEmailAddress(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSendEmailOtp}
+                    disabled={otpLoading}
+                    className="w-full border border-blue-600 text-blue-600 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-50 transition cursor-pointer disabled:opacity-50"
+                  >
+                    {otpLoading ? "Sending..." : "Send Email OTP"}
+                  </button>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">OTP</label>
+                    <input
+                      inputMode="numeric"
+                      value={emailOtp}
+                      onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={otpLoading}
+                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+                  >
+                    Verify OTP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmailStep("credentials")}
+                    className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    Back to email login
+                  </button>
+                </form>
+              )}
+            </div>
           )}
 
           {/* ==================================================== */}
@@ -470,8 +701,23 @@ function PatientLogin() {
                     <p className="text-xs text-red-500 mt-1">{tokenError}</p>
                   )}
                   <p className="text-[11px] text-gray-400 mt-1.5">
-                    Tip: Existing patients can enter their ID or token number to resume their session.
+                    Use the patient ID from registration together with your account password.
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={tokenPassword}
+                    onChange={(e) => setTokenPassword(e.target.value)}
+                    placeholder="Account password"
+                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                    autoComplete="current-password"
+                    required
+                  />
                 </div>
 
                 <button
@@ -533,17 +779,6 @@ function PatientLogin() {
             {/* Google GSI Auto-render container */}
             <div ref={googleBtnRef} className="flex justify-center" />
 
-            {/* Quick Demo Google Sign-In (instant 1-click test with Django API) */}
-            <button
-              type="button"
-              onClick={handleDemoGoogleLogin}
-              disabled={googleLoading}
-              className="w-full text-center text-xs text-blue-600 hover:text-blue-700 py-1 cursor-pointer font-medium"
-              title="Test Google login API directly with Django backend"
-            >
-              🚀 1-Click Instant Google Test Login
-            </button>
-
             {googleStatus && (
               <p className="text-center text-xs text-blue-600 font-medium animate-pulse">
                 {googleStatus}
@@ -555,6 +790,62 @@ function PatientLogin() {
           <p className="text-center text-[11px] text-gray-400 mt-6 leading-relaxed">
             By continuing, you agree to our Terms of Service & Privacy Policy.
           </p>
+
+          {selectedRole !== "Patient" && (
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <h3 className="text-sm font-bold text-gray-800 mb-1">
+                Staff username / password
+              </h3>
+              <p className="text-[11px] text-gray-500 mb-4">
+                Approved {selectedRole} accounts sign in here. OTP, Token/ID, and
+                Google still identify a patient session and never grant {selectedRole} access by themselves.
+              </p>
+              {staffError && (
+                <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {staffError}
+                </div>
+              )}
+              <form onSubmit={handleStaffPasswordLogin} className="space-y-3">
+                <input
+                  type="text"
+                  value={staffUsername}
+                  onChange={(e) => setStaffUsername(e.target.value)}
+                  placeholder="Username or email"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  autoComplete="username"
+                  required
+                />
+                <input
+                  type="password"
+                  value={staffPassword}
+                  onChange={(e) => setStaffPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={staffLoading}
+                  className="w-full bg-slate-800 text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-slate-900 transition cursor-pointer disabled:opacity-50"
+                >
+                  {staffLoading ? "Signing in..." : `Sign in as ${selectedRole}`}
+                </button>
+              </form>
+            </div>
+          )}
+
+          <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+            <p className="text-xs text-gray-500">New to the Hospital Management System?</p>
+            <Link
+              to={`/register?role=${encodeURIComponent(selectedRole)}`}
+              className="inline-block mt-3 w-full bg-white border border-blue-600 text-blue-600 py-3 rounded-xl font-semibold text-sm hover:bg-blue-50 transition"
+            >
+              Create Account
+            </Link>
+            <p className="text-xs text-gray-500 mt-5">Already have an account?</p>
+            <p className="text-sm font-semibold text-gray-800 mt-1">Login</p>
+          </div>
 
         </div>
 

@@ -20,7 +20,7 @@ from datetime import date
 from decimal import Decimal
 from unittest import mock
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase
 from rest_framework import serializers as drf_serializers
@@ -28,6 +28,7 @@ from rest_framework.test import APIClient
 
 from hospital.models import Hospital
 from pharmacy.models import Medicine
+from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 
 from .models import (
     GoodsReceipt,
@@ -52,17 +53,29 @@ class ProcurementAPITests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-        # The project has session-based auth but no API token flow.
-        # Writes require an authenticated user, so authenticate the
-        # shared client for the write-heavy tests below.
-        self.user = User.objects.create_user(
+        # Create a staff user with INVENTORY_STAFF role and hospital membership
+        self.user = get_user_model().objects.create_user(
             username="procurement-tester",
             password="test-pass-123",
+            email="procurement@hospital.com",
         )
-        self.client.force_authenticate(user=self.user)
-
+        self.staff_profile = StaffProfile.objects.create(
+            user=self.user,
+            role=StaffRole.INVENTORY_STAFF,
+            employee_id="EMP-INV-001",
+            is_active_staff=True,
+        )
         self.hospital_a = Hospital.objects.create(name="Hospital A")
         self.hospital_b = Hospital.objects.create(name="Hospital B")
+
+        StaffHospitalMembership.objects.create(
+            staff=self.staff_profile,
+            hospital=self.hospital_a,
+            role=StaffRole.INVENTORY_STAFF,
+            is_active=True,
+        )
+
+        self.client.force_authenticate(user=self.user)
 
         self.supplier_a = Supplier.objects.create(
             name="Acme Pharma",

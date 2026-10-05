@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useEffect } from "react"
+import api from "../../services/api.js"
 
 const HospitalsContext = createContext(null)
 
@@ -131,14 +132,38 @@ export function HospitalsProvider({ children }) {
   const getActiveHospitals = () => {
     return hospitals.filter(
       (hospital) =>
-        hospital.status === "Active"
+        hospital.status === "Active" || hospital.is_active !== false
     )
   }
+
+  useEffect(() => {
+    let cancelled = false
+    api.hospitals
+      .list()
+      .then((data) => {
+        const results = Array.isArray(data) ? data : data?.results || []
+        if (!cancelled && results.length > 0) {
+          saveHospitals(
+            results.map((hospital) => ({
+              ...hospital,
+              status: hospital.status || (hospital.is_active === false ? "Inactive" : "Active"),
+            }))
+          )
+        }
+      })
+      .catch(() => {
+        // Keep local/demo hospitals when the API is unavailable or unauthenticated.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <HospitalsContext.Provider
       value={{
         hospitals,
+        authorizedHospitals: hospitals,
         addHospital,
         updateHospital,
         deleteHospital,

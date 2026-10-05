@@ -11,34 +11,81 @@ from .serializers import (
     DoctorScheduleSerializer,
 )
 from .services import issue_queue_token_for_appointment
+from .services.prediction import QueuePredictionService
+from notifications.services import (
+    get_notification_engine,
+    NotificationEvent,
+    NotificationChannel,
+)
+from users.viewsets import HospitalScopedViewSet
+from users.permissions import IsAdmin, IsHospitalManager, IsReceptionist, IsDoctor, IsNurse, IsPatientReadOnly
 
 
-class VisitViewSet(viewsets.ModelViewSet):
+class VisitViewSet(HospitalScopedViewSet):
     serializer_class = VisitSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
 
     def get_queryset(self):
+        queryset = super().get_queryset()
+
         hospital_id = self.request.query_params.get("hospital")
-
         if hospital_id:
-            return Visit.objects.filter(
-                hospital_id=hospital_id
-            )
+            queryset = queryset.filter(hospital_id=hospital_id)
 
-        return Visit.objects.all()
+        return queryset
 
 
-class QueueTokenViewSet(viewsets.ModelViewSet):
+class QueueTokenViewSet(HospitalScopedViewSet):
     serializer_class = QueueTokenSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsReceptionist | IsDoctor | IsNurse | IsPatientReadOnly]
+
+    _prediction_service = QueuePredictionService()
+    _notification_engine = get_notification_engine()
 
     def get_queryset(self):
+        queryset = super().get_queryset()
+
         hospital_id = self.request.query_params.get("hospital")
-
         if hospital_id:
-            return QueueToken.objects.filter(
-                hospital_id=hospital_id
-            )
+            queryset = queryset.filter(hospital_id=hospital_id)
 
-        return QueueToken.objects.all()
+        return queryset
+
+    def _recalculate_estimates(self, hospital_id: int, doctor_id: int, token_date=None):
+        """Recalculate wait-time estimates for all waiting tokens for a doctor."""
+        self._prediction_service.recalculate_all_waiting(hospital_id, doctor_id, token_date)
+
+    def _send_queue_notification(
+        self,
+        token: QueueToken,
+        event: NotificationEvent,
+        title: str,
+        message: str,
+        extra_channels: list[NotificationChannel] = None,
+        metadata: dict = None,
+    ):
+        """Send notification for a queue event."""
+        channels = [NotificationChannel.IN_APP]
+        if extra_channels:
+            channels.extend(extra_channels)
+
+        self._notification_engine.send_notification(
+            event=event,
+            patient_id=token.patient_id,
+            hospital_id=token.hospital_id,
+            title=title,
+            message=message,
+            metadata={
+                "token_id": token.id,
+                "token_number": token.token_number,
+                "doctor_id": token.doctor_id,
+                "doctor_name": token.doctor_name,
+                "queue_position": token.queue_position,
+                "estimated_wait_minutes": token.estimated_wait_minutes,
+                **(metadata or {}),
+            },
+            channels=channels,
+        )
 
     @action(detail=False, methods=["post"], url_path="issue")
     def issue(self, request):
@@ -72,32 +119,196 @@ class QueueTokenViewSet(viewsets.ModelViewSet):
             chief_complaint=request.data.get("chief_complaint", ""),
         )
 
+        self._prediction_service.update_token_estimate(token)
+        self._recalculate_estimates(token.hospital_id, token.doctor_id, token.token_date)
+
+        if created:
+            self._send_queue_notification(
+                token,
+                NotificationEvent.QUEUE_TOKEN_CREATED,
+                "Queue Token Generated",
+                f"Your token #{token.token_number} has been generated. "
+                f"Estimated wait: {token.estimated_wait_minutes} minutes.",
+                extra_channels=[NotificationChannel.SMS, NotificationChannel.WHATSAPP],
+            )
+
         serializer = self.get_serializer(token)
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
-    def _change_status(self, request, new_status):
+    def _change_status(self, request, new_status, allowed_from=None, send_notification=True):
         token = self.get_object()
+        old_status = token.status
+
+        if allowed_from and old_status not in allowed_from:
+            return Response(
+                {"detail": f"Invalid transition from {old_status} to {new_status}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         token.status = new_status
-        token.save(update_fields=["status"])
+        token.save()
+
+        self._recalculate_estimates(token.hospital_id, token.doctor_id, token.token_date)
+
+        if send_notification:
+            self._send_status_change_notification(token, old_status, new_status)
+
         return Response(self.get_serializer(token).data)
+
+    def _send_status_change_notification(self, token: QueueToken, old_status: str, new_status: str):
+        """Send appropriate notification based on status transition."""
+        event_map = {
+            QueueToken.Status.CALLED: (
+                NotificationEvent.PATIENT_CALLED,
+                "You Are Being Called",
+                f"Token #{token.token_number}: Please proceed to {token.doctor_name}'s consultation room.",
+                [NotificationChannel.SMS, NotificationChannel.WHATSAPP, NotificationChannel.VOICE],
+            ),
+            QueueToken.Status.ACKNOWLEDGED: (
+                NotificationEvent.PATIENT_ACK_REQUIRED,
+                "Acknowledgment Received",
+                f"Token #{token.token_number}: Your acknowledgment has been received. Please wait for the doctor.",
+                [],
+            ),
+            QueueToken.Status.READY: (
+                NotificationEvent.PATIENT_READY,
+                "Patient Ready",
+                f"Token #{token.token_number}: Patient is ready for consultation.",
+                [],
+            ),
+            QueueToken.Status.IN_CONSULTATION: (
+                NotificationEvent.CONSULTATION_STARTED,
+                "Consultation Started",
+                f"Token #{token.token_number}: Consultation with {token.doctor_name} has started.",
+                [],
+            ),
+            QueueToken.Status.COMPLETED: (
+                NotificationEvent.CONSULTATION_COMPLETED,
+                "Consultation Completed",
+                f"Token #{token.token_number}: Your consultation with {token.doctor_name} is complete.",
+                [NotificationChannel.SMS],
+            ),
+            QueueToken.Status.SKIPPED: (
+                NotificationEvent.APPOINTMENT_DELAYED,
+                "Token Skipped",
+                f"Token #{token.token_number} was skipped. Please contact the reception.",
+                [NotificationChannel.SMS],
+            ),
+            QueueToken.Status.NO_SHOW: (
+                NotificationEvent.APPOINTMENT_CANCELLED,
+                "No Show Recorded",
+                f"Token #{token.token_number} was marked as no-show. Please rebook if needed.",
+                [NotificationChannel.SMS],
+            ),
+            QueueToken.Status.CANCELLED: (
+                NotificationEvent.APPOINTMENT_CANCELLED,
+                "Appointment Cancelled",
+                f"Token #{token.token_number} has been cancelled.",
+                [NotificationChannel.SMS],
+            ),
+        }
+
+        if new_status in event_map:
+            event, title, message, extra_channels = event_map[new_status]
+            self._send_queue_notification(token, event, title, message, extra_channels)
 
     @action(detail=True, methods=["post"], url_path="call")
     def call(self, request, pk=None):
-        """Mark a single token as being called (In Consultation)."""
-        return self._change_status(request, "In Consultation")
+        """Mark a waiting token as CALLED."""
+        return self._change_status(
+            request,
+            QueueToken.Status.CALLED,
+            allowed_from=[QueueToken.Status.WAITING],
+        )
+
+    @action(detail=True, methods=["post"], url_path="acknowledge")
+    def acknowledge(self, request, pk=None):
+        """Patient acknowledges the call (moves to ACKNOWLEDGED)."""
+        return self._change_status(
+            request,
+            QueueToken.Status.ACKNOWLEDGED,
+            allowed_from=[QueueToken.Status.CALLED],
+        )
+
+    @action(detail=True, methods=["post"], url_path="ready")
+    def ready(self, request, pk=None):
+        """Patient is ready for consultation (moves to READY)."""
+        return self._change_status(
+            request,
+            QueueToken.Status.READY,
+            allowed_from=[QueueToken.Status.ACKNOWLEDGED, QueueToken.Status.CALLED],
+        )
+
+    @action(detail=True, methods=["post"], url_path="start-consultation")
+    def start_consultation(self, request, pk=None):
+        """Doctor starts consultation (moves to IN_CONSULTATION)."""
+        return self._change_status(
+            request,
+            QueueToken.Status.IN_CONSULTATION,
+            allowed_from=[QueueToken.Status.READY, QueueToken.Status.CALLED, QueueToken.Status.ACKNOWLEDGED],
+        )
 
     @action(detail=True, methods=["post"], url_path="complete")
     def complete(self, request, pk=None):
         """Mark a token as completed."""
-        return self._change_status(request, "Completed")
+        return self._change_status(
+            request,
+            QueueToken.Status.COMPLETED,
+            allowed_from=[QueueToken.Status.IN_CONSULTATION],
+        )
 
     @action(detail=True, methods=["post"], url_path="skip")
     def skip(self, request, pk=None):
         """Mark a token as skipped."""
-        return self._change_status(request, "Skipped")
+        return self._change_status(
+            request,
+            QueueToken.Status.SKIPPED,
+            allowed_from=[QueueToken.Status.WAITING, QueueToken.Status.CALLED, QueueToken.Status.ACKNOWLEDGED, QueueToken.Status.READY, QueueToken.Status.IN_CONSULTATION],
+        )
+
+    @action(detail=True, methods=["post"], url_path="no-show")
+    def no_show(self, request, pk=None):
+        """Mark a token as no-show."""
+        return self._change_status(
+            request,
+            QueueToken.Status.NO_SHOW,
+            allowed_from=[QueueToken.Status.WAITING, QueueToken.Status.CALLED, QueueToken.Status.ACKNOWLEDGED, QueueToken.Status.READY],
+        )
+
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        """Cancel a token."""
+        return self._change_status(
+            request,
+            QueueToken.Status.CANCELLED,
+            allowed_from=[QueueToken.Status.WAITING, QueueToken.Status.CALLED, QueueToken.Status.ACKNOWLEDGED, QueueToken.Status.READY],
+        )
+
+    @action(detail=True, methods=["post"], url_path="requeue")
+    def requeue(self, request, pk=None):
+        """Re-queue a skipped or no-show token back to WAITING."""
+        token = self.get_object()
+        if token.status not in [QueueToken.Status.SKIPPED, QueueToken.Status.NO_SHOW]:
+            return Response(
+                {"detail": f"Can only requeue Skipped or No Show tokens, not {token.status}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        token.status = QueueToken.Status.WAITING
+        token.save()
+        self._recalculate_estimates(token.hospital_id, token.doctor_id, token.token_date)
+
+        self._send_queue_notification(
+            token,
+            NotificationEvent.QUEUE_TOKEN_CREATED,
+            "Re-queued",
+            f"Token #{token.token_number} has been re-queued. New estimated wait: {token.estimated_wait_minutes} minutes.",
+            extra_channels=[NotificationChannel.SMS],
+        )
+
+        return Response(self.get_serializer(token).data)
 
     @action(detail=False, methods=["post"], url_path="call-next")
     def call_next(self, request):
@@ -120,16 +331,21 @@ class QueueTokenViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        from users.permissions import user_has_hospital_access
+        if not user_has_hospital_access(request.user, int(hospital_id)):
+            return Response(
+                {"detail": "Access denied to this hospital."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         base = QueueToken.objects.filter(hospital_id=hospital_id)
 
-        # Complete any token currently being served (preserves the existing
-        # Call Next behaviour of moving the current patient out first).
         base.filter(status__iexact="In Consultation").update(
             status="Completed"
         )
 
         next_token = (
-            base.filter(status__iexact="Waiting")
+            base.filter(status__in=[QueueToken.Status.WAITING, QueueToken.Status.CALLED])
             .order_by("token_date", "token_number")
             .first()
         )
@@ -140,21 +356,80 @@ class QueueTokenViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        next_token.status = "In Consultation"
-        next_token.save(update_fields=["status"])
+        next_token.status = QueueToken.Status.CALLED
+        next_token.save()
+
+        self._recalculate_estimates(next_token.hospital_id, next_token.doctor_id, next_token.token_date)
+
+        self._send_status_change_notification(next_token, QueueToken.Status.WAITING, QueueToken.Status.CALLED)
 
         return Response(self.get_serializer(next_token).data)
 
+    @action(detail=False, methods=["get"], url_path="estimates")
+    def estimates(self, request):
+        """
+        Get wait-time estimates for all waiting tokens for a doctor.
 
-class DoctorScheduleViewSet(viewsets.ModelViewSet):
-    serializer_class = DoctorScheduleSerializer
+        GET /api/encounters/queue-tokens/estimates/?hospital=<id>&doctor=<id>&date=<YYYY-MM-DD>
+        """
+        hospital_id = request.query_params.get("hospital")
+        doctor_id = request.query_params.get("doctor")
+        token_date = request.query_params.get("date")
 
-    def get_queryset(self):
-        hospital_id = self.request.query_params.get("hospital")
-
-        if hospital_id:
-            return DoctorSchedule.objects.filter(
-                doctor__hospital_id=hospital_id
+        if not hospital_id or not doctor_id:
+            return Response(
+                {"detail": "hospital and doctor query parameters are required."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return DoctorSchedule.objects.all()
+        from django.utils import timezone
+        token_date = token_date or timezone.localdate()
+
+        waiting_statuses = [
+            QueueToken.Status.WAITING,
+            QueueToken.Status.CALLED,
+            QueueToken.Status.ACKNOWLEDGED,
+            QueueToken.Status.READY,
+        ]
+
+        tokens = QueueToken.objects.filter(
+            hospital_id=hospital_id,
+            doctor_id=doctor_id,
+            token_date=token_date,
+            status__in=waiting_statuses,
+        ).order_by("token_number")
+
+        estimates = []
+        for token in tokens:
+            estimate = self._prediction_service.estimate_for_token(token)
+            estimates.append({
+                "token_id": token.id,
+                "token_number": token.token_number,
+                "patient_name": token.patient_name,
+                "queue_position": estimate.queue_position,
+                "estimated_wait_minutes": estimate.estimated_wait_minutes,
+                "estimated_start_time": estimate.estimated_start_time,
+                "confidence": estimate.confidence,
+                "method": estimate.method,
+            })
+
+        return Response({
+            "hospital": hospital_id,
+            "doctor": doctor_id,
+            "date": token_date,
+            "estimates": estimates,
+        })
+
+
+class DoctorScheduleViewSet(HospitalScopedViewSet):
+    serializer_class = DoctorScheduleSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        hospital_id = self.request.query_params.get("hospital")
+        if hospital_id:
+            queryset = queryset.filter(doctor__hospital_id=hospital_id)
+
+        return queryset

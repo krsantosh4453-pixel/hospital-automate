@@ -21,7 +21,9 @@ import Settings from "./pages/settings.jsx"
 
 import StaffLogin from "./pages/StaffLogin.jsx"
 import PatientLogin from "./pages/PatientLogin.jsx"
+import Register from "./pages/Register.jsx"
 import HospitalSelection from "./pages/HospitalSelection.jsx"
+import { ProtectedRoute } from "./components/ProtectedRoute.jsx"
 
 import { AuthProvider } from "./assets/context/AuthContext.jsx"
 import { PatientProvider } from "./assets/context/PatientContext.jsx"
@@ -30,6 +32,7 @@ import { PharmacyProvider } from "./assets/context/PharmacyContext.jsx"
 import { HospitalsProvider } from "./assets/context/HospitalsContext.jsx"
 import { SidebarProvider } from "./assets/context/SidebarContext.jsx"
 import { RoleProvider } from "./assets/context/RoleContext.jsx"
+import { RoleAuthBridge } from "./assets/context/RoleAuthBridge.jsx"
 
 import Emergency from "./pages/Emergency.jsx"
 import BloodBank from "./pages/BloodBank.jsx"
@@ -60,12 +63,16 @@ function App() {
           <PrescriptionProvider>
             <PharmacyProvider>
               <RoleProvider>
+                <RoleAuthBridge>
                 <SidebarProvider>
                   <BrowserRouter>
                     <Routes>
                       <Route path="/staff-login" element={<StaffLogin />} />
                       <Route path="/patient-login" element={<PatientLogin />} />
+                      <Route path="/login" element={<PatientLogin />} />
+                      <Route path="/register" element={<Register />} />
 
+                      <Route element={<ProtectedRoute audience="patient" />}>
                       <Route element={<PatientLayout />}>
                         <Route path="/patient" element={<PatientDashboard />} />
                         <Route path="/patient/appointments" element={<PatientAppointments />} />
@@ -76,7 +83,9 @@ function App() {
                         <Route path="/patient/documents" element={<PatientDocuments />} />
                         <Route path="/patient/consent" element={<PatientConsent />} />
                       </Route>
+                      </Route>
 
+                      <Route element={<ProtectedRoute audience="staff" />}>
                       <Route element={<Layout />}>
                         <Route path="/" element={<Home />} />
                         <Route path="/patients" element={<Patients />} />
@@ -105,9 +114,11 @@ function App() {
                         <Route path="/admin/permissions" element={<Permissions />} />
                         <Route path="/settings" element={<Settings />} />
                       </Route>
+                      </Route>
                     </Routes>
                   </BrowserRouter>
                 </SidebarProvider>
+                </RoleAuthBridge>
               </RoleProvider>
             </PharmacyProvider>
           </PrescriptionProvider>

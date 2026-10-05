@@ -1,76 +1,14 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import api from "../services/api.js"
 
 function Billing() {
 
   const { selectedHospital } = usePatient()
 
-  const [bills, setBills] = useState([
-    {
-      id: "INV001",
-      patient: "Rahul Kumar",
-      patientId: "P001",
-      hospitalId: 1,
-      date: "01 Sep 2026",
-      services: [
-        { name: "Doctor Consultation", amount: 500 },
-        { name: "Complete Blood Count", amount: 350 },
-        { name: "Medicines", amount: 400 },
-      ],
-      discount: 0,
-      paid: 1250,
-      payment: "UPI",
-      status: "Paid",
-    },
-
-    {
-      id: "INV002",
-      patient: "Priya Singh",
-      patientId: "P002",
-      hospitalId: 1,
-      date: "01 Sep 2026",
-      services: [
-        { name: "Doctor Consultation", amount: 500 },
-        { name: "Blood Sugar Test", amount: 350 },
-      ],
-      discount: 0,
-      paid: 500,
-      payment: "Cash",
-      status: "Partial",
-    },
-
-    {
-      id: "INV003",
-      patient: "Amit Kumar",
-      patientId: "P003",
-      hospitalId: 2,
-      date: "01 Sep 2026",
-      services: [
-        { name: "Cardiology Consultation", amount: 1500 },
-      ],
-      discount: 0,
-      paid: 0,
-      payment: "Pending",
-      status: "Pending",
-    },
-
-    {
-      id: "INV004",
-      patient: "Ravi Sharma",
-      patientId: "P004",
-      hospitalId: 3,
-      date: "01 Sep 2026",
-      services: [
-        { name: "Doctor Consultation", amount: 700 },
-        { name: "Medicines", amount: 300 },
-      ],
-      discount: 0,
-      paid: 0,
-      payment: "Pending",
-      status: "Pending",
-    },
-  ])
-
+  const [bills, setBills] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState("")
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("All Status")
@@ -92,6 +30,73 @@ function Billing() {
     paid: "",
     payment: "Cash",
   })
+
+
+  // =========================
+  // Load bills from API
+  // =========================
+
+  useEffect(() => {
+    if (!selectedHospital) {
+      setBills([])
+      setLoadError("")
+      return
+    }
+
+    let cancelled = false
+
+    const loadBills = async () => {
+      setLoading(true)
+      setLoadError("")
+
+      try {
+        const data = await api.billing.invoices.list(selectedHospital.id)
+        const results = Array.isArray(data) ? data : data?.results || []
+
+        if (cancelled) return
+
+        // Map API data to UI format
+        const mappedBills = results.map((inv) => {
+          const totalPaid = inv.total_paid !== undefined ? inv.total_paid : 
+            (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
+          
+          const subtotal = inv.items?.reduce((sum, item) => sum + Number(item.subtotal), 0) || 0
+          
+          return {
+            id: inv.invoice_number,
+            apiId: inv.id,
+            patient: inv.patient_name || inv.patient?.name || "Unknown",
+            patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+            hospitalId: inv.hospital,
+            date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+            services: inv.items?.map((item) => ({
+              name: item.description,
+              amount: Number(item.subtotal),
+            })) || [],
+            discount: Number(inv.discount || 0),
+            paid: totalPaid,
+            payment: inv.payments?.[0]?.payment_method || "Cash",
+            status: inv.status,
+            // Keep API fields for update/delete
+            apiInvoice: inv,
+          }
+        })
+
+        setBills(mappedBills)
+      } catch (error) {
+        if (cancelled) return
+        setLoadError(error.message || "Failed to load billing data")
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    loadBills()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedHospital])
 
 
   // =========================
@@ -356,7 +361,7 @@ function Billing() {
   // Submit New Bill
   // =========================
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
 
     e.preventDefault()
 
@@ -425,56 +430,78 @@ function Billing() {
     }
 
 
-    const newBill = {
+    // Get patient from the system
+    const patientsRes = await api.patients.list(selectedHospital.id)
+    const patients = Array.isArray(patientsRes) ? patientsRes : patientsRes?.results || []
+    const patient = patients.find(p => 
+      p.name?.toLowerCase() === formData.patient?.toLowerCase() ||
+      `P${String(p.id).padStart(3, "0")}` === formData.patientId
+    )
 
-      id:
-        `INV${String(
-          bills.length + 1
-        ).padStart(3, "0")}`,
-
-      patient:
-        formData.patient,
-
-      patientId:
-        formData.patientId,
-
-      hospitalId:
-        selectedHospital.id,
-
-      date:
-        new Date().toLocaleDateString(
-          "en-IN",
-          {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }
-        ),
-
-      services,
-
-      discount,
-
-      paid,
-
-      payment:
-        formData.payment,
-
-      status:
-        getStatus(
-          total,
-          paid
-        ),
+    if (!patient) {
+      alert("Patient not found in this hospital. Please check the name/ID.")
+      return
     }
 
+    const payload = {
+      hospital: selectedHospital.id,
+      patient: patient.id,
+      invoice_number: `INV-${Date.now()}`,
+      discount: discount,
+      tax: 0,
+      total: total,
+      status: getStatus(total, paid),
+      items_data: services.map((s, i) => ({
+        description: s.name,
+        quantity: 1,
+        unit_price: s.amount,
+        subtotal: s.amount,
+      })),
+    }
 
-    setBills([
-      ...bills,
-      newBill,
-    ])
+    try {
+      const created = await api.billing.invoices.create(payload)
 
+      // Also create payment record if paid > 0
+      if (paid > 0) {
+        await api.billing.payments.create({
+          invoice: created.id,
+          amount: paid,
+          payment_method: formData.payment,
+        })
+      }
 
-    resetForm()
+      // Reload bills
+      const data = await api.billing.invoices.list(selectedHospital.id)
+      const results = Array.isArray(data) ? data : data?.results || []
+      const mappedBills = results.map((inv) => {
+        const totalPaid = inv.total_paid !== undefined ? inv.total_paid : 
+          (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
+        
+        return {
+          id: inv.invoice_number,
+          apiId: inv.id,
+          patient: inv.patient_name || inv.patient?.name || "Unknown",
+          patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+          hospitalId: inv.hospital,
+          date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+          services: inv.items?.map((item) => ({
+            name: item.description,
+            amount: Number(item.subtotal),
+          })) || [],
+          discount: Number(inv.discount || 0),
+          paid: totalPaid,
+          payment: inv.payments?.[0]?.payment_method || "Cash",
+          status: inv.status,
+        }
+      })
+      setBills(mappedBills)
+
+      resetForm()
+      alert("Invoice created successfully!")
+    } catch (error) {
+      alert(error.message || "Failed to create invoice")
+    }
   }
 
 
@@ -574,9 +601,7 @@ function Billing() {
   // Update Bill
   // =========================
 
-  const handleUpdate = (
-    e
-  ) => {
+  const handleUpdate = async (e) => {
 
     e.preventDefault()
 
@@ -635,49 +660,74 @@ function Billing() {
     }
 
 
-    const updatedBills =
-      bills.map(
-        (bill) =>
+    if (!selectedBill?.apiInvoice?.id) {
+      alert("Cannot update: missing server record ID")
+      return
+    }
 
-          bill.id ===
-            selectedBill.id
+    try {
+      const payload = {
+        discount: discount,
+        total: total,
+        status: getStatus(total, paid),
+        items_data: services.map((s, i) => ({
+          description: s.name,
+          quantity: 1,
+          unit_price: s.amount,
+          subtotal: s.amount,
+        })),
+      }
 
-            ? {
+      await api.billing.invoices.update(selectedBill.apiInvoice.id, payload)
 
-              ...bill,
+      // Handle payment update
+      if (paid > 0) {
+        const existingPayment = selectedBill.apiInvoice.payments?.[0]
+        if (existingPayment) {
+          await api.billing.payments.patch(existingPayment.id, {
+            amount: paid,
+            payment_method: formData.payment,
+          })
+        } else {
+          await api.billing.payments.create({
+            invoice: selectedBill.apiInvoice.id,
+            amount: paid,
+            payment_method: formData.payment,
+          })
+        }
+      }
 
-              patient:
-                formData.patient,
+      // Reload bills
+      const data = await api.billing.invoices.list(selectedHospital.id)
+      const results = Array.isArray(data) ? data : data?.results || []
+      const mappedBills = results.map((inv) => {
+        const totalPaid = inv.total_paid !== undefined ? inv.total_paid : 
+          (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
+        
+        return {
+          id: inv.invoice_number,
+          apiId: inv.id,
+          patient: inv.patient_name || inv.patient?.name || "Unknown",
+          patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+          hospitalId: inv.hospital,
+          date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+          services: inv.items?.map((item) => ({
+            name: item.description,
+            amount: Number(item.subtotal),
+          })) || [],
+          discount: Number(inv.discount || 0),
+          paid: totalPaid,
+          payment: inv.payments?.[0]?.payment_method || "Cash",
+          status: inv.status,
+        }
+      })
+      setBills(mappedBills)
 
-              patientId:
-                formData.patientId,
-
-              services,
-
-              discount,
-
-              paid,
-
-              payment:
-                formData.payment,
-
-              status:
-                getStatus(
-                  total,
-                  paid
-                ),
-            }
-
-            : bill
-      )
-
-
-    setBills(
-      updatedBills
-    )
-
-
-    resetForm()
+      resetForm()
+      alert("Invoice updated successfully!")
+    } catch (error) {
+      alert(error.message || "Failed to update invoice")
+    }
   }
 
 
@@ -685,7 +735,7 @@ function Billing() {
   // Delete
   // =========================
 
-  const handleDelete = (
+  const handleDelete = async (
     id
   ) => {
 
@@ -699,13 +749,45 @@ function Billing() {
       return
     }
 
+    const bill = bills.find(b => b.id === id)
+    if (!bill?.apiInvoice?.id) {
+      alert("Cannot delete: missing server record ID")
+      return
+    }
 
-    setBills(
-      bills.filter(
-        (bill) =>
-          bill.id !== id
-      )
-    )
+    try {
+      await api.billing.invoices.delete(bill.apiInvoice.id)
+      
+      // Reload bills
+      const data = await api.billing.invoices.list(selectedHospital.id)
+      const results = Array.isArray(data) ? data : data?.results || []
+      const mappedBills = results.map((inv) => {
+        const totalPaid = inv.total_paid !== undefined ? inv.total_paid : 
+          (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
+        
+        return {
+          id: inv.invoice_number,
+          apiId: inv.id,
+          patient: inv.patient_name || inv.patient?.name || "Unknown",
+          patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+          hospitalId: inv.hospital,
+          date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+          services: inv.items?.map((item) => ({
+            name: item.description,
+            amount: Number(item.subtotal),
+          })) || [],
+          discount: Number(inv.discount || 0),
+          paid: totalPaid,
+          payment: inv.payments?.[0]?.payment_method || "Cash",
+          status: inv.status,
+        }
+      })
+      setBills(mappedBills)
+
+      alert("Invoice deleted successfully!")
+    } catch (error) {
+      alert(error.message || "Failed to delete invoice")
+    }
   }
 
 

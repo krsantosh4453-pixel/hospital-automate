@@ -1,11 +1,13 @@
 from decimal import Decimal
 
 from django.test import TestCase
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from clinical.models import Prescription
 from hospital.models import Hospital
 from patients.models import Patient
+from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 
 from .models import Medicine, Sale
 
@@ -18,12 +20,35 @@ def results(response):
     return data
 
 
+User = get_user_model()
+
+
 class PharmacyAPITests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
         self.hospital_a = Hospital.objects.create(name="Hospital A")
         self.hospital_b = Hospital.objects.create(name="Hospital B")
+
+        # Create a staff user with hospital A membership
+        self.user = User.objects.create_user(
+            username="testpharmacist",
+            password="testpass123",
+            email="pharmacist@hospital.com",
+        )
+
+        self.staff_profile = StaffProfile.objects.create(
+            user=self.user,
+            role=StaffRole.PHARMACIST,
+            is_active_staff=True,
+        )
+
+        StaffHospitalMembership.objects.create(
+            staff=self.staff_profile,
+            hospital=self.hospital_a,
+            role=StaffRole.PHARMACIST,
+            is_active=True,
+        )
 
         self.patient = Patient.objects.create(
             name="Test Patient",
@@ -49,6 +74,9 @@ class PharmacyAPITests(TestCase):
             quantity=50,
             price=Decimal("6.00"),
         )
+
+        # Authenticate the client
+        self.client.force_authenticate(user=self.user)
 
     # 1. Medicine CRUD still works.
     def test_medicine_crud(self):

@@ -1,11 +1,23 @@
+from django.conf import settings
 from django.db import models
 
 
 class Patient(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="patient_account",
+    )
     name = models.CharField(max_length=100)
     age = models.PositiveIntegerField()
     gender = models.CharField(max_length=20)
     phone = models.CharField(max_length=15)
+    address = models.TextField(blank=True, default="")
+    date_of_birth = models.DateField(null=True, blank=True)
+    email_verified = models.BooleanField(default=False)
+    phone_verified = models.BooleanField(default=False)
     doctor = models.CharField(max_length=100, blank=True)
     # Free-text condition/reason shown in the Patients UI
     condition = models.CharField(max_length=150, blank=True)

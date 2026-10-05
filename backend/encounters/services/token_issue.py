@@ -2,8 +2,8 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from .models import Visit, QueueToken
-from .serializers import QueueTokenSerializer
+from ..models import Visit, QueueToken
+from ..serializers import QueueTokenSerializer
 
 
 @transaction.atomic

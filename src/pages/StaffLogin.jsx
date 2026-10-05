@@ -112,6 +112,19 @@ function StaffLogin() {
           </div>
 
           <div className="mt-6 text-center">
+            <p className="text-xs text-gray-500">New to the Hospital Management System?</p>
+            <a
+              href="/register?role=Doctor"
+              className="inline-block mt-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Create Account
+            </a>
+            <p className="text-[11px] text-gray-400 mt-1">
+              Staff registrations stay pending until an administrator approves them.
+            </p>
+          </div>
+
+          <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
               Don't have a staff account?{" "}
               <span className="text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
