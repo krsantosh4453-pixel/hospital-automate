@@ -65,6 +65,9 @@ INSTALLED_APPS = [
 
     # Analytics & Reports
     "reports",
+
+    # Consent forms and patient-controlled record sharing
+    "consent",
 ]
 
 # ============================================================

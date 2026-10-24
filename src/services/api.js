@@ -1708,6 +1708,9 @@ api.users = {
 
 api.hospitals = {
   list: async () => request(`${API_BASE_URL}/hospital/hospitals/`),
+  // Active hospitals any signed-in user (incl. patients) may choose from.
+  directory: async (search = "") =>
+    request(`${API_BASE_URL}/hospital/directory/${search ? `?search=${encodeURIComponent(search)}` : ""}`),
   get: async (id) => request(`${API_BASE_URL}/hospital/hospitals/${id}/`),
   myHospitals: async () => {
     try {
@@ -1990,18 +1993,29 @@ api.aiScribe.reviews = {
 
 api.consent = {
   forms: {
-    list: async () => request(`${API_BASE_URL}/notifications/consents/`),
+    list: async () => request(`${API_BASE_URL}/consent/forms/`),
   },
   records: {
     list: async (params = {}) => {
       const query = new URLSearchParams(params).toString()
-      return request(`${API_BASE_URL}/notifications/consents/${query ? `?${query}` : ""}`)
+      return request(`${API_BASE_URL}/consent/records/${query ? `?${query}` : ""}`)
     },
-    sign: async (id, data) =>
-      request(`${API_BASE_URL}/notifications/consents/${id}/sign/`, {
-        method: "POST",
-        ...jsonBody(data || {}),
-      }),
+    // data: { form, signed_name, confirm: true, patient? (staff only) }
+    sign: async (data) =>
+      request(`${API_BASE_URL}/consent/records/`, { method: "POST", ...jsonBody(data) }),
+    revoke: async (id) =>
+      request(`${API_BASE_URL}/consent/records/${id}/revoke/`, { method: "POST" }),
+  },
+  shares: {
+    list: async () => request(`${API_BASE_URL}/consent/shares/`),
+    received: async () => request(`${API_BASE_URL}/consent/shares/received/`),
+    // data: { recipient_hospital, scope: [...], purpose, expires_at, patient? }
+    create: async (data) =>
+      request(`${API_BASE_URL}/consent/shares/`, { method: "POST", ...jsonBody(data) }),
+    revoke: async (id) =>
+      request(`${API_BASE_URL}/consent/shares/${id}/revoke/`, { method: "POST" }),
+    accessLog: async (id) => request(`${API_BASE_URL}/consent/shares/${id}/access-log/`),
+    records: async (id) => request(`${API_BASE_URL}/consent/shares/${id}/records/`),
   },
 }
 

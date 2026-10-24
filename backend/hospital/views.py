@@ -1,4 +1,6 @@
 from rest_framework import viewsets
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 
@@ -92,3 +94,35 @@ class RoomViewSet(_OrgStructureViewSet):
 class BedViewSet(_OrgStructureViewSet):
     queryset = Bed.objects.select_related("room__ward__hospital").order_by("id")
     serializer_class = BedSerializer
+
+
+class HospitalDirectoryView(APIView):
+    """
+    Active hospitals with public contact details, for the patient hospital
+    picker and record-sharing recipient lists. For a patient login each row
+    says whether they are registered there.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from users.permissions import get_linked_patient
+
+        patient = get_linked_patient(request.user)
+        registered = set()
+        if patient is not None:
+            registered = set(patient.hospital_memberships.filter(is_active=True).values_list("hospital_id", flat=True))
+            if patient.hospital_id:
+                registered.add(patient.hospital_id)
+        rows = Hospital.objects.filter(is_active=True).order_by("name")
+        search = (request.query_params.get("search") or "").strip()
+        if search:
+            rows = rows.filter(name__icontains=search)
+        return Response([
+            {
+                "id": h.id, "name": h.name, "address": h.address, "city": h.city, "state": h.state,
+                "phone": h.phone, "is_active": h.is_active,
+                **({"registered": h.id in registered} if patient is not None else {}),
+            }
+            for h in rows[:200]
+        ])
