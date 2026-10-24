@@ -1,10 +1,14 @@
+import logging
+
 from rest_framework import viewsets, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from audit.services import record_audit
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsDoctor, IsNurse
 from .models import (
@@ -14,6 +18,8 @@ from .models import (
     DischargeSummary,
     DischargeNote,
 )
+logger = logging.getLogger(__name__)
+
 from .serializers import (
     AdmissionSerializer,
     BedAllocationSerializer,
@@ -210,6 +216,12 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 {"detail": "Discharge must be initiated first."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        summary = DischargeSummary.objects.filter(admission=admission).first()
+        if summary is None or not summary.finalized:
+            return Response(
+                {"detail": "A doctor must finalize the discharge summary before discharge is completed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             with transaction.atomic():
@@ -228,12 +240,14 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 admission.discharge_date = timezone.now()
                 admission.save()
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Discharge completion failed")
             return Response(
-                {"detail": str(e)},
+                {"detail": "Discharge could not be completed."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        record_audit(request, "ipd.admission.discharged", admission)
         return Response(AdmissionSerializer(admission).data)
 
 
@@ -292,16 +306,44 @@ class DischargePlanViewSet(HospitalScopedViewSet):
 
 
 class DischargeSummaryViewSet(HospitalScopedViewSet):
+    """A summary is editable until a doctor finalizes it; then it is locked
+    and later information goes into discharge notes (addenda)."""
+
     queryset = DischargeSummary.objects.select_related("admission__hospital", "admission__patient", "authorized_doctor")
     serializer_class = DischargeSummarySerializer
     permission_classes = [IsDoctor]
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        hospital_id = self.request.query_params.get("hospital")
-        if hospital_id:
-            qs = qs.filter(admission__hospital_id=hospital_id)
-        return qs
+    def perform_update(self, serializer):
+        if serializer.instance.finalized:
+            raise ValidationError("A finalized discharge summary cannot be changed; add a discharge note.")
+        super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        if instance.finalized:
+            raise ValidationError("A finalized discharge summary cannot be deleted.")
+        super().perform_destroy(instance)
+
+    @action(detail=True, methods=["post"])
+    def finalize(self, request, pk=None):
+        from doctors.models import Doctor
+
+        summary = self.get_object()
+        if summary.finalized:
+            return Response({"detail": "Already finalized."}, status=status.HTTP_400_BAD_REQUEST)
+        doctor = Doctor.objects.filter(user=request.user, hospital_id=summary.admission.hospital_id).first()
+        if doctor is None:
+            return Response(
+                {"detail": "Only a doctor of this hospital, linked to your login, can finalize."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not summary.summary.strip():
+            return Response({"detail": "The summary is empty."}, status=status.HTTP_400_BAD_REQUEST)
+        summary.authorized_doctor = doctor
+        summary.finalized = True
+        summary.finalized_at = timezone.now()
+        summary.save(update_fields=["authorized_doctor", "finalized", "finalized_at"])
+        record_audit(request, "ipd.discharge_summary.finalize", summary, hospital=summary.admission.hospital_id)
+        return Response(self.get_serializer(summary).data)
 
 
 class DischargeNoteViewSet(HospitalScopedViewSet):

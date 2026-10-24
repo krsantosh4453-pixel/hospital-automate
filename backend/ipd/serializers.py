@@ -132,7 +132,9 @@ class DischargeSummarySerializer(serializers.ModelSerializer):
             "hospital_name",
             "authorized_doctor_name",
         ]
-        read_only_fields = ["id", "created_at", "finalized_at", "patient_name", "hospital_name", "authorized_doctor_name"]
+        # Finalization goes through POST discharge-summaries/{id}/finalize/.
+        read_only_fields = ["id", "created_at", "finalized", "finalized_at", "authorized_doctor",
+                            "patient_name", "hospital_name", "authorized_doctor_name"]
 
 
 class DischargeNoteSerializer(serializers.ModelSerializer):

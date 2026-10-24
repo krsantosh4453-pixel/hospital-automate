@@ -84,6 +84,14 @@ class Diagnosis(models.Model):
     icd10_code = models.CharField(max_length=30, blank=True)
     diagnosis_type = models.CharField(max_length=50, default="Provisional")
     remarks = models.TextField(blank=True)
+    # Clinician accountable for the entry (set by the API from the signed-in user).
+    recorded_by = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

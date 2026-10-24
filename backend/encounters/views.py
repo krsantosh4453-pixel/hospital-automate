@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -16,9 +18,13 @@ from notifications.services import (
     get_notification_engine,
     NotificationEvent,
     NotificationChannel,
+    NotificationPayload,
 )
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsHospitalManager, IsReceptionist, IsDoctor, IsNurse, IsPatientReadOnly
+
+
+logger = logging.getLogger(__name__)
 
 
 class VisitViewSet(HospitalScopedViewSet):
@@ -102,23 +108,26 @@ class QueueTokenViewSet(HospitalScopedViewSet):
         if extra_channels:
             channels.extend(extra_channels)
 
-        self._notification_engine.send_notification(
-            event=event,
-            patient_id=token.patient_id,
-            hospital_id=token.hospital_id,
-            title=title,
-            message=message,
-            metadata={
-                "token_id": token.id,
-                "token_number": token.token_number,
-                "doctor_id": token.doctor_id,
-                "doctor_name": token.doctor_name,
-                "queue_position": token.queue_position,
-                "estimated_wait_minutes": token.estimated_wait_minutes,
-                **(metadata or {}),
-            },
-            channels=channels,
-        )
+        # A notification problem must never undo or fail the queue change.
+        try:
+            self._notification_engine.send(NotificationPayload(
+                event=event,
+                patient_id=token.patient_id,
+                hospital_id=token.hospital_id,
+                title=title,
+                message=message,
+                metadata={
+                    "token_id": token.id,
+                    "token_number": token.token_number,
+                    "doctor_id": token.doctor_id,
+                    "queue_position": token.queue_position,
+                    "estimated_wait_minutes": token.estimated_wait_minutes,
+                    **(metadata or {}),
+                },
+                channels=channels,
+            ))
+        except Exception:
+            logger.exception("Queue notification failed for token %s", token.pk)
 
     @action(detail=False, methods=["post"], url_path="issue")
     def issue(self, request):
@@ -139,7 +148,9 @@ class QueueTokenViewSet(HospitalScopedViewSet):
             )
 
         try:
-            appointment = Appointment.objects.get(pk=appointment_id)
+            appointment = Appointment.objects.filter(
+                hospital_id__in=self.get_acting_hospital_ids()
+            ).get(pk=appointment_id)
         except (Appointment.DoesNotExist, ValueError, TypeError):
             return Response(
                 {"appointment": "Appointment not found."},

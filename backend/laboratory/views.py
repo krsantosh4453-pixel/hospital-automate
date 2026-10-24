@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import IsLabStaff, IsDoctor, IsNurse, IsPatientReadOnly
+from users.permissions import get_linked_patient, is_active_staff, IsLabStaff, IsDoctor, IsNurse, IsPatientReadOnly
 from .models import (
     LabTest,
     SampleCollection,
@@ -38,9 +38,9 @@ class LabTestViewSet(HospitalScopedViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        hospital_id = self.request.query_params.get("hospital")
-        if hospital_id:
-            qs = qs.filter(hospital_id=hospital_id)
+        if get_linked_patient(self.request.user) and not is_active_staff(self.request.user):
+            # Patients see a result only after the laboratory has verified and released it.
+            return qs.filter(status="Released")
         patient_id = self.request.query_params.get("patient")
         if patient_id:
             qs = qs.filter(patient_id=patient_id)
@@ -59,7 +59,7 @@ class LabTestViewSet(HospitalScopedViewSet):
             qs = qs.filter(test_date__lte=date_to)
         return qs
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff | IsNurse])
     def collect_sample(self, request, pk=None):
         """Record sample collection."""
         lab_test = self.get_object()
@@ -84,7 +84,9 @@ class LabTestViewSet(HospitalScopedViewSet):
             lab_test=lab_test,
             sample_type=request.data.get("sample_type", "Blood"),
             container_type=request.data.get("container_type", "EDTA"),
-            sample_id=request.data.get("sample_id"),
+            # Lab number: the scanned/entered barcode, else one generated here.
+            sample_id=(request.data.get("sample_id") or "").strip()[:50]
+            or f"LAB{timezone.localdate():%Y%m%d}-{lab_test.hospital_id}-{lab_test.pk:06d}",
             collected_by_id=collected_by,
             collection_notes=request.data.get("collection_notes", ""),
             barcoded=request.data.get("barcoded", False),
@@ -99,7 +101,7 @@ class LabTestViewSet(HospitalScopedViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff | IsNurse])
     def dispatch_sample(self, request, pk=None):
         """Dispatch sample to lab."""
         lab_test = self.get_object()
@@ -128,7 +130,7 @@ class LabTestViewSet(HospitalScopedViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
     def receive_sample(self, request, pk=None):
         """Receive sample in lab."""
         lab_test = self.get_object()
@@ -153,7 +155,7 @@ class LabTestViewSet(HospitalScopedViewSet):
             {"lab_test": LabTestSerializer(lab_test).data, "sample_dispatch": SampleDispatchSerializer(sample_dispatch).data}
         )
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
     def start_processing(self, request, pk=None):
         """Start processing the sample."""
         lab_test = self.get_object()
@@ -170,7 +172,7 @@ class LabTestViewSet(HospitalScopedViewSet):
 
         return Response(LabTestSerializer(lab_test).data)
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
     def enter_result(self, request, pk=None):
         """Enter lab result."""
         lab_test = self.get_object()
@@ -200,7 +202,7 @@ class LabTestViewSet(HospitalScopedViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
     def verify_result(self, request, pk=None):
         """Verify lab result."""
         lab_test = self.get_object()
@@ -232,7 +234,7 @@ class LabTestViewSet(HospitalScopedViewSet):
             {"lab_test": LabTestSerializer(lab_test).data, "lab_result": LabResultSerializer(lab_result).data}
         )
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
     def release_result(self, request, pk=None):
         """Release result to doctor/patient."""
         lab_test = self.get_object()

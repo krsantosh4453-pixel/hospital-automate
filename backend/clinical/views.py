@@ -69,6 +69,11 @@ class DiagnosisViewSet(HospitalScopedViewSet):
     serializer_class = DiagnosisSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
 
+    def perform_create(self, serializer):
+        extra = self._check_tenancy(serializer.validated_data)
+        instance = serializer.save(recorded_by=self.request.user, **extra)
+        self._audit("create", instance)
+
 
 class ServiceOrderViewSet(HospitalScopedViewSet):
     queryset = ServiceOrder.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital")

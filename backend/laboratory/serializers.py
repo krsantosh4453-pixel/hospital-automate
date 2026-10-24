@@ -127,8 +127,10 @@ class LabTestSerializer(serializers.ModelSerializer):
             "sample_dispatch",
             "lab_result",
         ]
+        # status and result move only through the collect/dispatch/receive/
+        # process/enter/verify/release actions.
         read_only_fields = [
-            "id", "test_date", "collected_at", "dispatched_at", "received_at",
+            "id", "result", "status", "test_date", "collected_at", "dispatched_at", "received_at",
             "processed_at", "verified_at", "released_at",
             "patient_name", "hospital_name", "doctor_name",
             "sample_collection", "sample_dispatch", "lab_result"
@@ -162,5 +164,6 @@ class LabTestCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = LabTest
         fields = [
-            "name", "patient", "doctor", "visit", "hospital", "priority"
+            "id", "name", "patient", "doctor", "visit", "hospital", "priority", "status"
         ]
+        read_only_fields = ["id", "status"]

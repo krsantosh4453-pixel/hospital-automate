@@ -114,6 +114,7 @@ class InAppProvider(NotificationProvider):
             patient = Patient.objects.get(pk=payload.patient_id)
             notification = Notification.objects.create(
                 patient=patient,
+                hospital_id=payload.hospital_id,
                 title=payload.title,
                 message=payload.message,
                 notification_type=payload.event.value,

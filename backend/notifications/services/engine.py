@@ -12,6 +12,9 @@ from datetime import datetime
 from typing import Optional
 import logging
 
+from django.db import models
+from collections import deque
+
 from .providers import (
     NotificationChannel,
     NotificationEvent,
@@ -59,7 +62,9 @@ class NotificationEngine:
             EmailProvider(),
         ]
         self._register_defaults()
-        self._delivery_history: list[DeliveryRecord] = []
+        # Recent attempts for diagnostics only; the durable record is
+        # notifications.NotificationDelivery.
+        self._delivery_history: deque[DeliveryRecord] = deque(maxlen=500)
 
     def _register_defaults(self):
         for provider in self._default_providers:
@@ -86,7 +91,8 @@ class NotificationEngine:
             if provider.is_configured()
         ]
 
-    def check_consent(self, patient_id: int, event: NotificationEvent, channel: NotificationChannel) -> bool:
+    def check_consent(self, patient_id: int, event: NotificationEvent, channel: NotificationChannel,
+                      hospital_id: Optional[int] = None) -> bool:
         """
         Check if patient has consented to this notification type/channel.
 
@@ -105,24 +111,18 @@ class NotificationEngine:
             return True
 
         # Check for specific consent
-        purpose = f"{event.value}_{channel.value}"
-        consent = Consent.objects.filter(
-            patient_id=patient_id,
-            purpose=purpose,
-            granted=True
-        ).first()
-
-        if consent:
-            return True
-
-        # Check for general channel consent
-        general_consent = Consent.objects.filter(
-            patient_id=patient_id,
-            purpose=f"notifications_{channel.value}",
-            granted=True
-        ).first()
-
-        return general_consent is not None
+        # The most recent answer for this purpose wins, so a later opt-out
+        # (granted=False) overrides an earlier opt-in.
+        for purpose in (f"{event.value}_{channel.value}", f"notifications_{channel.value}"):
+            latest = (
+                Consent.objects.filter(patient_id=patient_id, purpose=purpose)
+                .filter(models.Q(hospital_id=hospital_id) | models.Q(hospital__isnull=True))
+                .order_by("-created_at", "-id")
+                .first()
+            )
+            if latest is not None:
+                return latest.granted
+        return False
 
     def send(self, payload: NotificationPayload) -> list[NotificationResult]:
         """
@@ -138,7 +138,7 @@ class NotificationEngine:
 
         for channel in payload.channels:
             # Check consent
-            if not self.check_consent(payload.patient_id, payload.event, channel):
+            if not self.check_consent(payload.patient_id, payload.event, channel, payload.hospital_id):
                 logger.info(
                     f"Consent not granted for patient {payload.patient_id}, "
                     f"event {payload.event.value}, channel {channel.value}"
@@ -189,8 +189,37 @@ class NotificationEngine:
         # Record delivery attempt
         record = DeliveryRecord(payload=payload, results=results)
         self._delivery_history.append(record)
+        self._persist(payload, results)
 
         return results
+
+    def _persist(self, payload, results):
+        """Write one NotificationDelivery row per channel attempt; never raises."""
+        from notifications.models import NotificationDelivery
+
+        try:
+            for result in results:
+                if result.success:
+                    status = NotificationDelivery.Status.SENT
+                elif result.error in ("Consent not granted", "No provider available", "Provider not configured"):
+                    status = NotificationDelivery.Status.SKIPPED
+                else:
+                    status = NotificationDelivery.Status.FAILED
+                notification_id = None
+                if result.channel == NotificationChannel.IN_APP and result.provider_message_id:
+                    notification_id = int(result.provider_message_id)
+                NotificationDelivery.objects.create(
+                    hospital_id=payload.hospital_id,
+                    patient_id=payload.patient_id,
+                    notification_id=notification_id,
+                    event=payload.event.value,
+                    channel=result.channel.value,
+                    status=status,
+                    error=(result.error or "")[:255],
+                    provider_message_id=(result.provider_message_id or "")[:100],
+                )
+        except Exception:
+            logger.exception("Could not record notification delivery")
 
     def send_async(self, payload: NotificationPayload):
         """

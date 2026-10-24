@@ -241,8 +241,19 @@ class HospitalScopedViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         self._check_tenancy(serializer.validated_data, instance=serializer.instance)
+        before = {
+            name: getattr(serializer.instance, name, None)
+            for name in serializer.validated_data
+            if not isinstance(getattr(serializer.instance, name, None), models.Manager)
+        }
         instance = serializer.save()
-        self._audit("update", instance, details={"fields": sorted(serializer.validated_data)})
+        # Previous values are kept so corrections to records stay traceable.
+        changes = {
+            name: {"from": getattr(old, "pk", old), "to": getattr(getattr(instance, name, None), "pk", getattr(instance, name, None))}
+            for name, old in before.items()
+            if getattr(old, "pk", old) != getattr(getattr(instance, name, None), "pk", getattr(instance, name, None))
+        }
+        self._audit("update", instance, details={"changes": changes})
 
     def perform_destroy(self, instance):
         self._audit("delete", instance)

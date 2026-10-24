@@ -167,6 +167,15 @@ class IPDAPITests(TestCase):
         admission.refresh_from_db()
         self.assertEqual(admission.status, "Discharge Initiated")
         
+        # Discharge cannot complete until the summary is finalized.
+        response = self.client.post(
+            self._get_admission_action_url(admission.id, "complete_discharge"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        summary.finalized = True
+        summary.save()
+
         # Test complete discharge action
         response = self.client.post(
             self._get_admission_action_url(admission.id, "complete_discharge"),

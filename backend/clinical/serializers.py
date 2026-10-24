@@ -85,6 +85,7 @@ class DiagnosisSerializer(serializers.ModelSerializer):
     class Meta:
         model = Diagnosis
         fields = [
+            "recorded_by",
             "id",
             "visit",
             "name",
@@ -93,7 +94,7 @@ class DiagnosisSerializer(serializers.ModelSerializer):
             "remarks",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "recorded_by"]
 
 
 class ServiceOrderSerializer(serializers.ModelSerializer):
