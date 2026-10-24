@@ -7,71 +7,82 @@ function Laboratory() {
   const { selectedHospital } = usePatient()
 
   const [tests, setTests] = useState([])
+  const [patientOptions, setPatientOptions] = useState([])
+  const [doctorOptions, setDoctorOptions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [busyId, setBusyId] = useState(null)
 
-  // =========================
-  // FETCH DATA
-  // =========================
+  // Backend workflow status -> the three summary states this page shows.
+  const SUMMARY = {
+    Ordered: "Pending",
+    "Sample Pending": "Pending",
+    Collected: "Processing",
+    Dispatched: "Processing",
+    Received: "Processing",
+    Processing: "Processing",
+    "Result Entered": "Processing",
+    Verified: "Processing",
+    Released: "Completed",
+    Cancelled: "Cancelled",
+  }
+
+  // Next lab action for each stage (label, client method, needs a result text).
+  const NEXT_STEP = {
+    Ordered: ["Collect Sample", "collectSample"],
+    "Sample Pending": ["Collect Sample", "collectSample"],
+    Collected: ["Dispatch Sample", "dispatchSample"],
+    Dispatched: ["Receive in Lab", "receiveSample"],
+    Received: ["Start Processing", "startProcessing"],
+    Processing: ["Enter Result", "enterResult", true],
+    "Result Entered": ["Verify Result", "verifyResult"],
+    Verified: ["Release Result", "releaseResult"],
+  }
+
+  const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
+
+  const toRow = (t) => ({
+    id: `LAB-${t.id}`,
+    apiId: t.id,
+    patient: t.patient_name || `Patient #${t.patient}`,
+    patientId: t.patient,
+    test: t.name,
+    doctor: t.doctor_name || "",
+    doctorId: t.doctor,
+    date: t.test_date ? new Date(t.test_date).toLocaleDateString("en-IN") : "",
+    priority: t.priority || "Normal",
+    stage: t.status,
+    status: SUMMARY[t.status] || t.status,
+    result: t.status === "Released" ? t.result || "—" : "Pending",
+    hospitalId: t.hospital,
+  })
+
+  const loadTests = async () => {
+    if (!selectedHospital) return
+    setLoading(true)
+    setError(null)
+    try {
+      const [testData, patientData, doctorData] = await Promise.all([
+        api.laboratory.tests.list(selectedHospital.id),
+        api.patients.list(selectedHospital.id),
+        api.doctors.list(selectedHospital.id),
+      ])
+      setTests(rows(testData).map(toRow))
+      setPatientOptions(rows(patientData))
+      setDoctorOptions(rows(doctorData))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    if (!selectedHospital) return
-
-    const fetchTests = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await api.laboratory.tests.list(selectedHospital.id)
-        setTests(data?.results || data || [])
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchTests()
+    loadTests()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedHospital?.id])
 
-  // Mock data fallback
-  const mockTests = [
-    {
-      id: "LAB001",
-      patient: "Rahul Kumar",
-      test: "Complete Blood Count",
-      doctor: "Dr. Sharma",
-      date: "01 Sep 2026",
-      priority: "Normal",
-      status: "Completed",
-      result: "Normal",
-      hospitalId: 1,
-    },
-    {
-      id: "LAB002",
-      patient: "Priya Singh",
-      test: "Blood Sugar",
-      doctor: "Dr. Verma",
-      date: "01 Sep 2026",
-      priority: "Urgent",
-      status: "Processing",
-      result: "Pending",
-      hospitalId: 1,
-    },
-    {
-      id: "LAB003",
-      patient: "Amit Kumar",
-      test: "Lipid Profile",
-      doctor: "Dr. Singh",
-      date: "01 Sep 2026",
-      priority: "Normal",
-      status: "Pending",
-      result: "Pending",
-      hospitalId: 2,
-    },
-  ]
-
-  // Use API data or fallback to mock
-  const testsData = tests.length > 0 ? tests : mockTests
+  const testsData = tests
 
   const [search, setSearch] = useState("")
 
@@ -130,7 +141,7 @@ function Laboratory() {
           .includes(
             search.toLowerCase()
           ) ||
-        test.id
+        String(test.id)
           .toLowerCase()
           .includes(
             search.toLowerCase()
@@ -222,58 +233,30 @@ function Laboratory() {
   // New Lab Test
   // =========================
 
-  const handleSubmit = (e) => {
-
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
     if (!selectedHospital) {
-
       alert(
         "Please select a hospital first."
       )
-
       return
     }
 
-    const newTest = {
-
-      id: `LAB${String(
-        tests.length + 1
-      ).padStart(3, "0")}`,
-
-      patient:
-        formData.patient,
-
-      test:
-        formData.test,
-
-      doctor:
-        formData.doctor,
-
-      date:
-        formData.date,
-
-      priority:
-        formData.priority,
-
-      status:
-        "Pending",
-
-      result:
-        "Pending",
-
-      hospitalId:
-        selectedHospital.id,
+    try {
+      await api.laboratory.tests.create({
+        hospital: selectedHospital.id,
+        patient: Number(formData.patient),
+        doctor: formData.doctor ? Number(formData.doctor) : null,
+        name: formData.test,
+        priority: formData.priority,
+      })
+      resetForm()
+      await loadTests()
+    } catch (err) {
+      alert(`Lab order was not created: ${err.message}`)
     }
-
-    setTests([
-      ...tests,
-      newTest,
-    ])
-
-    resetForm()
   }
-
 
   // =========================
   // View
@@ -321,113 +304,72 @@ function Laboratory() {
   // Update
   // =========================
 
-  const handleUpdate = (e) => {
-
+  const handleUpdate = async (e) => {
     e.preventDefault()
 
-    const updatedTests =
-      tests.map(
-        (test) =>
-          test.id ===
-            selectedTest.id
-            ? {
-              ...test,
-
-              patient:
-                formData.patient,
-
-              test:
-                formData.test,
-
-              doctor:
-                formData.doctor,
-
-              date:
-                formData.date,
-
-              priority:
-                formData.priority,
-            }
-            : test
-      )
-
-    setTests(
-      updatedTests
-    )
-
-    resetForm()
+    try {
+      await api.laboratory.tests.update(selectedTest.apiId, {
+        hospital: selectedHospital.id,
+        patient: selectedTest.patientId,
+        name: formData.test,
+        doctor: formData.doctor ? Number(formData.doctor) : null,
+        priority: formData.priority,
+      })
+      resetForm()
+      await loadTests()
+    } catch (err) {
+      alert(`Lab order was not updated: ${err.message}`)
+    }
   }
-
 
   // =========================
   // Delete
   // =========================
 
-  const handleDelete = (id) => {
-
+  const handleDelete = async (id) => {
+    const test = tests.find((t) => t.id === id)
     const confirmed =
       window.confirm(
-        "Are you sure you want to delete this laboratory test?"
+        "Cancel this laboratory order? It stays in the record as cancelled."
       )
 
-    if (!confirmed) {
+    if (!confirmed || !test) {
       return
     }
 
-    setTests(
-      tests.filter(
-        (test) =>
-          test.id !== id
-      )
-    )
+    try {
+      await api.laboratory.tests.cancel(test.apiId)
+      await loadTests()
+    } catch (err) {
+      alert(`Order was not cancelled: ${err.message}`)
+    }
   }
-
 
   // =========================
   // Process
   // =========================
 
-  const handleProcess = (id) => {
-
-    setTests(
-      tests.map(
-        (test) =>
-          test.id === id
-            ? {
-              ...test,
-              status:
-                "Processing",
-            }
-            : test
-      )
-    )
+  const handleProcess = async (id) => {
+    const test = tests.find((t) => t.id === id)
+    const step = test && NEXT_STEP[test.stage]
+    if (!step) return
+    const [label, method, needsResult] = step
+    let payload = {}
+    if (needsResult) {
+      const resultText = window.prompt(`Result for ${test.test} (${test.patient}):`)
+      if (!resultText || !resultText.trim()) return
+      payload = { result_text: resultText.trim() }
+    }
+    setBusyId(id)
+    try {
+      await api.laboratory.tests[method](test.apiId, payload)
+      await loadTests()
+    } catch (err) {
+      alert(`${label} failed: ${err.message}`)
+    } finally {
+      setBusyId(null)
+    }
   }
-
-
-  // =========================
-  // Complete
-  // =========================
-
-  const handleComplete = (id) => {
-
-    setTests(
-      tests.map(
-        (test) =>
-          test.id === id
-            ? {
-              ...test,
-
-              status:
-                "Completed",
-
-              result:
-                "Normal",
-            }
-            : test
-      )
-    )
-  }
-
 
   // =========================
   // Status Style
@@ -903,8 +845,7 @@ function Laboratory() {
                               </button>
 
 
-                              {test.status ===
-                                "Pending" && (
+                              {NEXT_STEP[test.stage] && (
 
                                   <button
                                     onClick={() =>
@@ -912,26 +853,10 @@ function Laboratory() {
                                         test.id
                                       )
                                     }
-                                    className="px-3 py-2 text-sm bg-indigo-50 text-indigo-700 rounded-lg"
+                                    disabled={busyId === test.id}
+                                    className="px-3 py-2 text-sm bg-indigo-50 text-indigo-700 rounded-lg disabled:opacity-50"
                                   >
-                                    Process
-                                  </button>
-
-                                )}
-
-
-                              {test.status ===
-                                "Processing" && (
-
-                                  <button
-                                    onClick={() =>
-                                      handleComplete(
-                                        test.id
-                                      )
-                                    }
-                                    className="px-3 py-2 text-sm bg-green-50 text-green-700 rounded-lg"
-                                  >
-                                    Complete
+                                    {NEXT_STEP[test.stage][0]}
                                   </button>
 
                                 )}
@@ -945,7 +870,7 @@ function Laboratory() {
                                 }
                                 className="px-3 py-2 text-sm bg-red-50 text-red-700 rounded-lg"
                               >
-                                Delete
+                                Cancel Order
                               </button>
 
                             </div>
@@ -1025,6 +950,7 @@ function Laboratory() {
 
                     <select
                       name="patient"
+                      disabled={Boolean(selectedTest)}
                       value={
                         formData.patient
                       }
@@ -1039,29 +965,11 @@ function Laboratory() {
                         Select Patient
                       </option>
 
-                      {selectedHospital.id === 1 && (
-                        <>
-                          <option>
-                            Rahul Kumar
-                          </option>
-
-                          <option>
-                            Priya Singh
-                          </option>
-                        </>
-                      )}
-
-                      {selectedHospital.id === 2 && (
-                        <option>
-                          Amit Kumar
+                      {patientOptions.map((patient) => (
+                        <option key={patient.id} value={patient.id}>
+                          {patient.name}
                         </option>
-                      )}
-
-                      {selectedHospital.id === 3 && (
-                        <option>
-                          Ravi Sharma
-                        </option>
-                      )}
+                      ))}
 
                     </select>
 
@@ -1137,7 +1045,6 @@ function Laboratory() {
                       onChange={
                         handleChange
                       }
-                      required
                       className="w-full border border-gray-300 rounded-xl px-4 py-3"
                     >
 
@@ -1145,45 +1052,18 @@ function Laboratory() {
                         Select Doctor
                       </option>
 
-                      <option>
-                        Dr. Sharma
-                      </option>
-
-                      <option>
-                        Dr. Verma
-                      </option>
-
-                      <option>
-                        Dr. Singh
-                      </option>
+                      {doctorOptions.map((doctor) => (
+                        <option key={doctor.id} value={doctor.id}>
+                          {doctor.name}
+                        </option>
+                      ))}
 
                     </select>
 
                   </div>
 
 
-                  {/* Date */}
-
-                  <div>
-
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Test Date
-                    </label>
-
-                    <input
-                      type="date"
-                      name="date"
-                      value={
-                        formData.date
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      required
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3"
-                    />
-
-                  </div>
+                  {/* The order date is set by the server when the order is created. */}
 
 
                   {/* Priority */}

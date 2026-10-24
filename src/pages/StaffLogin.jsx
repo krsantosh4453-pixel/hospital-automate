@@ -5,7 +5,7 @@ import api from "../services/api.js"
 
 function StaffLogin() {
   const navigate = useNavigate()
-  const { staffLoginStartOtp, staffOtpVerify, staffOtpResend, applyDevelopmentAccess, devBypassAvailable } = useAuth()
+  const { staffLogin, staffLoginStartOtp, staffOtpVerify, staffOtpResend, applyDevelopmentAccess, devBypassAvailable } = useAuth()
 
   const [step, setStep] = useState("credentials")
   const [username, setUsername] = useState("")
@@ -26,7 +26,19 @@ function StaffLogin() {
     setLoading(true)
 
     try {
-      const data = await staffLoginStartOtp(username, password)
+      let data
+      try {
+        data = await staffLoginStartOtp(username, password)
+      } catch (otpError) {
+        // SMS OTP is not set up for this hospital: sign in with the password.
+        // The server refuses this when its policy requires OTP.
+        if (/not configured/i.test(otpError.message || "")) {
+          await staffLogin(username, password)
+          navigate("/")
+          return
+        }
+        throw otpError
+      }
       if (data.otp_required) {
         setChallenge(data.challenge)
         setStaffRole(data.staff_role)

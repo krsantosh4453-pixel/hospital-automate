@@ -1,34 +1,43 @@
 import { useMemo, useState, useEffect } from "react"
 
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useAuth } from "../assets/context/AuthContext.jsx"
 import api from "../services/api.js"
 
 function Nurses() {
   const { selectedHospital } = usePatient()
 
   // =====================================================
-  // CURRENT USER
+  // CURRENT USER (the signed-in staff member)
   // =====================================================
 
+  const { user: authUser } = useAuth()
+  const staff = authUser?.user || authUser || {}
+  const staffRoles = staff.roles || authUser?.roles || []
   const currentUser = {
-    id: "N001",
-    name: "Sunita Kumari",
-    role: "Nurse",
-    hospitalId: selectedHospital?.id || 1,
-    department: "General Medicine",
-    shift: "Morning",
-    phone: "9876543201",
-    email: "sunita@example.com",
-    qualification: "B.Sc Nursing",
-    joiningDate: "10 Jan 2025",
+    id: staff.id,
+    name:
+      [staff.first_name, staff.last_name].filter(Boolean).join(" ") ||
+      staff.full_name ||
+      staff.username ||
+      "Staff member",
+    role: staff.staff_role || staffRoles[0] || "",
+    hospitalId: selectedHospital?.id,
+    department: staff.department || "",
+    shift: "",
+    phone: staff.phone || "",
+    email: staff.email || "",
+    qualification: "",
+    joiningDate: "",
     status: "On Duty",
   }
 
-  const isAdmin = currentUser.role === "Admin"
-  const isNurse = currentUser.role === "Nurse"
+  // Admin and Hospital Manager manage the nurse roster (the backend enforces this too).
+  const isAdmin = staffRoles.includes("Admin") || staffRoles.includes("Hospital Manager")
+  const isNurse = staffRoles.includes("Nurse")
 
   // =====================================================
-  // STATE - API Data (with mock fallback)
+  // STATE - loaded from the API only (no demo data)
   // =====================================================
 
   const [nurses, setNurses] = useState([])
@@ -36,468 +45,157 @@ function Nurses() {
   const [vitals, setVitals] = useState([])
   const [assessments, setAssessments] = useState([])
   const [notes, setNotes] = useState([])
-  const [orders, setOrders] = useState([])
+  const [orders] = useState([])
   const [mar, setMar] = useState([])
   const [bloodRequests, setBloodRequests] = useState([])
-  const [discharges, setDischarges] = useState([])
+  const [discharges] = useState([])
   const [billing, setBilling] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [saving, setSaving] = useState(false)
 
-  // =====================================================
-  // FETCH DATA FROM API
-  // =====================================================
+  const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
+  const fmtTime = (value) =>
+    value ? new Date(value).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : ""
+  const fmtDate = (value) => (value ? new Date(value).toLocaleDateString("en-IN") : "")
 
-  useEffect(() => {
+  const loadData = async () => {
     if (!selectedHospital) return
-
-    const fetchData = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const [
-          nursesRes,
-          patientsRes,
-          vitalsRes,
-          assessmentsRes,
-          notesRes,
-          marRes,
-        ] = await Promise.all([
-          api.nurses.list(selectedHospital.id).catch(() => ({ results: [] })),
-          api.patients.list(selectedHospital.id).catch(() => ({ results: [] })),
-          api.clinical.vitals.list({ hospitalId: selectedHospital.id }).catch(() => ({ results: [] })),
-          api.nurses.assessments.list(selectedHospital.id).catch(() => ({ results: [] })),
-          api.nurses.notes.list(selectedHospital.id).catch(() => ({ results: [] })),
-          api.nurses.mar.list(selectedHospital.id).catch(() => ({ results: [] })),
-        ])
-
-        setNurses(nursesRes?.results || nursesRes || [])
-        setPatients(patientsRes?.results || patientsRes || [])
-        setVitals(vitalsRes?.results || vitalsRes || [])
-        setAssessments(assessmentsRes?.results || assessmentsRes || [])
-        setNotes(notesRes?.results || notesRes || [])
-        setMar(marRes?.results || marRes || [])
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
+    const hospitalId = selectedHospital.id
+    setLoading(true)
+    setError(null)
+    const sources = [
+      ["nurses", api.nurses.list(hospitalId)],
+      ["admitted patients", api.ipd.admissions.list(hospitalId)],
+      ["assessments", api.nurses.assessments.list(hospitalId)],
+      ["notes", api.nurses.notes.list(hospitalId)],
+      ["medication schedule", api.nurses.mar.dueMedications(hospitalId)],
+      ["blood requests", api.bloodbank.requests.list(hospitalId)],
+      ["bills", api.billing.invoices.list(hospitalId)],
+    ]
+    const results = await Promise.allSettled(sources.map(([, promise]) => promise))
+    const failed = []
+    const value = (index) => {
+      const result = results[index]
+      if (result.status === "fulfilled") return rows(result.value)
+      failed.push(`${sources[index][0]} (${result.reason?.message || "error"})`)
+      return []
     }
 
-    fetchData()
+    setNurses(value(0).map((n) => ({
+      id: n.id,
+      hospitalId: n.hospital,
+      name: n.name,
+      department: n.department || "",
+      shift: n.shift || "",
+      phone: n.phone || "",
+      email: n.email || "",
+      qualification: n.qualification || "",
+      joiningDate: n.joining_date || "",
+      status: n.status || "",
+    })))
+
+    const admissions = value(1).filter((a) => a.status === "Admitted" || a.status === "Discharge Initiated")
+    setPatients(admissions.map((a) => ({
+      id: a.patient,
+      admissionId: a.id,
+      hospitalId: a.hospital,
+      name: a.patient_name || `Patient #${a.patient}`,
+      age: a.patient_age ?? "",
+      ward: a.current_bed?.ward_name || "",
+      bed: a.current_bed?.bed_number || "",
+      doctor: a.admitting_doctor_name || "",
+      department: "",
+      status: a.status,
+    })))
+
+    // Vitals are recorded as nursing "Focused" assessments with a vitals record.
+    const assessmentRows = value(2)
+    setVitals(assessmentRows.filter((a) => a.vitals && Object.keys(a.vitals).length > 0).map((a) => ({
+      id: a.id,
+      hospitalId: a.hospital,
+      patientId: a.patient,
+      patientName: a.patient_name,
+      temperature: a.vitals.temperature ?? "",
+      bp: a.vitals.bp ?? "",
+      pulse: a.vitals.pulse ?? "",
+      spo2: a.vitals.spo2 ?? "",
+      respiratoryRate: a.vitals.respiratory_rate ?? "",
+      recordedBy: a.nurse_name || a.recorded_by_name || "",
+      time: fmtTime(a.assessed_at),
+    })))
+    setAssessments(assessmentRows.filter((a) => a.plan_of_care).map((a) => ({
+      id: a.id,
+      hospitalId: a.hospital,
+      patientId: a.patient,
+      patientName: a.patient_name,
+      assessment: a.plan_of_care,
+      nurse: a.nurse_name || "",
+      date: fmtDate(a.assessed_at),
+    })))
+
+    setNotes(value(3).map((n) => ({
+      id: n.id,
+      hospitalId: n.hospital,
+      patientId: n.patient,
+      text: n.note,
+      createdBy: n.nurse_name || "",
+      date: fmtDate(n.created_at),
+    })))
+
+    setMar(value(4).map((d) => ({
+      id: d.id,
+      hospitalId: d.hospital,
+      patientId: d.patient,
+      patientName: d.patient_name,
+      medicine: d.medicine_name,
+      dose: d.dose,
+      route: d.route,
+      frequency: d.frequency,
+      time: fmtTime(d.scheduled_time),
+      status: d.status === "Scheduled" ? (d.is_delayed ? "Delayed" : "Due") : d.status,
+    })))
+
+    setBloodRequests(value(5).map((b) => ({
+      id: b.id,
+      hospitalId: b.hospital,
+      patientId: b.patient,
+      patientName: b.patient_name,
+      bloodGroup: b.blood_group,
+      units: b.units,
+      urgency: b.priority || b.urgency || "",
+      status: b.status,
+    })))
+
+    setBilling(value(6).map((bill) => ({
+      id: bill.id,
+      hospitalId: bill.hospital,
+      patientId: bill.patient,
+      amount: bill.total_amount ?? bill.total,
+      status: bill.status,
+    })))
+
+    if (failed.length > 0) {
+      setError(`Could not load: ${failed.join("; ")}`)
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedHospital?.id])
 
-  // Mock data fallback
-  const mockNurses = [
-    {
-      id: "N001",
-      hospitalId: 1,
-      name: "Sunita Kumari",
-      department: "General Medicine",
-      shift: "Morning",
-      phone: "9876543201",
-      email: "sunita@example.com",
-      qualification: "B.Sc Nursing",
-      joiningDate: "10 Jan 2025",
-      status: "On Duty",
-    },
-    {
-      id: "N002",
-      hospitalId: 1,
-      name: "Pooja Singh",
-      department: "Emergency",
-      shift: "Evening",
-      phone: "9876543202",
-      email: "pooja@example.com",
-      qualification: "GNM",
-      joiningDate: "15 Mar 2025",
-      status: "On Duty",
-    },
-    {
-      id: "N003",
-      hospitalId: 1,
-      name: "Anita Kumari",
-      department: "ICU",
-      shift: "Night",
-      phone: "9876543203",
-      email: "anita@example.com",
-      qualification: "B.Sc Nursing",
-      joiningDate: "20 Apr 2025",
-      status: "Off Duty",
-    },
-    {
-      id: "N004",
-      hospitalId: 2,
-      name: "Neha Singh",
-      department: "General Medicine",
-      shift: "Morning",
-      phone: "9876543204",
-      email: "neha@example.com",
-      qualification: "GNM",
-      joiningDate: "02 Feb 2025",
-      status: "On Duty",
-    },
-    {
-      id: "N005",
-      hospitalId: 2,
-      name: "Kavita Kumari",
-      department: "Emergency",
-      shift: "Evening",
-      phone: "9876543205",
-      email: "kavita@example.com",
-      qualification: "B.Sc Nursing",
-      joiningDate: "18 May 2025",
-      status: "On Duty",
-    },
-    {
-      id: "N006",
-      hospitalId: 2,
-      name: "Rani Devi",
-      department: "ICU",
-      shift: "Night",
-      phone: "9876543206",
-      email: "rani@example.com",
-      qualification: "GNM",
-      joiningDate: "05 Jun 2025",
-      status: "Off Duty",
-    },
-    {
-      id: "N007",
-      hospitalId: 3,
-      name: "Shweta Kumari",
-      department: "General Medicine",
-      shift: "Morning",
-      phone: "9876543207",
-      email: "shweta@example.com",
-      qualification: "B.Sc Nursing",
-      joiningDate: "12 Jul 2025",
-      status: "On Duty",
-    },
-    {
-      id: "N008",
-      hospitalId: 3,
-      name: "Meena Singh",
-      department: "Emergency",
-      shift: "Evening",
-      phone: "9876543208",
-      email: "meena@example.com",
-      qualification: "GNM",
-      joiningDate: "22 Aug 2025",
-      status: "Off Duty",
-    },
-  ]
-
-  // Use API data or fallback to mock
-  const nursesData = nurses.length > 0 ? nurses : mockNurses
-
-  // =====================================================
-  // MOCK DATA (fallback when API unavailable)
-  // =====================================================
-
-  const mockPatients = [
-    {
-      id: "P001",
-      hospitalId: 1,
-      name: "Rahul Kumar",
-      age: 42,
-      gender: "Male",
-      department: "General Medicine",
-      doctor: "Dr. Sharma",
-      ward: "Ward A",
-      bed: "A-12",
-      status: "Admitted",
-    },
-    {
-      id: "P002",
-      hospitalId: 1,
-      name: "Priya Singh",
-      age: 35,
-      gender: "Female",
-      department: "Cardiology",
-      doctor: "Dr. Kumar",
-      ward: "Ward B",
-      bed: "B-08",
-      status: "Admitted",
-    },
-    {
-      id: "P003",
-      hospitalId: 1,
-      name: "Amit Kumar",
-      age: 51,
-      gender: "Male",
-      department: "Emergency",
-      doctor: "Dr. Singh",
-      ward: "Emergency",
-      bed: "E-04",
-      status: "Critical",
-    },
-    {
-      id: "P004",
-      hospitalId: 2,
-      name: "Ravi Kumar",
-      age: 29,
-      gender: "Male",
-      department: "General Medicine",
-      doctor: "Dr. Verma",
-      ward: "Ward A",
-      bed: "A-05",
-      status: "Admitted",
-    },
-    {
-      id: "P005",
-      hospitalId: 2,
-      name: "Neha Kumari",
-      age: 46,
-      gender: "Female",
-      department: "ICU",
-      doctor: "Dr. Gupta",
-      ward: "ICU",
-      bed: "ICU-02",
-      status: "Critical",
-    },
-    {
-      id: "P006",
-      hospitalId: 3,
-      name: "Sanjay Singh",
-      age: 38,
-      gender: "Male",
-      department: "Orthopedics",
-      doctor: "Dr. Patel",
-      ward: "Ward C",
-      bed: "C-11",
-      status: "Admitted",
-    },
-  ];
-
-  // Use API data or fallback to mock
-  const patientsData = patients.length > 0 ? patients : mockPatients
-
-  // =====================================================
-  // MOCK VITALS
-  // =====================================================
-
-  const mockVitals = [
-    {
-      id: "V001",
-      hospitalId: 1,
-      patientId: "P001",
-      temperature: "98.6",
-      bp: "120/80",
-      pulse: "76",
-      spo2: "98",
-      respiratoryRate: "16",
-      recordedBy: "Sunita Kumari",
-      time: "10:20 AM",
-    },
-    {
-      id: "V002",
-      hospitalId: 1,
-      patientId: "P002",
-      temperature: "99.1",
-      bp: "128/84",
-      pulse: "82",
-      spo2: "97",
-      respiratoryRate: "18",
-      recordedBy: "Pooja Singh",
-      time: "10:35 AM",
-    },
-    {
-      id: "V003",
-      hospitalId: 1,
-      patientId: "P003",
-      temperature: "101.2",
-      bp: "145/90",
-      pulse: "104",
-      spo2: "91",
-      respiratoryRate: "22",
-      recordedBy: "Sunita Kumari",
-      time: "10:45 AM",
-    },
-  ];
-
-  // Use API data or fallback to mock
-  const vitalsData = vitals.length > 0 ? vitals : mockVitals
-
-  // =====================================================
-  // MOCK ASSESSMENTS
-  // =====================================================
-
-  const mockAssessments = [
-    {
-      id: "AS001",
-      hospitalId: 1,
-      patientId: "P001",
-      assessment:
-        "Patient stable. No acute distress.",
-      nurse: "Sunita Kumari",
-      date: "02 Sep 2026",
-    },
-    {
-      id: "AS002",
-      hospitalId: 1,
-      patientId: "P002",
-      assessment:
-        "Patient reports mild chest discomfort.",
-      nurse: "Pooja Singh",
-      date: "02 Sep 2026",
-    },
-  ];
-
-  // Use API data or fallback to mock
-  const assessmentsData = assessments.length > 0 ? assessments : mockAssessments
-
-  // =====================================================
-  // MOCK NOTES
-  // =====================================================
-
-  const mockNotes = [
-    {
-      id: "NOTE001",
-      hospitalId: 1,
-      patientId: "P001",
-      text: "Patient resting comfortably.",
-      createdBy: "Sunita Kumari",
-      date: "02 Sep 2026",
-    },
-  ];
-
-  // Use API data or fallback to mock
-  const notesData = notes.length > 0 ? notes : mockNotes
-
-  // =====================================================
-  // MOCK ORDERS
-  // =====================================================
-
-  const mockOrders = [
-    {
-      id: "ORD001",
-      hospitalId: 1,
-      patientId: "P001",
-      order: "CBC Blood Test",
-      doctor: "Dr. Sharma",
-      status: "Pending",
-    },
-    {
-      id: "ORD002",
-      hospitalId: 1,
-      patientId: "P002",
-      order: "ECG",
-      doctor: "Dr. Kumar",
-      status: "Completed",
-    },
-    {
-      id: "ORD003",
-      hospitalId: 1,
-      patientId: "P003",
-      order: "Emergency Blood Test",
-      doctor: "Dr. Singh",
-      status: "Pending",
-    },
-  ];
-
-  // Use API data or fallback to mock
-  const ordersData = orders.length > 0 ? orders : mockOrders
-
-  // =====================================================
-  // MOCK MAR
-  // =====================================================
-
-  const mockMar = [
-    {
-      id: "MAR001",
-      hospitalId: 1,
-      patientId: "P001",
-      medicine: "Medicine A",
-      dose: "500 mg",
-      route: "Oral",
-      frequency: "1-0-1",
-      time: "08:00 AM",
-      status: "Given",
-      givenBy: "Sunita Kumari",
-    },
-    {
-      id: "MAR002",
-      hospitalId: 1,
-      patientId: "P001",
-      medicine: "Medicine B",
-      dose: "10 mg",
-      route: "Oral",
-      frequency: "0-0-1",
-      time: "08:00 PM",
-      status: "Pending",
-      givenBy: "",
-    },
-    {
-      id: "MAR003",
-      hospitalId: 1,
-      patientId: "P003",
-      medicine: "Emergency Medicine",
-      dose: "1 dose",
-      route: "IV",
-      frequency: "STAT",
-      time: "10:00 AM",
-      status: "Pending",
-      givenBy: "",
-    },
-  ];
-
-  // =====================================================
-  // MOCK BLOOD REQUESTS
-  // =====================================================
-
-  const mockBloodRequests = [
-    {
-      id: "BL001",
-      hospitalId: 1,
-      patientId: "P003",
-      bloodGroup: "B+",
-      units: 2,
-      urgency: "Urgent",
-      status: "Requested",
-    },
-    {
-      id: "BL002",
-      hospitalId: 1,
-      patientId: "P002",
-      bloodGroup: "O+",
-      units: 1,
-      urgency: "Normal",
-      status: "Available",
-    },
-  ]
-
-  // Use API data or fallback to mock
-  const bloodData = bloodRequests.length > 0 ? bloodRequests : mockBloodRequests
-
-  // =====================================================
-  // DISCHARGE
-  // =====================================================
-
-  const mockDischarges = []
-
-  // =====================================================
-  // MOCK BILLING
-  // =====================================================
-
-  const mockBilling = [
-    {
-      id: "BILL001",
-      hospitalId: 1,
-      patientId: "P001",
-      amount: 4500,
-      status: "Pending",
-    },
-    {
-      id: "BILL002",
-      hospitalId: 1,
-      patientId: "P002",
-      amount: 7200,
-      status: "Paid",
-    },
-  ]
-
-  // Use API data or fallback to mock
-  const billingData = billing.length > 0 ? billing : mockBilling
+  // Data shown on the page is exactly what the API returned.
+  const nursesData = nurses
+  const patientsData = patients
+  const vitalsData = vitals
+  const assessmentsData = assessments
+  const notesData = notes
+  const ordersData = orders
+  const marData = mar
+  const bloodData = bloodRequests
+  const billingData = billing
 
   // =====================================================
   // REPORTS
@@ -704,9 +402,11 @@ function Nurses() {
     }))
   }
 
+  // Staff profiles are maintained by the hospital administrator; nothing here
+  // is sent to the server, so do not claim it was saved.
   const saveProfile = () => {
     setEditingProfile(false)
-    alert("Profile updated successfully.")
+    alert("Profile changes are not saved here. Ask your hospital administrator to update your staff record.")
   }
 
   // =====================================================
@@ -729,7 +429,7 @@ function Nurses() {
       status: "On Duty",
     })
 
-  const handleAddNurse = (e) => {
+  const handleAddNurse = async (e) => {
     e.preventDefault()
 
     if (!isAdmin) {
@@ -746,38 +446,36 @@ function Nurses() {
       return
     }
 
-    const count =
-      nurses.filter(
-        (nurse) =>
-          nurse.hospitalId ===
-          selectedHospital.id
-      ).length + 1
-
-    const nurse = {
-      ...newNurse,
-      id: `N${selectedHospital.id}${String(
-        count
-      ).padStart(2, "0")}`,
-      hospitalId: selectedHospital.id,
+    setSaving(true)
+    try {
+      await api.nurses.create({
+        hospital: selectedHospital.id,
+        name: newNurse.name,
+        department: newNurse.department,
+        shift: newNurse.shift,
+        phone: newNurse.phone,
+        email: newNurse.email,
+        qualification: newNurse.qualification,
+        joining_date: newNurse.joiningDate || null,
+        status: newNurse.status,
+      })
+      setNewNurse({
+        name: "",
+        department: "General Medicine",
+        shift: "Morning",
+        phone: "",
+        email: "",
+        qualification: "GNM",
+        joiningDate: "",
+        status: "On Duty",
+      })
+      setShowAddNurse(false)
+      await loadData()
+    } catch (err) {
+      alert(`Could not add nurse: ${err.message}`)
+    } finally {
+      setSaving(false)
     }
-
-    setNurses((prev) => [
-      ...prev,
-      nurse,
-    ])
-
-    setNewNurse({
-      name: "",
-      department: "General Medicine",
-      shift: "Morning",
-      phone: "",
-      email: "",
-      qualification: "GNM",
-      joiningDate: "",
-      status: "On Duty",
-    })
-
-    setShowAddNurse(false)
   }
 
   // =====================================================
@@ -785,7 +483,7 @@ function Nurses() {
   // ADMIN ONLY
   // =====================================================
 
-  const removeNurse = (nurse) => {
+  const removeNurse = async (nurse) => {
     if (!isAdmin) {
       alert(
         "Only Admin can remove a nurse."
@@ -811,12 +509,12 @@ function Nurses() {
 
     if (!confirmRemove) return
 
-    setNurses((prev) =>
-      prev.filter(
-        (item) =>
-          item.id !== nurse.id
-      )
-    )
+    try {
+      await api.nurses.delete(nurse.id)
+      await loadData()
+    } catch (err) {
+      alert(`Could not remove nurse: ${err.message}`)
+    }
   }
 
   // =====================================================
@@ -836,16 +534,14 @@ function Nurses() {
       respiratoryRate: "",
     })
 
-  const saveVitals = (e) => {
+  const saveVitals = async (e) => {
     e.preventDefault()
 
     if (!selectedHospital) return
 
     const patient =
       hospitalPatients.find(
-        (item) =>
-          item.id ===
-          vitalForm.patientId
+        (item) => String(item.id) === String(vitalForm.patientId)
       )
 
     if (!patient) {
@@ -853,34 +549,28 @@ function Nurses() {
       return
     }
 
-    const newVital = {
-      id: `V-${Date.now()}`,
-      hospitalId:
-        selectedHospital.id,
-      patientId:
-        vitalForm.patientId,
-      temperature:
-        vitalForm.temperature,
-      bp: vitalForm.bp,
-      pulse: vitalForm.pulse,
-      spo2: vitalForm.spo2,
-      respiratoryRate:
-        vitalForm.respiratoryRate,
-      recordedBy: profile.name,
-      time:
-        new Date().toLocaleTimeString(
-          "en-IN",
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        ),
+    setSaving(true)
+    try {
+      await api.nurses.assessments.create({
+        hospital: selectedHospital.id,
+        patient: patient.id,
+        admission: patient.admissionId,
+        assessment_type: "Focused",
+        vitals: {
+          temperature: vitalForm.temperature,
+          bp: vitalForm.bp,
+          pulse: vitalForm.pulse,
+          spo2: vitalForm.spo2,
+          respiratory_rate: vitalForm.respiratoryRate,
+        },
+      })
+    } catch (err) {
+      alert(`Vitals were not saved: ${err.message}`)
+      setSaving(false)
+      return
     }
-
-    setVitals((prev) => [
-      newVital,
-      ...prev,
-    ])
+    setSaving(false)
+    await loadData()
 
     setVitalForm({
       patientId: "",
@@ -907,7 +597,7 @@ function Nurses() {
       text: "",
     })
 
-  const saveNote = (e) => {
+  const saveNote = async (e) => {
     e.preventDefault()
 
     if (!selectedHospital) return
@@ -922,23 +612,23 @@ function Nurses() {
       return
     }
 
-    const newNote = {
-      id: `NOTE-${Date.now()}`,
-      hospitalId:
-        selectedHospital.id,
-      patientId:
-        noteForm.patientId,
-      text: noteForm.text.trim(),
-      createdBy: profile.name,
-      date: new Date().toLocaleDateString(
-        "en-IN"
-      ),
+    const notePatient = hospitalPatients.find((item) => String(item.id) === String(noteForm.patientId))
+    setSaving(true)
+    try {
+      await api.nurses.notes.create({
+        hospital: selectedHospital.id,
+        patient: noteForm.patientId,
+        admission: notePatient?.admissionId,
+        note_type: "Progress",
+        note: noteForm.text.trim(),
+      })
+    } catch (err) {
+      alert(`Note was not saved: ${err.message}`)
+      setSaving(false)
+      return
     }
-
-    setNotes((prev) => [
-      newNote,
-      ...prev,
-    ])
+    setSaving(false)
+    await loadData()
 
     setNoteForm({
       patientId: "",
@@ -961,7 +651,7 @@ function Nurses() {
       assessment: "",
     })
 
-  const saveAssessment = (e) => {
+  const saveAssessment = async (e) => {
     e.preventDefault()
 
     if (!selectedHospital) return
@@ -976,24 +666,23 @@ function Nurses() {
       return
     }
 
-    const newAssessment = {
-      id: `AS-${Date.now()}`,
-      hospitalId:
-        selectedHospital.id,
-      patientId:
-        assessmentForm.patientId,
-      assessment:
-        assessmentForm.assessment.trim(),
-      nurse: profile.name,
-      date: new Date().toLocaleDateString(
-        "en-IN"
-      ),
+    const assessedPatient = hospitalPatients.find((item) => String(item.id) === String(assessmentForm.patientId))
+    setSaving(true)
+    try {
+      await api.nurses.assessments.create({
+        hospital: selectedHospital.id,
+        patient: assessmentForm.patientId,
+        admission: assessedPatient?.admissionId,
+        assessment_type: "Shift",
+        plan_of_care: assessmentForm.assessment.trim(),
+      })
+    } catch (err) {
+      alert(`Assessment was not saved: ${err.message}`)
+      setSaving(false)
+      return
     }
-
-    setAssessments((prev) => [
-      newAssessment,
-      ...prev,
-    ])
+    setSaving(false)
+    await loadData()
 
     setAssessmentForm({
       patientId: "",
@@ -1007,7 +696,7 @@ function Nurses() {
   // MAR - GIVE MEDICINE
   // =====================================================
 
-  const administerMedicine = (item) => {
+  const administerMedicine = async (item) => {
     if (!selectedHospital) return
 
     if (
@@ -1020,43 +709,31 @@ function Nurses() {
       return
     }
 
-    setMar((prev) =>
-      prev.map((medicine) =>
-        medicine.id === item.id
-          ? {
-            ...medicine,
-            status: "Given",
-            givenBy: profile.name,
-          }
-          : medicine
-      )
-    )
+    if (!window.confirm(`Record ${item.medicine} ${item.dose} as given to ${item.patientName || "this patient"} now?`)) return
+
+    try {
+      await api.nurses.marAdministrations.administer(item.id, {})
+      await loadData()
+    } catch (err) {
+      alert(`Dose was not recorded: ${err.message}`)
+    }
   }
 
   // =====================================================
   // BLOOD REQUEST
   // =====================================================
 
-  const requestBlood = (item) => {
-    if (!selectedHospital) return
-
-    setBloodRequests((prev) =>
-      prev.map((blood) =>
-        blood.id === item.id
-          ? {
-            ...blood,
-            status: "Requested",
-          }
-          : blood
-      )
-    )
+  // Blood requests are raised and tracked on the Blood Bank page; this list
+  // shows their live status.
+  const requestBlood = () => {
+    window.location.assign("/blood-bank")
   }
 
   // =====================================================
   // DISCHARGE
   // =====================================================
 
-  const dischargePatient = (patient) => {
+  const dischargePatient = async (patient) => {
     if (!selectedHospital) return
 
     const confirmed =
@@ -1066,27 +743,15 @@ function Nurses() {
 
     if (!confirmed) return
 
-    const discharge = {
-      id: `DIS-${Date.now()}`,
-      hospitalId:
-        selectedHospital.id,
-      patientId: patient.id,
-      patientName: patient.name,
-      date: new Date().toLocaleDateString(
-        "en-IN"
-      ),
-      preparedBy: profile.name,
-      status: "Discharge Requested",
+    try {
+      await api.ipd.admissions.initiateDischarge(patient.admissionId)
+      await loadData()
+      alert(
+        "Discharge initiated. A doctor must finalize the discharge summary before discharge can be completed."
+      )
+    } catch (err) {
+      alert(`Discharge was not started: ${err.message}`)
     }
-
-    setDischarges((prev) => [
-      discharge,
-      ...prev,
-    ])
-
-    alert(
-      "Discharge request created."
-    )
   }
 
   // =====================================================

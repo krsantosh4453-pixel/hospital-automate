@@ -116,42 +116,8 @@ function Doctors() {
 
   // Offline / demo seed data — kept so the page still works
   // (exactly as before) when the Django API is unreachable.
-  const fallbackDoctors = [
-
-    {
-      id: "D001",
-      name: "Dr. Sharma",
-      specialization: "Cardiology",
-      phone: "9876500001",
-      experience: "12 Years",
-      status: "Available",
-      availability: "Mon - Sat, 10 AM - 2 PM",
-      hospitalId: 1,
-    },
-
-    {
-      id: "D002",
-      name: "Dr. Verma",
-      specialization: "General Medicine",
-      phone: "9876500002",
-      experience: "8 Years",
-      status: "Available",
-      availability: "Mon - Fri, 9 AM - 1 PM",
-      hospitalId: 1,
-    },
-
-    {
-      id: "D003",
-      name: "Dr. Singh",
-      specialization: "Neurology",
-      phone: "9876500003",
-      experience: "10 Years",
-      status: "On Leave",
-      availability: "Currently unavailable",
-      hospitalId: 2,
-    },
-
-  ]
+  // No demo records: the page shows only data returned by the API.
+  const fallbackDoctors = []
 
   const [doctors, setDoctors] = useState(
     fallbackDoctors

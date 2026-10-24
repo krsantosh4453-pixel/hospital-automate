@@ -46,53 +46,8 @@ function Patients() {
 
   // Last-resort demo dataset so the UI still renders something when both
   // the API and localStorage are empty.
-  const fallbackPatients = [
-    {
-      id: 1,
-      name: "Rahul Kumar",
-      age: 32,
-      gender: "Male",
-      phone: "9876543210",
-      hospitalId: 1,
-      condition: "General Checkup",
-    },
-    {
-      id: 2,
-      name: "Priya Singh",
-      age: 28,
-      gender: "Female",
-      phone: "9876543211",
-      hospitalId: 1,
-      condition: "Fever",
-    },
-    {
-      id: 3,
-      name: "Amit Kumar",
-      age: 45,
-      gender: "Male",
-      phone: "9876543212",
-      hospitalId: 2,
-      condition: "Diabetes",
-    },
-    {
-      id: 4,
-      name: "Neha Kumari",
-      age: 36,
-      gender: "Female",
-      phone: "9876543213",
-      hospitalId: 2,
-      condition: "Follow-up",
-    },
-    {
-      id: 5,
-      name: "Ravi Sharma",
-      age: 51,
-      gender: "Male",
-      phone: "9876543214",
-      hospitalId: 3,
-      condition: "Blood Pressure",
-    },
-  ]
+  // No demo records: the page shows only data returned by the API.
+  const fallbackPatients = []
 
   // Maps a Django Patient record into the shape this UI already uses.
   const mapFromApi = (record) => ({

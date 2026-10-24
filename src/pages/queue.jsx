@@ -27,74 +27,8 @@ function Queue() {
 
   // Offline / demo seed data — kept so the page still works (exactly as
   // before) when the Django queue API is unreachable.
-  const fallbackQueue = [
-
-    {
-      token: 24,
-      patient: "Rahul Kumar",
-      village: "Rajaur",
-      contact: "9876543210",
-      doctor: "Dr. Sharma",
-      department: "General Medicine",
-      type: "Consultation",
-      waiting: "14 min",
-      status: "Waiting",
-      hospitalId: 1,
-    },
-
-    {
-      token: 25,
-      patient: "Priya Singh",
-      village: "Begusarai",
-      contact: "9876543211",
-      doctor: "Dr. Sharma",
-      department: "General Medicine",
-      type: "Follow-up",
-      waiting: "10 min",
-      status: "Waiting",
-      hospitalId: 1,
-    },
-
-    {
-      token: 26,
-      patient: "Amit Kumar",
-      village: "Barauni",
-      contact: "9876543212",
-      doctor: "Dr. Verma",
-      department: "Cardiology",
-      type: "Consultation",
-      waiting: "6 min",
-      status: "Waiting",
-      hospitalId: 2,
-    },
-
-    {
-      token: 27,
-      patient: "Neha Singh",
-      village: "Bihat",
-      contact: "9876543213",
-      doctor: "Dr. Verma",
-      department: "Cardiology",
-      type: "Consultation",
-      waiting: "2 min",
-      status: "In Consultation",
-      hospitalId: 2,
-    },
-
-    {
-      token: 28,
-      patient: "Ravi Sharma",
-      village: "Teghra",
-      contact: "9876543214",
-      doctor: "Dr. Gupta",
-      department: "Orthopedics",
-      type: "Consultation",
-      waiting: "18 min",
-      status: "Waiting",
-      hospitalId: 3,
-    },
-
-  ]
+  // No demo records: the page shows only data returned by the API.
+  const fallbackQueue = []
 
   // Live queue records. Seeded with the demo data above and replaced by
   // records from Django (encounters.QueueToken) once the API responds.

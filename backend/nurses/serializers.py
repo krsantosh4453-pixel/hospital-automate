@@ -139,6 +139,14 @@ class CareTaskSerializer(serializers.ModelSerializer):
 
 class MARAdministrationSerializer(serializers.ModelSerializer):
     administered_by_name = serializers.CharField(source="administered_by.name", read_only=True)
+    medicine_name = serializers.CharField(source="mar.medicine_name", read_only=True)
+    dose = serializers.CharField(source="mar.dose", read_only=True)
+    route = serializers.CharField(source="mar.route", read_only=True)
+    frequency = serializers.CharField(source="mar.frequency", read_only=True)
+    patient = serializers.IntegerField(source="mar.patient_id", read_only=True)
+    patient_name = serializers.CharField(source="mar.patient.name", read_only=True)
+    hospital = serializers.IntegerField(source="mar.hospital_id", read_only=True)
+    admission = serializers.IntegerField(source="mar.admission_id", read_only=True)
     is_delayed = serializers.SerializerMethodField()
 
     def get_is_delayed(self, obj):
@@ -165,6 +173,14 @@ class MARAdministrationSerializer(serializers.ModelSerializer):
             "is_prn",
             "is_delayed",
             "recorded_by",
+            "medicine_name",
+            "dose",
+            "route",
+            "frequency",
+            "patient",
+            "patient_name",
+            "hospital",
+            "admission",
             "created_at",
             "administered_by_name",
         ]

@@ -180,47 +180,8 @@ function Appointments() {
 
   // Offline / demo seed data — kept so the page still works
   // (exactly as before) when the Django API is unreachable.
-  const fallbackAppointments = [
-    {
-      id: "A001",
-      patient: "Rahul Kumar",
-      village: "Rajaur",
-      contact: "9876543210",
-      doctor: "Dr. Sharma",
-      date: "01 Sep 2026",
-      time: "10:30 AM",
-      reason: "General Checkup",
-      status: "Confirmed",
-      tokenNumber: "T-001",
-      hospitalId: 1,
-    },
-    {
-      id: "A002",
-      patient: "Priya Singh",
-      village: "Begusarai",
-      contact: "9876543211",
-      doctor: "Dr. Verma",
-      date: "01 Sep 2026",
-      time: "11:00 AM",
-      reason: "Cardiology",
-      status: "Waiting",
-      tokenNumber: "T-002",
-      hospitalId: 1,
-    },
-    {
-      id: "A003",
-      patient: "Amit Kumar",
-      village: "Barauni",
-      contact: "9876543212",
-      doctor: "Dr. Singh",
-      date: "01 Sep 2026",
-      time: "11:30 AM",
-      reason: "Follow-up",
-      status: "Completed",
-      tokenNumber: "T-003",
-      hospitalId: 2,
-    },
-  ]
+  // No demo records: the page shows only data returned by the API.
+  const fallbackAppointments = []
 
   const [appointments, setAppointments] = useState(
     fallbackAppointments

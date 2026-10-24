@@ -584,12 +584,12 @@ function Home() {
 
   const stats = dashboardStats?.statistics || {}
 
-  const totalPatients = stats.patients?.total || demoPatients.length
+  const totalPatients = stats.patients?.total || 0
   const todayPatients = stats.patients?.today || 0
-  const totalDoctors = stats.doctors?.total || demoDoctors.length
+  const totalDoctors = stats.doctors?.total || 0
   const activeDoctors = stats.doctors?.active || 0
-  const totalAppointments = stats.appointments?.total || demoAppointments.length
-  const todayAppointments = stats.appointments?.today || demoAppointments.length
+  const totalAppointments = stats.appointments?.total || 0
+  const todayAppointments = stats.appointments?.today || 0
   const pendingAppointments = stats.appointments?.pending || 0
   const completedAppointments = stats.appointments?.completed || 0
   const totalQueue = stats.queue?.total || 0
@@ -597,8 +597,8 @@ function Home() {
   const inConsultationQueue = stats.queue?.in_consultation || 0
   const completedQueue = stats.queue?.completed || 0
   const currentTokenNumber = stats.queue?.current_token || 0
-  const totalBeds = stats.beds?.total || demoBeds.length
-  const availableBeds = stats.beds?.available || demoBeds.filter(b => b.status === "Available").length
+  const totalBeds = stats.beds?.total || 0
+  const availableBeds = stats.beds?.available || 0
   const occupiedBeds = stats.beds?.occupied || totalBeds - availableBeds
   const totalEmergency = stats.emergency?.total || 0
   const todayEmergency = stats.emergency?.today || 0
@@ -614,7 +614,7 @@ function Home() {
   const pendingInvoices = stats.billing?.pending || 0
   const totalRevenue = stats.billing?.total_revenue || 0
   const todayRevenue = stats.billing?.today_revenue || 0
-  const recentPatients = dashboardStats?.recent_patients || demoPatients.slice(0, 3)
+  const recentPatients = dashboardStats?.recent_patients || []
 
 
   return (
