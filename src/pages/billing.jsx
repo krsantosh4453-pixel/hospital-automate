@@ -57,7 +57,7 @@ function Billing() {
 
         // Map API data to UI format
         const mappedBills = results.map((inv) => {
-          const totalPaid = inv.total_paid !== undefined ? inv.total_paid : 
+          const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
             (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
           
           const subtotal = inv.items?.reduce((sum, item) => sum + Number(item.subtotal), 0) || 0
@@ -443,19 +443,15 @@ function Billing() {
       return
     }
 
+    // Totals, tax and status are calculated by the server from these lines.
     const payload = {
       hospital: selectedHospital.id,
       patient: patient.id,
-      invoice_number: `INV-${Date.now()}`,
       discount: discount,
-      tax: 0,
-      total: total,
-      status: getStatus(total, paid),
-      items_data: services.map((s, i) => ({
+      items_data: services.map((s) => ({
         description: s.name,
         quantity: 1,
         unit_price: s.amount,
-        subtotal: s.amount,
       })),
     }
 
@@ -466,8 +462,9 @@ function Billing() {
       if (paid > 0) {
         await api.billing.payments.create({
           invoice: created.id,
-          amount: paid,
+          amount: Number(paid).toFixed(2),
           payment_method: formData.payment,
+          idempotency_key: `${created.id}-initial`,
         })
       }
 
@@ -475,7 +472,7 @@ function Billing() {
       const data = await api.billing.invoices.list(selectedHospital.id)
       const results = Array.isArray(data) ? data : data?.results || []
       const mappedBills = results.map((inv) => {
-        const totalPaid = inv.total_paid !== undefined ? inv.total_paid : 
+        const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
           (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
         
         return {
@@ -665,43 +662,42 @@ function Billing() {
       return
     }
 
+    // Payments are permanent records: an edit can only add money received.
+    // Lowering the paid amount needs a refund; line items are fixed once paid.
+    const alreadyPaid = Number(selectedBill.apiInvoice.total_paid || 0)
+    const additional = Math.round((Number(paid) - alreadyPaid) * 100) / 100
+    if (additional < 0) {
+      alert(`₹${alreadyPaid} has already been received. To return money, record a refund instead of lowering the paid amount.`)
+      return
+    }
+    const hasPayments = alreadyPaid > 0 || (selectedBill.apiInvoice.payments || []).length > 0
+
     try {
-      const payload = {
-        discount: discount,
-        total: total,
-        status: getStatus(total, paid),
-        items_data: services.map((s, i) => ({
+      const payload = { discount: discount }
+      if (!hasPayments) {
+        payload.items_data = services.map((s) => ({
           description: s.name,
           quantity: 1,
           unit_price: s.amount,
-          subtotal: s.amount,
-        })),
+        }))
       }
 
       await api.billing.invoices.update(selectedBill.apiInvoice.id, payload)
 
-      // Handle payment update
-      if (paid > 0) {
-        const existingPayment = selectedBill.apiInvoice.payments?.[0]
-        if (existingPayment) {
-          await api.billing.payments.patch(existingPayment.id, {
-            amount: paid,
-            payment_method: formData.payment,
-          })
-        } else {
-          await api.billing.payments.create({
-            invoice: selectedBill.apiInvoice.id,
-            amount: paid,
-            payment_method: formData.payment,
-          })
-        }
+      if (additional > 0) {
+        await api.billing.payments.create({
+          invoice: selectedBill.apiInvoice.id,
+          amount: additional.toFixed(2),
+          payment_method: formData.payment,
+          idempotency_key: `${selectedBill.apiInvoice.id}-${Date.now()}`,
+        })
       }
 
       // Reload bills
       const data = await api.billing.invoices.list(selectedHospital.id)
       const results = Array.isArray(data) ? data : data?.results || []
       const mappedBills = results.map((inv) => {
-        const totalPaid = inv.total_paid !== undefined ? inv.total_paid : 
+        const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
           (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
         
         return {
@@ -762,7 +758,7 @@ function Billing() {
       const data = await api.billing.invoices.list(selectedHospital.id)
       const results = Array.isArray(data) ? data : data?.results || []
       const mappedBills = results.map((inv) => {
-        const totalPaid = inv.total_paid !== undefined ? inv.total_paid : 
+        const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
           (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
         
         return {

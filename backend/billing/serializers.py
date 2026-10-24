@@ -7,7 +7,7 @@ from .models import (
 )
 from django.db import transaction
 
-from .services import line_subtotal, new_reference, recalculate
+from .services import line_subtotal, money, new_reference, recalculate
 
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
@@ -182,22 +182,23 @@ class InvoiceSerializer(serializers.ModelSerializer):
         return value
 
     def get_total_paid(self, obj):
-        return obj.total_paid
+        # Exact decimal string, like the stored money fields.
+        return str(money(obj.total_paid))
 
     def get_balance_due(self, obj):
-        return obj.balance_due
+        return str(money(obj.balance_due))
 
     def get_is_paid(self, obj):
         return obj.is_paid
 
     def get_subtotal(self, obj):
-        return obj.subtotal
+        return str(money(obj.subtotal))
 
     def get_tax_amount(self, obj):
-        return obj.tax_amount
+        return str(money(obj.tax_amount))
 
     def get_total_amount(self, obj):
-        return obj.total_amount
+        return str(money(obj.total_amount))
 
     def validate_discount(self, value):
         if value < 0:

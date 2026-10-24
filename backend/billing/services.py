@@ -26,6 +26,14 @@ def net_paid(invoice):
     """Payments minus refunds recorded against the invoice."""
     from .models import Payment
 
+    # List views prefetch payments; use them instead of one query per invoice.
+    prefetched = getattr(invoice, "_prefetched_objects_cache", {}).get("payments")
+    if prefetched is not None:
+        total = ZERO
+        for payment in prefetched:
+            total += payment.amount if payment.kind == Payment.Kind.PAYMENT else -payment.amount
+        return money(total)
+
     rows = invoice.payments.values("kind").annotate(total=Sum("amount"))
     sums = {row["kind"]: row["total"] or ZERO for row in rows}
     return money(sums.get(Payment.Kind.PAYMENT, ZERO) - sums.get(Payment.Kind.REFUND, ZERO))
