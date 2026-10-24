@@ -67,7 +67,7 @@ function Doctors() {
   // CREATE PRESCRIPTION
   // ==============================
 
-  const createPrescription = ({
+  const createPrescription = async ({
     patientId,
     patientName,
     medicines,
@@ -88,25 +88,19 @@ function Doctors() {
       return
     }
 
-    const prescription = addPrescription({
-
-      hospitalId:
-        selectedHospital.id,
-
-      patientId,
-
-      patientName,
-
-      doctor:
-        "Dr. Sharma",
-
-      medicines,
-    })
-
-
-    alert(
-      `Prescription created successfully!\n\nPrescription ID: ${prescription.id}`
-    )
+    try {
+      const prescription = await addPrescription({
+        hospitalId: selectedHospital.id,
+        patientId,
+        patientName,
+        medicines,
+      })
+      alert(
+        `Prescription saved.\n\nPrescription ID: ${prescription.id}`
+      )
+    } catch (err) {
+      alert(`Prescription was not saved: ${err.message}`)
+    }
   }
 
 

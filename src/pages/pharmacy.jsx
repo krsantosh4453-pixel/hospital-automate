@@ -890,7 +890,7 @@ function Pharmacy() {
       await reloadPharmacyData()
 
 
-      dispensePrescription(
+      await dispensePrescription(
         foundPrescription.id
       )
 

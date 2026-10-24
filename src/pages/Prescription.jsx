@@ -379,17 +379,15 @@ function Prescription() {
   // ---------------------------------------------------------
   // ACTIONS on an existing prescription
   // ---------------------------------------------------------
-  const handleDispense = (record) => {
+  const handleDispense = async (record) => {
     setActionError("")
 
-    const updated = dispensePrescription(record.id, selectedHospital?.id)
-
-    if (!updated) {
-      setActionError("Could not dispense this prescription.")
-      return
+    try {
+      await dispensePrescription(record.id, selectedHospital?.id)
+      setSuccessMessage(`Prescription ${record.id} marked as Dispensed.`)
+    } catch (err) {
+      setActionError(err.message || "Could not dispense this prescription.")
     }
-
-    setSuccessMessage(`Prescription ${record.id} marked as Dispensed.`)
   }
 
   const handleDelete = async (record) => {
@@ -468,7 +466,7 @@ function Prescription() {
 
       {usingFallback && !error && (
         <Banner tone="info">
-          Showing cached prescriptions — the server is currently unreachable.
+          The server is currently unreachable; the list below may be out of date. Changes cannot be saved until it reconnects.
         </Banner>
       )}
 
