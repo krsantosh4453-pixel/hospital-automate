@@ -1,11 +1,13 @@
 import { NavLink, useLocation } from "react-router-dom"
 import { useSidebar } from "../assets/context/SidebarContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Sidebar() {
   const location = useLocation()
   const { isSidebarOpen, toggleSidebar } = useSidebar()
   const { canView, activeRole, activeRoleName } = useRole()
+  const { t } = useLanguage()
 
   const menuClass = ({ isActive }) =>
     `block px-4 py-2 rounded-xl text-sm font-medium transition ${isActive
@@ -30,10 +32,10 @@ function Sidebar() {
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold tracking-wide text-white">
-              HMS Portal
+              {t("HMS Portal")}
             </h2>
             <p className="text-[10px] text-slate-400">
-              Hospital Management
+              {t("Hospital Management")}
             </p>
           </div>
 
@@ -56,27 +58,27 @@ function Sidebar() {
 
           {/* Home (main landing; staff Dashboard page removed) */}
           <NavLink to="/" className={menuClass}>
-            🏠 Home
+            {"🏠 "}{t("Home")}
           </NavLink>
 
           {/* Patients */}
           {canView("Patients") && (
             <NavLink to="/patients" className={menuClass}>
-              👤 Patients
+              {"👤 "}{t("Patients")}
             </NavLink>
           )}
 
           {/* Appointments */}
           {canView("Appointments") && (
             <NavLink to="/appointments" className={menuClass}>
-              📅 Appointments
+              {"📅 "}{t("Appointments")}
             </NavLink>
           )}
 
           {/* Queue */}
           {canView("Queue") && (
             <NavLink to="/queue" className={menuClass}>
-              🎫 Queue
+              {"🎫 "}{t("Queue")}
             </NavLink>
           )}
 
@@ -87,94 +89,94 @@ function Sidebar() {
               already have it) instead of changing the permissions architecture. */}
           {canView("Doctors") && (
             <NavLink to="/consultation" className={menuClass}>
-              🩺 Consultation
+              {"🩺 "}{t("Consultation")}
             </NavLink>
           )}
 
           {/* Prescription */}
           {canView("Prescriptions") && (
             <NavLink to="/prescription" className={menuClass}>
-              💊 Prescription
+              {"💊 "}{t("Prescription")}
             </NavLink>
           )}
 
           {/* Doctors */}
           {canView("Doctors") && (
             <NavLink to="/doctors" className={menuClass}>
-              👨‍⚕️ Doctors
+              {"👨‍⚕️ "}{t("Doctors")}
             </NavLink>
           )}
 
           {/* Nurses / Vitals */}
           {canView("Nurses") && (
             <NavLink to="/nurses" className={menuClass}>
-              👩‍⚕️ Nurses / Vitals
+              {"👩‍⚕️ "}{t("Nurses / Vitals")}
             </NavLink>
           )}
 
           {/* Compounder */}
           {canView("Compounders") && (
             <NavLink to="/compounter" className={menuClass}>
-              🧑‍💼 Compounder
+              {"🧑‍💼 "}{t("Compounder")}
             </NavLink>
           )}
 
           {/* Pharmacy */}
           {canView("Pharmacy") && (
             <NavLink to="/pharmacy" className={menuClass}>
-              💊 Pharmacy
+              {"💊 "}{t("Pharmacy")}
             </NavLink>
           )}
 
           {/* Laboratory */}
           {canView("Laboratory") && (
             <NavLink to="/laboratory" className={menuClass}>
-              🧪 Laboratory
+              {"🧪 "}{t("Laboratory")}
             </NavLink>
           )}
 
           {/* Billing */}
           {canView("Billing") && (
             <NavLink to="/billing" className={menuClass}>
-              💳 Billing
+              {"💳 "}{t("Billing")}
             </NavLink>
           )}
 
           {/* Inventory */}
           {canView("Inventory") && (
             <NavLink to="/inventory" className={menuClass}>
-              📦 Inventory
+              {"📦 "}{t("Inventory")}
             </NavLink>
           )}
 
           {/* Reports */}
           {canView("Reports") && (
             <NavLink to="/reports" className={menuClass}>
-              📊 Reports
+              {"📊 "}{t("Reports")}
             </NavLink>
           )}
 
           {canView("Emergency") && (
             <NavLink to="/emergency" className={menuClass}>
-              🚑 Emergency
+              {"🚑 "}{t("Emergency")}
             </NavLink>
           )}
 
           {canView("BloodBank") && (
             <NavLink to="/blood-bank" className={menuClass}>
-              🩸 Blood Bank
+              {"🩸 "}{t("Blood Bank")}
             </NavLink>
           )}
 
           {canView("IPD") && (
             <NavLink to="/ipd" className={menuClass}>
-              🏥 IPD / Ward / Beds
+              {"🏥 "}{t("IPD / Ward / Beds")}
             </NavLink>
           )}
 
           {canView("AIScribe") && (
             <NavLink to="/ai-scribe" className={menuClass}>
-              🤖 AI Scribe
+              {"🤖 "}{t("AI Scribe")}
             </NavLink>
           )}
 
@@ -186,36 +188,36 @@ function Sidebar() {
               </p>
 
               <NavLink to="/admin" className={menuClass}>
-                🛠️ Admin Dashboard
+                {"🛠️ "}{t("Admin Dashboard")}
               </NavLink>
 
               {canView("Users") && (
                 <NavLink to="/admin/users" className={menuClass}>
-                  👥 Users
+                  {"👥 "}{t("Users")}
                 </NavLink>
               )}
 
               {canView("Roles") && (
                 <NavLink to="/admin/roles" className={menuClass}>
-                  🔐 Roles
+                  {"🔐 "}{t("Roles")}
                 </NavLink>
               )}
 
               {canView("Hospitals") && (
                 <NavLink to="/admin/hospitals" className={menuClass}>
-                  🏥 Hospitals
+                  {"🏥 "}{t("Hospitals")}
                 </NavLink>
               )}
 
               {canView("Departments") && (
                 <NavLink to="/admin/departments" className={menuClass}>
-                  🏢 Departments
+                  {"🏢 "}{t("Departments")}
                 </NavLink>
               )}
 
               {canView("Permissions") && (
                 <NavLink to="/admin/permissions" className={menuClass}>
-                  🔑 Permissions
+                  {"🔑 "}{t("Permissions")}
                 </NavLink>
               )}
             </div>
@@ -223,7 +225,7 @@ function Sidebar() {
 
           {/* Settings */}
           <NavLink to="/settings" className={menuClass}>
-            ⚙️ Settings
+            {"⚙️ "}{t("Settings")}
           </NavLink>
 
         </nav>

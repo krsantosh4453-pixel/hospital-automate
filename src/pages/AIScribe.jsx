@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import api from "../services/api.js"
 
 const DIAGNOSIS_TYPES = [
@@ -127,6 +128,7 @@ const SECTION_ORDER = [
 
 function AIScribe() {
   const { selectedHospital } = usePatient()
+  const { t } = useLanguage()
 
   // Visit selection
   const [visits, setVisits] = useState([])
@@ -819,7 +821,7 @@ function AIScribe() {
                       className={`mb-3 text-sm font-semibold ${selectedDraft.status === "approved" ? "text-emerald-700" : "text-amber-700"}`}
                       role="status"
                     >
-                      {selectedDraft.reviewLabel}
+                      {t(selectedDraft.reviewLabel)}
                     </p>
                     <div className="flex flex-wrap items-center gap-4 text-sm">
                       <span className={`px-3 py-1 rounded-full ${selectedDraft.status === "approved" ? "bg-emerald-100 text-emerald-700" : selectedDraft.status === "under_review" ? "bg-blue-100 text-blue-700" : selectedDraft.status === "edited" ? "bg-amber-100 text-amber-700" : selectedDraft.status === "rejected" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"}`}>

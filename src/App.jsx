@@ -1,3 +1,4 @@
+import { LanguageProvider } from "./assets/context/LanguageContext.jsx"
 import { BrowserRouter, Route, Routes } from "react-router-dom"
 
 import Layout from "./layouts/layout.jsx"
@@ -60,6 +61,7 @@ function App() {
   const authRequired = !import.meta.env.DEV || import.meta.env.VITE_AUTH_REQUIRED !== "false"
 
   return (
+    <LanguageProvider>
     <AuthProvider>
       <HospitalsProvider>
         <PatientProvider>
@@ -165,6 +167,7 @@ function App() {
         </PatientProvider>
       </HospitalsProvider>
     </AuthProvider>
+    </LanguageProvider>
   )
 }
 

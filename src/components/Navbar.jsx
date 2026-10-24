@@ -4,6 +4,7 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useHospitals } from "../assets/context/HospitalsContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import { useAuth } from "../assets/context/AuthContext.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Navbar() {
   const navigate = useNavigate()
@@ -22,7 +23,7 @@ function Navbar() {
   const [userLocation, setUserLocation] = useState(null)
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationError, setLocationError] = useState("")
-  const [language, setLanguage] = useState("EN")
+  const { language, setLanguage } = useLanguage()
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
 
   const dropdownRef = useRef(null)
@@ -379,8 +380,8 @@ function Navbar() {
           <div className="hidden sm:flex bg-gray-100 rounded-xl p-0.5">
             <button
               type="button"
-              onClick={() => setLanguage("EN")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${language === "EN"
+              onClick={() => setLanguage("en")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${language === "en"
                 ? "bg-white text-blue-600 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
                 }`}
@@ -389,8 +390,8 @@ function Navbar() {
             </button>
             <button
               type="button"
-              onClick={() => setLanguage("HI")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${language === "HI"
+              onClick={() => setLanguage("hi")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${language === "hi"
                 ? "bg-white text-blue-600 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
                 }`}

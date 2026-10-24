@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom"
 import { useState } from "react"
 import { useAuth } from "../assets/context/AuthContext.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 const patientRoutes = [
   { path: "/patient", label: "Home", icon: "🏠" },
@@ -16,6 +17,7 @@ const patientRoutes = [
 export default function PatientLayout() {
   const location = useLocation()
   const { patient, logout } = useAuth()
+  const { language, setLanguage, t } = useLanguage()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const closeSidebar = () => setSidebarOpen(false)
@@ -30,8 +32,26 @@ export default function PatientLayout() {
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">🏥</div>
             <div>
-              <h2 className="font-bold text-gray-800">Patient Portal</h2>
+              <h2 className="font-bold text-gray-800">{language === "hi" ? "मरीज़ पोर्टल" : "Patient Portal"}</h2>
               <p className="text-xs text-gray-500">{patient?.name || "Patient"}</p>
+              <div className="mt-2 inline-flex bg-gray-100 rounded-lg p-0.5" role="group" aria-label="Language">
+                <button
+                  type="button"
+                  onClick={() => setLanguage("en")}
+                  aria-pressed={language === "en"}
+                  className={`px-2 py-0.5 rounded-md text-xs font-semibold ${language === "en" ? "bg-white text-blue-600 shadow-sm" : "text-gray-600"}`}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLanguage("hi")}
+                  aria-pressed={language === "hi"}
+                  className={`px-2 py-0.5 rounded-md text-xs font-semibold ${language === "hi" ? "bg-white text-blue-600 shadow-sm" : "text-gray-600"}`}
+                >
+                  हिंदी
+                </button>
+              </div>
             </div>
           </div>
           <button
@@ -57,7 +77,7 @@ export default function PatientLayout() {
                 }`}
               >
                 <span className="text-lg">{route.icon}</span>
-                <span>{route.label}</span>
+                <span>{t(route.label)}</span>
               </NavLink>
             )
           })}
