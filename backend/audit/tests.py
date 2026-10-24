@@ -92,11 +92,14 @@ class AuditAPITests(TestCase):
         """Test listing audit logs."""
         AuditLog.objects.create(
             user=self.user,
+            hospital=self.hospital_a,
             action="UPDATE",
             model_name="Patient",
             object_id="1",
             details="Updated age",
         )
+        # A platform-level row with no hospital is not shown to hospital admins.
+        AuditLog.objects.create(user=self.user, action="PLATFORM", model_name="Hospital")
         response = self.client.get(self._get_audit_logs_url())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data.get("results", response.data)

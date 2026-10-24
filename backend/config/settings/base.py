@@ -508,7 +508,12 @@ CELERY_TASK_ROUTES = {
     'backup.tasks.*': {'queue': 'maintenance'},
 }
 
+# Audit rows older than this are purged daily; 0 keeps them forever.
+AUDIT_LOG_RETENTION_DAYS = int(os.environ.get('AUDIT_LOG_RETENTION_DAYS', '0'))
+
 # Celery beat schedule for periodic tasks
+# Only tasks that exist in the codebase are scheduled. Daily report generation
+# and backup verification are run by the ops scripts in docs/OPERATIONS_RUNBOOK.md.
 CELERY_BEAT_SCHEDULE = {
     'cleanup-expired-otp': {
         'task': 'notifications.tasks.cleanup_expired_otp',
@@ -516,14 +521,6 @@ CELERY_BEAT_SCHEDULE = {
     },
     'cleanup-old-audit-logs': {
         'task': 'audit.tasks.cleanup_old_audit_logs',
-        'schedule': 86400.0,  # Daily
-    },
-    'generate-daily-reports': {
-        'task': 'reports.tasks.generate_daily_reports',
-        'schedule': 86400.0,  # Daily at midnight
-    },
-    'verify-backups': {
-        'task': 'backup.tasks.verify_backups',
         'schedule': 86400.0,  # Daily
     },
 }

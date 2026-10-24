@@ -1,7 +1,57 @@
 from rest_framework import permissions
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.conf import settings
 from users.models import StaffProfile, StaffHospitalMembership, StaffRole
+
+HOSPITAL_HEADER = "HTTP_X_HOSPITAL_ID"
+_UNSET = object()
+
+
+def parse_hospital_id(value):
+    """Return an int hospital id, or raise a 400 for malformed input."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, int):
+        return value
+    if hasattr(value, "pk"):
+        return value.pk
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        raise ValidationError({"hospital": "Hospital must be a numeric id."})
+
+
+def get_request_hospital_id(request, view=None):
+    """
+    The hospital the request is acting in, from (in order) the ``hospital``
+    query parameter, the ``hospital`` body field, a ``hospital_pk`` /
+    ``hospital_id`` URL kwarg, or the ``X-Hospital-ID`` header that the
+    frontend sends for the selected hospital. None when no context is given.
+    """
+    cached = getattr(request, "_hms_hospital_id", _UNSET)
+    if cached is not _UNSET:
+        return cached
+    value = None
+    query = getattr(request, "query_params", None) or getattr(request, "GET", {})
+    value = query.get("hospital") if hasattr(query, "get") else None
+    if value in (None, ""):
+        data = getattr(request, "data", None)
+        if hasattr(data, "get"):
+            value = data.get("hospital")
+            if isinstance(value, list):
+                value = value[0] if value else None
+    if value in (None, "") and view is not None:
+        kwargs = getattr(view, "kwargs", {}) or {}
+        value = kwargs.get("hospital_pk") or kwargs.get("hospital_id")
+    if value in (None, ""):
+        meta = getattr(request, "META", {})
+        value = meta.get(HOSPITAL_HEADER)
+    hospital_id = parse_hospital_id(value)
+    try:
+        request._hms_hospital_id = hospital_id
+    except AttributeError:
+        pass
+    return hospital_id
 
 
 class IsHL7Authenticated(permissions.BasePermission):
@@ -40,6 +90,8 @@ class IsHL7Authenticated(permissions.BasePermission):
 
 def get_user_staff_profile(user):
     """Get the staff profile for a user, or None if not staff."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return None
     try:
         return user.staff_profile
     except StaffProfile.DoesNotExist:
@@ -59,21 +111,29 @@ def get_user_active_hospital_memberships(user):
 
 
 def get_user_hospital_ids(user):
-    """Get list of hospital IDs the user has active membership in."""
-    memberships = get_user_active_hospital_memberships(user)
+    """Get list of active hospital IDs the user has active membership in."""
+    memberships = get_user_active_hospital_memberships(user).filter(hospital__is_active=True)
     return list(memberships.values_list("hospital_id", flat=True))
 
 
-def get_user_roles(user):
-    """Get list of roles the user has across all hospital memberships."""
+def get_user_roles(user, hospital_id=None):
+    """
+    Roles the user holds. With ``hospital_id`` only the role of the active
+    membership in that hospital counts, so an Admin of Hospital A who is a
+    Receptionist in Hospital B is only a Receptionist when acting in B.
+    Without a hospital, the roles of all active memberships are returned.
+    The StaffProfile role is a display default and grants nothing by itself.
+    """
     if not user or not getattr(user, "is_authenticated", False):
         return []
     staff_profile = get_user_staff_profile(user)
-    if not staff_profile:
+    if not staff_profile or not staff_profile.is_active_staff:
         return []
 
-    roles = [staff_profile.role]
     memberships = get_user_active_hospital_memberships(user)
+    if hospital_id is not None:
+        memberships = memberships.filter(hospital_id=hospital_id, hospital__is_active=True)
+    roles = []
     for membership in memberships:
         if membership.role not in roles:
             roles.append(membership.role)
@@ -87,6 +147,10 @@ def user_has_role(user, role_name):
 
 def user_has_hospital_access(user, hospital_id):
     """Check if user has active membership in a specific hospital."""
+    try:
+        hospital_id = parse_hospital_id(hospital_id)
+    except ValidationError:
+        return False
     return hospital_id in get_user_hospital_ids(user)
 
 
@@ -154,22 +218,7 @@ class IsHospitalMember(permissions.BasePermission):
         return user_has_hospital_access(request.user, hospital_id)
 
     def _get_hospital_id(self, request, view):
-        # Check query params
-        hospital_id = request.query_params.get("hospital")
-        if hospital_id:
-            return int(hospital_id)
-
-        # Check request data
-        hospital_id = request.data.get("hospital")
-        if hospital_id:
-            return int(hospital_id)
-
-        # Check view kwargs
-        hospital_id = view.kwargs.get("hospital_pk") or view.kwargs.get("hospital_id")
-        if hospital_id:
-            return int(hospital_id)
-
-        return None
+        return get_request_hospital_id(request, view)
 
 
 class RoleBasedPermission(permissions.BasePermission):
@@ -188,33 +237,30 @@ class RoleBasedPermission(permissions.BasePermission):
         if not staff_profile or not staff_profile.is_active_staff:
             return False
 
-        # Check role
-        user_roles = get_user_roles(request.user)
-        if not any(role in user_roles for role in self.required_roles):
-            return False
+        hospital_id = self._get_hospital_id(request, view)
 
         # Check hospital membership if required
-        if self.require_hospital_membership:
-            hospital_id = self._get_hospital_id(request, view)
-            if hospital_id and not user_has_hospital_access(request.user, hospital_id):
+        if self.require_hospital_membership and hospital_id is not None:
+            if not user_has_hospital_access(request.user, hospital_id):
                 return False
 
-        return True
+        # Check the role held in the hospital being acted in
+        user_roles = get_user_roles(request.user, hospital_id)
+        return any(role in user_roles for role in self.required_roles)
+
+    def has_object_permission(self, request, view, obj):
+        """The role must be held in the hospital that owns the object."""
+        resolver = getattr(view, "get_object_hospital_id", None)
+        if resolver is None:
+            return True
+        hospital_id = resolver(obj)
+        if hospital_id is None:
+            return True
+        user_roles = get_user_roles(request.user, hospital_id)
+        return any(role in user_roles for role in self.required_roles)
 
     def _get_hospital_id(self, request, view):
-        hospital_id = request.query_params.get("hospital")
-        if hospital_id:
-            return int(hospital_id)
-
-        hospital_id = request.data.get("hospital")
-        if hospital_id:
-            return int(hospital_id)
-
-        hospital_id = view.kwargs.get("hospital_pk") or view.kwargs.get("hospital_id")
-        if hospital_id:
-            return int(hospital_id)
-
-        return None
+        return get_request_hospital_id(request, view)
 
 
 class IsAdmin(RoleBasedPermission):

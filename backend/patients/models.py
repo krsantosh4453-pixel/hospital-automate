@@ -83,6 +83,14 @@ class PatientDocument(models.Model):
         on_delete=models.CASCADE,
         related_name="documents"
     )
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="patient_documents",
+        db_index=True,
+    )
     title = models.CharField(max_length=150)
     folder = models.CharField(max_length=100, blank=True)
     file = models.FileField(upload_to="patient_documents/")

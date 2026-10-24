@@ -10,10 +10,19 @@ class AuditLog(models.Model):
         blank=True,
         db_index=True
     )
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+        db_index=True,
+    )
     action = models.CharField(max_length=100, db_index=True)
     model_name = models.CharField(max_length=100, blank=True, db_index=True)
     object_id = models.CharField(max_length=100, blank=True)
     details = models.TextField(blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __str__(self):
@@ -24,7 +33,9 @@ class AuditLog(models.Model):
             models.Index(fields=["user", "created_at"]),
             models.Index(fields=["model_name", "created_at"]),
             models.Index(fields=["action", "created_at"]),
+            models.Index(fields=["hospital", "created_at"]),
         ]
+        ordering = ["-created_at"]
 
 
 class AIInteraction(models.Model):
@@ -35,6 +46,14 @@ class AIInteraction(models.Model):
         blank=True,
         related_name="ai_interactions",
         db_index=True
+    )
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_interactions",
+        db_index=True,
     )
     input_text = models.TextField()
     ai_output = models.TextField()
@@ -52,3 +71,4 @@ class AIInteraction(models.Model):
             models.Index(fields=["patient", "created_at"]),
             models.Index(fields=["status", "created_at"]),
         ]
+        ordering = ["-created_at"]

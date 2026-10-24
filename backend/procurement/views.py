@@ -53,8 +53,7 @@ class RequiresHospitalScope(BasePermission):
     for detail views and write operations (except list-create). List views are 
     allowed without scoping (they return empty results via queryset filtering).
     
-    Anonymous users are allowed for safe list methods, but require authentication
-    for detail views and write operations.
+    Anonymous users are always rejected.
     
     For authenticated users, requires one of: Admin, HospitalManager, InventoryStaff
     """
@@ -65,11 +64,9 @@ class RequiresHospitalScope(BasePermission):
         is_write = request.method not in SAFE_METHODS
         is_list_create = not is_detail and request.method == "POST"
 
-        # Anonymous users can only access list views (safe methods without pk)
+        # Procurement data is never public.
         if not request.user or not request.user.is_authenticated:
-            if is_detail or is_write:
-                return False
-            return True
+            return False
 
         # Authenticated users: check role
         staff_profile = get_user_staff_profile(request.user)

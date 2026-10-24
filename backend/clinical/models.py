@@ -33,6 +33,14 @@ class Allergy(models.Model):
         related_name="allergies",
         db_index=True
     )
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="allergies",
+        db_index=True,
+    )
     name = models.CharField(max_length=150)
     reaction = models.TextField(blank=True)
     severity = models.CharField(max_length=30, blank=True)
@@ -138,6 +146,14 @@ class MedicalRecord(models.Model):
         null=True,
         blank=True,
         db_index=True
+    )
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="medical_records",
+        db_index=True,
     )
     summary = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)

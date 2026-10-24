@@ -333,6 +333,8 @@ CELERY_TASK_ROUTES = {
 }
 
 # Beat schedule
+# Only tasks that exist in the codebase are scheduled. Daily report generation
+# and backup verification are run by the ops scripts in docs/OPERATIONS_RUNBOOK.md.
 CELERY_BEAT_SCHEDULE = {
     'cleanup-expired-otp': {
         'task': 'notifications.tasks.cleanup_expired_otp',
@@ -340,14 +342,6 @@ CELERY_BEAT_SCHEDULE = {
     },
     'cleanup-old-audit-logs': {
         'task': 'audit.tasks.cleanup_old_audit_logs',
-        'schedule': 86400.0,
-    },
-    'generate-daily-reports': {
-        'task': 'reports.tasks.generate_daily_reports',
-        'schedule': 86400.0,
-    },
-    'verify-backups': {
-        'task': 'backup.tasks.verify_backups',
         'schedule': 86400.0,
     },
 }

@@ -103,6 +103,14 @@ class InsuranceClaim(models.Model):
         related_name="insurance_claims",
         db_index=True
     )
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="insurance_claims",
+        db_index=True,
+    )
     invoice = models.ForeignKey(
         Invoice,
         on_delete=models.SET_NULL,

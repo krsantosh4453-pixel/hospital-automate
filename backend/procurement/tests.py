@@ -963,9 +963,9 @@ class ProcurementAPITests(TestCase):
         )
         self.assertIn(create.status_code, (401, 403))
 
-        # Read-only (safe) endpoints still allow anonymous reads.
+        # Procurement data is not public: anonymous reads are rejected too.
         listed = anon.get(self.suppliers_url())
-        self.assertEqual(listed.status_code, 200)
+        self.assertIn(listed.status_code, (401, 403))
 
         # The stock-mutating receive action is not publicly writable.
         order, item = self.make_order_with_item(quantity=5)

@@ -15,7 +15,10 @@ from users.permissions import (
     IsAdmin,
     IsPatientReadOnly,
     IsLinkedPatient,
+    get_linked_patient,
     get_user_hospital_ids,
+    is_active_staff,
+    parse_hospital_id,
 )
 
 
@@ -51,7 +54,7 @@ class PatientViewSet(HospitalScopedViewSet):
     def documents(self, request, pk=None):
         patient = self.get_object()
         if request.method == "GET":
-            rows = patient.documents.all().order_by("-uploaded_at")
+            rows = self._document_scope(patient).order_by("-uploaded_at")
             return Response([self._document_payload(row) for row in rows])
 
         upload = request.FILES.get("file")
@@ -60,8 +63,12 @@ class PatientViewSet(HospitalScopedViewSet):
                 {"error": "A file is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        hospital_id = self.get_object_hospital_id(patient)
+        if hospital_id is None:
+            raise PermissionDenied("Select the hospital this document belongs to.")
         document = PatientDocument.objects.create(
             patient=patient,
+            hospital_id=hospital_id,
             title=(request.data.get("title") or upload.name)[:150],
             folder=(request.data.get("folder") or "")[:100],
             file=upload,
@@ -74,25 +81,47 @@ class PatientViewSet(HospitalScopedViewSet):
             document = PatientDocument.objects.select_related("patient").get(pk=doc_id)
         except PatientDocument.DoesNotExist:
             raise NotFound("Document not found.")
-        if not self.get_queryset().filter(pk=document.patient_id).exists():
+        patient = self.get_queryset().filter(pk=document.patient_id).first()
+        if patient is None or not self._document_scope(patient).filter(pk=document.pk).exists():
             raise NotFound("Document not found.")
         document.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
+    def _document_scope(self, patient):
+        """Documents of this patient that belong to the acting hospitals."""
+        rows = patient.documents.all()
+        if get_linked_patient(self.request.user) and not is_active_staff(self.request.user):
+            return rows
+        return rows.filter(hospital_id__in=self.get_acting_hospital_ids())
 
-        # Additional filtering by hospital query param if provided
-        hospital_id = self.request.query_params.get("hospital")
-        if hospital_id:
-            hospital_ids = [int(hospital_id)]
-            queryset = queryset.filter(
-                Q(hospital_id__in=hospital_ids)
-                | Q(
-                    hospital_memberships__hospital_id__in=hospital_ids,
-                    hospital_memberships__is_active=True,
-                )
-            ).distinct()
+    def get_object_hospital_id(self, obj):
+        hospital_ids = self.get_acting_hospital_ids()
+        if obj.hospital_id in hospital_ids:
+            return obj.hospital_id
+        return (
+            obj.hospital_memberships.filter(is_active=True, hospital_id__in=hospital_ids)
+            .values_list("hospital_id", flat=True)
+            .first()
+        )
+
+    def get_queryset(self):
+        queryset = self._base_queryset()
+        linked_patient = get_linked_patient(self.request.user)
+        if linked_patient and not is_active_staff(self.request.user):
+            return queryset.filter(pk=linked_patient.pk)
+
+        # A patient is a shared identity: visible to a hospital that
+        # registered them directly or holds an active membership for them.
+        hospital_ids = self.get_acting_hospital_ids()
+        if not hospital_ids:
+            return queryset.none()
+        queryset = queryset.filter(
+            Q(hospital_id__in=hospital_ids)
+            | Q(
+                hospital_memberships__hospital_id__in=hospital_ids,
+                hospital_memberships__is_active=True,
+            )
+        ).distinct()
 
         # Search filter
         search = self.request.query_params.get("search")
@@ -110,10 +139,10 @@ class PatientViewSet(HospitalScopedViewSet):
 
     def create(self, request, *args, **kwargs):
         # Validate hospital access
-        hospital_id = request.data.get("hospital")
+        hospital_id = parse_hospital_id(request.data.get("hospital"))
         if hospital_id:
             user_hospital_ids = get_user_hospital_ids(request.user)
-            if int(hospital_id) not in user_hospital_ids:
+            if hospital_id not in user_hospital_ids:
                 raise PermissionDenied("You do not have access to this hospital.")
         
         serializer = self.get_serializer(data=request.data)
