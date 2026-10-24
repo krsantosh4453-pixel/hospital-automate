@@ -997,8 +997,7 @@ function Nurses() {
               value={
                 hospitalMAR.filter(
                   (item) =>
-                    item.status ===
-                    "Pending"
+                    item.status === "Due" || item.status === "Delayed"
                 ).length
               }
               icon="💊"
@@ -1058,8 +1057,7 @@ function Nurses() {
               {hospitalMAR
                 .filter(
                   (item) =>
-                    item.status ===
-                    "Pending"
+                    item.status === "Due" || item.status === "Delayed"
                 )
                 .map((item) => {
 
@@ -1856,10 +1854,11 @@ function Nurses() {
                         <td className="px-5 py-4">
 
                           <span
-                            className={`px-3 py-1 rounded-full text-xs ${item.status ===
-                                "Given"
+                            className={`px-3 py-1 rounded-full text-xs ${item.status === "Administered"
                                 ? "bg-green-100 text-green-700"
-                                : "bg-yellow-100 text-yellow-700"
+                                : item.status === "Delayed"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-yellow-100 text-yellow-700"
                               }`}
                           >
                             {item.status}
@@ -1869,8 +1868,7 @@ function Nurses() {
 
                         <td className="px-5 py-4 text-right">
 
-                          {item.status ===
-                            "Pending" ? (
+                          {item.status === "Due" || item.status === "Delayed" ? (
 
                             <button
                               onClick={() =>

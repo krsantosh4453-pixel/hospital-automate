@@ -102,23 +102,6 @@ function Pharmacy() {
   // EXPIRY & LOW STOCK ALERTS
   // =========================
 
-  const now = new Date()
-  const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-
-  const expiredMedicines = useMemo(() =>
-    hospitalMedicines.filter((m) => {
-      const exp = parseExpiry(m.expiry)
-      return exp && exp < now && m.stock > 0
-    }), [hospitalMedicines])
-
-  const expiringSoonMedicines = useMemo(() =>
-    hospitalMedicines.filter((m) => {
-      const exp = parseExpiry(m.expiry)
-      return exp && exp >= now && exp <= thirtyDaysLater && m.stock > 0
-    }), [hospitalMedicines])
-
-  const lowStockMedicines = useMemo(() =>
-    hospitalMedicines.filter((m) => m.stock > 0 && m.stock <= 20), [hospitalMedicines])
   // SEARCH / FILTER
   // =========================
 
@@ -172,14 +155,41 @@ function Pharmacy() {
   // HOSPITAL FILTER
   // =========================
 
-  const hospitalMedicines =
-    selectedHospital
-      ? medicines.filter(
-        (medicine) =>
-          medicine.hospitalId ===
-          selectedHospital.id
-      )
-      : []
+  const hospitalMedicines = useMemo(
+    () =>
+      selectedHospital
+        ? medicines.filter(
+          (medicine) =>
+            medicine.hospitalId ===
+            selectedHospital.id
+        )
+        : [],
+    [medicines, selectedHospital]
+  )
+
+  // Expiry and low-stock alerts (must follow hospitalMedicines: the hook
+  // dependency arrays read it during render).
+
+  const expiredMedicines = useMemo(() => {
+    const now = new Date()
+    return hospitalMedicines.filter((m) => {
+      const exp = parseExpiry(m.expiry)
+      return exp && exp < now && m.stock > 0
+    })
+  }, [hospitalMedicines])
+
+  const expiringSoonMedicines = useMemo(() => {
+    const now = new Date()
+    const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+    return hospitalMedicines.filter((m) => {
+      const exp = parseExpiry(m.expiry)
+      return exp && exp >= now && exp <= thirtyDaysLater && m.stock > 0
+    })
+  }, [hospitalMedicines])
+
+  const lowStockMedicines = useMemo(() =>
+    hospitalMedicines.filter((m) => m.stock > 0 && m.stock <= 20), [hospitalMedicines])
+
 
 
   const hospitalSales =

@@ -614,6 +614,7 @@ function Home() {
   const pendingInvoices = stats.billing?.pending || 0
   const totalRevenue = stats.billing?.total_revenue || 0
   const todayRevenue = stats.billing?.today_revenue || 0
+  const hospitalSales = selectedHospital ? getHospitalSales(selectedHospital.id) : []
   const recentPatients = dashboardStats?.recent_patients || []
 
 
@@ -951,7 +952,7 @@ function Home() {
             </h3>
 
             <p className="text-sm text-gray-500 mt-1">
-              {hospitalPatients.length} patients
+              {totalPatients} patients
             </p>
 
           </Link>
@@ -971,7 +972,7 @@ function Home() {
             </h3>
 
             <p className="text-sm text-gray-500 mt-1">
-              {hospitalAppointments.length} appointments
+              {totalAppointments} appointments
             </p>
 
           </Link>
@@ -991,7 +992,7 @@ function Home() {
             </h3>
 
             <p className="text-sm text-gray-500 mt-1">
-              {hospitalDoctors.length} active doctors
+              {totalDoctors} active doctors
             </p>
 
           </Link>

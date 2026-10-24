@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
+from django.db.models.functions import ExtractHour
 from django.db.models import Avg, Count, F, Q, Sum, ExpressionWrapper, DurationField
 from django.utils import timezone
 
@@ -211,7 +212,7 @@ class KPIService:
         # Peak hours analysis
         peak_hours = (
             in_period.filter(created_at__isnull=False)
-            .extra({"hour": "EXTRACT(hour FROM created_at)"})
+            .annotate(hour=ExtractHour("created_at"))
             .values("hour")
             .annotate(count=Count("id"))
             .order_by("-count")[:5]

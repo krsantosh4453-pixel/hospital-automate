@@ -1,4 +1,5 @@
 const js = require('@eslint/js');
+const globals = require('globals');
 const react = require('eslint-plugin-react');
 const reactHooks = require('eslint-plugin-react-hooks');
 const reactRefresh = require('eslint-plugin-react-refresh');
@@ -9,17 +10,7 @@ module.exports = [
     files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: { 
-        browser: true, 
-        es2020: true,
-        window: 'readonly',
-        localStorage: 'readonly',
-        alert: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        fetch: 'readonly',
-        console: 'readonly',
-      },
+      globals: { ...globals.browser, ...globals.es2020 },
       parserOptions: { ecmaVersion: 2020, sourceType: 'module', ecmaFeatures: { jsx: true } },
     },
     settings: { react: { version: '19.2' } },
@@ -33,7 +24,8 @@ module.exports = [
       'react/prop-types': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'no-undef': 'off',
+      'no-undef': 'error',
+      'no-use-before-define': ['error', { functions: false, classes: false, variables: false }],
     },
   },
 ];

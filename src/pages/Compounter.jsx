@@ -32,105 +32,7 @@ function Compounder() {
   // =====================================================
 
   const [compounders, setCompounders] =
-    useState([
-      {
-        id: "C001",
-        hospitalId: 1,
-        name: "Rakesh Kumar",
-        department: "General Medicine",
-        shift: "Morning",
-        phone: "9876543210",
-        email: "rakesh@example.com",
-        qualification:
-          "Diploma in Pharmacy",
-        joiningDate: "10 Jan 2025",
-        status: "On Duty",
-      },
-      {
-        id: "C002",
-        hospitalId: 1,
-        name: "Amit Kumar",
-        department: "Emergency",
-        shift: "Evening",
-        phone: "9876543211",
-        email: "amit@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "15 Mar 2025",
-        status: "On Duty",
-      },
-      {
-        id: "C003",
-        hospitalId: 1,
-        name: "Sanjay Singh",
-        department: "Pharmacy",
-        shift: "Night",
-        phone: "9876543212",
-        email: "sanjay@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "20 Apr 2025",
-        status: "Off Duty",
-      },
-      {
-        id: "C004",
-        hospitalId: 2,
-        name: "Rajesh Kumar",
-        department: "General Medicine",
-        shift: "Morning",
-        phone: "9876543213",
-        email: "rajesh@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "02 Feb 2025",
-        status: "On Duty",
-      },
-      {
-        id: "C005",
-        hospitalId: 2,
-        name: "Manoj Singh",
-        department: "Emergency",
-        shift: "Evening",
-        phone: "9876543214",
-        email: "manoj@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "18 May 2025",
-        status: "On Duty",
-      },
-      {
-        id: "C006",
-        hospitalId: 2,
-        name: "Vikash Kumar",
-        department: "Pharmacy",
-        shift: "Night",
-        phone: "9876543215",
-        email: "vikash@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "05 Jun 2025",
-        status: "Off Duty",
-      },
-      {
-        id: "C007",
-        hospitalId: 3,
-        name: "Deepak Kumar",
-        department: "General Medicine",
-        shift: "Morning",
-        phone: "9876543216",
-        email: "deepak@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "12 Jul 2025",
-        status: "On Duty",
-      },
-      {
-        id: "C008",
-        hospitalId: 3,
-        name: "Pankaj Singh",
-        department: "Emergency",
-        shift: "Evening",
-        phone: "9876543217",
-        email: "pankaj@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "22 Aug 2025",
-        status: "Off Duty",
-      },
-    ])
+    useState([])
 
   useEffect(() => {
     if (!selectedHospital?.id) return
@@ -165,261 +67,45 @@ function Compounder() {
   // PATIENTS
   // =====================================================
 
-  const [patients] = useState([
-    {
-      id: "P001",
-      hospitalId: 1,
-      name: "Rahul Kumar",
-      age: 42,
-      gender: "Male",
-      department: "General Medicine",
-      doctor: "Dr. Sharma",
-      ward: "Ward A",
-      bed: "A-12",
-      status: "Admitted",
-    },
-    {
-      id: "P002",
-      hospitalId: 1,
-      name: "Priya Singh",
-      age: 35,
-      gender: "Female",
-      department: "Cardiology",
-      doctor: "Dr. Kumar",
-      ward: "Ward B",
-      bed: "B-08",
-      status: "Admitted",
-    },
-    {
-      id: "P003",
-      hospitalId: 1,
-      name: "Amit Kumar",
-      age: 51,
-      gender: "Male",
-      department: "Emergency",
-      doctor: "Dr. Singh",
-      ward: "Emergency",
-      bed: "E-04",
-      status: "Critical",
-    },
-    {
-      id: "P004",
-      hospitalId: 2,
-      name: "Ravi Kumar",
-      age: 29,
-      gender: "Male",
-      department: "General Medicine",
-      doctor: "Dr. Verma",
-      ward: "Ward A",
-      bed: "A-05",
-      status: "Admitted",
-    },
-    {
-      id: "P005",
-      hospitalId: 2,
-      name: "Neha Kumari",
-      age: 46,
-      gender: "Female",
-      department: "ICU",
-      doctor: "Dr. Gupta",
-      ward: "ICU",
-      bed: "ICU-02",
-      status: "Critical",
-    },
-    {
-      id: "P006",
-      hospitalId: 3,
-      name: "Sanjay Singh",
-      age: 38,
-      gender: "Male",
-      department: "Orthopedics",
-      doctor: "Dr. Patel",
-      ward: "Ward C",
-      bed: "C-11",
-      status: "Admitted",
-    },
-  ])
+  const [patients] = useState([])
 
   // =====================================================
   // VITALS
   // =====================================================
 
-  const [vitals, setVitals] = useState([
-    {
-      id: "V001",
-      hospitalId: 1,
-      patientId: "P001",
-      temperature: "98.6",
-      bp: "120/80",
-      pulse: "76",
-      spo2: "98",
-      respiratoryRate: "16",
-      recordedBy: "Rakesh Kumar",
-      time: "10:20 AM",
-    },
-    {
-      id: "V002",
-      hospitalId: 1,
-      patientId: "P002",
-      temperature: "99.1",
-      bp: "128/84",
-      pulse: "82",
-      spo2: "97",
-      respiratoryRate: "18",
-      recordedBy: "Amit Kumar",
-      time: "10:35 AM",
-    },
-    {
-      id: "V003",
-      hospitalId: 1,
-      patientId: "P003",
-      temperature: "101.2",
-      bp: "145/90",
-      pulse: "104",
-      spo2: "91",
-      respiratoryRate: "22",
-      recordedBy: "Rakesh Kumar",
-      time: "10:45 AM",
-    },
-  ])
+  const [vitals, setVitals] = useState([])
 
   // =====================================================
   // ASSESSMENTS
   // =====================================================
 
   const [assessments, setAssessments] =
-    useState([
-      {
-        id: "AS001",
-        hospitalId: 1,
-        patientId: "P001",
-        assessment:
-          "Patient stable. No acute distress.",
-        createdBy: "Rakesh Kumar",
-        date: "02 Sep 2026",
-      },
-      {
-        id: "AS002",
-        hospitalId: 1,
-        patientId: "P002",
-        assessment:
-          "Patient reports mild discomfort.",
-        createdBy: "Amit Kumar",
-        date: "02 Sep 2026",
-      },
-    ])
+    useState([])
 
   // =====================================================
   // NOTES
   // =====================================================
 
-  const [notes, setNotes] = useState([
-    {
-      id: "NOTE001",
-      hospitalId: 1,
-      patientId: "P001",
-      text: "Patient resting comfortably.",
-      createdBy: "Rakesh Kumar",
-      date: "02 Sep 2026",
-    },
-  ])
+  const [notes, setNotes] = useState([])
 
   // =====================================================
   // ORDERS
   // =====================================================
 
-  const [orders] = useState([
-    {
-      id: "ORD001",
-      hospitalId: 1,
-      patientId: "P001",
-      order: "CBC Blood Test",
-      doctor: "Dr. Sharma",
-      status: "Pending",
-    },
-    {
-      id: "ORD002",
-      hospitalId: 1,
-      patientId: "P002",
-      order: "ECG",
-      doctor: "Dr. Kumar",
-      status: "Completed",
-    },
-    {
-      id: "ORD003",
-      hospitalId: 1,
-      patientId: "P003",
-      order: "Emergency Medicine",
-      doctor: "Dr. Singh",
-      status: "Pending",
-    },
-  ])
+  const [orders] = useState([])
 
   // =====================================================
   // MEDICINE / MAR
   // =====================================================
 
-  const [medicines, setMedicines] = useState([
-    {
-      id: "MED001",
-      hospitalId: 1,
-      patientId: "P001",
-      medicine: "Medicine A",
-      dose: "500 mg",
-      route: "Oral",
-      frequency: "1-0-1",
-      quantity: 10,
-      status: "Pending",
-    },
-    {
-      id: "MED002",
-      hospitalId: 1,
-      patientId: "P001",
-      medicine: "Medicine B",
-      dose: "10 mg",
-      route: "Oral",
-      frequency: "0-0-1",
-      quantity: 5,
-      status: "Pending",
-    },
-    {
-      id: "MED003",
-      hospitalId: 1,
-      patientId: "P003",
-      medicine: "Emergency Medicine",
-      dose: "1 dose",
-      route: "IV",
-      frequency: "STAT",
-      quantity: 1,
-      status: "Pending",
-    },
-  ])
+  const [medicines, setMedicines] = useState([])
 
   // =====================================================
   // BLOOD
   // =====================================================
 
   const [bloodRequests, setBloodRequests] =
-    useState([
-      {
-        id: "BL001",
-        hospitalId: 1,
-        patientId: "P003",
-        bloodGroup: "B+",
-        units: 2,
-        urgency: "Urgent",
-        status: "Requested",
-      },
-      {
-        id: "BL002",
-        hospitalId: 1,
-        patientId: "P002",
-        bloodGroup: "O+",
-        units: 1,
-        urgency: "Normal",
-        status: "Available",
-      },
-    ])
+    useState([])
 
   // =====================================================
   // DISCHARGE
@@ -431,22 +117,7 @@ function Compounder() {
   // BILLING
   // =====================================================
 
-  const [billing] = useState([
-    {
-      id: "BILL001",
-      hospitalId: 1,
-      patientId: "P001",
-      amount: 4500,
-      status: "Pending",
-    },
-    {
-      id: "BILL002",
-      hospitalId: 1,
-      patientId: "P002",
-      amount: 7200,
-      status: "Paid",
-    },
-  ])
+  const [billing] = useState([])
 
   // =====================================================
   // HOSPITAL DATA
@@ -1093,6 +764,12 @@ function Compounder() {
 
           <p className="text-gray-500 mt-1">
             {selectedHospital.name}
+          </p>
+
+          <p className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm max-w-2xl" role="note">
+            The patient, vitals, notes, orders and medicine sections on this page are not connected to
+            the hospital record yet and are not saved. Record vitals and notes on the Nurses page,
+            dispense from Pharmacy, and view prescriptions on the Prescription page.
           </p>
 
         </div>

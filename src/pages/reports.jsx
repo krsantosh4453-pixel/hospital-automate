@@ -123,7 +123,7 @@ function Reports() {
 
   const k = kpis || {}
   const patientsTotal = k.patients?.total ?? 0
-  const doctorsTotal = k.doctors?.total ?? doctorsTotal
+  const doctorsTotal = k.doctors?.total ?? hospitalDoctors.length
   const appointmentsTotal = k.appointments?.period_total ?? 0
   const completedAppointments = k.appointments?.completed ?? 0
   const confirmedAppointments = k.appointments?.scheduled ?? 0

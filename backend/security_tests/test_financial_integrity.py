@@ -183,3 +183,22 @@ class BillingKPITests(TestCase):
         client.force_authenticate(login)
         resp = client.get(f"/api/reports/analytics/dashboard/?hospital={hospital.id}")
         self.assertEqual(resp.status_code, 403)
+
+
+class AnalyticsDashboardTests(TestCase):
+    def test_dashboard_runs_for_hospital_admin(self):
+        from encounters.models import QueueToken, Visit
+
+        hospital = Hospital.objects.create(name="Synthetic Dashboard", is_active=True)
+        admin, _ = make_staff("dash_admin", hospital, role=StaffRole.ADMIN)
+        patient = Patient.objects.create(name="Synthetic Dash", age=30, gender="Male", phone="9000000097", hospital=hospital)
+        from doctors.models import Doctor
+
+        doctor = Doctor.objects.create(hospital=hospital, name="Dr Dash", specialization="GP", phone="9000000098")
+        visit = Visit.objects.create(patient=patient, hospital=hospital, doctor=doctor)
+        QueueToken.objects.create(visit=visit, hospital=hospital, patient=patient, doctor=doctor, token_number=1)
+        client = APIClient()
+        client.force_authenticate(admin)
+        resp = client.get(f"/api/reports/analytics/dashboard/?hospital={hospital.id}&period=today")
+        self.assertEqual(resp.status_code, 200, resp.content[:300])
+        self.assertEqual(resp.json()["queue"]["peak_hours"][0]["count"], 1)
