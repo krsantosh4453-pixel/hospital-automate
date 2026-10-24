@@ -394,21 +394,21 @@ const api = {
   },
 
   nurses: {
-    // GET /api/nurses/ (optionally scoped to a hospital)
+    // GET /api/nurses/nurses/ (optionally scoped to a hospital)
     list: async (hospitalId) => {
       const query = hospitalId
         ? `?hospital=${encodeURIComponent(hospitalId)}`
         : ''
 
-      return request(`${API_BASE_URL}/nurses/${query}`)
+      return request(`${API_BASE_URL}/nurses/nurses/${query}`)
     },
 
     // GET /api/nurses/{id}/
-    get: async (id) => request(`${API_BASE_URL}/nurses/${id}/`),
+    get: async (id) => request(`${API_BASE_URL}/nurses/nurses/${id}/`),
 
     // POST /api/nurses/
     create: async (data) =>
-      request(`${API_BASE_URL}/nurses/`, {
+      request(`${API_BASE_URL}/nurses/nurses/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -418,7 +418,7 @@ const api = {
 
     // PUT /api/nurses/{id}/
     update: async (id, data) =>
-      request(`${API_BASE_URL}/nurses/${id}/`, {
+      request(`${API_BASE_URL}/nurses/nurses/${id}/`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -428,7 +428,7 @@ const api = {
 
     // PATCH /api/nurses/{id}/
     patch: async (id, data) =>
-      request(`${API_BASE_URL}/nurses/${id}/`, {
+      request(`${API_BASE_URL}/nurses/nurses/${id}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -438,7 +438,7 @@ const api = {
 
     // DELETE /api/nurses/{id}/
     delete: async (id) => {
-      await request(`${API_BASE_URL}/nurses/${id}/`, {
+      await request(`${API_BASE_URL}/nurses/nurses/${id}/`, {
         method: 'DELETE',
       })
       return true
@@ -873,10 +873,6 @@ const api = {
       return request(`${API_BASE_URL}/encounters/queue-tokens/estimates/${query}`)
     },
 
-    // GET /api/encounters/queue-tokens/{id}/estimate/
-    estimate: async (id) =>
-      request(`${API_BASE_URL}/encounters/queue-tokens/${id}/estimate/`),
-
     // DELETE /api/encounters/queue-tokens/{id}/
     delete: async (id) => {
       await request(`${API_BASE_URL}/encounters/queue-tokens/${id}/`, {
@@ -896,45 +892,6 @@ const api = {
 
       return request(`${API_BASE_URL}/encounters/queue-tokens/estimates/${query}`)
     },
-
-    // GET /api/encounters/queue-tokens/{id}/estimate/
-    get: async (id) =>
-      request(`${API_BASE_URL}/encounters/queue-tokens/${id}/estimate/`),
-  },
-
-  // Doctor queue dashboard
-  doctorDashboard: {
-    // GET /api/encounters/doctor-dashboard/?hospital=<id>&doctor=<id>
-    get: async (hospitalId, doctorId = null) => {
-      const params = new URLSearchParams()
-      params.set('hospital', hospitalId)
-      if (doctorId) params.set('doctor', doctorId)
-      return request(`${API_BASE_URL}/encounters/doctor-dashboard/?${params.toString()}`)
-    },
-  },
-
-  // Hospital queue overview (admin/front desk)
-  hospitalQueue: {
-    // GET /api/encounters/hospital-queue-overview/?hospital=<id>
-    get: async (hospitalId) => {
-      const query = hospitalId
-        ? `?hospital=${encodeURIComponent(hospitalId)}`
-        : ''
-      return request(`${API_BASE_URL}/encounters/hospital-queue-overview/${query}`)
-    },
-  },
-
-  // Voice fallback
-  voiceFallback: {
-    // POST /api/encounters/trigger-voice-fallback/
-    trigger: async (queueTokenId, hospitalId) =>
-      request(`${API_BASE_URL}/encounters/trigger-voice-fallback/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ queue_token: queueTokenId, hospital: hospitalId }),
-      }),
   },
 
   // Clinical records — these all hang off an encounters.Visit.  Each clinical
@@ -1441,137 +1398,6 @@ const api = {
       },
   },
 
-  // AI Medical Scribe
-  aiScribe: {
-    // Consultations
-    consultations: {
-      list: async (hospitalId, params = {}) => {
-        const queryParams = new URLSearchParams();
-        if (hospitalId) queryParams.set('hospital', hospitalId);
-        Object.entries(params).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) queryParams.set(key, value);
-        });
-        const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
-        return request(`${API_BASE_URL}/ai-scribe/consultations/${query}`);
-      },
-      get: async (id) => request(`${API_BASE_URL}/ai-scribe/consultations/${id}/`),
-      create: async (data) =>
-        request(`${API_BASE_URL}/ai-scribe/consultations/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        }),
-      update: async (id, data) =>
-        request(`${API_BASE_URL}/ai-scribe/consultations/${id}/`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        }),
-      patch: async (id, data) =>
-        request(`${API_BASE_URL}/ai-scribe/consultations/${id}/`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        }),
-      end: async (id) =>
-        request(`${API_BASE_URL}/ai-scribe/consultations/${id}/end/`, {
-          method: 'POST',
-        }),
-    },
-
-    // Audio Recordings
-    audioRecordings: {
-      list: async (hospitalId, consultationId = null) => {
-        const params = new URLSearchParams();
-        if (hospitalId) params.set('hospital', hospitalId);
-        if (consultationId) params.set('consultation', consultationId);
-        const query = params.toString() ? `?${params.toString()}` : '';
-        return request(`${API_BASE_URL}/ai-scribe/audio-recordings/${query}`);
-      },
-      create: async (formData) =>
-        request(`${API_BASE_URL}/ai-scribe/audio-recordings/`, {
-          method: 'POST',
-          body: formData,
-        }),
-    },
-
-    // Transcripts
-    transcripts: {
-      list: async (hospitalId, consultationId = null) => {
-        const params = new URLSearchParams();
-        if (hospitalId) params.set('hospital', hospitalId);
-        if (consultationId) params.set('consultation', consultationId);
-        const query = params.toString() ? `?${params.toString()}` : '';
-        return request(`${API_BASE_URL}/ai-scribe/transcripts/${query}`);
-      },
-      get: async (id) => request(`${API_BASE_URL}/ai-scribe/transcripts/${id}/`),
-      transcribe: async (audioRecordingId, language) =>
-        request(`${API_BASE_URL}/ai-scribe/transcripts/transcribe/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audio_recording_id: audioRecordingId, language }),
-        }),
-    },
-
-    // AI Drafts
-    drafts: {
-      list: async (hospitalId, consultationId = null, draftStatus = null) => {
-        const params = new URLSearchParams();
-        if (hospitalId) params.set('hospital', hospitalId);
-        if (consultationId) params.set('consultation', consultationId);
-        if (draftStatus) params.set('draft_status', draftStatus);
-        const query = params.toString() ? `?${params.toString()}` : '';
-        return request(`${API_BASE_URL}/ai-scribe/drafts/${query}`);
-      },
-      get: async (id) => request(`${API_BASE_URL}/ai-scribe/drafts/${id}/`),
-      generate: async (consultationId, promptVersion = 'v1.0', regenerate = false) =>
-        request(`${API_BASE_URL}/ai-scribe/drafts/generate/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ consultation_id: consultationId, prompt_version: promptVersion, regenerate }),
-        }),
-      approve: async (draftId, createClinicalNote = true) =>
-        request(`${API_BASE_URL}/ai-scribe/drafts/${draftId}/approve/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'approve', create_clinical_note: createClinicalNote }),
-        }),
-      reject: async (draftId) =>
-        request(`${API_BASE_URL}/ai-scribe/drafts/${draftId}/approve/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'reject' }),
-        }),
-      review: async (draftId, action, editedStructuredData = null, editedSummaryText = null, reviewNotes = '') =>
-        request(`${API_BASE_URL}/ai-scribe/drafts/${draftId}/review/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, edited_structured_data: editedStructuredData, edited_summary_text: editedSummaryText, review_notes: reviewNotes }),
-        }),
-      regenerate: async (consultationId, promptVersion = 'v1.0') =>
-        request(`${API_BASE_URL}/ai-scribe/drafts/regenerate/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ consultation_id: consultationId, prompt_version: promptVersion }),
-        }),
-    },
-
-    // Reviews
-    reviews: {
-      list: async (aiDraftId) => {
-        const params = new URLSearchParams();
-        if (aiDraftId) params.set('ai_draft', aiDraftId);
-        const query = params.toString() ? `?${params.toString()}` : '';
-        return request(`${API_BASE_URL}/ai-scribe/reviews/${query}`);
-      },
-    },
-
-    // Provider Status
-    providerStatus: {
-      get: async () => request(`${API_BASE_URL}/ai-scribe/provider-status/`),
-    },
-  },
-
   // Notifications
   notifications: {
     // GET /api/notifications/?hospital=<id>&patient=<id>
@@ -1579,15 +1405,14 @@ const api = {
       const params = new URLSearchParams()
       params.set('hospital', hospitalId)
       if (patientId) params.set('patient', patientId)
-      return request(`${API_BASE_URL}/notifications/?${params.toString()}`)
+      return request(`${API_BASE_URL}/notifications/notifications/?${params.toString()}`)
     },
 
     get: async (id) =>
-      request(`${API_BASE_URL}/notifications/${id}/`),
+      request(`${API_BASE_URL}/notifications/notifications/${id}/`),
 
-    // POST /api/notifications/{id}/retry/
-    retry: async (id) =>
-      request(`${API_BASE_URL}/notifications/${id}/retry/`, {
+    markRead: async (id) =>
+      request(`${API_BASE_URL}/notifications/notifications/${id}/mark_read/`, {
         method: 'POST',
       }),
 
@@ -1641,19 +1466,6 @@ const api = {
       },
     },
 
-    // Voice fallbacks
-    voiceFallbacks: {
-      // GET /api/notifications/voice-fallbacks/?hospital=<id>&queue_token=<id>
-      list: async (hospitalId, queueTokenId = null) => {
-        const params = new URLSearchParams()
-        params.set('hospital', hospitalId)
-        if (queueTokenId) params.set('queue_token', queueTokenId)
-        return request(`${API_BASE_URL}/notifications/voice-fallbacks/?${params.toString()}`)
-      },
-
-      get: async (id) =>
-        request(`${API_BASE_URL}/notifications/voice-fallbacks/${id}/`),
-    },
   },
 }
 
@@ -1932,9 +1744,11 @@ api.ipd.admissions.completeDischarge = async (id) =>
   request(`${API_BASE_URL}/ipd/admissions/${id}/complete_discharge/`, { method: "POST" })
 api.ipd.bedAllocations.availableBeds = async (hospitalId) => {
   const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
-  return request(`${API_BASE_URL}/ipd/admissions/available_beds/${query}`)
+  return request(`${API_BASE_URL}/ipd/bed-allocations/available_beds/${query}`)
 }
 
+// AI medical scribe (/api/ai/...)
+api.aiScribe = {}
 api.aiScribe.consultationSessions = {
   list: async (hospitalId) => {
     const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""

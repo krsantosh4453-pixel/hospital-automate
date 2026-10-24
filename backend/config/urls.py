@@ -74,6 +74,9 @@ urlpatterns = [
     # Django Admin
     path(settings.ADMIN_URL, admin.site.urls),
 
+    # Laboratory sub-resources (must precede the root router; see laboratory/urls.py)
+    path("api/laboratory/", include("laboratory.urls")),
+
     # Core APIs
     path("api/", include(router.urls)),
 
@@ -83,8 +86,6 @@ urlpatterns = [
     # Nursing APIs (includes all nurse-related endpoints: nurses, assessments, notes, care-tasks, mar, etc.)
     path("api/nurses/", include("nurses.urls")),
 
-    # Laboratory APIs
-    path("api/laboratory/", include("laboratory.urls")),
 
     # Hospital Management APIs
     path("api/hospital/", include("hospital.urls")),
