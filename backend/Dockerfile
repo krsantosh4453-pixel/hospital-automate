@@ -47,6 +47,10 @@ RUN groupadd -r django && useradd -r -g django -m -d /home/django -s /bin/bash d
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
 
+# Copy entrypoint script
+COPY --chown=django:django backend/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Set working directory
 WORKDIR /app
 
@@ -60,15 +64,15 @@ RUN mkdir -p /app/staticfiles /app/media /app/logs /app/backups \
 # Switch to non-root user
 USER django
 
-# Collect static files
-RUN python manage.py collectstatic --noinput --settings=config.settings.production
-
 # Expose port
 EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health/live/ || exit 1
+
+# Entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Default command
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-"]

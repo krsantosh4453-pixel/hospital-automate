@@ -1,50 +1,166 @@
-# PHASE 2 STARTING STATE REPORT
+# PHASE 2 STARTING STATE REPORT (UPDATED 2026-10-10)
 
 ## Executive Summary
 
-**Phase 1 Status: PARTIALLY COMPLETE**
+**Phase 1 Status: SUBSTANTIALLY COMPLETE (Source Code)**
 
-Phase 1 security & multi-hospital foundation has significant gaps that must be addressed before/during Phase 2.
+Phase 1 security & multi-hospital foundation had significant gaps initially. Most critical gaps have been addressed in source code per PHASE_1_SECURITY_IMPLEMENTATION_REPORT.md and SECURITY_FINDINGS.md, but **automated tests could not be executed** to verify fixes in current environment.
+
+---
+
+## Phase 1 Verification Results (Original vs. Current)
+
+### ✅ What WAS Working (Still Working)
+
+| Area | Original Status | Current Status | Details |
+|------|----------------|----------------|---------|
+| JWT Authentication | ✅ | ✅ IMPLEMENTED | SimpleJWT configured, access/refresh tokens, rotation, blacklisting |
+| Hospital Model | ✅ | ✅ IMPLEMENTED | `Hospital` model exists with `is_active` flag |
+| Patient-Hospital Membership | ✅ | ✅ IMPLEMENTED | `PatientHospital` model with `unique_together` on (patient, hospital) |
+| Hospital FK on Core Models | ✅ | ✅ IMPLEMENTED | Core models have `hospital` FK |
+| API Filtering by Hospital | ✅ | ✅ IMPLEMENTED | Most ViewSets filter via `?hospital=` query param |
+| CORS | ✅ | ✅ IMPLEMENTED | Configured for frontend origins |
+
+### ❌ What WAS BROKEN / MISSING — Current Resolution
+
+| Area | Original Issue | Original Severity | Current Resolution (Source Code) |
+|------|----------------|-------------------|----------------------------------|
+| **BloodInventory** | **NO hospital FK** | **CRITICAL** | ✅ **FIXED** — Added `hospital` FK, UniqueConstraint, HospitalScopedViewSet |
+| **BloodRequest** | **NO hospital FK** | **CRITICAL** | ✅ **FIXED** — Added `hospital` FK via BloodInventory relationship, HospitalScopedViewSet |
+| **BloodTransaction** | **NO hospital FK** | **CRITICAL** | ✅ **FIXED** — Scoped via BloodRequest/Inventory, HospitalScopedViewSet |
+| **LabTest model** | No hospital FK (filtered via patient) | HIGH | ✅ **ADDRESSED** — HospitalScopedViewSet filters via patient membership |
+| **EmergencyVisit** | Has hospital FK but no filtering | HIGH | ✅ **FIXED** — EmergencyViewSet extends HospitalScopedViewSet |
+| **IPD Models** | Admission has FK, others rely on Admission | MEDIUM | ✅ **ADDRESSED** — All IPD ViewSets use HospitalScopedViewSet |
+| **Object-level permissions** | None implemented | **CRITICAL** | ✅ **IMPLEMENTED** — `IsHospitalScoped`, `IsOwnerOrHospitalAdmin` permission classes |
+| **RBAC** | Only `IsAuthenticated` | **CRITICAL** | ✅ **IMPLEMENTED** — 11 role-based permission classes in `users/permissions.py` |
+| **Hospital isolation enforcement** | Relies on `?hospital=` param | **CRITICAL** | ✅ **FIXED** — `IsHospitalMember` permission validates membership before access |
+| **Auto hospital context** | No middleware | HIGH | ✅ **IMPLEMENTED** — `get_user_hospital_ids()`, `HospitalScopedViewSet` |
+| **Audit logging** | Not integrated | MEDIUM | ✅ **IMPLEMENTED** — AuditLog, AIInteraction models with ViewSets |
+
+### 🔴 Critical Security Gaps — Resolution Status
+
+1. **Blood Bank completely unscoped** → **FIXED IN SOURCE** — Hospital FK added, HospitalScopedViewSet, permissions
+2. **No object permissions** → **FIXED IN SOURCE** — `IsHospitalScoped`, `IsOwnerOrHospitalAdmin` enforce object-level access
+3. **No RBAC** → **FIXED IN SOURCE** — 11 role-based permission classes applied to all ViewSets
+4. **Query param trust** → **FIXED IN SOURCE** — `IsHospitalMember` validates membership before any hospital-scoped access
 
 ---
 
-## Phase 1 Verification Results
+## Existing Backend Models (Summary — Verified 2026-10-10)
 
-### ✅ What IS Working
+### IPD (`backend/ipd/models.py`)
+- `Admission` - patient, hospital, status, dates, reason
+- `BedAllocation` - admission, bed, allocated_at, released_at
+- `DischargePlan` - admission, instructions, pending_tasks
+- `DischargeSummary` - admission, summary, authorized_doctor, finalized
+- `DischargeNote` - admission, note
 
-| Area | Status | Details |
-|------|--------|---------|
-| JWT Authentication | ✅ | SimpleJWT configured in settings, `JWTAuthentication` used in some views |
-| Hospital Model | ✅ | `Hospital` model exists with `is_active` flag |
-| Patient-Hospital Membership | ✅ | `PatientHospital` model with `unique_together` on (patient, hospital) |
-| Hospital FK on Core Models | ✅ | `Doctor`, `Department`, `Ward`, `Room`, `Bed`, `Nurse`, `Visit`, `QueueToken`, `VitalSign`, `ClinicalNote`, `Diagnosis`, `ServiceOrder`, `Prescription`, `Invoice` all have `hospital` FK |
-| API Filtering by Hospital | ✅ | Most ViewSets filter via `?hospital=` query param |
-| CORS | ✅ | Configured for frontend origins |
+### Emergency (`backend/emergency/models.py`)
+- `EmergencyVisit` - patient, hospital, visit_number, triage_level, status, arrival/discharge times
 
-### ❌ What IS BROKEN / MISSING
+### Laboratory (`backend/laboratory/models.py`)
+- `LabTest` - name, patient, doctor (CharField), priority, result, status, test_date
+  - **Note**: Hospital scoping via patient relationship (patient → hospital_memberships)
 
-| Area | Issue | Severity |
-|------|-------|----------|
-| **BloodInventory** | **NO hospital FK** - completely unscoped | **CRITICAL** |
-| **BloodRequest** | **NO hospital FK** - completely unscoped | **CRITICAL** |
-| **BloodTransaction** | **NO hospital FK** - completely unscoped | **CRITICAL** |
-| **LabTest model** | No hospital FK (only filtered in view via patient) | HIGH |
-| **EmergencyVisit** | Has hospital FK but no hospital filtering in ViewSet | HIGH |
-| **IPD Models** | Admission has hospital FK but BedAllocation/Discharge* rely on Admission only | MEDIUM |
-| **Object-level permissions** | None implemented - any authenticated user can access any object | **CRITICAL** |
-| **RBAC** | Only `IsAuthenticated` - no role-based access control | **CRITICAL** |
-| **Hospital isolation enforcement** | Relies on `?hospital=` param - can be bypassed | **CRITICAL** |
-| **Auto hospital context** | No middleware/permission to auto-scope to user's hospital | HIGH |
-| **Audit logging** | Audit app exists but models not integrated | MEDIUM |
+### Blood Bank (`backend/bloodbank/models.py`) — **FIXED**
+- `BloodInventory` - blood_group, component, units, expiry_date, **hospital FK added**
+- `BloodRequest` - patient, blood_group, component, units, status (scoped via patient/Inventory)
+- `BloodTransaction` - request, transaction_type, units, remarks (scoped via request)
 
-### 🔴 Critical Security Gaps
+### Nurses (`backend/nurses/models.py`)
+- `Nurse` - hospital, name, phone, email, department, shift, qualification, joining_date, status
+- **Missing**: NursingAssessment, VitalSign (clinical has), MAR, CareTask, NursingNote
 
-1. **Blood Bank completely unscoped** - Hospital A can see/edit Hospital B's blood inventory
-2. **No object permissions** - User from Hospital A can PATCH/DELETE Hospital B's patients, admissions, etc.
-3. **No RBAC** - Nurse can access Doctor/Admin endpoints, no role checks
-4. **Query param trust** - Frontend sends `?hospital=`; backend trusts it without verifying user membership
+### Hospital (`backend/hospital/models.py`)
+- `Hospital`, `Department`, `Ward`, `Room`, `Bed` - all properly scoped
+
+### Clinical/Encounters (`backend/clinical/models.py`, `backend/encounters/models.py`)
+- `Visit`, `QueueToken`, `VitalSign`, `ClinicalNote`, `Diagnosis`, `ServiceOrder`, `Procedure`, `Prescription`, `PrescriptionItem`, `MedicalRecord`, `Allergy`
+
+### Billing (`backend/billing/models.py`)
+- `Invoice`, `InvoiceItem`, `Payment`, `InsuranceClaim` - all have hospital FK
 
 ---
+
+## Existing APIs (ViewSets) — Verified HospitalScopedViewSet Usage
+
+All modules now use `HospitalScopedViewSet` base class:
+- `/api/ipd/admissions/`, `/api/ipd/bed-allocations/`, `/api/ipd/discharge-plans/`, `/api/ipd/discharge-summaries/`, `/api/ipd/discharge-notes/`
+- `/api/emergency/emergency-visits/`
+- `/api/laboratory/` (LabTest only)
+- `/api/bloodbank/inventory/`, `/api/bloodbank/requests/`, `/api/bloodbank/transactions/`
+- `/api/nurses/nurses/`
+- `/api/clinical/vitals/`, `/api/clinical/clinical-notes/`, `/api/clinical/diagnoses/`, `/api/clinical/service-orders/`, `/api/clinical/prescriptions/`
+- `/api/encounters/visits/`, `/api/encounters/queue-tokens/`
+- `/api/billing/` (invoices, payments, claims)
+- `/api/hospital/` (hospitals, departments, wards, rooms, beds)
+- `/api/procurement/` (suppliers, POs, GRNs, stock)
+
+---
+
+## Existing Frontend Pages — Status Update
+
+| Page | File | Status (2026-10-10) |
+|------|------|---------------------|
+| Laboratory | `src/pages/laboratory.jsx` | ✅ Basic CRUD, uses real API |
+| Nurses | `src/pages/Nurses.jsx` | ⚠️ Nurse CRUD ✅; Clinical workflows **MOCK DATA** |
+| Patients | `src/pages/Patients.jsx` | ✅ Basic CRUD |
+| Appointments | `src/pages/Appointments.jsx` | ✅ |
+| Queue | `src/pages/Queue.jsx` | ✅ |
+| Consultation | `src/pages/Consultation.jsx` | ✅ |
+| Pharmacy | `src/pages/pharmacy.jsx` | ✅ |
+| Billing | `src/pages/billing.jsx` | ✅ |
+| Inventory | `src/pages/inventory.jsx` | ✅ |
+| Dashboard | `src/pages/Dashboard.jsx` | ✅ |
+| **IPD** | — | ❌ **MISSING** (Backend exists, frontend page not created) |
+| **Emergency/ER** | — | ❌ **MISSING** (Backend exists, frontend page not created) |
+| **Blood Bank** | `src/pages/BloodBank.jsx` | ✅ Frontend exists, API in api.js |
+
+---
+
+## Existing Tests — Status Update
+
+| App | Test Coverage | Notes |
+|-----|---------------|-------|
+| pharmacy | ✅ 9 tests | CRUD, hospital filtering, stock deduction, cross-hospital rejection |
+| procurement | ✅ Extensive tests | Some status transition failures |
+| users | ✅ 18 tests (Stage 1) | Staff auth, JWT, hospital membership, cross-hospital isolation |
+| **All other apps** | ❌ Empty `TestCase` stubs only | Category G import errors fixed in source |
+
+---
+
+## Phase 2 Implementation Plan (Unchanged — Priority Order)
+
+### Priority Order (P1 = Must Complete)
+
+| Priority | Module | Key Work |
+|----------|--------|----------|
+| **P1** | **IPD** | Bed allocation (atomic), discharge workflow, hospital isolation, RBAC |
+| **P1** | **Emergency** | Complete ER workflow, hospital isolation, status transitions |
+| **P1** | **Laboratory** | Sample workflow models + APIs, status flow, hospital isolation |
+| **P1** | **Blood Bank** | Workflow (request→approve→issue→update), audit (models/FK fixed) |
+| **P1** | **Nursing + MAR** | Nursing workflow models, MAR, safety validations |
+
+### Cross-Cutting Concerns (Apply to ALL modules) — Mostly Addressed in Phase 1
+
+1. **Add hospital FK** where missing → **DONE** (BloodInventory, BloodRequest, BloodTransaction, LabTest via patient)
+2. **Implement HospitalIsolationPermission** → **DONE** (`IsHospitalMember`, `HospitalScopedViewSet`)
+3. **Implement RBAC** → **DONE** (11 role-based permission classes)
+4. **Auto-hospital context** → **DONE** (`get_user_hospital_ids()`, `HospitalScopedViewSet`)
+5. **Atomic transactions** → **PENDING** (bed allocation, blood issue, discharge)
+6. **Audit logging** → **DONE** (AuditLog, AIInteraction models)
+7. **Status transition validation** → **PARTIAL** (QueueToken has basic; needs state machine)
+8. **Frontend integration** → **PARTIAL** (Nurse CRUD done; clinical workflows mock)
+
+---
+
+## Next Steps (Updated 2026-10-10)
+
+1. **Immediate**: Fix development environment to run automated tests (Django check hangs)
+2. **Immediate**: Verify Phase 1 security fixes with actual test execution
+3. **Then**: Implement each P1 module backend → API → frontend → tests
+4. **Finally**: Cross-module integration testing (Workflows A-G)
+5. **Frontend**: Create missing IPD and Emergency pages
 
 ## Existing Backend Models (Summary)
 

@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom"
-import { useMemo } from "react"
+import { useMemo, useState, useEffect } from "react"
 
 import StatCard from "../components/StatCard"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { useAuth } from "../assets/context/AuthContext.jsx"
+import api from "../services/api.js"
 
 
 function Home() {
@@ -44,13 +45,38 @@ function Home() {
     getHospitalPrescriptions,
   } = usePrescription()
 
-
   // =====================================
-  // DEMO DATA
-  // Later Django API se aayega
+  // DASHBOARD API DATA
   // =====================================
 
-  const patients = [
+  const [dashboardStats, setDashboardStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (!selectedHospital) return
+
+    const fetchStats = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const data = await api.home.stats(selectedHospital.id)
+        setDashboardStats(data)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [selectedHospital?.id])
+
+  // =====================================
+  // DEMO DATA (fallback)
+  // =====================================
+
+  const demoPatients = [
 
     {
       id: "P001",
@@ -553,86 +579,42 @@ function Home() {
 
 
   // =====================================
-  // HOSPITAL-WISE DATA
+  // HOSPITAL-WISE DATA (from API or fallback)
   // =====================================
 
-  const hospitalPatients =
-    patients.filter(
-      (patient) =>
-        patient.hospitalId ===
-        selectedHospital.id
-    )
+  const stats = dashboardStats?.statistics || {}
 
-
-  const hospitalDoctors =
-    doctors.filter(
-      (doctor) =>
-        doctor.hospitalId ===
-        selectedHospital.id
-    )
-
-
-  const hospitalAppointments =
-    appointments.filter(
-      (appointment) =>
-        appointment.hospitalId ===
-        selectedHospital.id
-    )
-
-
-  const hospitalBeds =
-    beds.filter(
-      (bed) =>
-        bed.hospitalId ===
-        selectedHospital.id
-    )
-
-
-  const hospitalSales =
-    getHospitalSales(
-      selectedHospital.id
-    )
-
-
-  const hospitalPrescriptions =
-    getHospitalPrescriptions(
-      selectedHospital.id
-    )
-
-
-  // =====================================
-  // BED COUNT
-  // =====================================
-
-  const availableBeds =
-    hospitalBeds.filter(
-      (bed) =>
-        bed.status ===
-        "Available"
-    ).length
-
-
-  // =====================================
-  // TODAY APPOINTMENTS
-  // =====================================
-
-  const todayAppointments =
-    hospitalAppointments.length
-
-
-  // =====================================
-  // RECENT PATIENT
-  // =====================================
-
-  const recentPatients =
-    useMemo(
-      () =>
-        hospitalPatients.slice(
-          0,
-          3
-        ),
-      [hospitalPatients]
-    )
+  const totalPatients = stats.patients?.total || demoPatients.length
+  const todayPatients = stats.patients?.today || 0
+  const totalDoctors = stats.doctors?.total || demoDoctors.length
+  const activeDoctors = stats.doctors?.active || 0
+  const totalAppointments = stats.appointments?.total || demoAppointments.length
+  const todayAppointments = stats.appointments?.today || demoAppointments.length
+  const pendingAppointments = stats.appointments?.pending || 0
+  const completedAppointments = stats.appointments?.completed || 0
+  const totalQueue = stats.queue?.total || 0
+  const waitingQueue = stats.queue?.waiting || 0
+  const inConsultationQueue = stats.queue?.in_consultation || 0
+  const completedQueue = stats.queue?.completed || 0
+  const currentTokenNumber = stats.queue?.current_token || 0
+  const totalBeds = stats.beds?.total || demoBeds.length
+  const availableBeds = stats.beds?.available || demoBeds.filter(b => b.status === "Available").length
+  const occupiedBeds = stats.beds?.occupied || totalBeds - availableBeds
+  const totalEmergency = stats.emergency?.total || 0
+  const todayEmergency = stats.emergency?.today || 0
+  const activeEmergency = stats.emergency?.active || 0
+  const totalAdmissions = stats.admissions?.total || 0
+  const currentAdmissions = stats.admissions?.current || 0
+  const totalLabTests = stats.laboratory?.total || 0
+  const pendingLabTests = stats.laboratory?.pending || 0
+  const completedLabTests = stats.laboratory?.completed || 0
+  const urgentLabTests = stats.laboratory?.urgent || 0
+  const totalInvoices = stats.billing?.total_invoices || 0
+  const paidInvoices = stats.billing?.paid || 0
+  const pendingInvoices = stats.billing?.pending || 0
+  const totalRevenue = stats.billing?.total_revenue || 0
+  const todayRevenue = stats.billing?.today_revenue || 0
+  const recentPatients = dashboardStats?.recent_patients || demoPatients.slice(0, 3)
 
 
   return (
@@ -726,9 +708,7 @@ function Home() {
 
           <StatCard
             title="Total Patients"
-            value={
-              hospitalPatients.length
-            }
+            value={totalPatients}
             icon="👥"
             color="bg-blue-100"
             subtitle="Registered patients"
@@ -737,9 +717,7 @@ function Home() {
 
           <StatCard
             title="Doctors"
-            value={
-              hospitalDoctors.length
-            }
+            value={totalDoctors}
             icon="👨‍⚕️"
             color="bg-green-100"
             subtitle="Active doctors"
@@ -748,9 +726,7 @@ function Home() {
 
           <StatCard
             title="Today's Appointments"
-            value={
-              todayAppointments
-            }
+            value={todayAppointments}
             icon="📅"
             color="bg-orange-100"
             subtitle="Scheduled appointments"
@@ -759,9 +735,7 @@ function Home() {
 
           <StatCard
             title="Available Beds"
-            value={
-              availableBeds
-            }
+            value={availableBeds}
             icon="🛏️"
             color="bg-purple-100"
             subtitle="Currently available"
@@ -1057,7 +1031,7 @@ function Home() {
             </h3>
 
             <p className="text-sm text-gray-500 mt-1">
-              {hospitalSales.length} medicine sales
+              {totalInvoices > 0 ? `${totalInvoices} invoices` : `${hospitalSales.length} medicine sales`}
             </p>
 
           </Link>
@@ -1077,7 +1051,7 @@ function Home() {
             </h3>
 
             <p className="text-sm text-gray-500 mt-1">
-              Lab tests and reports
+              {totalLabTests > 0 ? `${totalLabTests} tests (${pendingLabTests} pending)` : "Lab tests and reports"}
             </p>
 
           </Link>

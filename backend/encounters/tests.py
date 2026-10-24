@@ -10,7 +10,7 @@ from hospital.models import Hospital, Department
 from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 from patients.models import Patient, PatientHospital
 from doctors.models import Doctor
-from encounters.models import Visit, DoctorSchedule, TokenQueue
+from encounters.models import Visit, DoctorSchedule, QueueToken
 
 User = get_user_model()
 
@@ -72,12 +72,10 @@ class EncountersAPITests(TestCase):
         # Create doctor schedule
         self.schedule = DoctorSchedule.objects.create(
             doctor=self.doctor,
-            hospital=self.hospital_a,
-            date=date.today(),
+            day="Monday",
             start_time=time(9, 0),
             end_time=time(13, 0),
-            max_tokens=20,
-            current_token=0,
+            is_available=True,
         )
 
         # Authenticate
@@ -87,7 +85,7 @@ class EncountersAPITests(TestCase):
         return f"/api/encounters/visits/?hospital={self.hospital_a.id}"
 
     def _get_queue_url(self):
-        return f"/api/encounters/queue/?hospital={self.hospital_a.id}"
+        return f"/api/encounters/queue-tokens/?hospital={self.hospital_a.id}"
 
     def _get_schedules_url(self):
         return f"/api/encounters/schedules/?hospital={self.hospital_a.id}"
@@ -99,8 +97,8 @@ class EncountersAPITests(TestCase):
             {
                 "patient": self.patient.id,
                 "doctor": self.doctor.id,
+                "hospital": self.hospital_a.id,
                 "visit_type": "OPD",
-                "visit_date": date.today().isoformat(),
                 "chief_complaint": "Fever",
             },
             format="json",
@@ -109,20 +107,22 @@ class EncountersAPITests(TestCase):
         self.assertEqual(response.data["patient"], self.patient.id)
         self.assertEqual(response.data["visit_type"], "OPD")
 
-    def test_token_queue(self):
-        """Test token queue model."""
+    def test_queue_token(self):
+        """Test queue token model."""
         visit = Visit.objects.create(
             patient=self.patient,
             doctor=self.doctor,
             hospital=self.hospital_a,
             visit_type="OPD",
-            visit_date=date.today(),
             chief_complaint="Test",
             status="Waiting",
         )
-        token = TokenQueue.objects.create(
+        token = QueueToken.objects.create(
             visit=visit,
             token_number=1,
+            hospital=self.hospital_a,
+            patient=self.patient,
+            doctor=self.doctor,
             status="Waiting",
         )
         self.assertEqual(token.visit, visit)
@@ -132,8 +132,8 @@ class EncountersAPITests(TestCase):
     def test_doctor_schedule(self):
         """Test doctor schedule model."""
         self.assertEqual(self.schedule.doctor, self.doctor)
-        self.assertEqual(self.schedule.max_tokens, 20)
-        self.assertEqual(self.schedule.current_token, 0)
+        self.assertEqual(self.schedule.day, "Monday")
+        self.assertEqual(self.schedule.is_available, True)
 
     def test_list_visits(self):
         """Test listing visits."""
@@ -142,7 +142,6 @@ class EncountersAPITests(TestCase):
             doctor=self.doctor,
             hospital=self.hospital_a,
             visit_type="OPD",
-            visit_date=date.today(),
             chief_complaint="Test",
             status="Completed",
         )

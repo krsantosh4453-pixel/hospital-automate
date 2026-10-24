@@ -720,7 +720,7 @@ function AIScribe() {
 
               {!transcript && (
                 <div className="text-center py-12">
-                  <p className="text-slate-500">No transcript available. Click "Transcribe" to generate.</p>
+                  <p className="text-slate-500">No transcript available. Click &quot;Transcribe&quot; to generate.</p>
                   <button
                     onClick={handleTranscribe}
                     disabled={loadingTranscript || !session?.audio_file}

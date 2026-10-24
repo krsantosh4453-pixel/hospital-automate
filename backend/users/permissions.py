@@ -1,6 +1,41 @@
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
+from django.conf import settings
 from users.models import StaffProfile, StaffHospitalMembership, StaffRole
+
+
+class IsHL7Authenticated(permissions.BasePermission):
+    """
+    Permission class for HL7 endpoints.
+    Allows access if:
+    - Request comes from whitelisted IP (HL7_IP_WHITELIST setting)
+    - Request includes valid API key in header (HL7_API_KEY setting)
+    """
+
+    def has_permission(self, request, view):
+        # Check IP whitelist
+        client_ip = self._get_client_ip(request)
+        whitelist = getattr(settings, 'HL7_IP_WHITELIST', [])
+        if whitelist and client_ip in whitelist:
+            return True
+
+        # Check API key
+        api_key = request.headers.get('X-HL7-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
+        expected_key = getattr(settings, 'HL7_API_KEY', None)
+        if expected_key and api_key == expected_key:
+            return True
+
+        # In development, allow if DEBUG=True
+        if getattr(settings, 'DEBUG', False):
+            return True
+
+        return False
+
+    def _get_client_ip(self, request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', 'unknown')
 
 
 def get_user_staff_profile(user):
@@ -31,6 +66,8 @@ def get_user_hospital_ids(user):
 
 def get_user_roles(user):
     """Get list of roles the user has across all hospital memberships."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return []
     staff_profile = get_user_staff_profile(user)
     if not staff_profile:
         return []
@@ -70,6 +107,8 @@ def get_linked_patient(user):
 
 
 def is_active_staff(user):
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
     staff_profile = get_user_staff_profile(user)
     return bool(staff_profile and staff_profile.is_active_staff)
 
@@ -226,6 +265,11 @@ class IsBloodBankStaff(RoleBasedPermission):
 class IsHospitalManager(RoleBasedPermission):
     """Hospital Manager: Hospital-level administration."""
     required_roles = [StaffRole.HOSPITAL_MANAGER, StaffRole.ADMIN]
+
+
+class IsCompounder(RoleBasedPermission):
+    """Compounder: Medicine preparation and dispensing."""
+    required_roles = [StaffRole.COMPOUNDER, StaffRole.PHARMACIST, StaffRole.ADMIN]
 
 
 class IsClinicalStaff(RoleBasedPermission):

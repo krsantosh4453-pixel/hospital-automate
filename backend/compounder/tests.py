@@ -1,6 +1,5 @@
 """Tests for compounder module."""
 
-from datetime import date, time
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -47,20 +46,14 @@ class CompounderAPITests(TestCase):
         self.compounder = Compounder.objects.create(
             name="Mr. Compounder",
             phone="9876543210",
-            email="compounder@hospital.com",
             hospital=self.hospital_a,
-            qualification="D.Pharm",
-            experience_years=5,
         )
 
         # Authenticate
         self.client.force_authenticate(user=self.user)
 
     def _get_compounders_url(self):
-        return f"/api/compounder/compounders/?hospital={self.hospital_a.id}"
-
-    def _get_preparations_url(self):
-        return f"/api/compounder/preparations/?hospital={self.hospital_a.id}"
+        return f"/api/compounder/?hospital={self.hospital_a.id}"
 
     def test_list_compounders(self):
         """Test listing compounders."""
@@ -77,37 +70,9 @@ class CompounderAPITests(TestCase):
             {
                 "name": "New Compounder",
                 "phone": "9999999999",
-                "email": "new@hospital.com",
                 "hospital": self.hospital_a.id,
-                "qualification": "B.Pharm",
-                "experience_years": 3,
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["name"], "New Compounder")
-
-    def test_compounder_schedule(self):
-        """Test compounder schedule model."""
-        schedule = # CompounderSchedule.objects.create(
-            compounder=self.compounder,
-            day_of_week=1,  # Monday
-            shift_start=time(8, 0),
-            shift_end=time(16, 0),
-            is_active=True,
-        )
-        self.assertEqual(schedule.compounder, self.compounder)
-        self.assertEqual(schedule.day_of_week, 1)
-
-    def test_medicine_preparation(self):
-        """Test medicine preparation model."""
-        prep = # MedicinePreparation.objects.create(
-            compounder=self.compounder,
-            preparation_name="IV Fluid Preparation",
-            ingredients="Saline 500ml, KCl 20meq",
-            quantity_prepared=10,
-            preparation_date=date.today(),
-            status="Completed",
-        )
-        self.assertEqual(prep.compounder, self.compounder)
-        self.assertEqual(prep.status, "Completed")

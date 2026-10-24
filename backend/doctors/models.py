@@ -7,16 +7,22 @@ class Doctor(models.Model):
         on_delete=models.CASCADE,
         related_name="doctors",
         null=True,
-        blank=True
+        blank=True,
+        db_index=True
     )
 
-    name = models.CharField(max_length=100)
-    specialization = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, db_index=True)
+    specialization = models.CharField(max_length=100, db_index=True)
+    email = models.EmailField(blank=True, default="")
     phone = models.CharField(max_length=15)
-
-    # Added to match the Doctor Management UI (form fields, the
-    # "Experience" table column and the View modal). Kept blank-safe so
-    # existing rows and the Appointments auto-create path keep working.
+    department = models.ForeignKey(
+        "hospital.Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="doctors",
+        db_index=True
+    )
     experience = models.CharField(
         max_length=50,
         blank=True,
@@ -27,17 +33,20 @@ class Doctor(models.Model):
         blank=True,
         default=""
     )
-
-    # The Doctor UI uses "Available" / "On Leave"; the default is aligned
-    # to that so new doctors count correctly in the stats cards.
     status = models.CharField(
         max_length=20,
-        default="Available"
+        default="Available",
+        db_index=True
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __str__(self):
         return self.name
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["hospital", "status"]),
+            models.Index(fields=["hospital", "specialization"]),
+            models.Index(fields=["hospital", "department"]),
+        ]

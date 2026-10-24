@@ -193,8 +193,9 @@ class WhisperSTTProvider(SpeechToTextProvider):
     """
 
     def __init__(self, use_api: bool = False, api_key: Optional[str] = None, model: str = "whisper-1"):
+        from django.conf import settings
         self.use_api = use_api
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.api_key = api_key or getattr(settings, "AI_SCRIBE_API_KEY", None) or os.getenv("AI_SCRIBE_API_KEY") or os.getenv("OPENAI_API_KEY")
         self.model = model
         self._local_model = None
 

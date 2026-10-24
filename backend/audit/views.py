@@ -1,6 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-
+from users.viewsets import ReadOnlyHospitalScopedViewSet
 from users.permissions import IsAdmin, IsDoctor
 from .models import AuditLog, AIInteraction
 from .serializers import (
@@ -9,16 +8,16 @@ from .serializers import (
 )
 
 
-class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+class AuditLogViewSet(ReadOnlyHospitalScopedViewSet):
     """Hospital audit history is admin-read and cannot be edited over the API."""
 
     queryset = AuditLog.objects.all()
     serializer_class = AuditLogSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAdmin]
     http_method_names = ["get", "head", "options"]
 
 
-class AIInteractionViewSet(viewsets.ReadOnlyModelViewSet):
+class AIInteractionViewSet(ReadOnlyHospitalScopedViewSet):
     """
     AI interaction history can be read by doctors and admins.
     Records are created by backend workflows, not by API clients.
@@ -26,5 +25,5 @@ class AIInteractionViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = AIInteraction.objects.all()
     serializer_class = AIInteractionSerializer
-    permission_classes = [IsAuthenticated, IsAdmin | IsDoctor]
+    permission_classes = [IsAdmin | IsDoctor]
     http_method_names = ["get", "head", "options"]

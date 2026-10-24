@@ -5,11 +5,13 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
+from django.db.models import F
 
 from hospital.models import Hospital, Department
 from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 from patients.models import Patient, PatientHospital
-from bloodbank.models import BloodInventory, BloodRequest, BloodTransfusion
+from doctors.models import Doctor
+from bloodbank.models import BloodInventory, BloodRequest, BloodTransaction
 
 User = get_user_model()
 
@@ -44,13 +46,22 @@ class BloodBankAPITests(TestCase):
             is_active=True,
         )
 
+        # Create a doctor for the same user (for requested_by)
+        self.doctor = Doctor.objects.create(
+            name="Dr. Blood Bank",
+            specialization="Blood Bank",
+            phone="9876543210",
+            email="bloodbank_a@hospital.com",
+            hospital=self.hospital_a,
+            department=self.dept,
+        )
+
         # Create patient
         self.patient = Patient.objects.create(
             name="Blood Patient",
             age=30,
             gender="Male",
             phone="9876543210",
-            blood_group="A+",
             hospital=self.hospital_a,
         )
         PatientHospital.objects.create(
@@ -64,7 +75,7 @@ class BloodBankAPITests(TestCase):
             hospital=self.hospital_a,
             blood_group="A+",
             component="Whole Blood",
-            units_available=10,
+            units=10,
             expiry_date=date.today(),
         )
 
@@ -93,34 +104,40 @@ class BloodBankAPITests(TestCase):
                 "patient": self.patient.id,
                 "blood_group": "A+",
                 "component": "Packed Red Cells",
-                "units_requested": 2,
+                "units": 2,
                 "urgency": "Urgent",
                 "reason": "Surgery",
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["units_requested"], 2)
+        self.assertEqual(response.data["units"], 2)
 
-    def test_blood_transfusion(self):
-        """Test blood transfusion model."""
+    def test_blood_transaction(self):
+        """Test blood transaction model."""
         request = BloodRequest.objects.create(
             patient=self.patient,
             hospital=self.hospital_a,
             blood_group="A+",
             component="Packed Red Cells",
-            units_requested=2,
-            urgency="Urgent",
+            units=2,
             status="Approved",
+            requested_by=self.doctor,
         )
-        transfusion = BloodTransfusion.objects.create(
+        # Manually update inventory as the view would do
+        self.inventory.units = F("units") - 2
+        self.inventory.save()
+        
+        transaction = BloodTransaction.objects.create(
             request=request,
-            units_transfused=2,
-            transfusion_date=date.today(),
-            reaction="None",
+            hospital=self.hospital_a,
+            inventory=self.inventory,
+            transaction_type="Issue",
+            units=2,
+            performed_by=self.user,
         )
-        self.assertEqual(transfusion.request, request)
-        self.assertEqual(transfusion.units_transfused, 2)
+        self.assertEqual(transaction.request, request)
+        self.assertEqual(transaction.units, 2)
         # Check inventory updated
         self.inventory.refresh_from_db()
-        self.assertEqual(self.inventory.units_available, 8)
+        self.assertEqual(self.inventory.units, 8)

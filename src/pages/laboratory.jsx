@@ -1,11 +1,40 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import api from "../services/api.js"
 
 function Laboratory() {
 
   const { selectedHospital } = usePatient()
 
-  const [tests, setTests] = useState([
+  const [tests, setTests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // =========================
+  // FETCH DATA
+  // =========================
+
+  useEffect(() => {
+    if (!selectedHospital) return
+
+    const fetchTests = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const data = await api.laboratory.tests.list(selectedHospital.id)
+        setTests(data?.results || data || [])
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTests()
+  }, [selectedHospital?.id])
+
+  // Mock data fallback
+  const mockTests = [
     {
       id: "LAB001",
       patient: "Rahul Kumar",
@@ -39,7 +68,10 @@ function Laboratory() {
       result: "Pending",
       hospitalId: 2,
     },
-  ])
+  ]
+
+  // Use API data or fallback to mock
+  const testsData = tests.length > 0 ? tests : mockTests
 
   const [search, setSearch] = useState("")
 
@@ -72,7 +104,7 @@ function Laboratory() {
   // =========================
 
   const hospitalTests = selectedHospital
-    ? tests.filter(
+    ? testsData.filter(
       (test) =>
         test.hospitalId ===
         selectedHospital.id

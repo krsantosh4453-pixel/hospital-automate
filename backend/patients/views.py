@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, PermissionDenied
 
 from .models import Patient, PatientDocument, PatientHospital
 from .serializers import PatientSerializer, PatientHospitalSerializer
@@ -15,11 +15,12 @@ from users.permissions import (
     IsAdmin,
     IsPatientReadOnly,
     IsLinkedPatient,
+    get_user_hospital_ids,
 )
 
 
 class PatientViewSet(HospitalScopedViewSet):
-    queryset = Patient.objects.all()
+    queryset = Patient.objects.select_related("hospital")
     serializer_class = PatientSerializer
     permission_classes = [IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsPatientReadOnly]
 
@@ -93,9 +94,28 @@ class PatientViewSet(HospitalScopedViewSet):
                 )
             ).distinct()
 
+        # Search filter
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(phone__icontains=search) | Q(condition__icontains=search)
+            )
+
+        # Status filter
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
         return queryset
 
     def create(self, request, *args, **kwargs):
+        # Validate hospital access
+        hospital_id = request.data.get("hospital")
+        if hospital_id:
+            user_hospital_ids = get_user_hospital_ids(request.user)
+            if int(hospital_id) not in user_hospital_ids:
+                raise PermissionDenied("You do not have access to this hospital.")
+        
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)

@@ -13,18 +13,31 @@ from users.permissions import IsAdmin, IsHospitalManager, IsPharmacist
 
 
 class MedicineViewSet(HospitalScopedViewSet):
-    queryset = Medicine.objects.all()
+    queryset = Medicine.objects.select_related("hospital")
     serializer_class = MedicineSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist]
 
     def get_queryset(self):
         queryset = super().get_queryset()
 
-        queryset = queryset.select_related("hospital")
-
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
             queryset = queryset.filter(hospital_id=hospital_id)
+
+        # Search filter
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+
+        # Category filter
+        category = self.request.query_params.get("category")
+        if category:
+            queryset = queryset.filter(category=category)
+
+        # Status filter
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
 
         return queryset
 
@@ -47,19 +60,17 @@ class SaleViewSet(HospitalScopedViewSet):
     because existing workflows never mutate a completed sale.
     """
 
-    queryset = Sale.objects.all()
+    queryset = Sale.objects.select_related(
+        "medicine",
+        "hospital",
+        "prescription",
+    )
     serializer_class = SaleSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist]
     http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-
-        queryset = queryset.select_related(
-            "medicine",
-            "hospital",
-            "prescription",
-        )
 
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
@@ -68,6 +79,14 @@ class SaleViewSet(HospitalScopedViewSet):
         prescription_id = self.request.query_params.get("prescription")
         if prescription_id:
             queryset = queryset.filter(prescription_id=prescription_id)
+
+        # Date range filter
+        date_from = self.request.query_params.get("date_from")
+        date_to = self.request.query_params.get("date_to")
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
 
         return queryset
 

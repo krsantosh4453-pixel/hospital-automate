@@ -412,7 +412,7 @@ function AdminDashboard() {
               <div className="flex justify-between mb-2">
 
                 <span className="font-medium">
-                  Today's Appointments
+                  Today&apos;s Appointments
                 </span>
 
                 <span className="text-orange-600">

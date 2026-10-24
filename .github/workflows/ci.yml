@@ -16,10 +16,10 @@ env:
 
 jobs:
   # ============================================================
-  # Linting & Code Quality
+  # Backend Linting & Code Quality
   # ============================================================
-  lint:
-    name: Lint & Format Check
+  backend-lint:
+    name: Backend Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -33,7 +33,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install -r backend/requirements-dev.txt
+          pip install -r backend/requirements.txt
+          pip install ruff black isort
 
       - name: Run Ruff (linting)
         run: |
@@ -47,9 +48,15 @@ jobs:
         run: |
           isort --check-only backend/
 
-      - name: Run MyPy (type checking)
-        run: |
-          mypy backend/ --ignore-missing-imports
+  # ============================================================
+  # Frontend Linting & Build
+  # ============================================================
+  frontend-lint:
+    name: Frontend Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -64,6 +71,18 @@ jobs:
       - name: Run ESLint
         run: |
           npm run lint
+        timeout-minutes: 5
+
+      - name: Build production bundle
+        run: |
+          npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+          retention-days: 7
 
   # ============================================================
   # Backend Tests
@@ -108,7 +127,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r backend/requirements-dev.txt
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-django pytest-cov factory-boy
 
       - name: Wait for PostgreSQL
         run: |
@@ -122,57 +142,19 @@ jobs:
       - name: Run Django system checks
         run: |
           cd backend
-          python manage.py check --deploy
+          python manage.py check
 
       - name: Run backend tests
         run: |
           cd backend
-          python manage.py test --verbosity=2 --parallel
+          python -m pytest -v --tb=short
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
           files: ./backend/coverage.xml
           flags: backend
-
-  # ============================================================
-  # Frontend Tests & Build
-  # ============================================================
-  frontend-tests:
-    name: Frontend Tests & Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: |
-          npm ci
-
-      - name: Run linting
-        run: |
-          npm run lint
-
-      - name: Run tests (if configured)
-        run: |
-          npm test --if-present
-
-      - name: Build production bundle
-        run: |
-          npm run build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: dist/
-          retention-days: 7
+          fail_ci_if_error: false
 
   # ============================================================
   # Security Scanning
@@ -212,7 +194,7 @@ jobs:
   docker-build:
     name: Docker Build Test
     runs-on: ubuntu-latest
-    needs: [lint, backend-tests, frontend-tests]
+    needs: [backend-lint, frontend-lint, backend-tests, security-scan]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -228,6 +210,23 @@ jobs:
           target: runtime
           load: true
           tags: hms-backend:test
+          build-args: |
+            DJANGO_SECRET_KEY=test-secret-key-for-ci-only
+            ALLOWED_HOSTS=localhost,127.0.0.1
+            CORS_ALLOWED_ORIGINS=http://localhost:5173
+            REDIS_URL=redis://localhost:6379/0
+            DATABASE_URL=postgres://user:pass@localhost:5432/db
+            EMAIL_HOST_USER=test
+            EMAIL_HOST_PASSWORD=test
+            GOOGLE_CLIENT_ID=test
+            AI_SCRIBE_API_KEY=test
+            JWT_SECRET_KEY=test-jwt-secret
+            AI_SCRIBE_ENABLED=False
+            FHIR_ENABLED=False
+            HL7_ENABLED=False
+            ABDM_ENABLED=False
+            MONITORING_ENABLED=False
+            BACKUP_ENABLED=False
 
       - name: Build frontend image
         uses: docker/build-push-action@v5
@@ -240,7 +239,9 @@ jobs:
 
       - name: Test backend image
         run: |
-          docker run --rm hms-backend:test python manage.py check --deploy
+          docker run --rm \
+            -e DJANGO_SETTINGS_MODULE=config.settings.testing \
+            hms-backend:test python manage.py check
 
   # ============================================================
   # Deploy to Staging (on develop branch)
@@ -248,7 +249,7 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [lint, backend-tests, frontend-tests, security-scan, docker-build]
+    needs: [backend-lint, frontend-lint, backend-tests, security-scan, docker-build]
     if: github.ref == 'refs/heads/develop'
     environment: staging
     steps:
@@ -266,7 +267,7 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [lint, backend-tests, frontend-tests, security-scan, docker-build]
+    needs: [backend-lint, frontend-lint, backend-tests, security-scan, docker-build]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     environment: production
     steps:

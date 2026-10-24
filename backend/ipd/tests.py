@@ -33,14 +33,13 @@ class IPDAPITests(TestCase):
         )
         self.room = Room.objects.create(
             ward=self.ward,
-            number="101",
+            room_number="101",
             room_type="General",
         )
         self.bed = Bed.objects.create(
             room=self.room,
-            number="A",
-            bed_type="General",
-            is_occupied=False,
+            bed_number="A",
+            status="Available",
         )
 
         # Create doctor
@@ -101,11 +100,9 @@ class IPDAPITests(TestCase):
             self._get_admissions_url(),
             {
                 "patient": self.patient.id,
-                "doctor": self.doctor.id,
-                "admission_type": "Emergency",
-                "admission_date": date.today().isoformat(),
-                "diagnosis": "Acute appendicitis",
-                "ward": self.ward.id,
+                "admitting_doctor": self.doctor.id,
+                "reason": "Acute appendicitis",
+                "hospital": self.hospital_a.id,
             },
             format="json",
         )
@@ -113,41 +110,36 @@ class IPDAPITests(TestCase):
         self.assertEqual(response.data["patient"], self.patient.id)
         self.assertEqual(response.data["status"], "Admitted")
 
+    def _get_admission_action_url(self, pk, action):
+        return f"/api/ipd/admissions/{pk}/{action}/?hospital={self.hospital_a.id}"
+
     def test_bed_allocation(self):
-        """Test bed allocation."""
+        """Test bed allocation via admission action."""
         admission = Admission.objects.create(
             patient=self.patient,
-            doctor=self.doctor,
             hospital=self.hospital_a,
-            admission_type="Emergency",
-            admission_date=date.today(),
-            diagnosis="Test diagnosis",
-            ward=self.ward,
+            admitting_doctor=self.doctor,
+            reason="Test diagnosis",
             status="Admitted",
         )
         response = self.client.post(
-            self._get_bed_allocations_url(),
+            self._get_admission_action_url(admission.id, "allocate_bed"),
             {
-                "admission": admission.id,
-                "bed": self.bed.id,
-                "allocated_at": time(10, 0).isoformat(),
+                "bed_id": self.bed.id,
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.bed.refresh_from_db()
-        self.assertTrue(self.bed.is_occupied)
+        self.assertEqual(self.bed.status, "Occupied")
 
     def test_discharge_summary(self):
         """Test discharge summary."""
         admission = Admission.objects.create(
             patient=self.patient,
-            doctor=self.doctor,
             hospital=self.hospital_a,
-            admission_type="Planned",
-            admission_date=date.today(),
-            diagnosis="Test diagnosis",
-            ward=self.ward,
+            admitting_doctor=self.doctor,
+            reason="Test diagnosis",
             status="Admitted",
         )
         BedAllocation.objects.create(
@@ -155,21 +147,33 @@ class IPDAPITests(TestCase):
             bed=self.bed,
             allocated_at=time(10, 0),
         )
-        self.bed.is_occupied = True
+        self.bed.status = "Occupied"
         self.bed.save()
 
         summary = DischargeSummary.objects.create(
             admission=admission,
-            discharge_date=date.today(),
-            discharge_time=time(14, 0),
-            discharge_type="Recovered",
             summary="Patient recovered well",
-            follow_up_instructions="Follow up in 1 week",
-            created_by=self.user,
+            authorized_doctor=self.doctor,
         )
         self.assertEqual(summary.admission, admission)
-        self.assertEqual(summary.discharge_type, "Recovered")
+        self.assertFalse(summary.finalized)
+        
+        # Test initiate discharge action
+        response = self.client.post(
+            self._get_admission_action_url(admission.id, "initiate_discharge"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        admission.refresh_from_db()
+        self.assertEqual(admission.status, "Discharge Initiated")
+        
+        # Test complete discharge action
+        response = self.client.post(
+            self._get_admission_action_url(admission.id, "complete_discharge"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         admission.refresh_from_db()
         self.assertEqual(admission.status, "Discharged")
         self.bed.refresh_from_db()
-        self.assertFalse(self.bed.is_occupied)
+        self.assertEqual(self.bed.status, "Available")

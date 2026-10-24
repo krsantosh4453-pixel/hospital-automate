@@ -10,7 +10,7 @@ from hospital.models import Hospital, Department
 from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 from patients.models import Patient, PatientHospital
 from doctors.models import Doctor
-from appointments.models import Appointment, AppointmentSlot
+from appointments.models import Appointment
 
 User = get_user_model()
 
@@ -69,20 +69,12 @@ class AppointmentAPITests(TestCase):
             is_active=True,
         )
 
-        # Create appointment slot
-        self.slot = AppointmentSlot.objects.create(
-            doctor=self.doctor,
-            date=date.today() + timedelta(days=1),
-            start_time=time(10, 0),
-            end_time=time(10, 30),
-            is_booked=False,
-        )
-
         # Create appointment
         self.appointment = Appointment.objects.create(
             patient=self.patient,
             doctor=self.doctor,
-            slot=self.slot,
+            appointment_date=date.today() + timedelta(days=1),
+            appointment_time=time(10, 0),
             hospital=self.hospital_a,
             status="Scheduled",
         )
@@ -94,7 +86,10 @@ class AppointmentAPITests(TestCase):
         return f"/api/appointments/?hospital={self.hospital_a.id}"
 
     def _get_detail_url(self, pk):
-        return f"/api/appointments/{pk}/?hospital={self.hospital_a.id}"
+        return f"/api/appointments/{pk}/"
+
+    def _get_action_url(self, pk, action):
+        return f"/api/appointments/{pk}/{action}/?hospital={self.hospital_a.id}"
 
     def test_list_appointments_scoped_to_hospital(self):
         """Test appointment list is scoped to user's hospital."""
@@ -106,19 +101,13 @@ class AppointmentAPITests(TestCase):
 
     def test_create_appointment(self):
         """Test creating an appointment."""
-        new_slot = AppointmentSlot.objects.create(
-            doctor=self.doctor,
-            date=date.today() + timedelta(days=2),
-            start_time=time(11, 0),
-            end_time=time(11, 30),
-            is_booked=False,
-        )
         response = self.client.post(
             self._get_list_url(),
             {
                 "patient": self.patient.id,
                 "doctor": self.doctor.id,
-                "slot": new_slot.id,
+                "appointment_date": str(date.today() + timedelta(days=2)),
+                "appointment_time": "11:00",
                 "hospital": self.hospital_a.id,
                 "reason": "Follow-up",
             },
@@ -126,42 +115,31 @@ class AppointmentAPITests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["status"], "Scheduled")
-        new_slot.refresh_from_db()
-        self.assertTrue(new_slot.is_booked)
 
     def test_cancel_appointment(self):
         """Test cancelling an appointment."""
         response = self.client.post(
-            f"{self._get_detail_url(self.appointment.id)}cancel/",
+            self._get_action_url(self.appointment.id, "cancel"),
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.appointment.refresh_from_db()
         self.assertEqual(self.appointment.status, "Cancelled")
-        self.slot.refresh_from_db()
-        self.assertFalse(self.slot.is_booked)
 
     def test_reschedule_appointment(self):
         """Test rescheduling an appointment."""
-        new_slot = AppointmentSlot.objects.create(
-            doctor=self.doctor,
-            date=date.today() + timedelta(days=3),
-            start_time=time(14, 0),
-            end_time=time(14, 30),
-            is_booked=False,
-        )
         response = self.client.post(
-            f"{self._get_detail_url(self.appointment.id)}reschedule/",
-            {"slot": new_slot.id},
+            self._get_action_url(self.appointment.id, "reschedule"),
+            {
+                "appointment_date": str(date.today() + timedelta(days=3)),
+                "appointment_time": "14:00",
+            },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.appointment.refresh_from_db()
-        self.assertEqual(self.appointment.slot_id, new_slot.id)
-        self.slot.refresh_from_db()
-        self.assertFalse(self.slot.is_booked)
-        new_slot.refresh_from_db()
-        self.assertTrue(new_slot.is_booked)
+        self.assertEqual(str(self.appointment.appointment_date), str(date.today() + timedelta(days=3)))
+        self.assertEqual(str(self.appointment.appointment_time), "14:00:00")
 
 
 class AppointmentModelTests(TestCase):
@@ -187,16 +165,11 @@ class AppointmentModelTests(TestCase):
         )
 
     def test_appointment_str(self):
-        slot = AppointmentSlot.objects.create(
-            doctor=self.doctor,
-            date=date.today(),
-            start_time=time(10, 0),
-            end_time=time(10, 30),
-        )
         appt = Appointment.objects.create(
             patient=self.patient,
             doctor=self.doctor,
-            slot=slot,
+            appointment_date=date.today(),
+            appointment_time=time(10, 0),
             hospital=self.hospital,
         )
         self.assertIn("Test Patient", str(appt))

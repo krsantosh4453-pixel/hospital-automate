@@ -202,7 +202,8 @@ class OpenAILLMProvider(LLMProvider):
     """OpenAI GPT provider for clinical extraction"""
 
     def __init__(self, api_key: Optional[str] = None, default_model: str = "gpt-4o"):
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        from django.conf import settings
+        self.api_key = api_key or getattr(settings, "AI_SCRIBE_API_KEY", None) or os.getenv("AI_SCRIBE_API_KEY") or os.getenv("OPENAI_API_KEY")
         self.default_model = default_model
         self._client = None
 

@@ -219,13 +219,16 @@ class PatientRegistrationTests(TestCase):
             format="json",
         )
         self.assertEqual(verified.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(verified.data["error"], "Invalid OTP.")
+        self.assertIn("Invalid", verified.data["error"])
 
     @override_settings(
         PATIENT_OTP_DELIVERY="sms",
         TWILIO_ACCOUNT_SID="",
         TWILIO_AUTH_TOKEN="",
         TWILIO_PHONE_NUMBER="",
+        TWILIO_API_KEY="",
+        TWILIO_API_SECRET="",
+        TWILIO_VERIFY_SERVICE_SID="",
     )
     def test_mobile_otp_reports_missing_sms_provider(self):
         self.client.post("/api/auth/register/", registration_payload(), format="json")
@@ -235,7 +238,7 @@ class PatientRegistrationTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
-        self.assertEqual(response.data["error"], "Unable to send SMS OTP. SMS service is not configured.")
+        self.assertIn("Twilio Verify is not configured", response.data["error"])
         self.assertFalse(
             OTPVerification.objects.filter(phone="9811111111", channel="sms").exists()
         )

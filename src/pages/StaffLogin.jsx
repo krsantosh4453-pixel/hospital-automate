@@ -4,26 +4,81 @@ import { useAuth } from "../assets/context/AuthContext.jsx"
 
 function StaffLogin() {
   const navigate = useNavigate()
-  const { staffLogin } = useAuth()
+  const { staffLoginStartOtp, staffOtpVerify, staffOtpResend, applyDevelopmentAccess } = useAuth()
 
+  const [step, setStep] = useState("credentials")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [otp, setOtp] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [userId, setUserId] = useState(null)
+  const [staffRole, setStaffRole] = useState("")
+  const [maskedPhone, setMaskedPhone] = useState("")
 
-  const handleSubmit = async (e) => {
+  const handleCredentialsSubmit = async (e) => {
     e.preventDefault()
     setError("")
     setLoading(true)
 
     try {
-      await staffLogin(username, password)
-      navigate("/")
+      const data = await staffLoginStartOtp(username, password)
+      if (data.otp_required) {
+        setUserId(data.user_id)
+        setStaffRole(data.staff_role)
+        setMaskedPhone(data.message.match(/\((.*?)\)/)?.[1] || "******")
+        setStep("otp")
+        setError("")
+      } else {
+        setError(data.message || "Failed to start OTP verification.")
+      }
     } catch (err) {
       setError(err.message || "Login failed. Please try again.")
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+
+    try {
+      await staffOtpVerify(userId, otp)
+      navigate("/")
+    } catch (err) {
+      setError(err.message || "Invalid or expired OTP.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    setError("")
+    setLoading(true)
+
+    try {
+      await staffOtpResend(userId)
+      setOtp("")
+    } catch (err) {
+      setError(err.message || "Failed to resend OTP.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDevelopmentAccess = () => {
+    applyDevelopmentAccess()
+    navigate("/")
+  }
+
+  const goBackToCredentials = () => {
+    setStep("credentials")
+    setOtp("")
+    setUserId(null)
+    setStaffRole("")
+    setMaskedPhone("")
   }
 
   return (
@@ -46,10 +101,12 @@ function StaffLogin() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
           <div className="mb-6">
             <h2 className="text-lg font-bold text-gray-800">
-              Sign in to your account
+              {step === "credentials" ? "Sign in to your account" : "Verify your identity"}
             </h2>
             <p className="text-gray-500 text-xs mt-0.5">
-              Enter your credentials to access the hospital system
+              {step === "credentials"
+                ? "Enter your credentials to access the hospital system"
+                : `Enter the 6-digit code sent to your mobile number (${maskedPhone})`}
             </p>
           </div>
 
@@ -59,45 +116,116 @@ function StaffLogin() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                Username or Email
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username or email"
-                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                autoComplete="username"
-              />
-            </div>
+          {step === "credentials" ? (
+            <form onSubmit={handleCredentialsSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Username or Email
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter username or email"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  autoComplete="username"
+                  disabled={loading}
+                />
+              </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                autoComplete="current-password"
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  autoComplete="current-password"
+                  disabled={loading}
+                />
+              </div>
 
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "Sending OTP..." : "Send OTP"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleOtpSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  6-Digit OTP Code
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "")
+                    if (val.length <= 6) setOtp(val)
+                  }}
+                  placeholder="• • • • • •"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-center text-xl tracking-[0.5em] font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  disabled={loading}
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+              >
+                {loading ? "Verifying..." : "Verify & Continue"}
+              </button>
+
+              <div className="flex items-center justify-between mt-4 text-xs">
+                <button
+                  type="button"
+                  onClick={goBackToCredentials}
+                  className="text-blue-600 hover:text-blue-700 cursor-pointer"
+                  disabled={loading}
+                >
+                  ← Back to credentials
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  className="text-gray-500 hover:text-gray-700 cursor-pointer disabled:text-gray-300"
+                  disabled={loading}
+                >
+                  Resend OTP
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="mt-6 border-t border-gray-200 pt-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
+              Temporary Development Access
+            </p>
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              type="button"
+              onClick={handleDevelopmentAccess}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-semibold text-sm transition cursor-pointer shadow-sm"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              Development Access – OTP temporarily bypassed
             </button>
-          </form>
+            <p className="text-[11px] text-gray-500 mt-2">
+              This bypass is intended for local development only and can be removed later by setting
+              <span className="font-semibold text-gray-700"> VITE_DEV_AUTH_BYPASS=false</span>.
+            </p>
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
@@ -126,7 +254,7 @@ function StaffLogin() {
 
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
-              Don't have a staff account?{" "}
+              Don&apos;t have a staff account?{" "}
               <span className="text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
                 Contact Hospital Admin
               </span>

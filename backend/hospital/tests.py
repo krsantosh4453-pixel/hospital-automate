@@ -124,14 +124,14 @@ class HospitalAPITests(TestCase):
         """Test bed model and management."""
         dept = Department.objects.create(hospital=self.hospital_a, name="ICU")
         ward = Ward.objects.create(hospital=self.hospital_a, name="ICU Ward", ward_type="ICU")
-        room = Room.objects.create(ward=ward, name="ICU-1", room_type="ICU")
-        bed = Bed.objects.create(room=room, number="1", bed_type="ICU", is_occupied=False)
+        room = Room.objects.create(ward=ward, room_number="ICU-1", room_type="ICU")
+        bed = Bed.objects.create(room=room, bed_number="1", bed_type="ICU", status="Available")
         
         self.assertEqual(bed.room, room)
-        self.assertFalse(bed.is_occupied)
+        self.assertEqual(bed.status, "Available")
         
         # Occupy bed
-        bed.is_occupied = True
+        bed.status = "Occupied"
         bed.save()
         bed.refresh_from_db()
-        self.assertTrue(bed.is_occupied)
+        self.assertEqual(bed.status, "Occupied")

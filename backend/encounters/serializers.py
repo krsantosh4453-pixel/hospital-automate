@@ -70,7 +70,49 @@ class VisitSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Visit
-        fields = "__all__"
+        fields = [
+            "id",
+            "patient",
+            "doctor",
+            "hospital",
+            "visit_type",
+            "chief_complaint",
+            "status",
+            "visit_date",
+            "patient_name",
+            "doctor_name",
+            "hospital_name",
+        ]
+        read_only_fields = ["id", "visit_date"]
+
+    def validate_hospital(self, value):
+        """Ensure user has access to the hospital."""
+        request = self.context.get("request")
+        if request and value:
+            from users.permissions import get_user_hospital_ids
+            user_hospital_ids = get_user_hospital_ids(request.user)
+            if value.id not in user_hospital_ids:
+                raise serializers.ValidationError(
+                    "You do not have access to this hospital."
+                )
+        return value
+
+    def validate_patient(self, value):
+        """Ensure patient belongs to the hospital."""
+        hospital_id = self.initial_data.get("hospital")
+        if hospital_id and value:
+            from hospital.models import Hospital
+            try:
+                hospital = Hospital.objects.get(pk=hospital_id)
+            except Hospital.DoesNotExist:
+                raise serializers.ValidationError({
+                    "hospital": "Invalid hospital."
+                })
+            if not _patient_belongs_to_hospital(value, hospital):
+                raise serializers.ValidationError(
+                    "This patient is not registered in this hospital."
+                )
+        return value
 
     def validate(self, attrs):
         hospital = attrs.get("hospital")
@@ -92,6 +134,14 @@ class VisitSerializer(serializers.ModelSerializer):
                 })
 
         return attrs
+
+    def create(self, validated_data):
+        # Set hospital from context if not provided
+        if "hospital" not in validated_data:
+            scoped_hospital = self.context.get("scoped_hospital")
+            if scoped_hospital:
+                validated_data["hospital"] = scoped_hospital
+        return super().create(validated_data)
 
 
 class QueueTokenSerializer(serializers.ModelSerializer):
@@ -149,7 +199,35 @@ class QueueTokenSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = QueueToken
-        fields = "__all__"
+        fields = [
+            "id",
+            "visit",
+            "appointment",
+            "hospital",
+            "patient",
+            "doctor",
+            "token_number",
+            "token_date",
+            "status",
+            "estimated_wait_minutes",
+            "queue_position",
+            "estimated_start_time",
+            "last_updated",
+            "acknowledged_at",
+            "called_at",
+            "ready_at",
+            "consultation_started_at",
+            "completed_at",
+            "created_at",
+            "patient_name",
+            "patient_phone",
+            "doctor_name",
+            "department",
+            "visit_type",
+            "hospital_name",
+            "waiting_minutes",
+        ]
+        read_only_fields = ["id", "created_at", "last_updated"]
         # The model's UniqueConstraint on (hospital, token_date, token_number)
         # makes DRF auto-generate a UniqueTogetherValidator. We intentionally
         # remove it: token_number is allocated server-side in create(), so the
@@ -167,6 +245,18 @@ class QueueTokenSerializer(serializers.ModelSerializer):
 
         delta = timezone.now() - obj.created_at
         return max(0, int(delta.total_seconds() // 60))
+
+    def validate_hospital(self, value):
+        """Ensure user has access to the hospital."""
+        request = self.context.get("request")
+        if request and value:
+            from users.permissions import get_user_hospital_ids
+            user_hospital_ids = get_user_hospital_ids(request.user)
+            if value.id not in user_hospital_ids:
+                raise serializers.ValidationError(
+                    "You do not have access to this hospital."
+                )
+        return value
 
     def validate(self, attrs):
         # On updates Django passes the existing instance fields, so fall
@@ -267,7 +357,15 @@ class QueueTokenSerializer(serializers.ModelSerializer):
 class DoctorScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = DoctorSchedule
-        fields = "__all__"
+        fields = [
+            "id",
+            "doctor",
+            "day",
+            "start_time",
+            "end_time",
+            "is_available",
+        ]
+        read_only_fields = ["id"]
 
     def validate(self, attrs):
         doctor = attrs.get("doctor")

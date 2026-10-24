@@ -29,7 +29,7 @@ from .serializers import (
 
 
 class NurseViewSet(HospitalScopedViewSet):
-    queryset = Nurse.objects.all()
+    queryset = Nurse.objects.select_related("hospital")
     serializer_class = NurseSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsNurse]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -44,11 +44,19 @@ class NurseViewSet(HospitalScopedViewSet):
         if hospital_id:
             queryset = queryset.filter(hospital_id=hospital_id)
 
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        department = self.request.query_params.get("department")
+        if department:
+            queryset = queryset.filter(department=department)
+
         return queryset
 
 
 class NursingAssessmentViewSet(HospitalScopedViewSet):
-    queryset = NursingAssessment.objects.all()
+    queryset = NursingAssessment.objects.select_related("hospital", "patient", "admission", "nurse")
     serializer_class = NursingAssessmentSerializer
     permission_classes = [IsNurse | IsDoctor]
 
@@ -63,11 +71,11 @@ class NursingAssessmentViewSet(HospitalScopedViewSet):
         admission_id = self.request.query_params.get("admission")
         if admission_id:
             qs = qs.filter(admission_id=admission_id)
-        return qs.select_related("hospital", "patient", "admission", "nurse")
+        return qs
 
 
 class NursingNoteViewSet(HospitalScopedViewSet):
-    queryset = NursingNote.objects.all()
+    queryset = NursingNote.objects.select_related("hospital", "patient", "admission", "nurse")
     serializer_class = NursingNoteSerializer
     permission_classes = [IsNurse | IsDoctor]
 
@@ -82,11 +90,11 @@ class NursingNoteViewSet(HospitalScopedViewSet):
         admission_id = self.request.query_params.get("admission")
         if admission_id:
             qs = qs.filter(admission_id=admission_id)
-        return qs.select_related("hospital", "patient", "admission", "nurse")
+        return qs
 
 
 class CareTaskViewSet(HospitalScopedViewSet):
-    queryset = CareTask.objects.all()
+    queryset = CareTask.objects.select_related("hospital", "patient", "admission", "assigned_nurse", "completed_by")
     serializer_class = CareTaskSerializer
     permission_classes = [IsNurse | IsDoctor]
 
@@ -111,7 +119,7 @@ class CareTaskViewSet(HospitalScopedViewSet):
         shift_date = self.request.query_params.get("shift_date")
         if shift_date:
             qs = qs.filter(scheduled_at__date=shift_date)
-        return qs.select_related("hospital", "patient", "admission", "assigned_nurse", "completed_by")
+        return qs
 
     @action(detail=True, methods=["post"])
     def start(self, request, pk=None):
@@ -164,7 +172,7 @@ class CareTaskViewSet(HospitalScopedViewSet):
 
 
 class MARViewSet(HospitalScopedViewSet):
-    queryset = MAR.objects.all()
+    queryset = MAR.objects.select_related("hospital", "patient", "admission", "prescription", "prescription_item")
     serializer_class = MARSerializer
     permission_classes = [IsNurse | IsDoctor]
 
@@ -182,7 +190,7 @@ class MARViewSet(HospitalScopedViewSet):
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
             qs = qs.filter(is_active=is_active.lower() == "true")
-        return qs.select_related("hospital", "patient", "admission", "prescription", "prescription_item")
+        return qs
 
     @action(detail=True, methods=["post"])
     def generate_schedule(self, request, pk=None):
@@ -275,7 +283,7 @@ class MARViewSet(HospitalScopedViewSet):
 
 
 class MARAdministrationViewSet(HospitalScopedViewSet):
-    queryset = MARAdministration.objects.all()
+    queryset = MARAdministration.objects.select_related("mar__patient", "mar__admission", "administered_by")
     serializer_class = MARAdministrationSerializer
     permission_classes = [IsNurse | IsDoctor]
 
@@ -290,7 +298,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         admin_status = self.request.query_params.get("status")
         if admin_status:
             qs = qs.filter(status=admin_status)
-        return qs.select_related("mar__patient", "mar__admission", "administered_by")
+        return qs
 
     @action(detail=True, methods=["post"])
     def administer(self, request, pk=None):
@@ -374,7 +382,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
 
 
 class PatientAssignmentViewSet(HospitalScopedViewSet):
-    queryset = PatientAssignment.objects.all()
+    queryset = PatientAssignment.objects.select_related("hospital", "nurse", "patient", "admission")
     serializer_class = PatientAssignmentSerializer
     permission_classes = [IsNurse | IsAdmin | IsHospitalManager]
 
@@ -398,7 +406,7 @@ class PatientAssignmentViewSet(HospitalScopedViewSet):
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
             qs = qs.filter(is_active=is_active.lower() == "true")
-        return qs.select_related("hospital", "nurse", "patient", "admission")
+        return qs
 
     @action(detail=False, methods=["post"])
     def assign_patients(self, request):

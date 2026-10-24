@@ -93,30 +93,6 @@ class HospitalScopedViewSet(viewsets.ModelViewSet):
             except Hospital.DoesNotExist:
                 pass
         return context
-        # Get the requested hospital from context or query params
-        hospital_id = self._get_requested_hospital_id()
-        if hospital_id:
-            hospital_ids = get_user_hospital_ids(self.request.user)
-            if hospital_id not in hospital_ids:
-                from rest_framework.exceptions import PermissionDenied
-                raise PermissionDenied("You do not have access to this hospital.")
-            serializer.save(hospital_id=hospital_id)
-        else:
-            # Use the user's first hospital as default
-            hospital_ids = get_user_hospital_ids(self.request.user)
-            if hospital_ids:
-                serializer.save(hospital_id=hospital_ids[0])
-            else:
-                serializer.save()
-
-    def _get_requested_hospital_id(self):
-        hospital_id = self.request.query_params.get("hospital")
-        if hospital_id:
-            return int(hospital_id)
-        hospital_id = self.request.data.get("hospital")
-        if hospital_id:
-            return int(hospital_id)
-        return None
 
 
 class ReadOnlyHospitalScopedViewSet(viewsets.ReadOnlyModelViewSet):

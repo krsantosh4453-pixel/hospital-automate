@@ -25,7 +25,9 @@ from .serializers import (
 
 
 class LabTestViewSet(HospitalScopedViewSet):
-    queryset = LabTest.objects.all()
+    queryset = LabTest.objects.select_related("hospital", "patient", "doctor", "visit").prefetch_related(
+        "sample_collection", "sample_dispatch", "lab_result"
+    )
     serializer_class = LabTestSerializer
     permission_classes = [IsLabStaff | IsDoctor | IsNurse | IsPatientReadOnly]
 
@@ -39,15 +41,23 @@ class LabTestViewSet(HospitalScopedViewSet):
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
             qs = qs.filter(hospital_id=hospital_id)
+        patient_id = self.request.query_params.get("patient")
+        if patient_id:
+            qs = qs.filter(patient_id=patient_id)
         test_status = self.request.query_params.get("status")
         if test_status:
             qs = qs.filter(status=test_status)
         priority = self.request.query_params.get("priority")
         if priority:
             qs = qs.filter(priority=priority)
-        return qs.select_related("hospital", "patient", "doctor", "visit").prefetch_related(
-            "sample_collection", "sample_dispatch", "lab_result"
-        )
+        # Date range filter
+        date_from = self.request.query_params.get("date_from")
+        date_to = self.request.query_params.get("date_to")
+        if date_from:
+            qs = qs.filter(test_date__gte=date_from)
+        if date_to:
+            qs = qs.filter(test_date__lte=date_to)
+        return qs
 
     @action(detail=True, methods=["post"])
     def collect_sample(self, request, pk=None):
@@ -60,12 +70,22 @@ class LabTestViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        collected_by = request.data.get("collected_by")
+        if collected_by is not None:
+            try:
+                collected_by = int(collected_by)
+            except (ValueError, TypeError):
+                return Response(
+                    {"detail": "collected_by must be a valid Nurse ID."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         sample_collection = SampleCollection.objects.create(
             lab_test=lab_test,
             sample_type=request.data.get("sample_type", "Blood"),
             container_type=request.data.get("container_type", "EDTA"),
             sample_id=request.data.get("sample_id"),
-            collected_by=request.data.get("collected_by"),
+            collected_by_id=collected_by,
             collection_notes=request.data.get("collection_notes", ""),
             barcoded=request.data.get("barcoded", False),
         )

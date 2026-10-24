@@ -11,7 +11,8 @@ from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 from patients.models import Patient, PatientHospital
 from doctors.models import Doctor
 from encounters.models import Visit
-from laboratory.models import LabTest, LabTestCategory, SampleCollection, LabResult
+from laboratory.models import LabTest, SampleCollection, LabResult, ResultVerification
+from nurses.models import Nurse
 
 User = get_user_model()
 
@@ -78,34 +79,22 @@ class LaboratoryAPITests(TestCase):
             status="In Progress",
         )
 
-        # Create test category
-        self.category = LabTestCategory.objects.create(
-            hospital=self.hospital_a,
-            name="Hematology",
-        )
-
         # Create lab test
         self.test = LabTest.objects.create(
             hospital=self.hospital_a,
-            category=self.category,
+            patient=self.patient,
+            doctor=self.doctor,
+            visit=self.visit,
             name="CBC",
-            code="CBC001",
-            description="Complete Blood Count",
-            price="100.00",
-            turnaround_hours=2,
+            priority="Normal",
+            status="Ordered",
         )
 
         # Authenticate
         self.client.force_authenticate(user=self.user)
 
     def _get_tests_url(self):
-        return f"/api/laboratory/tests/?hospital={self.hospital_a.id}"
-
-    def _get_orders_url(self):
-        return f"/api/laboratory/orders/?hospital={self.hospital_a.id}"
-
-    def _get_results_url(self):
-        return f"/api/laboratory/results/?hospital={self.hospital_a.id}"
+        return f"/api/laboratory/?hospital={self.hospital_a.id}"
 
     def test_list_lab_tests(self):
         """Test listing lab tests."""
@@ -115,66 +104,57 @@ class LaboratoryAPITests(TestCase):
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["name"], "CBC")
 
-    def test_create_lab_order(self):
-        """Test creating a lab test order."""
+    def test_create_lab_test(self):
+        """Test creating a lab test."""
         response = self.client.post(
-            self._get_orders_url(),
+            self._get_tests_url(),
             {
+                "patient": self.patient.id,
+                "doctor": self.doctor.id,
                 "visit": self.visit.id,
-                "tests": [self.test.id],
-                "priority": "Routine",
-                "clinical_notes": "Routine checkup",
+                "name": "Blood Glucose",
+                "priority": "Normal",
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(len(response.data["tests"]), 1)
+        self.assertEqual(response.data["name"], "Blood Glucose")
 
     def test_sample_collection(self):
         """Test sample collection."""
-        # First create an order
-        order_response = self.client.post(
-            self._get_orders_url(),
-            {
-                "visit": self.visit.id,
-                "tests": [self.test.id],
-                "priority": "Routine",
-            },
-            format="json",
+        # Create a nurse for sample collection
+        nurse = Nurse.objects.create(
+            hospital=self.hospital_a,
+            name="Lab Nurse",
+            phone="9876543210",
+            email="lab.nurse@hospital.com",
+            department="Laboratory",
+            shift="Morning",
+            qualification="BSc Nursing",
+            status="Active"
         )
-        order_id = order_response.data["id"]
-
         response = self.client.post(
-            f"/api/laboratory/orders/{order_id}/collect/",
+            f"/api/laboratory/{self.test.id}/collect_sample/",
             {
-                "collected_by": "Lab Tech",
-                "collection_time": "10:00",
+                "sample_type": "Blood",
+                "container_type": "EDTA",
+                "sample_id": "SAMP001",
+                "collected_by": nurse.id,
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.status, "Collected")
 
     def test_lab_result(self):
         """Test lab result model."""
-        order_response = self.client.post(
-            self._get_orders_url(),
-            {
-                "visit": self.visit.id,
-                "tests": [self.test.id],
-                "priority": "Routine",
-            },
-            format="json",
-        )
-        order_id = order_response.data["id"]
-
         result = LabResult.objects.create(
-            order_id=order_id,
-            test=self.test,
-            value="Hb: 14.5, WBC: 8000",
-            reference_range="Hb: 13-17, WBC: 4000-11000",
-            unit="g/dL, /mm3",
-            status="Normal",
-            verified_by=self.user,
+            lab_test=self.test,
+            result_data={"hb": 14.5, "wbc": 8000},
+            result_text="Hb: 14.5, WBC: 8000",
+            reference_ranges={"hb": "13-17", "wbc": "4000-11000"},
+            entered_by=self.user,
         )
-        self.assertEqual(result.test, self.test)
-        self.assertEqual(result.status, "Normal")
+        self.assertEqual(result.lab_test, self.test)
+        self.assertEqual(result.result_text, "Hb: 14.5, WBC: 8000")

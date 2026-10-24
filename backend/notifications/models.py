@@ -2,6 +2,13 @@ from django.db import models
 
 
 class Notification(models.Model):
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True
+    )
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,

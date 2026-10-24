@@ -161,7 +161,7 @@ function Permissions() {
               onClick={() => switchRole(selectedRole.name)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition cursor-pointer shadow-sm"
             >
-              <span>Switch App to "{selectedRole.name}" View</span>
+              <span>Switch App to &quot;{selectedRole.name}&quot; View</span>
             </button>
           )}
         </div>

@@ -1,4 +1,5 @@
 from rest_framework import viewsets
+from django.db.models import Sum, F, DecimalField, ExpressionWrapper
 
 from .models import (
     Invoice,
@@ -23,6 +24,19 @@ class InvoiceViewSet(HospitalScopedViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+
+        # Annotate with aggregated values to avoid N+1 queries
+        # Use different names to avoid conflict with model properties
+        queryset = queryset.annotate(
+            total_paid_annotated=Sum("payments__amount"),
+            subtotal_annotated=Sum("items__subtotal"),
+            tax_amount_annotated=Sum(
+                ExpressionWrapper(
+                    F("items__subtotal") * F("items__tax_rate") / 100,
+                    output_field=DecimalField(max_digits=12, decimal_places=2)
+                )
+            )
+        ).select_related("patient", "hospital")
 
         hospital_id = self.request.query_params.get("hospital")
 

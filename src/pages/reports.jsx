@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
@@ -543,8 +543,7 @@ function Reports() {
   // RECENT ACTIVITY
   // =====================================
 
-  const recentActivity =
-    useMemo(() => [
+  const recentActivity = [
 
       {
         icon: "👤",
@@ -596,13 +595,7 @@ function Reports() {
         time: "Today",
       },
 
-    ], [
-      hospitalPatients,
-      hospitalAppointments,
-      hospitalSales,
-      hospitalLaboratory,
-      hospitalBills,
-    ])
+    ]
 
 
   // =====================================

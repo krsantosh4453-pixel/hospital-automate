@@ -132,27 +132,3 @@ class DoctorAPITests(TestCase):
         self.assertEqual(response.data["specialization"], "Interventional Cardiology")
         self.doctor_a.refresh_from_db()
         self.assertEqual(self.doctor_a.specialization, "Interventional Cardiology")
-
-    def test_doctor_availability(self):
-        """Test doctor availability model."""
-        avail = # DoctorAvailability.objects.create(
-            doctor=self.doctor_a,
-            day_of_week=1,  # Monday
-            start_time="09:00",
-            end_time="17:00",
-            is_active=True,
-        )
-        self.assertEqual(avail.doctor, self.doctor_a)
-        self.assertEqual(avail.day_of_week, 1)
-
-    def test_doctor_schedule(self):
-        """Test doctor schedule model."""
-        schedule = # DoctorSchedule.objects.create(
-            doctor=self.doctor_a,
-            date="2026-10-05",
-            start_time="09:00",
-            end_time="12:00",
-            is_available=True,
-        )
-        self.assertEqual(schedule.doctor, self.doctor_a)
-        self.assertTrue(schedule.is_available)

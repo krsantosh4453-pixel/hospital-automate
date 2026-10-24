@@ -1162,7 +1162,7 @@ function Doctors() {
               </h2>
 
               <p className="text-sm text-gray-500 mt-1">
-                Confirm the patient's medicines after doctor review.
+                Confirm the patient&apos;s medicines after doctor review.
               </p>
 
             </div>

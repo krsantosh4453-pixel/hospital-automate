@@ -140,7 +140,7 @@ function PatientQueue() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
           <div className="text-4xl mb-3">🎫</div>
           <h3 className="font-bold text-gray-800">No active queue tokens</h3>
-          <p className="text-sm text-gray-500 mt-1">You don't have any pending consultations at the moment.</p>
+          <p className="text-sm text-gray-500 mt-1">You don&apos;t have any pending consultations at the moment.</p>
         </div>
       )}
     </div>

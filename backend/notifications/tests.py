@@ -9,7 +9,7 @@ from rest_framework import status
 from hospital.models import Hospital, Department
 from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 from patients.models import Patient, PatientHospital
-from notifications.models import Notification, NotificationTemplate, ConsentRecord, OTPVerification
+from notifications.models import Notification, Consent, OTPVerification
 
 User = get_user_model()
 
@@ -62,13 +62,10 @@ class NotificationsAPITests(TestCase):
         self.client.force_authenticate(user=self.user)
 
     def _get_notifications_url(self):
-        return f"/api/notifications/?hospital={self.hospital_a.id}"
-
-    def _get_templates_url(self):
-        return f"/api/notifications/templates/?hospital={self.hospital_a.id}"
+        return f"/api/notifications/notifications/?hospital={self.hospital_a.id}"
 
     def _get_consent_url(self):
-        return f"/api/notifications/consent/?hospital={self.hospital_a.id}"
+        return f"/api/notifications/consents/?hospital={self.hospital_a.id}"
 
     def test_create_notification(self):
         """Test creating a notification."""
@@ -76,50 +73,36 @@ class NotificationsAPITests(TestCase):
             self._get_notifications_url(),
             {
                 "patient": self.patient.id,
-                "channel": "SMS",
-                "subject": "Appointment Reminder",
+                "title": "Appointment Reminder",
                 "message": "Your appointment is tomorrow at 10 AM",
-                "status": "Pending",
+                "notification_type": "Appointment",
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["channel"], "SMS")
-        self.assertEqual(response.data["status"], "Pending")
-
-    def test_notification_template(self):
-        """Test notification template model."""
-        template = NotificationTemplate.objects.create(
-            hospital=self.hospital_a,
-            name="Appointment Reminder",
-            channel="SMS",
-            subject="Appointment Reminder",
-            template="Dear {{patient_name}}, your appointment is on {{date}} at {{time}}.",
-            is_active=True,
-        )
-        self.assertEqual(template.hospital, self.hospital_a)
-        self.assertEqual(template.channel, "SMS")
+        self.assertEqual(response.data["title"], "Appointment Reminder")
+        self.assertEqual(response.data["notification_type"], "Appointment")
 
     def test_consent_record(self):
         """Test consent record model."""
-        consent = ConsentRecord.objects.create(
+        consent = Consent.objects.create(
             patient=self.patient,
-            hospital=self.hospital_a,
-            consent_type="Treatment",
-            status="Given",
-            signed_by="Patient",
-            version="1.0",
+            purpose="Treatment",
+            granted=True,
         )
         self.assertEqual(consent.patient, self.patient)
-        self.assertEqual(consent.status, "Given")
+        self.assertTrue(consent.granted)
 
     def test_otp_verification(self):
         """Test OTP verification model."""
+        from django.utils import timezone
+        from datetime import timedelta
         otp = OTPVerification.objects.create(
             phone="9876543210",
             otp="123456",
             purpose="Login",
-            expires_at=date.today(),
+            channel="sms",
+            expires_at=timezone.now() + timedelta(hours=1),
         )
         self.assertEqual(otp.phone, "9876543210")
         self.assertEqual(otp.purpose, "Login")
@@ -130,10 +113,9 @@ class NotificationsAPITests(TestCase):
         Notification.objects.create(
             patient=self.patient,
             hospital=self.hospital_a,
-            channel="Email",
-            subject="Test",
+            title="Test",
             message="Test message",
-            status="Sent",
+            notification_type="General",
         )
         response = self.client.get(self._get_notifications_url())
         self.assertEqual(response.status_code, status.HTTP_200_OK)

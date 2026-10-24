@@ -2,6 +2,42 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import api from "../../services/api.js"
 
 const AuthContext = createContext()
+const DEV_AUTH_BYPASS_KEY = "hms_dev_auth_bypass"
+
+function isDevelopmentAuthBypassEnabled() {
+  if (!import.meta.env.DEV) {
+    return false
+  }
+
+  const configured = import.meta.env.VITE_DEV_AUTH_BYPASS
+  if (configured === undefined || configured === null || configured === "") {
+    return true
+  }
+
+  return String(configured).toLowerCase() === "true"
+}
+
+function buildDevAuthUser() {
+  const user = {
+    id: "dev-admin",
+    username: "dev-admin",
+    email: "dev-admin@hospital.local",
+    first_name: "Development",
+    last_name: "Admin",
+    full_name: "Development Admin",
+    staff_role: "Admin",
+    roles: ["Admin"],
+  }
+
+  return {
+    ...user,
+    user: {
+      ...user,
+      roles: [...user.roles],
+      user: undefined,
+    },
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -19,6 +55,23 @@ export function AuthProvider({ children }) {
     setIsPatient(false)
     localStorage.removeItem("patientLoggedIn")
     localStorage.removeItem("patient")
+  }, [])
+
+  const clearDevelopmentAccess = useCallback(() => {
+    localStorage.removeItem(DEV_AUTH_BYPASS_KEY)
+  }, [])
+
+  const applyDevelopmentAccess = useCallback(() => {
+    const devUser = buildDevAuthUser()
+    setUser(devUser)
+    setPatient(null)
+    setIsStaff(true)
+    setIsPatient(false)
+    setIsLoggedIn(true)
+    localStorage.setItem(DEV_AUTH_BYPASS_KEY, "true")
+    localStorage.setItem("user", JSON.stringify(devUser))
+    localStorage.setItem("roles", JSON.stringify(["Admin"]))
+    return devUser
   }, [])
 
   const applyPatientSession = useCallback((session) => {
@@ -46,8 +99,22 @@ export function AuthProvider({ children }) {
 
   const loadUserFromToken = useCallback(async () => {
     const { accessToken, refreshToken } = api.auth.getTokens()
+    const devBypassEnabled = isDevelopmentAuthBypassEnabled()
+    const devBypassActive = localStorage.getItem(DEV_AUTH_BYPASS_KEY) === "true"
+
+    if (devBypassEnabled && (!accessToken && !refreshToken)) {
+      applyDevelopmentAccess()
+      setIsLoading(false)
+      return
+    }
+
     if (!accessToken && !refreshToken) {
-      clearSessionState()
+      if (devBypassEnabled && devBypassActive) {
+        applyDevelopmentAccess()
+      } else {
+        clearDevelopmentAccess()
+        clearSessionState()
+      }
       setIsLoading(false)
       return
     }
@@ -75,7 +142,7 @@ export function AuthProvider({ children }) {
     } finally {
       setIsLoading(false)
     }
-  }, [applyStaffSession, clearSessionState])
+  }, [applyDevelopmentAccess, applyStaffSession, clearSessionState])
 
   useEffect(() => {
     loadUserFromToken()
@@ -91,7 +158,24 @@ export function AuthProvider({ children }) {
   const staffLogin = async (username, password) => {
     await api.auth.staffLogin(username, password)
     const userData = await api.auth.getMe()
+    clearDevelopmentAccess()
     return applyStaffSession(userData)
+  }
+
+  const staffLoginStartOtp = async (username, password) => {
+    const data = await api.auth.staffLoginStartOtp(username, password)
+    return data
+  }
+
+  const staffOtpVerify = async (userId, otp) => {
+    const data = await api.auth.staffOtpVerify(userId, otp)
+    clearDevelopmentAccess()
+    return applyStaffSession(data.user)
+  }
+
+  const staffOtpResend = async (userId) => {
+    const data = await api.auth.staffOtpResend(userId)
+    return data
   }
 
   const patientLogin = (session) => applyPatientSession(session)
@@ -106,6 +190,7 @@ export function AuthProvider({ children }) {
   }
 
   const logout = () => {
+    clearDevelopmentAccess()
     api.auth.logout()
     clearSessionState()
   }
@@ -132,12 +217,16 @@ export function AuthProvider({ children }) {
         isLoading,
         login: patientLogin,
         staffLogin,
+        staffLoginStartOtp,
+        staffOtpVerify,
+        staffOtpResend,
         patientLogin,
         adoptExternalSession,
         logout,
         setPatientData,
         clearPatientData,
         refreshUser: loadUserFromToken,
+        applyDevelopmentAccess,
       }}
     >
       {children}

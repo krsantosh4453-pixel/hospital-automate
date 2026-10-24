@@ -7,6 +7,7 @@ from users.permissions import IsAdmin, IsHospitalManager, IsDoctor
 
 
 class DoctorViewSet(HospitalScopedViewSet):
+    queryset = Doctor.objects.select_related("hospital")
     serializer_class = DoctorSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
 
@@ -16,5 +17,13 @@ class DoctorViewSet(HospitalScopedViewSet):
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
             queryset = queryset.filter(hospital_id=hospital_id)
+
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        specialization = self.request.query_params.get("specialization")
+        if specialization:
+            queryset = queryset.filter(specialization=specialization)
 
         return queryset

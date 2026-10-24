@@ -19,14 +19,46 @@ class ConsultationSessionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ConsultationSession
-        fields = "__all__"
+        fields = [
+            "id",
+            "visit",
+            "doctor",
+            "hospital",
+            "patient",
+            "status",
+            "started_at",
+            "recording_started_at",
+            "recording_stopped_at",
+            "completed_at",
+            "audio_file",
+            "audio_duration_seconds",
+            "audio_format",
+            "language",
+            "created_by",
+            "patient_name",
+            "doctor_name",
+            "hospital_name",
+            "visit_label",
+        ]
         read_only_fields = [
+            "id",
             "started_at",
             "recording_started_at",
             "recording_stopped_at",
             "completed_at",
             "created_by",
         ]
+
+    def validate_hospital(self, value):
+        """Ensure user has access to the hospital."""
+        request = self.context.get("request")
+        if request and value:
+            user_hospital_ids = get_user_hospital_ids(request.user)
+            if value.id not in user_hospital_ids:
+                raise serializers.ValidationError(
+                    "You do not have access to this hospital."
+                )
+        return value
 
     def validate(self, attrs):
         # Ensure hospital matches user's hospital access
@@ -74,8 +106,27 @@ class ConversationTranscriptSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ConversationTranscript
-        fields = "__all__"
+        fields = [
+            "id",
+            "consultation",
+            "text",
+            "structured_data",
+            "provider",
+            "provider_model",
+            "provider_metadata",
+            "detected_language",
+            "language_confidence",
+            "status",
+            "error_message",
+            "processing_started_at",
+            "processing_completed_at",
+            "created_at",
+            "updated_at",
+            "consultation_id",
+            "patient_name",
+        ]
         read_only_fields = [
+            "id",
             "created_at",
             "updated_at",
             "processing_started_at",
@@ -100,8 +151,37 @@ class AIConsultationDraftSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AIConsultationDraft
-        fields = "__all__"
+        fields = [
+            "id",
+            "consultation",
+            "transcript",
+            "version",
+            "structured_extraction",
+            "summary",
+            "provider",
+            "provider_model",
+            "prompt_version",
+            "provider_metadata",
+            "generation_started_at",
+            "generation_completed_at",
+            "generation_duration_ms",
+            "status",
+            "reviewed_by",
+            "reviewed_at",
+            "review_notes",
+            "approved_by",
+            "approved_at",
+            "final_clinical_note",
+            "created_at",
+            "updated_at",
+            "consultation_id",
+            "patient_name",
+            "doctor_name",
+            "reviewed_by_name",
+            "approved_by_name",
+        ]
         read_only_fields = [
+            "id",
             "created_at",
             "updated_at",
             "generation_started_at",
@@ -143,15 +223,38 @@ class DoctorReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DoctorReview
-        fields = "__all__"
-        read_only_fields = ["created_at", "hospital"]
+        fields = [
+            "id",
+            "ai_draft",
+            "doctor",
+            "hospital",
+            "action",
+            "section",
+            "ai_value",
+            "doctor_value",
+            "notes",
+            "created_at",
+            "doctor_name",
+            "ai_draft_version",
+        ]
+        read_only_fields = ["id", "created_at", "hospital"]
 
 
 class ClinicalExtractionSchemaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicalExtractionSchema
-        fields = "__all__"
-        read_only_fields = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "version",
+            "name",
+            "description",
+            "schema",
+            "example_output",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class AIPromptTemplateSerializer(serializers.ModelSerializer):
@@ -161,5 +264,19 @@ class AIPromptTemplateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AIPromptTemplate
-        fields = "__all__"
-        read_only_fields = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "version",
+            "name",
+            "description",
+            "system_prompt",
+            "user_prompt_template",
+            "schema_version",
+            "recommended_temperature",
+            "recommended_max_tokens",
+            "is_active",
+            "created_at",
+            "updated_at",
+            "schema_version_str",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]

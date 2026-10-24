@@ -24,7 +24,7 @@ from .serializers import (
 
 
 class AdmissionViewSet(HospitalScopedViewSet):
-    queryset = Admission.objects.all()
+    queryset = Admission.objects.select_related("hospital", "patient", "admitting_doctor").prefetch_related("bed_allocations__bed__room__ward")
     serializer_class = AdmissionSerializer
     permission_classes = [IsDoctor | IsNurse]
 
@@ -39,7 +39,7 @@ class AdmissionViewSet(HospitalScopedViewSet):
         admission_status = self.request.query_params.get("status")
         if admission_status:
             qs = qs.filter(status=admission_status)
-        return qs.select_related("hospital", "patient", "admitting_doctor").prefetch_related("bed_allocations")
+        return qs
 
     @action(detail=True, methods=["post"])
     def allocate_bed(self, request, pk=None):
@@ -70,7 +70,7 @@ class AdmissionViewSet(HospitalScopedViewSet):
         try:
             with transaction.atomic():
                 bed = BedAllocation._meta.get_field("bed").related_model.objects.select_for_update().get(
-                    id=bed_id, hospital=admission.hospital
+                    id=bed_id, room__ward__hospital=admission.hospital
                 )
 
                 if bed.status != "Available":
@@ -158,7 +158,7 @@ class AdmissionViewSet(HospitalScopedViewSet):
 
                 # Allocate new bed
                 new_bed = BedAllocation._meta.get_field("bed").related_model.objects.select_for_update().get(
-                    id=new_bed_id, hospital=admission.hospital
+                    id=new_bed_id, room__ward__hospital=admission.hospital
                 )
 
                 if new_bed.status != "Available":
@@ -238,7 +238,7 @@ class AdmissionViewSet(HospitalScopedViewSet):
 
 
 class BedAllocationViewSet(HospitalScopedViewSet):
-    queryset = BedAllocation.objects.all()
+    queryset = BedAllocation.objects.select_related("admission__hospital", "admission__patient", "bed__room__ward")
     serializer_class = BedAllocationSerializer
     permission_classes = [IsNurse | IsDoctor]
 
@@ -247,7 +247,7 @@ class BedAllocationViewSet(HospitalScopedViewSet):
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
             qs = qs.filter(admission__hospital_id=hospital_id)
-        return qs.select_related("admission__hospital", "admission__patient", "bed__room__ward")
+        return qs
 
     @action(detail=False, methods=["get"])
     def available_beds(self, request):
@@ -279,7 +279,7 @@ class BedAllocationViewSet(HospitalScopedViewSet):
 
 
 class DischargePlanViewSet(HospitalScopedViewSet):
-    queryset = DischargePlan.objects.all()
+    queryset = DischargePlan.objects.select_related("admission__hospital", "admission__patient", "created_by")
     serializer_class = DischargePlanSerializer
     permission_classes = [IsDoctor | IsNurse]
 
@@ -288,11 +288,11 @@ class DischargePlanViewSet(HospitalScopedViewSet):
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
             qs = qs.filter(admission__hospital_id=hospital_id)
-        return qs.select_related("admission__hospital", "admission__patient", "created_by")
+        return qs
 
 
 class DischargeSummaryViewSet(HospitalScopedViewSet):
-    queryset = DischargeSummary.objects.all()
+    queryset = DischargeSummary.objects.select_related("admission__hospital", "admission__patient", "authorized_doctor")
     serializer_class = DischargeSummarySerializer
     permission_classes = [IsDoctor]
 
@@ -301,11 +301,11 @@ class DischargeSummaryViewSet(HospitalScopedViewSet):
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
             qs = qs.filter(admission__hospital_id=hospital_id)
-        return qs.select_related("admission__hospital", "admission__patient", "authorized_doctor")
+        return qs
 
 
 class DischargeNoteViewSet(HospitalScopedViewSet):
-    queryset = DischargeNote.objects.all()
+    queryset = DischargeNote.objects.select_related("admission__hospital", "admission__patient", "created_by")
     serializer_class = DischargeNoteSerializer
     permission_classes = [IsDoctor | IsNurse]
 
@@ -314,4 +314,4 @@ class DischargeNoteViewSet(HospitalScopedViewSet):
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
             qs = qs.filter(admission__hospital_id=hospital_id)
-        return qs.select_related("admission__hospital", "admission__patient", "created_by")
+        return qs

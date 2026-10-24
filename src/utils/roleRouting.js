@@ -6,6 +6,12 @@ export const LOGIN_ROLES = [
   "Nurse",
   "Compounder",
   "Receptionist",
+  "Pharmacist",
+  "Lab Staff",
+  "Blood Bank Staff",
+  "Billing Staff",
+  "Inventory Staff",
+  "Hospital Manager",
   "Patient",
 ]
 
@@ -24,6 +30,11 @@ export function mapBackendRoleToUi(role) {
   if (!role) return null
   if (role === "Reception") return "Receptionist"
   if (role === "Pharmacist") return "Compounder"
+  if (role === "Lab Staff") return "Lab Staff"
+  if (role === "Blood Bank Staff") return "Blood Bank Staff"
+  if (role === "Billing Staff") return "Billing Staff"
+  if (role === "Inventory Staff") return "Inventory Staff"
+  if (role === "Hospital Manager") return "Hospital Manager"
   return role
 }
 

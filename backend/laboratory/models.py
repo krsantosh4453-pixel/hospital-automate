@@ -26,32 +26,36 @@ class LabTest(models.Model):
         on_delete=models.CASCADE,
         related_name="lab_tests",
         null=True,
-        blank=True
+        blank=True,
+        db_index=True
     )
-    name = models.CharField(max_length=150)
+    name = models.CharField(max_length=150, db_index=True)
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
-        related_name="lab_tests"
+        related_name="lab_tests",
+        db_index=True
     )
     doctor = models.ForeignKey(
         "doctors.Doctor",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="lab_tests"
+        related_name="lab_tests",
+        db_index=True
     )
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="lab_tests"
+        related_name="lab_tests",
+        db_index=True
     )
-    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default="Normal")
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default="Normal", db_index=True)
     result = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Ordered")
-    test_date = models.DateField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Ordered", db_index=True)
+    test_date = models.DateField(auto_now_add=True, db_index=True)
     collected_at = models.DateTimeField(null=True, blank=True)
     dispatched_at = models.DateTimeField(null=True, blank=True)
     received_at = models.DateTimeField(null=True, blank=True)
@@ -64,6 +68,14 @@ class LabTest(models.Model):
 
     class Meta:
         ordering = ["-test_date"]
+        indexes = [
+            models.Index(fields=["hospital", "test_date"]),
+            models.Index(fields=["hospital", "status"]),
+            models.Index(fields=["patient", "test_date"]),
+            models.Index(fields=["hospital", "priority", "status"]),
+            models.Index(fields=["doctor", "test_date"]),
+            models.Index(fields=["visit", "test_date"]),
+        ]
 
 
 class SampleCollection(models.Model):

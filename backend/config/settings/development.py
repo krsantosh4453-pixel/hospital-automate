@@ -6,6 +6,7 @@ Extends base settings with development-specific configuration.
 
 from .base import *  # noqa: F403,F401
 import os
+from django.core.exceptions import ImproperlyConfigured
 
 
 # ============================================================
@@ -13,13 +14,16 @@ import os
 # ============================================================
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-dev-key-change-in-production')
+# Must be set via DJANGO_SECRET_KEY environment variable
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    raise ImproperlyConfigured('DJANGO_SECRET_KEY environment variable is required')
 
-# Same public client id already used by the login page. Override with env in real deployments.
-GOOGLE_CLIENT_ID = os.environ.get(
-    'GOOGLE_CLIENT_ID',
-    '1199500530711-s1ti1g061cno8d3tk2759hqrgitdect.apps.googleusercontent.com',
-)
+# Google OAuth - Must be set via GOOGLE_CLIENT_ID environment variable
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+if not GOOGLE_CLIENT_ID:
+    raise ImproperlyConfigured('GOOGLE_CLIENT_ID environment variable is required')
+
 # console: log the SMS code on the server. Set PATIENT_OTP_DELIVERY=sms with Twilio
 # credentials when a real text message should be sent.
 PATIENT_OTP_DELIVERY = os.environ.get('PATIENT_OTP_DELIVERY', 'console')
@@ -46,8 +50,15 @@ DATABASES = {
 # CORS - Development
 # ============================================================
 
-CORS_ALLOW_ALL_ORIGINS = True
+# Even in development, restrict to known origins for security
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 
 # ============================================================
@@ -77,7 +88,6 @@ SIMPLE_JWT['SIGNING_KEY'] = SECRET_KEY
 # Google Auth - Development
 # ============================================================
 
-GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '1199500530711-s1ti1g061cno8d3tk2759hqrgitdect.apps.googleusercontent.com')
 ADMIN_INVITE_CODE = os.environ.get("ADMIN_INVITE_CODE", "")
 
 
@@ -164,9 +174,19 @@ ABDM_CLIENT_SECRET = os.environ.get('ABDM_CLIENT_SECRET', '')
 # ============================================================
 
 SMS_PROVIDER = os.environ.get('SMS_PROVIDER', 'twilio')
+
+# Twilio Verify v2
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_API_KEY = os.environ.get('TWILIO_API_KEY', '')
+TWILIO_API_SECRET = os.environ.get('TWILIO_API_SECRET', '')
+TWILIO_VERIFY_SERVICE_SID = os.environ.get('TWILIO_VERIFY_SERVICE_SID', '')
+
+# Legacy Twilio SMS (fallback)
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
+
+# OTP Provider: 'twilio' (Verify v2), 'console' (dev), 'cache' (test)
+OTP_PROVIDER = os.environ.get('OTP_PROVIDER', 'console')
 
 WHATSAPP_PROVIDER = os.environ.get('WHATSAPP_PROVIDER', 'twilio')
 WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID', '')

@@ -4,6 +4,7 @@ from django.db import transaction
 
 from rest_framework import serializers
 
+from hospital.models import Hospital
 from .models import (
     Supplier,
     PurchaseOrder,
@@ -64,6 +65,11 @@ class SupplierSerializer(serializers.ModelSerializer):
         source="hospital.name",
         read_only=True
     )
+    hospital = serializers.PrimaryKeyRelatedField(
+        queryset=Hospital.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = Supplier
@@ -80,7 +86,9 @@ class SupplierSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
-        extra_kwargs = {"hospital": {"required": False}}
+        validators = []  # Remove auto-generated UniqueTogetherValidator; DB constraint handles it
+
+    
 
     def validate_name(self, value):
         if not value or not value.strip():
@@ -92,6 +100,8 @@ class SupplierSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         _resolve_scoped_hospital(self, attrs)
         return attrs
+
+    
 
 
 class PurchaseItemNestedSerializer(serializers.ModelSerializer):
@@ -229,6 +239,11 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
         read_only=True
     )
     items = PurchaseItemNestedSerializer(many=True, required=False)
+    hospital = serializers.PrimaryKeyRelatedField(
+        queryset=Hospital.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = PurchaseOrder
@@ -245,7 +260,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             "items",
         ]
         read_only_fields = ["id", "created_at"]
-        extra_kwargs = {"hospital": {"required": False}}
+        validators = []  # Remove auto-generated UniqueTogetherValidator; DB constraint handles it
 
     def validate_reference(self, value):
         if not value or not value.strip():
@@ -452,3 +467,28 @@ class GoodsReceiptReceiveSerializer(serializers.Serializer):
                 "At least one received item is required."
             )
         return value
+
+
+class StockAdjustmentSerializer(serializers.Serializer):
+    """Payload for manual stock adjustment."""
+
+    medicine = serializers.IntegerField()
+    type = serializers.ChoiceField(choices=["add", "remove"])
+    quantity = serializers.IntegerField()
+    reason = serializers.CharField(required=False, allow_blank=True)
+    reference = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_quantity(self, value):
+        if value is None or value <= 0:
+            raise serializers.ValidationError(
+                "Quantity must be greater than 0."
+            )
+        return value
+
+    def validate_medicine(self, value):
+        from pharmacy.models import Medicine
+        try:
+            medicine = Medicine.objects.get(pk=value)
+        except Medicine.DoesNotExist:
+            raise serializers.ValidationError("Medicine not found.")
+        return medicine

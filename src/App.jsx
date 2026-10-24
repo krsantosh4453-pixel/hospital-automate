@@ -56,6 +56,9 @@ import PatientDocuments from "./pages/patient/PatientDocuments.jsx"
 import PatientConsent from "./pages/patient/PatientConsent.jsx"
 
 function App() {
+  // VITE_AUTH_REQUIRED=false only opens Home in development; production builds always require login.
+  const authRequired = !import.meta.env.DEV || import.meta.env.VITE_AUTH_REQUIRED !== "false"
+
   return (
     <AuthProvider>
       <HospitalsProvider>
@@ -85,36 +88,73 @@ function App() {
                       </Route>
                       </Route>
 
-                      <Route element={<ProtectedRoute audience="staff" />}>
-                      <Route element={<Layout />}>
-                        <Route path="/" element={<Home />} />
-                        <Route path="/patients" element={<Patients />} />
-                        <Route path="/appointments" element={<Appointments />} />
-                        <Route path="/queue" element={<Queue />} />
-                        <Route path="/consultation" element={<Consultation />} />
-                        <Route path="/prescription" element={<Prescription />} />
-                        <Route path="/doctors" element={<Doctors />} />
-                        <Route path="/nurses" element={<Nurses />} />
-                        <Route path="/compounter" element={<Compounter />} />
-                        <Route path="/pharmacy" element={<Pharmacy />} />
-                        <Route path="/laboratory" element={<Laboratory />} />
-                        <Route path="/billing" element={<Billing />} />
-                        <Route path="/inventory" element={<Inventory />} />
-                        <Route path="/reports" element={<Reports />} />
-                        <Route path="/emergency" element={<Emergency />} />
-                        <Route path="/blood-bank" element={<BloodBank />} />
-                        <Route path="/ipd" element={<IPD />} />
-                        <Route path="/ai-scribe" element={<AIScribe />} />
-                        <Route path="/hospital-selection" element={<HospitalSelection />} />
-                        <Route path="/admin" element={<AdminDashboard />} />
-                        <Route path="/admin/users" element={<Users />} />
-                        <Route path="/admin/roles" element={<Roles />} />
-                        <Route path="/admin/hospitals" element={<Hospitals />} />
-                        <Route path="/admin/departments" element={<Departments />} />
-                        <Route path="/admin/permissions" element={<Permissions />} />
-                        <Route path="/settings" element={<Settings />} />
-                      </Route>
-                      </Route>
+                      {authRequired ? (
+                        <Route element={<ProtectedRoute audience="staff" />}>
+                        <Route element={<Layout />}>
+                          <Route path="/" element={<Home />} />
+                          <Route path="/patients" element={<Patients />} />
+                          <Route path="/appointments" element={<Appointments />} />
+                          <Route path="/queue" element={<Queue />} />
+                          <Route path="/consultation" element={<Consultation />} />
+                          <Route path="/prescription" element={<Prescription />} />
+                          <Route path="/doctors" element={<Doctors />} />
+                          <Route path="/nurses" element={<Nurses />} />
+                          <Route path="/compounter" element={<Compounter />} />
+                          <Route path="/pharmacy" element={<Pharmacy />} />
+                          <Route path="/laboratory" element={<Laboratory />} />
+                          <Route path="/billing" element={<Billing />} />
+                          <Route path="/inventory" element={<Inventory />} />
+                          <Route path="/reports" element={<Reports />} />
+                          <Route path="/emergency" element={<Emergency />} />
+                          <Route path="/blood-bank" element={<BloodBank />} />
+                          <Route path="/ipd" element={<IPD />} />
+                          <Route path="/ai-scribe" element={<AIScribe />} />
+                          <Route path="/hospital-selection" element={<HospitalSelection />} />
+                          <Route path="/admin" element={<AdminDashboard />} />
+                          <Route path="/admin/users" element={<Users />} />
+                          <Route path="/admin/roles" element={<Roles />} />
+                          <Route path="/admin/hospitals" element={<Hospitals />} />
+                          <Route path="/admin/departments" element={<Departments />} />
+                          <Route path="/admin/permissions" element={<Permissions />} />
+                          <Route path="/settings" element={<Settings />} />
+                        </Route>
+                        </Route>
+                      ) : (
+                        <>
+                          <Route element={<Layout />}>
+                            <Route path="/" element={<Home />} />
+                          </Route>
+                          <Route element={<ProtectedRoute audience="staff" />}>
+                          <Route element={<Layout />}>
+                            <Route path="/patients" element={<Patients />} />
+                            <Route path="/appointments" element={<Appointments />} />
+                            <Route path="/queue" element={<Queue />} />
+                            <Route path="/consultation" element={<Consultation />} />
+                            <Route path="/prescription" element={<Prescription />} />
+                            <Route path="/doctors" element={<Doctors />} />
+                            <Route path="/nurses" element={<Nurses />} />
+                            <Route path="/compounter" element={<Compounter />} />
+                            <Route path="/pharmacy" element={<Pharmacy />} />
+                            <Route path="/laboratory" element={<Laboratory />} />
+                            <Route path="/billing" element={<Billing />} />
+                            <Route path="/inventory" element={<Inventory />} />
+                            <Route path="/reports" element={<Reports />} />
+                            <Route path="/emergency" element={<Emergency />} />
+                            <Route path="/blood-bank" element={<BloodBank />} />
+                            <Route path="/ipd" element={<IPD />} />
+                            <Route path="/ai-scribe" element={<AIScribe />} />
+                            <Route path="/hospital-selection" element={<HospitalSelection />} />
+                            <Route path="/admin" element={<AdminDashboard />} />
+                            <Route path="/admin/users" element={<Users />} />
+                            <Route path="/admin/roles" element={<Roles />} />
+                            <Route path="/admin/hospitals" element={<Hospitals />} />
+                            <Route path="/admin/departments" element={<Departments />} />
+                            <Route path="/admin/permissions" element={<Permissions />} />
+                            <Route path="/settings" element={<Settings />} />
+                          </Route>
+                          </Route>
+                        </>
+                      )}
                     </Routes>
                   </BrowserRouter>
                 </SidebarProvider>

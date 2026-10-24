@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
+import { LoadingSpinner } from "../components/LoadingSpinner.jsx"
 
 // Convert "MM/YYYY" (UI) to "YYYY-MM-01" (API DateField). Returns null if invalid.
 const toApiDate = (value) => {
@@ -16,15 +17,44 @@ const toApiDate = (value) => {
   return `${String(yearNum).padStart(4, "0")}-${String(monthNum).padStart(2, "0")}-01`
 }
 
+const formatExpiry = (value) => {
+  if (!value) return ""
+  const parts = String(value).split("-")
+  if (parts.length < 2) return value
+  const [year, month] = parts
+  return `${month}/${year}`
+}
+
+const parseExpiry = (value) => {
+  if (!value) return null
+  const parts = String(value).split("/")
+  if (parts.length < 2) return null
+  const [month, year] = parts
+  return new Date(Number(year), Number(month) - 1, 1)
+}
+
 function Pharmacy() {
   const {
-    addSale,
     loadMedicines,
     createMedicine,
     updateMedicine,
     deleteMedicine,
     loadSales,
     createSale,
+    loadSuppliers,
+    createSupplier,
+    updateSupplier,
+    deleteSupplier,
+    loadPurchases,
+    createPurchase,
+    receivePurchase,
+    loadGRNs,
+    loadStockTransactions,
+    adjustStock,
+    suppliers,
+    purchaseOrders,
+    grns,
+    stockTransactions,
   } = usePharmacy()
 
   const { selectedHospital } = usePatient()
@@ -34,70 +64,61 @@ function Pharmacy() {
     dispensePrescription,
   } = usePrescription()
 
-
   // =========================
-  // MEDICINES
-  // =========================
-
-  const [medicines, setMedicines] = useState([
-    {
-      id: "M001",
-      name: "Paracetamol 500mg",
-      category: "Tablet",
-      batch: "PCM2026A",
-      stock: 250,
-      expiry: "12/2027",
-      price: 2.5,
-      status: "In Stock",
-      hospitalId: 1,
-    },
-
-    {
-      id: "M002",
-      name: "Amoxicillin 500mg",
-      category: "Capsule",
-      batch: "AMX2026B",
-      stock: 85,
-      expiry: "08/2027",
-      price: 6,
-      status: "In Stock",
-      hospitalId: 1,
-    },
-
-    {
-      id: "M003",
-      name: "Azithromycin 500mg",
-      category: "Tablet",
-      batch: "AZI2026C",
-      stock: 18,
-      expiry: "05/2027",
-      price: 12,
-      status: "Low Stock",
-      hospitalId: 2,
-    },
-
-    {
-      id: "M004",
-      name: "Insulin",
-      category: "Injection",
-      batch: "INS2026D",
-      stock: 5,
-      expiry: "02/2027",
-      price: 450,
-      status: "Low Stock",
-      hospitalId: 3,
-    },
-  ])
-
-
-  // =========================
-  // SALES
+  // STATE
   // =========================
 
+  const [medicines, setMedicines] = useState([])
   const [sales, setSales] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState("")
 
+  const [showForm, setShowForm] = useState(false)
+  const [showView, setShowView] = useState(false)
+  const [showIssue, setShowIssue] = useState(false)
+  const [showSales, setShowSales] = useState(false)
+
+  const [selectedMedicine, setSelectedMedicine] = useState(null)
+
+  const [formData, setFormData] = useState({
+    name: "",
+    category: "",
+    batch: "",
+    stock: "",
+    expiry: "",
+    price: "",
+  })
+
+  const [issueData, setIssueData] = useState({
+    medicineId: "",
+    patient: "",
+    quantity: "",
+  })
+
+  const [prescriptionId, setPrescriptionId] = useState("")
+  const [foundPrescription, setFoundPrescription] = useState(null)
 
   // =========================
+  // EXPIRY & LOW STOCK ALERTS
+  // =========================
+
+  const now = new Date()
+  const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  const expiredMedicines = useMemo(() =>
+    hospitalMedicines.filter((m) => {
+      const exp = parseExpiry(m.expiry)
+      return exp && exp < now && m.stock > 0
+    }), [hospitalMedicines])
+
+  const expiringSoonMedicines = useMemo(() =>
+    hospitalMedicines.filter((m) => {
+      const exp = parseExpiry(m.expiry)
+      return exp && exp >= now && exp <= thirtyDaysLater && m.stock > 0
+    }), [hospitalMedicines])
+
+  const lowStockMedicines = useMemo(() =>
+    hospitalMedicines.filter((m) => m.stock > 0 && m.stock <= 20), [hospitalMedicines])
   // SEARCH / FILTER
   // =========================
 
@@ -110,73 +131,6 @@ function Pharmacy() {
   const [stockFilter, setStockFilter] =
     useState("All Stock")
 
-
-  // =========================
-  // MODALS
-  // =========================
-
-  const [showForm, setShowForm] =
-    useState(false)
-
-  const [showView, setShowView] =
-    useState(false)
-
-  const [showIssue, setShowIssue] =
-    useState(false)
-
-  const [showSales, setShowSales] =
-    useState(false)
-
-
-  const [selectedMedicine, setSelectedMedicine] =
-    useState(null)
-
-
-  // =========================
-  // FORM DATA
-  // =========================
-
-  const [formData, setFormData] = useState({
-    name: "",
-    category: "",
-    batch: "",
-    stock: "",
-    expiry: "",
-    price: "",
-  })
-
-
-  // =========================
-  // ISSUE DATA
-  // =========================
-
-  const [issueData, setIssueData] = useState({
-    medicineId: "",
-    patient: "",
-    quantity: "",
-  })
-
-
-  // =========================
-  // PRESCRIPTION SEARCH
-  // =========================
-
-  const [prescriptionId, setPrescriptionId] =
-    useState("")
-
-  const [foundPrescription, setFoundPrescription] =
-    useState(null)
-
-
-  // =========================
-  // LOADING / ERROR
-  // =========================
-
-  const [loading, setLoading] =
-    useState(false)
-
-  const [loadError, setLoadError] =
-    useState("")
 
   const reloadPharmacyData = async () => {
     if (!selectedHospital) return
@@ -1599,6 +1553,71 @@ function Pharmacy() {
 
           </div>
 
+          {/* =========================
+              ALERTS: EXPIRED / EXPIRING / LOW STOCK
+          ========================= */}
+
+          {(expiredMedicines.length > 0 || expiringSoonMedicines.length > 0 || lowStockMedicines.length > 0) && (
+            <div className="mb-6 space-y-3">
+              {expiredMedicines.length > 0 && (
+                <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div>
+                    <p className="font-semibold">Expired Medicines in Stock</p>
+                    <p className="text-sm mt-1">
+                      {expiredMedicines.length} medicine(s) have expired but still have stock:
+                    </p>
+                    <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
+                      {expiredMedicines.slice(0, 10).map((m) => (
+                        <li key={m.id}>{m.name} (Batch: {m.batch || "N/A"}, Expiry: {m.expiry}, Stock: {m.stock})</li>
+                      ))}
+                      {expiredMedicines.length > 10 && (
+                        <li>+{expiredMedicines.length - 10} more...</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              {expiringSoonMedicines.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl">⏰</span>
+                  <div>
+                    <p className="font-semibold">Expiring Soon (within 30 days)</p>
+                    <p className="text-sm mt-1">
+                      {expiringSoonMedicines.length} medicine(s) expiring soon:
+                    </p>
+                    <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
+                      {expiringSoonMedicines.slice(0, 10).map((m) => (
+                        <li key={m.id}>{m.name} (Batch: {m.batch || "N/A"}, Expiry: {m.expiry}, Stock: {m.stock})</li>
+                      ))}
+                      {expiringSoonMedicines.length > 10 && (
+                        <li>+{expiringSoonMedicines.length - 10} more...</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              {lowStockMedicines.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 text-orange-800 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl">📉</span>
+                  <div>
+                    <p className="font-semibold">Low Stock Alert</p>
+                    <p className="text-sm mt-1">
+                      {lowStockMedicines.length} medicine(s) at or below reorder level (≤20 units):
+                    </p>
+                    <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
+                      {lowStockMedicines.slice(0, 10).map((m) => (
+                        <li key={m.id}>{m.name} (Stock: {m.stock})</li>
+                      ))}
+                      {lowStockMedicines.length > 10 && (
+                        <li>+{lowStockMedicines.length - 10} more...</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* =========================
               SEARCH FILTER

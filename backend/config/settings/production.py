@@ -50,13 +50,23 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 X_FRAME_OPTIONS = 'DENY'
 
-# CSP (Content Security Policy) - configure if using django-csp
-# CSP_DEFAULT_SRC = ["'self'"]
-# CSP_STYLE_SRC = ["'self'", "'unsafe-inline'"]
-# CSP_SCRIPT_SRC = ["'self'"]
-# CSP_IMG_SRC = ["'self'", "data:", "https:"]
-# CSP_FONT_SRC = ["'self'"]
-# CSP_CONNECT_SRC = ["'self'"]
+# CSP (Content Security Policy) - using django-csp
+# Install django-csp: pip install django-csp
+# Add 'csp.middleware.CSPMiddleware' to MIDDLEWARE
+CSP_DEFAULT_SRC = ["'self'"]
+CSP_STYLE_SRC = ["'self'", "'unsafe-inline'"]  # unsafe-inline needed for some admin styles
+CSP_SCRIPT_SRC = ["'self'"]
+CSP_IMG_SRC = ["'self'", "data:", "https:"]
+CSP_FONT_SRC = ["'self'"]
+CSP_CONNECT_SRC = ["'self'"]
+CSP_FRAME_ANCESTORS = ["'none'"]
+CSP_FORM_ACTION = ["'self'"]
+CSP_BASE_URI = ["'self'"]
+CSP_OBJECT_SRC = ["'none'"]
+
+# Report CSP violations
+CSP_REPORT_URI = os.environ.get('CSP_REPORT_URI')
+CSP_REPORT_ONLY = False  # Set to True for testing
 
 
 # ============================================================
@@ -92,6 +102,26 @@ DATABASES = {
 
 # Connection pooling via PgBouncer (if configured)
 # Use DATABASE_URL with pgbouncer host/port
+
+
+# ============================================================
+# Middleware - Production (add CSP middleware)
+# ============================================================
+
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "csp.middleware.CSPMiddleware",  # Content Security Policy
+    "config.middleware.correlation.CorrelationIdMiddleware",
+    "config.middleware.correlation.LoggingContextMiddleware",
+    "config.middleware.ratelimit.RateLimitMiddleware",
+]
 
 
 # ============================================================
@@ -154,18 +184,30 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 # ============================================================
-# JWT - Production (Separate Signing Key)
+# JWT - Production (RS256 with Key Pair)
 # ============================================================
 
-JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
-if not JWT_SECRET_KEY:
-    # Fallback to Django SECRET_KEY but warn
-    import warnings
-    warnings.warn('JWT_SECRET_KEY not set, falling back to DJANGO_SECRET_KEY. Set JWT_SECRET_KEY for better security.')
-    JWT_SECRET_KEY = SECRET_KEY
+# Load RSA private key for signing (RS256)
+JWT_PRIVATE_KEY = os.environ.get('JWT_PRIVATE_KEY')
+JWT_PUBLIC_KEY = os.environ.get('JWT_PUBLIC_KEY')
+JWT_KEY_ID = os.environ.get('JWT_KEY_ID', 'hms-key-1')
 
-SIMPLE_JWT['SIGNING_KEY'] = JWT_SECRET_KEY
-SIMPLE_JWT['ALGORITHM'] = 'HS256'  # Consider RS256 for production with key rotation
+if not JWT_PRIVATE_KEY or not JWT_PUBLIC_KEY:
+    raise ImproperlyConfigured(
+        'JWT_PRIVATE_KEY and JWT_PUBLIC_KEY environment variables are required in production. '
+        'Generate with: openssl genrsa -out private.pem 2048 && openssl rsa -in private.pem -pubout -out public.pem'
+    )
+
+SIMPLE_JWT['SIGNING_KEY'] = JWT_PRIVATE_KEY
+SIMPLE_JWT['VERIFYING_KEY'] = JWT_PUBLIC_KEY
+SIMPLE_JWT['ALGORITHM'] = 'RS256'
+SIMPLE_JWT['AUDIENCE'] = os.environ.get('JWT_AUDIENCE', 'hms-api')
+SIMPLE_JWT['ISSUER'] = os.environ.get('JWT_ISSUER', 'hospital-management-system')
+SIMPLE_JWT['JWK_URL'] = os.environ.get('JWK_URL')  # Optional: for key rotation via JWKS endpoint
+
+# Token lifetime - shorter access tokens for better security
+SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'] = timedelta(minutes=10)
+SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'] = timedelta(days=1)
 
 
 # ============================================================
@@ -322,8 +364,11 @@ AI_SCRIBE_MODEL = os.environ.get('AI_SCRIBE_MODEL', 'gpt-4')
 AI_SCRIBE_MAX_TOKENS = int(os.environ.get('AI_SCRIBE_MAX_TOKENS', '4000'))
 AI_SCRIBE_TEMPERATURE = float(os.environ.get('AI_SCRIBE_TEMPERATURE', '0.1'))
 
+# AI Scribe is optional - if API key is not set, it falls back to development mode
 if AI_SCRIBE_ENABLED and not AI_SCRIBE_API_KEY:
-    raise ImproperlyConfigured('AI_SCRIBE_API_KEY is required when AI_SCRIBE_ENABLED=True')
+    import warnings
+    warnings.warn('AI_SCRIBE_API_KEY not set - AI Scribe will run in development mode (mock responses)')
+    AI_SCRIBE_ENABLED = False
 
 
 # ============================================================
@@ -344,6 +389,18 @@ HL7_LISTEN_PORT = int(os.environ.get('HL7_LISTEN_PORT', '2575'))
 HL7_MSH_SENDING_APPLICATION = os.environ.get('HL7_MSH_SENDING_APPLICATION', 'HMS')
 HL7_MSH_SENDING_FACILITY = os.environ.get('HL7_MSH_SENDING_FACILITY', 'HOSPITAL')
 
+# HL7 Security - Required in production
+HL7_IP_WHITELIST = [
+    ip.strip() for ip in os.environ.get('HL7_IP_WHITELIST', '').split(',')
+    if ip.strip()
+]
+if HL7_ENABLED and not HL7_IP_WHITELIST:
+    raise ImproperlyConfigured('HL7_IP_WHITELIST environment variable is required when HL7_ENABLED=True')
+
+HL7_API_KEY = os.environ.get('HL7_API_KEY')
+if HL7_ENABLED and not HL7_API_KEY:
+    raise ImproperlyConfigured('HL7_API_KEY environment variable is required when HL7_ENABLED=True')
+
 
 # ============================================================
 # ABDM/ABHA - Production
@@ -363,9 +420,28 @@ if ABDM_ENABLED and (not ABDM_BASE_URL or not ABDM_CLIENT_ID or not ABDM_CLIENT_
 # ============================================================
 
 SMS_PROVIDER = os.environ.get('SMS_PROVIDER', 'twilio')
+
+# Twilio Verify v2 (required for OTP in production)
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
+TWILIO_API_KEY = os.environ.get('TWILIO_API_KEY')
+TWILIO_API_SECRET = os.environ.get('TWILIO_API_SECRET')
+TWILIO_VERIFY_SERVICE_SID = os.environ.get('TWILIO_VERIFY_SERVICE_SID')
+
+# Legacy Twilio SMS (fallback)
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
+
+# OTP Provider: must be 'twilio' in production for real SMS
+OTP_PROVIDER = os.environ.get('OTP_PROVIDER', 'twilio')
+if OTP_PROVIDER != 'twilio':
+    raise ImproperlyConfigured("OTP_PROVIDER must be 'twilio' in production")
+
+# Validate Twilio Verify configuration in production
+if not (TWILIO_ACCOUNT_SID and TWILIO_API_KEY and TWILIO_API_SECRET and TWILIO_VERIFY_SERVICE_SID):
+    raise ImproperlyConfigured(
+        'TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, and TWILIO_VERIFY_SERVICE_SID '
+        'are required in production for Twilio Verify OTP'
+    )
 
 WHATSAPP_PROVIDER = os.environ.get('WHATSAPP_PROVIDER', 'twilio')
 WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID')

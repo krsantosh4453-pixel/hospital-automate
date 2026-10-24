@@ -1,13 +1,12 @@
-"""SMS delivery for patient OTP. Development never pretends a text was sent."""
+"""SMS delivery for patient OTP using Twilio Verify v2. Development never pretends a text was sent."""
 
-import base64
 import logging
 import os
-import urllib.parse
-import urllib.request
 
 from django.conf import settings
 from django.core.cache import cache
+
+from users.twilio_verify import get_twilio_verify_service, TWILIO_VERIFY_NOT_CONFIGURED
 
 logger = logging.getLogger(__name__)
 
@@ -15,66 +14,70 @@ SMS_NOT_CONFIGURED = "Unable to send SMS OTP. SMS service is not configured."
 
 
 class SMSResult:
-    def __init__(self, ok, delivery, message):
+    def __init__(self, ok, delivery, message, sid=None):
         self.ok = ok
         self.delivery = delivery
         self.message = message
+        self.sid = sid
 
 
 class SMSService:
-    """Send a one-time code through the configured provider."""
+    """Send a one-time code through the configured provider using Twilio Verify v2."""
 
-    def send_otp(self, phone, otp):
+    def send_otp(self, phone, otp=None):
+        """
+        Start OTP verification via Twilio Verify.
+        The otp parameter is kept for backward compatibility but is ignored
+        since Twilio Verify generates its own OTP.
+        """
         mode = getattr(settings, "PATIENT_OTP_DELIVERY", "sms")
         if mode == "cache":
-            cache.set(f"patient-otp:{phone}", otp, timeout=300)
+            # For testing: store a dummy OTP in cache
+            test_otp = otp or "123456"
+            cache.set(f"patient-otp:{phone}", test_otp, timeout=300)
             return SMSResult(True, "cache", "Verification code stored for the test runner.")
         if mode == "console":
-            cache.set(f"patient-otp:{phone}", otp, timeout=300)
+            # For development: log to console
+            test_otp = otp or "123456"
+            cache.set(f"patient-otp:{phone}", test_otp, timeout=300)
             logger.warning(
                 "Patient OTP for %s (development console only, not sent by SMS): %s",
                 phone,
-                otp,
+                test_otp,
             )
             return SMSResult(
                 True,
                 "console",
                 "SMS service is in development mode. The code was written to the server console and was not sent to the phone.",
             )
-        return self._send_twilio(phone, otp)
+        return self._send_twilio_verify(phone)
 
-    def _send_twilio(self, phone, otp):
-        sid = getattr(settings, "TWILIO_ACCOUNT_SID", None) or os.environ.get("TWILIO_ACCOUNT_SID")
-        token = getattr(settings, "TWILIO_AUTH_TOKEN", None) or os.environ.get("TWILIO_AUTH_TOKEN")
-        sender = getattr(settings, "TWILIO_PHONE_NUMBER", None) or os.environ.get("TWILIO_PHONE_NUMBER")
-        if not (sid and token and sender):
-            logger.error("SMS OTP provider is not configured")
-            return SMSResult(False, "sms", SMS_NOT_CONFIGURED)
+    def _send_twilio_verify(self, phone):
+        """Start verification using Twilio Verify v2 API."""
+        verify_service = get_twilio_verify_service()
 
-        try:
-            payload = urllib.parse.urlencode(
-                {
-                    "To": f"+91{phone}",
-                    "From": sender,
-                    "Body": f"Your hospital verification code is {otp}. It expires in 5 minutes.",
-                }
-            ).encode("utf-8")
-            request = urllib.request.Request(
-                f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json",
-                data=payload,
-                method="POST",
-            )
-            request.add_header(
-                "Authorization",
-                "Basic " + base64.b64encode(f"{sid}:{token}".encode("utf-8")).decode("ascii"),
-            )
-            with urllib.request.urlopen(request, timeout=8) as response:
-                if 200 <= response.status < 300:
-                    return SMSResult(
-                        True,
-                        "sms",
-                        "A verification code was sent to your mobile number.",
-                    )
-        except Exception:
-            logger.exception("Patient OTP SMS delivery failed")
-        return SMSResult(False, "sms", "Unable to send SMS OTP. SMS service is not configured.")
+        if not verify_service.is_configured():
+            logger.error("Twilio Verify not configured")
+            return SMSResult(False, "sms", TWILIO_VERIFY_NOT_CONFIGURED)
+
+        result = verify_service.start_verification(phone, channel="sms")
+        return SMSResult(result.ok, "sms" if result.ok else "sms", result.message, result.sid)
+
+    def verify_otp(self, phone, otp):
+        """Verify OTP using the configured provider."""
+        mode = getattr(settings, "PATIENT_OTP_DELIVERY", "sms")
+        if mode == "cache" or mode == "console":
+            cached_otp = cache.get(f"patient-otp:{phone}")
+            if cached_otp and str(cached_otp) == str(otp):
+                cache.delete(f"patient-otp:{phone}")
+                return SMSResult(True, mode, "OTP verified successfully.")
+            return SMSResult(False, mode, "Invalid or expired OTP.")
+
+        verify_service = get_twilio_verify_service()
+
+        if not verify_service.is_configured():
+            logger.error("Twilio Verify not configured")
+            return SMSResult(False, "sms", TWILIO_VERIFY_NOT_CONFIGURED)
+
+        result = verify_service.check_verification(phone, otp)
+        return SMSResult(result.ok, "sms", result.message, result.sid)

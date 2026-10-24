@@ -5,7 +5,8 @@ class VitalSign(models.Model):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
-        related_name="vitals"
+        related_name="vitals",
+        db_index=True
     )
     weight = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     height = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
@@ -17,14 +18,20 @@ class VitalSign(models.Model):
     blood_sugar = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     spo2 = models.PositiveIntegerField(null=True, blank=True)
     comments = models.TextField(blank=True)
-    recorded_at = models.DateTimeField(auto_now_add=True)
+    recorded_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["visit", "recorded_at"]),
+        ]
 
 
 class Allergy(models.Model):
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
-        related_name="allergies"
+        related_name="allergies",
+        db_index=True
     )
     name = models.CharField(max_length=150)
     reaction = models.TextField(blank=True)
@@ -39,7 +46,8 @@ class ClinicalNote(models.Model):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
-        related_name="clinical_notes"
+        related_name="clinical_notes",
+        db_index=True
     )
     doctor = models.ForeignKey(
         "doctors.Doctor",
@@ -48,14 +56,21 @@ class ClinicalNote(models.Model):
         blank=True
     )
     note = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["visit", "created_at"]),
+            models.Index(fields=["doctor", "created_at"]),
+        ]
 
 
 class Diagnosis(models.Model):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
-        related_name="diagnoses"
+        related_name="diagnoses",
+        db_index=True
     )
     name = models.CharField(max_length=200)
     icd10_code = models.CharField(max_length=30, blank=True)
@@ -66,80 +81,115 @@ class Diagnosis(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["visit", "created_at"]),
+        ]
+
 
 class ServiceOrder(models.Model):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
-        related_name="service_orders"
+        related_name="service_orders",
+        db_index=True
     )
     service_name = models.CharField(max_length=150)
     quantity = models.PositiveIntegerField(default=1)
-    status = models.CharField(max_length=30, default="Pending")
+    status = models.CharField(max_length=30, default="Pending", db_index=True)
     remarks = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["visit", "status"]),
+        ]
 
 
 class Procedure(models.Model):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
-        related_name="procedures"
+        related_name="procedures",
+        db_index=True
     )
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
-    status = models.CharField(max_length=30, default="Planned")
+    status = models.CharField(max_length=30, default="Planned", db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["visit", "status"]),
+        ]
 
 
 class MedicalRecord(models.Model):
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
-        related_name="medical_records"
+        related_name="medical_records",
+        db_index=True
     )
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
         related_name="medical_records",
         null=True,
-        blank=True
+        blank=True,
+        db_index=True
     )
     summary = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["patient", "created_at"]),
+            models.Index(fields=["visit", "created_at"]),
+        ]
 
 
 class Prescription(models.Model):
     hospital = models.ForeignKey(
         "hospital.Hospital",
         on_delete=models.CASCADE,
-        related_name="prescriptions"
+        related_name="prescriptions",
+        db_index=True
     )
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
-        related_name="prescriptions"
+        related_name="prescriptions",
+        db_index=True
     )
     doctor = models.ForeignKey(
         "doctors.Doctor",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="prescriptions"
+        related_name="prescriptions",
+        db_index=True
     )
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="prescriptions"
+        related_name="prescriptions",
+        db_index=True
     )
-    status = models.CharField(max_length=30, default="Confirmed")
+    status = models.CharField(max_length=30, default="Confirmed", db_index=True)
     dispensed_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["hospital", "created_at"]),
+            models.Index(fields=["patient", "created_at"]),
+            models.Index(fields=["doctor", "created_at"]),
+            models.Index(fields=["hospital", "status"]),
+        ]
 
     def __str__(self):
         return f"RX-{self.pk}"
@@ -149,7 +199,8 @@ class PrescriptionItem(models.Model):
     prescription = models.ForeignKey(
         Prescription,
         on_delete=models.CASCADE,
-        related_name="items"
+        related_name="items",
+        db_index=True
     )
     name = models.CharField(max_length=200)
     dosage = models.CharField(max_length=100, blank=True)
@@ -160,6 +211,9 @@ class PrescriptionItem(models.Model):
 
     class Meta:
         ordering = ["id"]
+        indexes = [
+            models.Index(fields=["prescription"]),
+        ]
 
     def __str__(self):
         return f"{self.name} x{self.quantity}"

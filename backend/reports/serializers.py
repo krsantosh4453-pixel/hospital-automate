@@ -202,26 +202,74 @@ class ComprehensiveDashboardSerializer(serializers.Serializer):
 class ReportTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReportTemplate
-        fields = "__all__"
-        read_only_fields = ["created_by", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "report_type",
+            "description",
+            "default_period",
+            "filters",
+            "is_system",
+            "created_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
 
 
 class SavedReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = SavedReport
-        fields = "__all__"
-        read_only_fields = ["created_by", "hospital", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "template",
+            "name",
+            "report_type",
+            "period",
+            "custom_start_date",
+            "custom_end_date",
+            "filters",
+            "created_by",
+            "hospital",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "hospital", "created_at", "updated_at"]
 
 
 class ScheduledReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScheduledReport
-        fields = "__all__"
-        read_only_fields = ["created_by", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "template",
+            "hospital",
+            "frequency",
+            "delivery_method",
+            "recipients",
+            "filters",
+            "is_active",
+            "last_generated",
+            "next_run",
+            "created_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
 
 
 class KPISnapshotSerializer(serializers.ModelSerializer):
     class Meta:
         model = KPISnapshot
-        fields = "__all__"
-        read_only_fields = ["created_at"]
+        fields = [
+            "id",
+            "hospital",
+            "period_start",
+            "period_end",
+            "kpi_name",
+            "kpi_value",
+            "metadata",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]

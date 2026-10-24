@@ -10,7 +10,7 @@ from hospital.models import Hospital, Department
 from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 from patients.models import Patient, PatientHospital
 from doctors.models import Doctor
-from emergency.models import EmergencyVisit, Triage, EmergencyOrder, EmergencyMedication
+from emergency.models import EmergencyVisit, EmergencyTriage, EmergencyOrder, EmergencyMedication
 
 User = get_user_model()
 
@@ -73,7 +73,7 @@ class EmergencyAPITests(TestCase):
         self.client.force_authenticate(user=self.user)
 
     def _get_visits_url(self):
-        return f"/api/emergency/visits/?hospital={self.hospital_a.id}"
+        return f"/api/emergency/emergency-visits/?hospital={self.hospital_a.id}"
 
     def _get_triage_url(self):
         return f"/api/emergency/triage/?hospital={self.hospital_a.id}"
@@ -84,80 +84,81 @@ class EmergencyAPITests(TestCase):
             self._get_visits_url(),
             {
                 "patient": self.patient.id,
-                "doctor": self.doctor.id,
-                "arrival_mode": "Ambulance",
-                "chief_complaint": "Chest pain",
-                "visit_date": date.today().isoformat(),
+                "attending_doctor": self.doctor.id,
+                "triage_level": "Emergency",
+                "remarks": "Chest pain",
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["patient"], self.patient.id)
-        self.assertEqual(response.data["chief_complaint"], "Chest pain")
+        self.assertEqual(response.data["triage_level"], "Emergency")
 
     def test_create_triage(self):
         """Test creating triage assessment."""
         visit = EmergencyVisit.objects.create(
             patient=self.patient,
-            doctor=self.doctor,
+            attending_doctor=self.doctor,
             hospital=self.hospital_a,
-            arrival_mode="Walk-in",
-            chief_complaint="Abdominal pain",
+            triage_level="Emergency",
+            remarks="Abdominal pain",
         )
         response = self.client.post(
             self._get_triage_url(),
             {
                 "visit": visit.id,
-                "triage_level": 2,
-                "temperature": "38.5",
-                "heart_rate": 110,
-                "blood_pressure_systolic": 140,
-                "blood_pressure_diastolic": 90,
-                "respiratory_rate": 22,
-                "oxygen_saturation": 95,
+                "chief_complaint": "Abdominal pain",
+                "vitals": {
+                    "temperature": "38.5",
+                    "heart_rate": 110,
+                    "systolic_bp": 140,
+                    "diastolic_bp": 90,
+                    "respiratory_rate": 22,
+                    "spo2": 95,
+                },
                 "pain_score": 7,
                 "notes": "Severe abdominal pain",
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["triage_level"], 2)
+        self.assertEqual(response.data["pain_score"], 7)
 
     def test_emergency_order(self):
         """Test emergency order model."""
         visit = EmergencyVisit.objects.create(
             patient=self.patient,
-            doctor=self.doctor,
+            attending_doctor=self.doctor,
             hospital=self.hospital_a,
-            arrival_mode="Walk-in",
-            chief_complaint="Test",
+            triage_level="Emergency",
+            remarks="Test",
         )
         order = EmergencyOrder.objects.create(
             visit=visit,
             order_type="Lab",
             description="CBC, BMP",
-            priority="Stat",
             status="Ordered",
+            ordered_by=self.doctor,
         )
         self.assertEqual(order.visit, visit)
-        self.assertEqual(order.priority, "Stat")
+        self.assertEqual(order.order_type, "Lab")
 
     def test_emergency_medication(self):
         """Test emergency medication model."""
         visit = EmergencyVisit.objects.create(
             patient=self.patient,
-            doctor=self.doctor,
+            attending_doctor=self.doctor,
             hospital=self.hospital_a,
-            arrival_mode="Walk-in",
-            chief_complaint="Test",
+            triage_level="Emergency",
+            remarks="Test",
         )
         med = EmergencyMedication.objects.create(
             visit=visit,
-            medication="Aspirin",
-            dosage="325mg",
+            name="Aspirin",
+            dose="325mg",
             route="Oral",
             frequency="Once",
-            status="Administered",
+            prescribed_by=self.doctor,
         )
         self.assertEqual(med.visit, visit)
-        self.assertEqual(med.medication, "Aspirin")
+        self.assertEqual(med.name, "Aspirin")

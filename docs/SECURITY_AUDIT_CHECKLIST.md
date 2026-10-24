@@ -1,5 +1,9 @@
 # Security Audit Checklist - Hospital Management System
 
+**AUDIT NOTE (2026-10-10):** This checklist was created as a target for production readiness. As of 2026-10-10, many items are implemented in source code but **automated verification could not be completed** due to environment issues. Items marked with [x] below reflect source code implementation status only, not test verification.
+
+---
+
 ## Executive Summary
 
 This checklist validates the security posture of the HMS before production deployment. Each item must be verified and signed off.

@@ -61,6 +61,7 @@ function PatientLogin() {
   }, [selectedRole])
 
   const GOOGLE_CLIENT_ID =
+    import.meta.env.VITE_GOOGLE_CLIENT_ID ||
     "1199500530711-s1ti1g061cno8d3tk2759hqrgitdect.apps.googleusercontent.com"
 
   // Google Identity Services load
@@ -416,7 +417,7 @@ function PatientLogin() {
                       Login with Mobile
                     </h2>
                     <p className="text-gray-500 text-xs mt-0.5">
-                      We'll send a 6-digit verification code
+                      We&apos;ll send a 6-digit verification code
                     </p>
                   </div>
 

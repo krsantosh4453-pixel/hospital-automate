@@ -13,7 +13,7 @@ from patients.models import Patient, PatientHospital
 from doctors.models import Doctor
 from encounters.models import Visit
 from clinical.models import (
-    VitalSigns, ClinicalNote, Diagnosis, Prescription,
+    VitalSign, ClinicalNote, Diagnosis, Prescription, PrescriptionItem,
     ServiceOrder, Procedure
 )
 
@@ -90,7 +90,7 @@ class ClinicalAPITests(TestCase):
         return f"/api/clinical/vitals/?hospital={self.hospital_a.id}"
 
     def _get_notes_url(self):
-        return f"/api/clinical/notes/?hospital={self.hospital_a.id}"
+        return f"/api/clinical/clinical-notes/?hospital={self.hospital_a.id}"
 
     def _get_diagnoses_url(self):
         return f"/api/clinical/diagnoses/?hospital={self.hospital_a.id}"
@@ -106,13 +106,12 @@ class ClinicalAPITests(TestCase):
                 "visit": self.visit.id,
                 "temperature": "37.0",
                 "heart_rate": 72,
-                "blood_pressure_systolic": 120,
-                "blood_pressure_diastolic": 80,
+                "systolic_bp": 120,
+                "diastolic_bp": 80,
                 "respiratory_rate": 16,
-                "oxygen_saturation": 98,
+                "spo2": 98,
                 "weight": "70.5",
                 "height": "175.0",
-                "bmi": "23.0",
             },
             format="json",
         )
@@ -126,14 +125,12 @@ class ClinicalAPITests(TestCase):
             self._get_notes_url(),
             {
                 "visit": self.visit.id,
-                "note_type": "Consultation",
-                "content": "Patient presents with...",
-                "is_confidential": False,
+                "note": "Patient presents with...",
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["note_type"], "Consultation")
+        self.assertEqual(response.data["note"], "Patient presents with...")
 
     def test_create_diagnosis(self):
         """Test creating a diagnosis."""
@@ -141,15 +138,14 @@ class ClinicalAPITests(TestCase):
             self._get_diagnoses_url(),
             {
                 "visit": self.visit.id,
-                "code": "I10",
-                "description": "Essential hypertension",
-                "diagnosis_type": "Primary",
-                "is_chronic": True,
+                "name": "Essential hypertension",
+                "icd10_code": "I10",
+                "diagnosis_type": "Provisional",
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["code"], "I10")
+        self.assertEqual(response.data["name"], "Essential hypertension")
 
     def test_create_prescription(self):
         """Test creating a prescription."""
@@ -157,27 +153,42 @@ class ClinicalAPITests(TestCase):
             self._get_prescriptions_url(),
             {
                 "visit": self.visit.id,
-                "medication": "Amlodipine",
-                "dosage": "5mg",
-                "frequency": "Once daily",
-                "duration": "30 days",
-                "instructions": "Take in morning",
-                "status": "Active",
+                "patient": self.patient.id,
+                "doctor": self.doctor.id,
+                "hospital": self.hospital_a.id,
+                "status": "Confirmed",
+                "items": [
+                    {
+                        "name": "Amlodipine",
+                        "dosage": "5mg",
+                        "frequency": "Once daily",
+                        "duration": "30 days",
+                        "quantity": 30,
+                        "instructions": "Take in morning",
+                    }
+                ]
             },
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data["medication"], "Amlodipine")
+        self.assertEqual(response.data["status"], "Confirmed")
 
     def test_list_prescriptions(self):
         """Test listing prescriptions."""
-        Prescription.objects.create(
+        prescription = Prescription.objects.create(
             visit=self.visit,
-            medication="Test Med",
+            patient=self.patient,
+            doctor=self.doctor,
+            hospital=self.hospital_a,
+            status="Active",
+        )
+        PrescriptionItem.objects.create(
+            prescription=prescription,
+            name="Test Med",
             dosage="10mg",
             frequency="Daily",
             duration="7 days",
-            status="Active",
+            quantity=7,
         )
         response = self.client.get(self._get_prescriptions_url())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -189,12 +200,11 @@ class ClinicalAPITests(TestCase):
         order = ServiceOrder.objects.create(
             visit=self.visit,
             service_name="X-Ray Chest",
-            service_type="Radiology",
-            status="Ordered",
-            priority="Routine",
+            quantity=1,
+            status="Pending",
         )
         self.assertEqual(order.visit, self.visit)
-        self.assertEqual(order.status, "Ordered")
+        self.assertEqual(order.status, "Pending")
 
     def test_procedure(self):
         """Test procedure model."""

@@ -58,7 +58,7 @@ function PatientDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Welcome back, {patient?.name || "Patient"}!</h1>
-        <p className="text-gray-500 mt-1">Here's an overview of your health information.</p>
+        <p className="text-gray-500 mt-1">Here&apos;s an overview of your health information.</p>
       </div>
 
       {error && (

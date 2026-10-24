@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
+import Pagination from "../components/Pagination.jsx"
 
 function Patients() {
   const {
@@ -12,6 +13,9 @@ function Patients() {
   } = usePatient()
 
   const [search, setSearch] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalRecords, setTotalRecords] = useState(0)
 
   // Display list. Loaded from the Django API when reachable, otherwise it
   // falls back to the localStorage-backed PatientContext data.
@@ -148,7 +152,8 @@ function Patients() {
 
       try {
         const data = await api.patients.list(
-          selectedHospital.id
+          selectedHospital.id,
+          currentPage
         )
 
         const results = Array.isArray(data)
@@ -160,6 +165,14 @@ function Patients() {
         }
 
         setPatients(results.map(mapFromApi))
+
+        // Handle pagination
+        if (data && !Array.isArray(data)) {
+          setTotalRecords(data.count || results.length)
+          const pageSize = results.length || 10
+          setTotalPages(Math.ceil((data.count || results.length) / pageSize))
+        }
+
         setOfflineMode(false)
       } catch (error) {
         if (cancelled) {
@@ -598,7 +611,7 @@ function Patients() {
             <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
 
               <p className="text-sm text-gray-500">
-                Today's Patients
+                Today&apos;s Patients
               </p>
 
               <p className="text-3xl font-bold text-blue-600 mt-2">
@@ -814,6 +827,15 @@ function Patients() {
                   </tbody>
 
                 </table>
+
+                {totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalRecords={totalRecords}
+                    onPageChange={setCurrentPage}
+                  />
+                )}
 
               </div>
 

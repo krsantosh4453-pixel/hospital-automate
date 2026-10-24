@@ -120,7 +120,7 @@ class PatientAPITests(TestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_retrieve_patient_in_hospital(self):
         """Test retrieving a patient in the user's hospital."""
@@ -162,11 +162,12 @@ class PatientAPITests(TestCase):
         """Test patient document creation."""
         doc = PatientDocument.objects.create(
             patient=self.patient_a,
-            document_type="Lab Report",
+            title="Lab Report",
+            folder="Lab Reports",
             file="documents/test.pdf",
         )
         self.assertEqual(doc.patient, self.patient_a)
-        self.assertEqual(doc.document_type, "Lab Report")
+        self.assertEqual(doc.title, "Lab Report")
 
 
 class PatientModelTests(TestCase):
@@ -187,14 +188,16 @@ class PatientModelTests(TestCase):
 
     def test_patient_hospital_membership_unique(self):
         """Test unique constraint on patient-hospital membership."""
-        PatientHospitalMembership.objects.create(
+        PatientHospital.objects.create(
             patient=self.patient,
             hospital=self.hospital,
             is_active=True,
+            uhid="UHID001",
         )
         with self.assertRaises(Exception):
-            PatientHospitalMembership.objects.create(
+            PatientHospital.objects.create(
                 patient=self.patient,
                 hospital=self.hospital,
                 is_active=True,
+                uhid="UHID002",
             )

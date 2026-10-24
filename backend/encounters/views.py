@@ -22,8 +22,9 @@ from users.permissions import IsAdmin, IsHospitalManager, IsReceptionist, IsDoct
 
 
 class VisitViewSet(HospitalScopedViewSet):
+    queryset = Visit.objects.select_related("patient", "doctor", "hospital")
     serializer_class = VisitSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
+    permission_classes = [IsAdmin | IsHospitalManager | IsReceptionist | IsDoctor | IsNurse]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -32,10 +33,25 @@ class VisitViewSet(HospitalScopedViewSet):
         if hospital_id:
             queryset = queryset.filter(hospital_id=hospital_id)
 
+        patient_id = self.request.query_params.get("patient")
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+
+        doctor_id = self.request.query_params.get("doctor")
+        if doctor_id:
+            queryset = queryset.filter(doctor_id=doctor_id)
+
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
         return queryset
 
 
 class QueueTokenViewSet(HospitalScopedViewSet):
+    queryset = QueueToken.objects.select_related(
+        "visit", "appointment", "hospital", "patient", "doctor"
+    ).prefetch_related("visit__patient", "visit__doctor")
     serializer_class = QueueTokenSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsReceptionist | IsDoctor | IsNurse | IsPatientReadOnly]
 
@@ -48,6 +64,23 @@ class QueueTokenViewSet(HospitalScopedViewSet):
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
             queryset = queryset.filter(hospital_id=hospital_id)
+
+        # Additional filters
+        doctor_id = self.request.query_params.get("doctor")
+        if doctor_id:
+            queryset = queryset.filter(doctor_id=doctor_id)
+
+        patient_id = self.request.query_params.get("patient")
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        token_date = self.request.query_params.get("token_date")
+        if token_date:
+            queryset = queryset.filter(token_date=token_date)
 
         return queryset
 

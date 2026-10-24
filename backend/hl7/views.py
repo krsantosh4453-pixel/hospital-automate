@@ -13,6 +13,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 import logging
 
+from users.permissions import IsHL7Authenticated
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +26,7 @@ logger = logging.getLogger(__name__)
 class HL7MessageView(APIView):
     """Base HL7 message handler."""
 
-    permission_classes = [AllowAny]  # HL7 typically uses MLLP, not HTTP auth
+    permission_classes = [IsHL7Authenticated]
 
     def parse_hl7_message(self, message: str):
         """Parse HL7 message into segments."""

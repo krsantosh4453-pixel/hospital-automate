@@ -6,7 +6,8 @@ class Visit(models.Model):
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
-        related_name="visits"
+        related_name="visits",
+        db_index=True
     )
 
     doctor = models.ForeignKey(
@@ -14,13 +15,15 @@ class Visit(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="visits"
+        related_name="visits",
+        db_index=True
     )
 
     hospital = models.ForeignKey(
         "hospital.Hospital",
         on_delete=models.CASCADE,
-        related_name="visits"
+        related_name="visits",
+        db_index=True
     )
 
     visit_type = models.CharField(
@@ -34,15 +37,25 @@ class Visit(models.Model):
 
     status = models.CharField(
         max_length=30,
-        default="Waiting"
+        default="Waiting",
+        db_index=True
     )
 
     visit_date = models.DateTimeField(
-        auto_now_add=True
+        auto_now_add=True,
+        db_index=True
     )
 
     def __str__(self):
         return f"{self.patient.name} - {self.visit_type}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["hospital", "visit_date"]),
+            models.Index(fields=["hospital", "status"]),
+            models.Index(fields=["patient", "visit_date"]),
+            models.Index(fields=["doctor", "visit_date"]),
+        ]
 
 
 class QueueToken(models.Model):
@@ -60,7 +73,8 @@ class QueueToken(models.Model):
     visit = models.ForeignKey(
         Visit,
         on_delete=models.CASCADE,
-        related_name="queue_tokens"
+        related_name="queue_tokens",
+        db_index=True
     )
 
     appointment = models.ForeignKey(
@@ -68,25 +82,29 @@ class QueueToken(models.Model):
         on_delete=models.SET_NULL,
         related_name="queue_tokens",
         null=True,
-        blank=True
+        blank=True,
+        db_index=True
     )
 
     hospital = models.ForeignKey(
         "hospital.Hospital",
         on_delete=models.CASCADE,
-        related_name="queue_tokens"
+        related_name="queue_tokens",
+        db_index=True
     )
 
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
-        related_name="queue_tokens"
+        related_name="queue_tokens",
+        db_index=True
     )
 
     doctor = models.ForeignKey(
         "doctors.Doctor",
         on_delete=models.CASCADE,
-        related_name="queue_tokens"
+        related_name="queue_tokens",
+        db_index=True
     )
 
     token_number = models.PositiveIntegerField()
@@ -94,7 +112,8 @@ class QueueToken(models.Model):
     status = models.CharField(
         max_length=30,
         choices=Status.choices,
-        default=Status.WAITING
+        default=Status.WAITING,
+        db_index=True
     )
 
     estimated_wait_minutes = models.PositiveIntegerField(
@@ -140,11 +159,13 @@ class QueueToken(models.Model):
     )
 
     created_at = models.DateTimeField(
-        auto_now_add=True
+        auto_now_add=True,
+        db_index=True
     )
 
     token_date = models.DateField(
-        default=timezone.localdate
+        default=timezone.localdate,
+        db_index=True
     )
 
     def __str__(self):
@@ -157,6 +178,12 @@ class QueueToken(models.Model):
                 fields=["hospital", "token_date", "token_number"],
                 name="unique_queue_token_per_hospital_day",
             )
+        ]
+        indexes = [
+            models.Index(fields=["hospital", "token_date", "status"]),
+            models.Index(fields=["doctor", "token_date", "status"]),
+            models.Index(fields=["patient", "token_date"]),
+            models.Index(fields=["hospital", "status", "queue_position"]),
         ]
 
     def clean(self):

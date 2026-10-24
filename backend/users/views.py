@@ -32,6 +32,8 @@ from .patient_auth import (
     verify_google_identity,
     verify_patient_otp,
 )
+from .sms import SMSService
+from .twilio_verify import get_twilio_verify_service
 
 
 def _auth_response(user, patient=None, extra=None):
@@ -250,6 +252,244 @@ def staff_login(request):
         "user": staff_data,
         "roles": staff_data["roles"],
         "hospitals": staff_data["hospitals"],
+    })
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def staff_login_start_otp(request):
+    """
+    Staff login step 1: Validate credentials and start OTP verification.
+    Returns otp_required: true and a temporary auth state if credentials are valid.
+    """
+    username = request.data.get("username") or request.data.get("email")
+    password = request.data.get("password")
+
+    if not username or not password:
+        return Response(
+            {"error": "Username/email and password are required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    user = authenticate(request, username=username, password=password)
+
+    if user is None:
+        return Response(
+            {"error": "Invalid credentials."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    if not user.is_active:
+        return Response(
+            {"error": "Account is disabled."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    staff_data = _get_staff_data(user)
+    if staff_data is None:
+        return Response(
+            {"error": "Not authorized as staff."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    phone = staff_data.get("phone")
+    if not phone:
+        return Response(
+            {"error": "No mobile number registered for this staff account."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    normalized_phone = normalize_phone(phone)
+    if not normalized_phone:
+        return Response(
+            {"error": "Invalid mobile number format."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    otp_provider = getattr(settings, "OTP_PROVIDER", "twilio")
+    if otp_provider != "twilio":
+        return Response(
+            {"error": "OTP service not configured for production."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    verify_service = get_twilio_verify_service()
+    if not verify_service.is_configured():
+        return Response(
+            {"error": "Twilio Verify is not configured."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    result = verify_service.start_verification(normalized_phone, channel="sms")
+    if not result.ok:
+        return Response(
+            {"error": result.message},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    masked_phone = f"******{normalized_phone[-4:]}" if len(normalized_phone) >= 4 else "****"
+    return Response({
+        "otp_required": True,
+        "message": f"OTP sent to your registered mobile number ({masked_phone}).",
+        "user_id": user.id,
+        "staff_role": staff_data["staff_role"],
+    })
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def staff_otp_verify(request):
+    """
+    Staff login step 2: Verify OTP and issue JWT tokens.
+    """
+    user_id = request.data.get("user_id")
+    otp = request.data.get("otp")
+
+    if not user_id or not otp:
+        return Response(
+            {"error": "User ID and OTP are required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        user = User.objects.get(id=user_id, is_active=True)
+    except User.DoesNotExist:
+        return Response(
+            {"error": "Invalid user."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    staff_data = _get_staff_data(user)
+    if staff_data is None:
+        return Response(
+            {"error": "Not authorized as staff."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    phone = staff_data.get("phone")
+    if not phone:
+        return Response(
+            {"error": "No mobile number registered for this staff account."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    normalized_phone = normalize_phone(phone)
+    if not normalized_phone:
+        return Response(
+            {"error": "Invalid mobile number format."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    verify_service = get_twilio_verify_service()
+    if not verify_service.is_configured():
+        return Response(
+            {"error": "Twilio Verify is not configured."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    result = verify_service.check_verification(normalized_phone, otp)
+    if not result.ok:
+        code = status.HTTP_401_UNAUTHORIZED
+        if "too many" in result.message.lower() or "rate limit" in result.message.lower():
+            code = status.HTTP_429_TOO_MANY_REQUESTS
+        return Response(
+            {"error": result.message},
+            status=code
+        )
+
+    refresh = RefreshToken.for_user(user)
+    access = refresh.access_token
+    access["staff_id"] = user.id
+    access["staff_role"] = staff_data["staff_role"]
+    access["roles"] = staff_data["roles"]
+    access["hospitals"] = [h["id"] for h in staff_data["hospitals"]]
+
+    return Response({
+        "access": str(access),
+        "refresh": str(refresh),
+        "user": staff_data,
+        "roles": staff_data["roles"],
+        "hospitals": staff_data["hospitals"],
+    })
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def staff_otp_resend(request):
+    """
+    Resend OTP for staff login with cooldown and rate limiting.
+    """
+    user_id = request.data.get("user_id")
+
+    if not user_id:
+        return Response(
+            {"error": "User ID is required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        user = User.objects.get(id=user_id, is_active=True)
+    except User.DoesNotExist:
+        return Response(
+            {"error": "Invalid user."},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    staff_data = _get_staff_data(user)
+    if staff_data is None:
+        return Response(
+            {"error": "Not authorized as staff."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    phone = staff_data.get("phone")
+    if not phone:
+        return Response(
+            {"error": "No mobile number registered for this staff account."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    normalized_phone = normalize_phone(phone)
+    if not normalized_phone:
+        return Response(
+            {"error": "Invalid mobile number format."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    from notifications.models import OTPVerification
+    from django.utils import timezone
+    from datetime import timedelta
+
+    cooldown = timedelta(seconds=60)
+    recent = OTPVerification.objects.filter(
+        phone=normalized_phone,
+        channel="sms",
+        created_at__gte=timezone.now() - cooldown
+    ).first()
+
+    if recent:
+        return Response(
+            {"error": "Please wait before requesting another OTP."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS
+        )
+
+    verify_service = get_twilio_verify_service()
+    if not verify_service.is_configured():
+        return Response(
+            {"error": "Twilio Verify is not configured."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    result = verify_service.start_verification(normalized_phone, channel="sms")
+    if not result.ok:
+        return Response(
+            {"error": result.message},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    masked_phone = f"******{normalized_phone[-4:]}" if len(normalized_phone) >= 4 else "****"
+    return Response({
+        "message": f"OTP resent to your registered mobile number ({masked_phone}).",
     })
 
 

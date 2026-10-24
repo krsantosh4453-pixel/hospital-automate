@@ -7,9 +7,14 @@ Shared configuration across all environments.
 from pathlib import Path
 from datetime import timedelta
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = BASE_DIR.parent
+
+# Load .env file from project root
+load_dotenv(PROJECT_ROOT / ".env")
 
 
 # ============================================================
@@ -75,12 +80,13 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "config.middleware.correlation.CorrelationIdMiddleware",
+    "config.middleware.correlation.LoggingContextMiddleware",
+    "config.middleware.ratelimit.RateLimitMiddleware",
 ]
 
 # Custom middleware will be added in production/development settings
-# Request correlation ID middleware
 # Health check middleware
-# Structured logging middleware
 
 
 # ============================================================
@@ -229,7 +235,7 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
-    'ALGORITHM': 'HS256',
+    'ALGORITHM': 'HS256',  # Override in production to RS256
     'SIGNING_KEY': None,  # Set in environment-specific settings
     'VERIFYING_KEY': None,
     'AUDIENCE': None,
@@ -436,6 +442,9 @@ HL7_ENABLED = True
 HL7_LISTEN_PORT = 2575
 HL7_MSH_SENDING_APPLICATION = 'HMS'
 HL7_MSH_SENDING_FACILITY = 'HOSPITAL'
+# HL7 Security - IP whitelist and API key for endpoint authentication
+HL7_IP_WHITELIST = []  # List of allowed IPs for HL7 endpoints
+HL7_API_KEY = None  # API key for HL7 endpoints (set in production)
 
 # ABDM/ABHA Configuration
 ABDM_ENABLED = True
@@ -447,6 +456,18 @@ ABDM_CLIENT_SECRET = None
 NOTIFICATION_CHANNELS = ['email', 'sms', 'whatsapp', 'push', 'in_app']
 SMS_PROVIDER = 'twilio'
 WHATSAPP_PROVIDER = 'twilio'
+
+# Twilio Verify v2 (for OTP authentication)
+TWILIO_ACCOUNT_SID = None
+TWILIO_API_KEY = None
+TWILIO_API_SECRET = None
+TWILIO_VERIFY_SERVICE_SID = None
+# Legacy Twilio SMS (fallback)
+TWILIO_AUTH_TOKEN = None
+TWILIO_PHONE_NUMBER = None
+
+# OTP Provider selection: 'twilio' (Verify v2) or 'console' (dev) or 'cache' (test)
+OTP_PROVIDER = 'twilio'
 
 # Rate Limiting (complements DRF throttling)
 RATE_LIMIT_ENABLED = True

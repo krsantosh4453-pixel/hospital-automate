@@ -13,7 +13,18 @@ class SampleCollectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SampleCollection
-        fields = "__all__"
+        fields = [
+            "id",
+            "lab_test",
+            "sample_type",
+            "container_type",
+            "sample_id",
+            "collected_by",
+            "collected_at",
+            "collection_notes",
+            "barcoded",
+            "collected_by_name",
+        ]
         read_only_fields = ["id", "collected_at", "collected_by_name"]
 
 
@@ -23,7 +34,19 @@ class SampleDispatchSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SampleDispatch
-        fields = "__all__"
+        fields = [
+            "id",
+            "lab_test",
+            "dispatched_by",
+            "dispatched_at",
+            "received_by",
+            "received_at",
+            "status",
+            "dispatch_notes",
+            "external_lab",
+            "dispatched_by_name",
+            "received_by_name",
+        ]
         read_only_fields = ["id", "dispatched_at", "received_at", "dispatched_by_name", "received_by_name"]
 
 
@@ -33,7 +56,23 @@ class LabResultSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LabResult
-        fields = "__all__"
+        fields = [
+            "id",
+            "lab_test",
+            "result_data",
+            "result_text",
+            "reference_ranges",
+            "abnormal_flags",
+            "entered_by",
+            "entered_at",
+            "verified_by",
+            "verified_at",
+            "released_at",
+            "is_verified",
+            "is_released",
+            "entered_by_name",
+            "verified_by_name",
+        ]
         read_only_fields = ["id", "entered_at", "verified_at", "released_at", "entered_by_name", "verified_by_name"]
 
 
@@ -42,7 +81,15 @@ class ResultVerificationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ResultVerification
-        fields = "__all__"
+        fields = [
+            "id",
+            "lab_result",
+            "verified_by",
+            "verified_at",
+            "comments",
+            "action",
+            "verified_by_name",
+        ]
         read_only_fields = ["id", "verified_at", "verified_by_name"]
 
 
@@ -56,13 +103,59 @@ class LabTestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LabTest
-        fields = "__all__"
+        fields = [
+            "id",
+            "hospital",
+            "name",
+            "patient",
+            "doctor",
+            "visit",
+            "priority",
+            "result",
+            "status",
+            "test_date",
+            "collected_at",
+            "dispatched_at",
+            "received_at",
+            "processed_at",
+            "verified_at",
+            "released_at",
+            "patient_name",
+            "hospital_name",
+            "doctor_name",
+            "sample_collection",
+            "sample_dispatch",
+            "lab_result",
+        ]
         read_only_fields = [
             "id", "test_date", "collected_at", "dispatched_at", "received_at",
             "processed_at", "verified_at", "released_at",
             "patient_name", "hospital_name", "doctor_name",
             "sample_collection", "sample_dispatch", "lab_result"
         ]
+
+    def validate_hospital(self, value):
+        """Ensure user has access to the hospital."""
+        request = self.context.get("request")
+        if request and value:
+            from users.permissions import get_user_hospital_ids
+            user_hospital_ids = get_user_hospital_ids(request.user)
+            if value.id not in user_hospital_ids:
+                raise serializers.ValidationError(
+                    "You do not have access to this hospital."
+                )
+        return value
+
+    def validate_patient(self, value):
+        """Ensure patient belongs to the hospital."""
+        hospital = self.initial_data.get("hospital")
+        if hospital and value:
+            from clinical.serializers import _patient_belongs_to_hospital
+            if not _patient_belongs_to_hospital(value, hospital):
+                raise serializers.ValidationError(
+                    "This patient is not registered in this hospital."
+                )
+        return value
 
 
 class LabTestCreateSerializer(serializers.ModelSerializer):

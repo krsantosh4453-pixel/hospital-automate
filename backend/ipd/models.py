@@ -13,23 +13,26 @@ class Admission(models.Model):
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
-        related_name="admissions"
+        related_name="admissions",
+        db_index=True
     )
     hospital = models.ForeignKey(
         "hospital.Hospital",
         on_delete=models.CASCADE,
-        related_name="admissions"
+        related_name="admissions",
+        db_index=True
     )
-    admission_date = models.DateTimeField(auto_now_add=True)
-    discharge_date = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="Admitted")
+    admission_date = models.DateTimeField(auto_now_add=True, db_index=True)
+    discharge_date = models.DateTimeField(null=True, blank=True, db_index=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="Admitted", db_index=True)
     reason = models.TextField(blank=True)
     admitting_doctor = models.ForeignKey(
         "doctors.Doctor",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="admissions"
+        related_name="admissions",
+        db_index=True
     )
 
     def __str__(self):
@@ -37,28 +40,40 @@ class Admission(models.Model):
 
     class Meta:
         ordering = ["-admission_date"]
+        indexes = [
+            models.Index(fields=["hospital", "status"]),
+            models.Index(fields=["patient", "admission_date"]),
+            models.Index(fields=["hospital", "admission_date"]),
+            models.Index(fields=["admitting_doctor", "admission_date"]),
+        ]
 
 
 class BedAllocation(models.Model):
     admission = models.ForeignKey(
         Admission,
         on_delete=models.CASCADE,
-        related_name="bed_allocations"
+        related_name="bed_allocations",
+        db_index=True
     )
     bed = models.ForeignKey(
         "hospital.Bed",
         on_delete=models.CASCADE,
-        related_name="allocations"
+        related_name="allocations",
+        db_index=True
     )
-    allocated_at = models.DateTimeField(auto_now_add=True)
+    allocated_at = models.DateTimeField(auto_now_add=True, db_index=True)
     released_at = models.DateTimeField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
 
     def __str__(self):
         return f"{self.admission.patient.name} - {self.bed}"
 
     class Meta:
         ordering = ["-allocated_at"]
+        indexes = [
+            models.Index(fields=["admission", "is_active"]),
+            models.Index(fields=["bed", "is_active"]),
+        ]
 
 
 class DischargePlan(models.Model):
@@ -74,7 +89,8 @@ class DischargePlan(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="discharge_plans"
+        related_name="discharge_plans",
+        db_index=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -94,7 +110,8 @@ class DischargeSummary(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="discharge_summaries"
+        related_name="discharge_summaries",
+        db_index=True
     )
     finalized = models.BooleanField(default=False)
     finalized_at = models.DateTimeField(null=True, blank=True)
@@ -111,7 +128,8 @@ class DischargeNote(models.Model):
     admission = models.ForeignKey(
         Admission,
         on_delete=models.CASCADE,
-        related_name="discharge_notes"
+        related_name="discharge_notes",
+        db_index=True
     )
     note = models.TextField()
     created_by = models.ForeignKey(
@@ -128,3 +146,6 @@ class DischargeNote(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["admission", "created_at"]),
+        ]

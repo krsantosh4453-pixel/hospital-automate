@@ -46,53 +46,56 @@ class AuditAPITests(TestCase):
         self.client.force_authenticate(user=self.user)
 
     def _get_audit_logs_url(self):
-        return f"/api/audit/logs/?hospital={self.hospital_a.id}"
+        return f"/api/audit/audit-logs/?hospital={self.hospital_a.id}"
 
     def _get_ai_logs_url(self):
-        return f"/api/audit/ai-logs/?hospital={self.hospital_a.id}"
+        return f"/api/audit/ai-interactions/?hospital={self.hospital_a.id}"
 
     def test_audit_log_creation(self):
         """Test audit log model."""
         log = AuditLog.objects.create(
             user=self.user,
-            hospital=self.hospital_a,
             action="CREATE",
-            resource_type="Patient",
-            resource_id="1",
-            details={"name": "Test Patient"},
-            ip_address="127.0.0.1",
-            user_agent="Test Agent",
+            model_name="Patient",
+            object_id="1",
+            details="Created patient",
         )
         self.assertEqual(log.user, self.user)
         self.assertEqual(log.action, "CREATE")
-        self.assertEqual(log.resource_type, "Patient")
+        self.assertEqual(log.model_name, "Patient")
 
     def test_ai_interaction_log(self):
         """Test AI interaction log model."""
-        ai_log = AIInteraction.objects.create(
-            user=self.user,
+        from patients.models import Patient, PatientHospital
+        patient = Patient.objects.create(
+            name="AI Patient",
+            age=40,
+            gender="Male",
+            phone="9876543210",
             hospital=self.hospital_a,
-            interaction_type="Transcription",
-            input_data={"audio_length": 120},
-            output_data={"text": "Patient says..."},
-            model_used="whisper-1",
-            tokens_used=150,
-            cost_usd="0.001",
-            status="Success",
         )
-        self.assertEqual(ai_log.user, self.user)
-        self.assertEqual(ai_log.interaction_type, "Transcription")
-        self.assertEqual(ai_log.status, "Success")
+        PatientHospital.objects.create(
+            patient=patient,
+            hospital=self.hospital_a,
+            is_active=True,
+        )
+        ai_log = AIInteraction.objects.create(
+            patient=patient,
+            input_text="Patient says...",
+            ai_output="Transcribed text",
+            status="Draft",
+        )
+        self.assertEqual(ai_log.patient, patient)
+        self.assertEqual(ai_log.status, "Draft")
 
     def test_list_audit_logs(self):
         """Test listing audit logs."""
         AuditLog.objects.create(
             user=self.user,
-            hospital=self.hospital_a,
             action="UPDATE",
-            resource_type="Patient",
-            resource_id="1",
-            details={"field": "age"},
+            model_name="Patient",
+            object_id="1",
+            details="Updated age",
         )
         response = self.client.get(self._get_audit_logs_url())
         self.assertEqual(response.status_code, status.HTTP_200_OK)

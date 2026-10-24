@@ -39,20 +39,6 @@ def normalize_phone(value):
     return digits[-10:]
 
 
-def hash_otp(phone, otp):
-    material = f"{normalize_phone(phone)}:{otp}".encode("utf-8")
-    return hashlib.sha256(material).hexdigest()
-
-
-def hash_email_otp(email, otp):
-    material = f"email:{str(email or '').strip().lower()}:{otp}".encode("utf-8")
-    return hashlib.sha256(material).hexdigest()
-
-
-def _new_otp():
-    return f"{secrets.randbelow(1000000):06d}"
-
-
 def _too_many_requests(phone="", email="", channel=""):
     window_start = timezone.now() - OTP_REQUEST_WINDOW
     recent = OTPVerification.objects.filter(created_at__gte=window_start)
@@ -70,25 +56,6 @@ def _too_many_requests(phone="", email="", channel=""):
     return False
 
 
-def _check_otp_record(record, expected_hash):
-    """Return an error message, or None when the code matches."""
-    if record is None:
-        return "Invalid OTP."
-    if record.expires_at < timezone.now():
-        return "OTP has expired."
-    if record.is_verified:
-        return "Invalid OTP."
-    if record.attempts >= OTP_ATTEMPT_LIMIT:
-        return "Too many OTP requests. Please try again later."
-    if not record.otp_hash or not hmac.compare_digest(record.otp_hash, expected_hash):
-        record.attempts += 1
-        record.save(update_fields=["attempts"])
-        return "Invalid OTP."
-    record.is_verified = True
-    record.save(update_fields=["is_verified"])
-    return None
-
-
 def linked_patients_for_phone(phone):
     normalized = normalize_phone(phone)
     if not normalized:
@@ -104,7 +71,7 @@ def linked_patients_for_phone(phone):
 
 def request_patient_otp(phone):
     """
-    Create a hashed mobile OTP for a registered patient.
+    Start OTP verification via Twilio Verify for a registered patient.
 
     Returns (status, message, delivery). Missing accounts get the same
     pending response as a successful send so phone numbers are not enumerated,
@@ -128,8 +95,7 @@ def request_patient_otp(phone):
     if _too_many_requests(phone=normalized, channel="sms"):
         return "limited", "Too many OTP requests. Please try again later.", None
 
-    otp = _new_otp()
-    result = SMSService().send_otp(normalized, otp)
+    result = SMSService().send_otp(normalized)
     if not result.ok:
         return "unavailable", result.message, result.delivery
 
@@ -139,7 +105,7 @@ def request_patient_otp(phone):
         channel="sms",
         purpose="login",
         otp="",
-        otp_hash=hash_otp(normalized, otp),
+        otp_hash="",
         expires_at=timezone.now() + OTP_TTL,
     )
     if result.delivery == "sms":
@@ -155,7 +121,10 @@ def _sms_provider_configured():
     sid = getattr(settings, "TWILIO_ACCOUNT_SID", "") or ""
     token = getattr(settings, "TWILIO_AUTH_TOKEN", "") or ""
     sender = getattr(settings, "TWILIO_PHONE_NUMBER", "") or ""
-    return bool(sid and token and sender)
+    api_key = getattr(settings, "TWILIO_API_KEY", "") or ""
+    api_secret = getattr(settings, "TWILIO_API_SECRET", "") or ""
+    verify_sid = getattr(settings, "TWILIO_VERIFY_SERVICE_SID", "") or ""
+    return bool((sid and token and sender) or (sid and api_key and api_secret and verify_sid))
 
 
 def verify_patient_otp(phone, otp):
@@ -165,24 +134,9 @@ def verify_patient_otp(phone, otp):
     if not normalized or len(code) != 6:
         return None, "Invalid OTP."
 
-    record = (
-        OTPVerification.objects.filter(phone=normalized, channel="sms")
-        .order_by("-created_at")
-        .first()
-    )
-    if record is None:
-        expired = (
-            OTPVerification.objects.filter(phone=normalized, channel="sms")
-            .order_by("-created_at")
-            .first()
-        )
-        if expired and expired.expires_at < timezone.now():
-            return None, "OTP has expired."
-        return None, "Invalid OTP."
-
-    error = _check_otp_record(record, hash_otp(normalized, code))
-    if error:
-        return None, error
+    result = SMSService().verify_otp(normalized, code)
+    if not result.ok:
+        return None, result.message
 
     patients = linked_patients_for_phone(normalized)
     if len(patients) != 1 or not patients[0].user:
@@ -192,8 +146,16 @@ def verify_patient_otp(phone, otp):
     if not patient.phone_verified:
         patient.phone_verified = True
         patient.save(update_fields=["phone_verified"])
+
+    OTPVerification.objects.filter(phone=normalized, channel="sms", is_verified=False).update(is_verified=True)
     cache.delete(f"patient-otp:{normalized}")
     return patient, None
+
+
+def hash_email_otp(email: str, otp: str) -> str:
+    """Return SHA-256 hash of email OTP for secure storage."""
+    import hashlib
+    return hashlib.sha256(f"email:{email}:{otp}".encode("utf-8")).hexdigest()
 
 
 def _email_backend_is_development():
@@ -219,7 +181,7 @@ def send_email_otp(email, purpose="verify_email"):
     if _too_many_requests(email=address, channel="email"):
         return "limited", "Too many OTP requests. Please try again later.", None
 
-    otp = _new_otp()
+    otp = f"{secrets.randbelow(1000000):06d}"
     try:
         sent = send_mail(
             subject="Your hospital verification code",
@@ -243,7 +205,7 @@ def send_email_otp(email, purpose="verify_email"):
         channel="email",
         purpose=purpose,
         otp="",
-        otp_hash=hash_email_otp(address, otp),
+        otp_hash=hashlib.sha256(f"email:{address}:{otp}".encode("utf-8")).hexdigest(),
         expires_at=timezone.now() + OTP_TTL,
     )
     if _email_backend_is_development():
@@ -270,9 +232,23 @@ def verify_email_otp(email, otp):
         .order_by("-created_at")
         .first()
     )
-    error = _check_otp_record(record, hash_email_otp(address, code))
-    if error:
-        return None, error
+    if record is None:
+        return None, "Invalid OTP."
+    if record.expires_at < timezone.now():
+        return None, "OTP has expired."
+    if record.is_verified:
+        return None, "Invalid OTP."
+    if record.attempts >= OTP_ATTEMPT_LIMIT:
+        return None, "Too many OTP requests. Please try again later."
+
+    expected_hash = hashlib.sha256(f"email:{address}:{code}".encode("utf-8")).hexdigest()
+    if not record.otp_hash or not hmac.compare_digest(record.otp_hash, expected_hash):
+        record.attempts += 1
+        record.save(update_fields=["attempts"])
+        return None, "Invalid OTP."
+
+    record.is_verified = True
+    record.save(update_fields=["is_verified"])
 
     user = User.objects.filter(email__iexact=address, is_active=True).first()
     patient = getattr(user, "patient_account", None) if user else None

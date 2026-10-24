@@ -25,7 +25,9 @@ from .serializers import (
 
 
 class EmergencyVisitViewSet(HospitalScopedViewSet):
-    queryset = EmergencyVisit.objects.all()
+    queryset = EmergencyVisit.objects.select_related("hospital", "patient", "attending_doctor").prefetch_related(
+        "triage", "vitals_records", "orders", "medications"
+    )
     serializer_class = EmergencyVisitSerializer
     permission_classes = [IsDoctor | IsNurse]
 
@@ -45,9 +47,7 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
         triage_level = self.request.query_params.get("triage_level")
         if triage_level:
             qs = qs.filter(triage_level=triage_level)
-        return qs.select_related("hospital", "patient", "attending_doctor").prefetch_related(
-            "triage", "vitals_records", "orders", "medications"
-        )
+        return qs
 
     @action(detail=True, methods=["post"])
     def start_triage(self, request, pk=None):
@@ -326,7 +326,7 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
 
 
 class EmergencyTriageViewSet(HospitalScopedViewSet):
-    queryset = EmergencyTriage.objects.all()
+    queryset = EmergencyTriage.objects.select_related("visit__hospital", "visit__patient", "triaged_by")
     serializer_class = EmergencyTriageSerializer
     permission_classes = [IsNurse | IsDoctor]
 
@@ -335,11 +335,11 @@ class EmergencyTriageViewSet(HospitalScopedViewSet):
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
             qs = qs.filter(visit__hospital_id=hospital_id)
-        return qs.select_related("visit__hospital", "visit__patient", "triaged_by")
+        return qs
 
 
 class EmergencyVitalsViewSet(HospitalScopedViewSet):
-    queryset = EmergencyVitals.objects.all()
+    queryset = EmergencyVitals.objects.select_related("visit__hospital", "visit__patient", "recorded_by")
     serializer_class = EmergencyVitalsSerializer
     permission_classes = [IsNurse | IsDoctor]
 
@@ -351,11 +351,11 @@ class EmergencyVitalsViewSet(HospitalScopedViewSet):
         visit_id = self.request.query_params.get("visit")
         if visit_id:
             qs = qs.filter(visit_id=visit_id)
-        return qs.select_related("visit__hospital", "visit__patient", "recorded_by")
+        return qs
 
 
 class EmergencyOrderViewSet(HospitalScopedViewSet):
-    queryset = EmergencyOrder.objects.all()
+    queryset = EmergencyOrder.objects.select_related("visit__hospital", "visit__patient", "ordered_by")
     serializer_class = EmergencyOrderSerializer
     permission_classes = [IsDoctor | IsNurse]
 
@@ -367,7 +367,7 @@ class EmergencyOrderViewSet(HospitalScopedViewSet):
         visit_id = self.request.query_params.get("visit")
         if visit_id:
             qs = qs.filter(visit_id=visit_id)
-        return qs.select_related("visit__hospital", "visit__patient", "ordered_by")
+        return qs
 
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
@@ -380,7 +380,7 @@ class EmergencyOrderViewSet(HospitalScopedViewSet):
 
 
 class EmergencyMedicationViewSet(HospitalScopedViewSet):
-    queryset = EmergencyMedication.objects.all()
+    queryset = EmergencyMedication.objects.select_related("visit__hospital", "visit__patient", "prescribed_by", "administered_by")
     serializer_class = EmergencyMedicationSerializer
     permission_classes = [IsDoctor | IsNurse]
 
@@ -392,4 +392,4 @@ class EmergencyMedicationViewSet(HospitalScopedViewSet):
         visit_id = self.request.query_params.get("visit")
         if visit_id:
             qs = qs.filter(visit_id=visit_id)
-        return qs.select_related("visit__hospital", "visit__patient", "prescribed_by", "administered_by")
+        return qs

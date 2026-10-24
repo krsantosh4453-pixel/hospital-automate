@@ -167,6 +167,29 @@ const api = {
       }
       return data
     },
+    staffLoginStartOtp: async (username, password) =>
+      request(`${API_BASE_URL}/auth/staff/login/otp/start/`, {
+        method: 'POST',
+        ...jsonBody({ username, password }),
+      }),
+    staffOtpVerify: async (userId, otp) => {
+      const data = await request(`${API_BASE_URL}/auth/staff/login/otp/verify/`, {
+        method: 'POST',
+        ...jsonBody({ user_id: userId, otp }),
+      })
+      setTokens({ access: data.access, refresh: data.refresh })
+      if (data.user) localStorage.setItem('user', JSON.stringify(data.user))
+      if (data.roles) localStorage.setItem('roles', JSON.stringify(data.roles))
+      if (data.hospitals) {
+        localStorage.setItem('hospitals', JSON.stringify(data.hospitals))
+      }
+      return data
+    },
+    staffOtpResend: async (userId) =>
+      request(`${API_BASE_URL}/auth/staff/login/otp/resend/`, {
+        method: 'POST',
+        ...jsonBody({ user_id: userId }),
+      }),
     getMe: async () => request(`${API_BASE_URL}/auth/staff/me/`),
     logout: async () => {
       const refresh = getRefreshToken()
@@ -238,10 +261,11 @@ const api = {
 
   patients: {
     // GET /api/patients/ (optionally scoped to a hospital)
-    list: async (hospitalId) => {
-      const query = hospitalId
-        ? `?hospital=${encodeURIComponent(hospitalId)}`
-        : ''
+    list: async (hospitalId, page = 1) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set('hospital', hospitalId)
+      params.set('page', page)
+      const query = params.toString() ? `?${params.toString()}` : ''
 
       return request(`${API_BASE_URL}/patients/${query}`)
     },
@@ -285,25 +309,6 @@ const api = {
       })
       return true
     },
-
-    documents: {
-      list: async (patientId) =>
-        request(`${API_BASE_URL}/documents/patient/${patientId}/`),
-      upload: async (patientId, file, title, folder) => {
-        const formData = new FormData()
-        formData.append('file', file)
-        if (title) formData.append('title', title)
-        if (folder) formData.append('folder', folder)
-        return request(`${API_BASE_URL}/documents/patient/${patientId}/upload/`, {
-          method: 'POST',
-          body: formData,
-        })
-      },
-  delete: async (docId) => {
-    await request(`${API_BASE_URL}/patients/documents/${docId}/`, { method: 'DELETE' })
-    return true
-  },
-},
   },
 
   // Doctors are needed by the Appointments page to resolve the doctor
@@ -409,6 +414,190 @@ const api = {
         method: 'DELETE',
       })
       return true
+    },
+
+    assessments: {
+      list: async (hospitalId, patientId, admissionId) => {
+        const params = new URLSearchParams();
+        if (hospitalId) params.set('hospital', hospitalId);
+        if (patientId) params.set('patient', patientId);
+        if (admissionId) params.set('admission', admissionId);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request(`${API_BASE_URL}/nurses/assessments/${query}`);
+      },
+      get: async (id) => request(`${API_BASE_URL}/nurses/assessments/${id}/`),
+      create: async (data) =>
+        request(`${API_BASE_URL}/nurses/assessments/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      update: async (id, data) =>
+        request(`${API_BASE_URL}/nurses/assessments/${id}/`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      delete: async (id) => {
+        await request(`${API_BASE_URL}/nurses/assessments/${id}/`, { method: 'DELETE' });
+        return true;
+      },
+    },
+    notes: {
+      list: async (hospitalId, patientId, admissionId) => {
+        const params = new URLSearchParams();
+        if (hospitalId) params.set('hospital', hospitalId);
+        if (patientId) params.set('patient', patientId);
+        if (admissionId) params.set('admission', admissionId);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request(`${API_BASE_URL}/nurses/notes/${query}`);
+      },
+      get: async (id) => request(`${API_BASE_URL}/nurses/notes/${id}/`),
+      create: async (data) =>
+        request(`${API_BASE_URL}/nurses/notes/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      update: async (id, data) =>
+        request(`${API_BASE_URL}/nurses/notes/${id}/`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      delete: async (id) => {
+        await request(`${API_BASE_URL}/nurses/notes/${id}/`, { method: 'DELETE' });
+        return true;
+      },
+    },
+    careTasks: {
+      list: async (hospitalId, patientId, admissionId, assignedNurseId, status, shiftDate) => {
+        const params = new URLSearchParams();
+        if (hospitalId) params.set('hospital', hospitalId);
+        if (patientId) params.set('patient', patientId);
+        if (admissionId) params.set('admission', admissionId);
+        if (assignedNurseId) params.set('assigned_nurse', assignedNurseId);
+        if (status) params.set('status', status);
+        if (shiftDate) params.set('shift_date', shiftDate);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request(`${API_BASE_URL}/nurses/care-tasks/${query}`);
+      },
+      get: async (id) => request(`${API_BASE_URL}/nurses/care-tasks/${id}/`),
+      create: async (data) =>
+        request(`${API_BASE_URL}/nurses/care-tasks/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      update: async (id, data) =>
+        request(`${API_BASE_URL}/nurses/care-tasks/${id}/`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      start: async (id) =>
+        request(`${API_BASE_URL}/nurses/care-tasks/${id}/start/`, { method: 'POST' }),
+      complete: async (id, data) =>
+        request(`${API_BASE_URL}/nurses/care-tasks/${id}/complete/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      myTasks: async (nurseId) =>
+        request(`${API_BASE_URL}/nurses/care-tasks/my_tasks/?nurse_id=${nurseId}`),
+    },
+    mar: {
+      list: async (hospitalId, patientId, admissionId, isActive) => {
+        const params = new URLSearchParams();
+        if (hospitalId) params.set('hospital', hospitalId);
+        if (patientId) params.set('patient', patientId);
+        if (admissionId) params.set('admission', admissionId);
+        if (isActive !== undefined) params.set('is_active', isActive);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request(`${API_BASE_URL}/nurses/mar/${query}`);
+      },
+      get: async (id) => request(`${API_BASE_URL}/nurses/mar/${id}/`),
+      create: async (data) =>
+        request(`${API_BASE_URL}/nurses/mar/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      update: async (id, data) =>
+        request(`${API_BASE_URL}/nurses/mar/${id}/`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      generateSchedule: async (id, startDate) =>
+        request(`${API_BASE_URL}/nurses/mar/${id}/generate_schedule/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ start_date: startDate }),
+        }),
+      dueMedications: async (hospitalId) =>
+        request(`${API_BASE_URL}/nurses/mar/due_medications/?hospital=${hospitalId}`),
+    },
+    marAdministrations: {
+      list: async (hospitalId, marId, status) => {
+        const params = new URLSearchParams();
+        if (hospitalId) params.set('hospital', hospitalId);
+        if (marId) params.set('mar', marId);
+        if (status) params.set('status', status);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request(`${API_BASE_URL}/nurses/mar-administrations/${query}`);
+      },
+      get: async (id) => request(`${API_BASE_URL}/nurses/mar-administrations/${id}/`),
+      administer: async (id, data) =>
+        request(`${API_BASE_URL}/nurses/mar-administrations/${id}/administer/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      hold: async (id, data) =>
+        request(`${API_BASE_URL}/nurses/mar-administrations/${id}/hold/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      refuse: async (id, data) =>
+        request(`${API_BASE_URL}/nurses/mar-administrations/${id}/refuse/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      markMissed: async (id, data) =>
+        request(`${API_BASE_URL}/nurses/mar-administrations/${id}/mark_missed/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+    },
+    patientAssignments: {
+      list: async (hospitalId, nurseId, patientId, shiftDate, shift, isActive) => {
+        const params = new URLSearchParams();
+        if (hospitalId) params.set('hospital', hospitalId);
+        if (nurseId) params.set('nurse', nurseId);
+        if (patientId) params.set('patient', patientId);
+        if (shiftDate) params.set('shift_date', shiftDate);
+        if (shift) params.set('shift', shift);
+        if (isActive !== undefined) params.set('is_active', isActive);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return request(`${API_BASE_URL}/nurses/patient-assignments/${query}`);
+      },
+      get: async (id) => request(`${API_BASE_URL}/nurses/patient-assignments/${id}/`),
+      create: async (data) =>
+        request(`${API_BASE_URL}/nurses/patient-assignments/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      assignPatients: async (data) =>
+        request(`${API_BASE_URL}/nurses/patient-assignments/assign_patients/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
     },
   },
 
@@ -1387,40 +1576,40 @@ const api = {
 
     // Consent
     consent: {
-      // GET /api/notifications/consent/?hospital=<id>&patient=<id>
+      // GET /api/notifications/consents/?hospital=<id>&patient=<id>
       list: async (hospitalId, patientId = null) => {
         const params = new URLSearchParams()
         params.set('hospital', hospitalId)
         if (patientId) params.set('patient', patientId)
-        return request(`${API_BASE_URL}/notifications/consent/?${params.toString()}`)
+        return request(`${API_BASE_URL}/notifications/consents/?${params.toString()}`)
       },
 
       get: async (id) =>
-        request(`${API_BASE_URL}/notifications/consent/${id}/`),
+        request(`${API_BASE_URL}/notifications/consents/${id}/`),
 
-      // POST /api/notifications/consent/grant/
+      // POST /api/notifications/consents/grant/
       grant: async (hospitalId, patientId, purpose) =>
-        request(`${API_BASE_URL}/notifications/consent/grant/`, {
+        request(`${API_BASE_URL}/notifications/consents/grant/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ hospital: hospitalId, patient: patientId, purpose }),
         }),
 
-      // POST /api/notifications/consent/revoke/
+      // POST /api/notifications/consents/revoke/
       revoke: async (hospitalId, patientId, purpose) =>
-        request(`${API_BASE_URL}/notifications/consent/revoke/`, {
+        request(`${API_BASE_URL}/notifications/consents/revoke/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ hospital: hospitalId, patient: patientId, purpose }),
         }),
 
-      // GET /api/notifications/consent/check/?hospital=<id>&patient=<id>&purpose=<purpose>
+      // GET /api/notifications/consents/check/?hospital=<id>&patient=<id>&purpose=<purpose>
       check: async (hospitalId, patientId, purpose) => {
         const params = new URLSearchParams()
         params.set('hospital', hospitalId)
         params.set('patient', patientId)
         params.set('purpose', purpose)
-        return request(`${API_BASE_URL}/notifications/consent/check/?${params.toString()}`)
+        return request(`${API_BASE_URL}/notifications/consents/check/?${params.toString()}`)
       },
     },
 
@@ -1508,8 +1697,11 @@ api.nurses.nurses = api.nurses
 
 api.laboratory = {
   tests: {
-    list: async (hospitalId) => {
-      const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
+    list: async (hospitalId, patientId = null) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set('hospital', hospitalId)
+      if (patientId) params.set('patient', patientId)
+      const query = params.toString() ? `?${params.toString()}` : ''
       return request(`${API_BASE_URL}/laboratory/${query}`)
     },
     get: async (id) => request(`${API_BASE_URL}/laboratory/${id}/`),
@@ -1521,6 +1713,65 @@ api.laboratory = {
       await request(`${API_BASE_URL}/laboratory/${id}/`, { method: "DELETE" })
       return true
     },
+    collectSample: async (id, data) =>
+      request(`${API_BASE_URL}/laboratory/${id}/collect_sample/`, {
+        method: "POST",
+        ...jsonBody(data),
+      }),
+    dispatchSample: async (id, data) =>
+      request(`${API_BASE_URL}/laboratory/${id}/dispatch_sample/`, {
+        method: "POST",
+        ...jsonBody(data),
+      }),
+    receiveSample: async (id) =>
+      request(`${API_BASE_URL}/laboratory/${id}/receive_sample/`, { method: "POST" }),
+    startProcessing: async (id) =>
+      request(`${API_BASE_URL}/laboratory/${id}/start_processing/`, { method: "POST" }),
+    enterResult: async (id, data) =>
+      request(`${API_BASE_URL}/laboratory/${id}/enter_result/`, {
+        method: "POST",
+        ...jsonBody(data),
+      }),
+    verifyResult: async (id, data) =>
+      request(`${API_BASE_URL}/laboratory/${id}/verify_result/`, {
+        method: "POST",
+        ...jsonBody(data),
+      }),
+    releaseResult: async (id) =>
+      request(`${API_BASE_URL}/laboratory/${id}/release_result/`, { method: "POST" }),
+    cancel: async (id) =>
+      request(`${API_BASE_URL}/laboratory/${id}/cancel/`, { method: "POST" }),
+  },
+  sampleCollections: {
+    list: async (hospitalId) => {
+      const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
+      return request(`${API_BASE_URL}/laboratory/sample-collections/${query}`)
+    },
+    get: async (id) => request(`${API_BASE_URL}/laboratory/sample-collections/${id}/`),
+  },
+  sampleDispatches: {
+    list: async (hospitalId, status) => {
+      const params = new URLSearchParams();
+      if (hospitalId) params.set('hospital', hospitalId);
+      if (status) params.set('status', status);
+      const query = params.toString() ? `?${params.toString()}` : ""
+      return request(`${API_BASE_URL}/laboratory/sample-dispatches/${query}`)
+    },
+    get: async (id) => request(`${API_BASE_URL}/laboratory/sample-dispatches/${id}/`),
+  },
+  labResults: {
+    list: async (hospitalId) => {
+      const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
+      return request(`${API_BASE_URL}/laboratory/lab-results/${query}`)
+    },
+    get: async (id) => request(`${API_BASE_URL}/laboratory/lab-results/${id}/`),
+  },
+  resultVerifications: {
+    list: async (hospitalId) => {
+      const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
+      return request(`${API_BASE_URL}/laboratory/result-verifications/${query}`)
+    },
+    get: async (id) => request(`${API_BASE_URL}/laboratory/result-verifications/${id}/`),
   },
 }
 
@@ -1708,18 +1959,91 @@ api.aiScribe.reviews = {
 
 api.consent = {
   forms: {
-    list: async () => request(`${API_BASE_URL}/notifications/consent/`),
+    list: async () => request(`${API_BASE_URL}/notifications/consents/`),
   },
   records: {
     list: async (params = {}) => {
       const query = new URLSearchParams(params).toString()
-      return request(`${API_BASE_URL}/notifications/consent/${query ? `?${query}` : ""}`)
+      return request(`${API_BASE_URL}/notifications/consents/${query ? `?${query}` : ""}`)
     },
     sign: async (id, data) =>
-      request(`${API_BASE_URL}/notifications/consent/${id}/sign/`, {
+      request(`${API_BASE_URL}/notifications/consents/${id}/sign/`, {
         method: "POST",
         ...jsonBody(data || {}),
       }),
+  },
+}
+
+api.procurement = {
+  suppliers: {
+    list: async (hospitalId) => {
+      const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
+      return request(`${API_BASE_URL}/procurement/suppliers/${query}`)
+    },
+    get: async (id) => request(`${API_BASE_URL}/procurement/suppliers/${id}/`),
+    create: async (data) =>
+      request(`${API_BASE_URL}/procurement/suppliers/`, { method: "POST", ...jsonBody(data) }),
+    update: async (id, data) =>
+      request(`${API_BASE_URL}/procurement/suppliers/${id}/`, { method: "PUT", ...jsonBody(data) }),
+    delete: async (id) => {
+      await request(`${API_BASE_URL}/procurement/suppliers/${id}/`, { method: "DELETE" })
+      return true
+    },
+  },
+  purchases: {
+    list: async (hospitalId) => {
+      const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
+      return request(`${API_BASE_URL}/procurement/purchases/${query}`)
+    },
+    get: async (id) => request(`${API_BASE_URL}/procurement/purchases/${id}/`),
+    create: async (data) =>
+      request(`${API_BASE_URL}/procurement/purchases/`, { method: "POST", ...jsonBody(data) }),
+    update: async (id, data) =>
+      request(`${API_BASE_URL}/procurement/purchases/${id}/`, { method: "PUT", ...jsonBody(data) }),
+    receive: async (id, data) =>
+      request(`${API_BASE_URL}/procurement/purchases/${id}/receive/`, { method: "POST", ...jsonBody(data) }),
+  },
+  purchaseItems: {
+    list: async (hospitalId, purchaseId) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set('hospital', hospitalId)
+      if (purchaseId) params.set('purchase', purchaseId)
+      const query = params.toString() ? `?${params.toString()}` : ""
+      return request(`${API_BASE_URL}/procurement/purchase-items/${query}`)
+    },
+    get: async (id) => request(`${API_BASE_URL}/procurement/purchase-items/${id}/`),
+  },
+  grns: {
+    list: async (hospitalId, purchaseId) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set('hospital', hospitalId)
+      if (purchaseId) params.set('purchase', purchaseId)
+      const query = params.toString() ? `?${params.toString()}` : ""
+      return request(`${API_BASE_URL}/procurement/grns/${query}`)
+    },
+    get: async (id) => request(`${API_BASE_URL}/procurement/grns/${id}/`),
+  },
+  grnItems: {
+    list: async (hospitalId, grnId) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set('hospital', hospitalId)
+      if (grnId) params.set('goods_receipt', grnId)
+      const query = params.toString() ? `?${params.toString()}` : ""
+      return request(`${API_BASE_URL}/procurement/grn-items/${query}`)
+    },
+    get: async (id) => request(`${API_BASE_URL}/procurement/grn-items/${id}/`),
+  },
+  stockTransactions: {
+    list: async (hospitalId, medicineId) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set('hospital', hospitalId)
+      if (medicineId) params.set('medicine', medicineId)
+      const query = params.toString() ? `?${params.toString()}` : ""
+      return request(`${API_BASE_URL}/procurement/stock-transactions/${query}`)
+    },
+    get: async (id) => request(`${API_BASE_URL}/procurement/stock-transactions/${id}/`),
+    adjust: async (data) =>
+      request(`${API_BASE_URL}/procurement/stock-transactions/adjust/`, { method: "POST", ...jsonBody(data) }),
   },
 }
 

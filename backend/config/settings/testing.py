@@ -6,6 +6,7 @@ Optimized for fast test execution with in-memory databases.
 
 from .base import *  # noqa: F403,F401
 import os
+from datetime import timedelta
 
 
 # ============================================================
@@ -70,7 +71,6 @@ SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'] = timedelta(hours=1)
 # Google Auth - Testing
 # ============================================================
 
-GOOGLE_CLIENT_ID = 'test-client-id'
 ADMIN_INVITE_CODE = 'test-admin-invite'
 
 

@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import api from "../services/api.js"
 
 function Nurses() {
   const { selectedHospital } = usePatient()
@@ -27,10 +28,67 @@ function Nurses() {
   const isNurse = currentUser.role === "Nurse"
 
   // =====================================================
-  // NURSES
+  // STATE - API Data (with mock fallback)
   // =====================================================
 
-  const [nurses, setNurses] = useState([
+  const [nurses, setNurses] = useState([])
+  const [patients, setPatients] = useState([])
+  const [vitals, setVitals] = useState([])
+  const [assessments, setAssessments] = useState([])
+  const [notes, setNotes] = useState([])
+  const [orders, setOrders] = useState([])
+  const [mar, setMar] = useState([])
+  const [bloodRequests, setBloodRequests] = useState([])
+  const [discharges, setDischarges] = useState([])
+  const [billing, setBilling] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // =====================================================
+  // FETCH DATA FROM API
+  // =====================================================
+
+  useEffect(() => {
+    if (!selectedHospital) return
+
+    const fetchData = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const [
+          nursesRes,
+          patientsRes,
+          vitalsRes,
+          assessmentsRes,
+          notesRes,
+          marRes,
+        ] = await Promise.all([
+          api.nurses.list(selectedHospital.id).catch(() => ({ results: [] })),
+          api.patients.list(selectedHospital.id).catch(() => ({ results: [] })),
+          api.clinical.vitals.list({ hospitalId: selectedHospital.id }).catch(() => ({ results: [] })),
+          api.nurses.assessments.list(selectedHospital.id).catch(() => ({ results: [] })),
+          api.nurses.notes.list(selectedHospital.id).catch(() => ({ results: [] })),
+          api.nurses.mar.list(selectedHospital.id).catch(() => ({ results: [] })),
+        ])
+
+        setNurses(nursesRes?.results || nursesRes || [])
+        setPatients(patientsRes?.results || patientsRes || [])
+        setVitals(vitalsRes?.results || vitalsRes || [])
+        setAssessments(assessmentsRes?.results || assessmentsRes || [])
+        setNotes(notesRes?.results || notesRes || [])
+        setMar(marRes?.results || marRes || [])
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [selectedHospital?.id])
+
+  // Mock data fallback
+  const mockNurses = [
     {
       id: "N001",
       hospitalId: 1,
@@ -127,13 +185,16 @@ function Nurses() {
       joiningDate: "22 Aug 2025",
       status: "Off Duty",
     },
-  ])
+  ]
+
+  // Use API data or fallback to mock
+  const nursesData = nurses.length > 0 ? nurses : mockNurses
 
   // =====================================================
-  // PATIENTS
+  // MOCK DATA (fallback when API unavailable)
   // =====================================================
 
-  const [patients] = useState([
+  const mockPatients = [
     {
       id: "P001",
       hospitalId: 1,
@@ -206,13 +267,16 @@ function Nurses() {
       bed: "C-11",
       status: "Admitted",
     },
-  ])
+  ];
+
+  // Use API data or fallback to mock
+  const patientsData = patients.length > 0 ? patients : mockPatients
 
   // =====================================================
-  // VITALS
+  // MOCK VITALS
   // =====================================================
 
-  const [vitals, setVitals] = useState([
+  const mockVitals = [
     {
       id: "V001",
       hospitalId: 1,
@@ -249,13 +313,16 @@ function Nurses() {
       recordedBy: "Sunita Kumari",
       time: "10:45 AM",
     },
-  ])
+  ];
+
+  // Use API data or fallback to mock
+  const vitalsData = vitals.length > 0 ? vitals : mockVitals
 
   // =====================================================
-  // ASSESSMENTS
+  // MOCK ASSESSMENTS
   // =====================================================
 
-  const [assessments, setAssessments] = useState([
+  const mockAssessments = [
     {
       id: "AS001",
       hospitalId: 1,
@@ -274,13 +341,16 @@ function Nurses() {
       nurse: "Pooja Singh",
       date: "02 Sep 2026",
     },
-  ])
+  ];
+
+  // Use API data or fallback to mock
+  const assessmentsData = assessments.length > 0 ? assessments : mockAssessments
 
   // =====================================================
-  // NOTES
+  // MOCK NOTES
   // =====================================================
 
-  const [notes, setNotes] = useState([
+  const mockNotes = [
     {
       id: "NOTE001",
       hospitalId: 1,
@@ -289,13 +359,16 @@ function Nurses() {
       createdBy: "Sunita Kumari",
       date: "02 Sep 2026",
     },
-  ])
+  ];
+
+  // Use API data or fallback to mock
+  const notesData = notes.length > 0 ? notes : mockNotes
 
   // =====================================================
-  // ORDERS
+  // MOCK ORDERS
   // =====================================================
 
-  const [orders] = useState([
+  const mockOrders = [
     {
       id: "ORD001",
       hospitalId: 1,
@@ -320,13 +393,16 @@ function Nurses() {
       doctor: "Dr. Singh",
       status: "Pending",
     },
-  ])
+  ];
+
+  // Use API data or fallback to mock
+  const ordersData = orders.length > 0 ? orders : mockOrders
 
   // =====================================================
-  // MAR - MEDICINE ADMINISTRATION
+  // MOCK MAR
   // =====================================================
 
-  const [mar, setMar] = useState([
+  const mockMar = [
     {
       id: "MAR001",
       hospitalId: 1,
@@ -363,45 +439,47 @@ function Nurses() {
       status: "Pending",
       givenBy: "",
     },
-  ])
+  ];
 
   // =====================================================
-  // BLOOD
+  // MOCK BLOOD REQUESTS
   // =====================================================
 
-  const [bloodRequests, setBloodRequests] =
-    useState([
-      {
-        id: "BL001",
-        hospitalId: 1,
-        patientId: "P003",
-        bloodGroup: "B+",
-        units: 2,
-        urgency: "Urgent",
-        status: "Requested",
-      },
-      {
-        id: "BL002",
-        hospitalId: 1,
-        patientId: "P002",
-        bloodGroup: "O+",
-        units: 1,
-        urgency: "Normal",
-        status: "Available",
-      },
-    ])
+  const mockBloodRequests = [
+    {
+      id: "BL001",
+      hospitalId: 1,
+      patientId: "P003",
+      bloodGroup: "B+",
+      units: 2,
+      urgency: "Urgent",
+      status: "Requested",
+    },
+    {
+      id: "BL002",
+      hospitalId: 1,
+      patientId: "P002",
+      bloodGroup: "O+",
+      units: 1,
+      urgency: "Normal",
+      status: "Available",
+    },
+  ]
+
+  // Use API data or fallback to mock
+  const bloodData = bloodRequests.length > 0 ? bloodRequests : mockBloodRequests
 
   // =====================================================
   // DISCHARGE
   // =====================================================
 
-  const [discharges, setDischarges] = useState([])
+  const mockDischarges = []
 
   // =====================================================
-  // BILLING
+  // MOCK BILLING
   // =====================================================
 
-  const [billing] = useState([
+  const mockBilling = [
     {
       id: "BILL001",
       hospitalId: 1,
@@ -416,7 +494,10 @@ function Nurses() {
       amount: 7200,
       status: "Paid",
     },
-  ])
+  ]
+
+  // Use API data or fallback to mock
+  const billingData = billing.length > 0 ? billing : mockBilling
 
   // =====================================================
   // REPORTS
@@ -436,43 +517,43 @@ function Nurses() {
     }
 
     return {
-      patients: patients.filter(
+      patients: patientsData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      vitals: vitals.filter(
+      vitals: vitalsData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      assessments: assessments.filter(
+      assessments: assessmentsData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      orders: orders.filter(
+      orders: ordersData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      mar: mar.filter(
+      mar: marData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      blood: bloodRequests.filter(
+      blood: bloodData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      billing: billing.filter(
+      billing: billingData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
@@ -480,14 +561,14 @@ function Nurses() {
     }
   }, [
     selectedHospital,
-    patients,
-    vitals,
-    assessments,
-    orders,
-    mar,
-    bloodRequests,
-    billing,
-  ])
+    patientsData,
+    vitalsData,
+    assessmentsData,
+    ordersData,
+    marData,
+    bloodData,
+    billingData,
+  ]);
 
   // =====================================================
   // SELECTED HOSPITAL DATA

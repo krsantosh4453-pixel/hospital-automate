@@ -16,8 +16,11 @@ from .views import (
     patient_token_login,
     register_account,
     staff_login,
+    staff_login_start_otp,
     staff_logout,
     staff_me,
+    staff_otp_resend,
+    staff_otp_verify,
 )
 
 
@@ -29,6 +32,9 @@ urlpatterns = [
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
     # Staff authentication endpoints
     path("staff/login/", staff_login, name="staff-login"),
+    path("staff/login/otp/start/", staff_login_start_otp, name="staff-login-otp-start"),
+    path("staff/login/otp/verify/", staff_otp_verify, name="staff-otp-verify"),
+    path("staff/login/otp/resend/", staff_otp_resend, name="staff-otp-resend"),
     path("staff/logout/", staff_logout, name="staff-logout"),
     path("staff/me/", staff_me, name="staff-me"),
     path("patient/otp/request/", patient_otp_request, name="patient-otp-request"),

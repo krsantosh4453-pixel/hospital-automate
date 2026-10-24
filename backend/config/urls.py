@@ -14,7 +14,6 @@ from rest_framework.routers import DefaultRouter
 from patients.views import PatientViewSet, PatientHospitalViewSet
 from doctors.views import DoctorViewSet
 from appointments.views import AppointmentViewSet
-from nurses.views import NurseViewSet
 from compounder.views import CompounderViewSet
 from pharmacy.views import MedicineViewSet, SaleViewSet
 from laboratory.views import LabTestViewSet
@@ -41,7 +40,6 @@ router.register(
 )
 router.register("doctors", DoctorViewSet, basename="doctors")
 router.register("appointments", AppointmentViewSet, basename="appointments")
-router.register("nurses", NurseViewSet, basename="nurses")
 router.register("compounder", CompounderViewSet, basename="compounder")
 router.register("pharmacy", MedicineViewSet, basename="pharmacy")
 router.register(
@@ -79,6 +77,12 @@ urlpatterns = [
     # Home Dashboard API
     path("api/home/", include("home.urls")),
 
+    # Nursing APIs (includes all nurse-related endpoints: nurses, assessments, notes, care-tasks, mar, etc.)
+    path("api/nurses/", include("nurses.urls")),
+
+    # Laboratory APIs
+    path("api/laboratory/", include("laboratory.urls")),
+
     # Hospital Management APIs
     path("api/hospital/", include("hospital.urls")),
     path("api/encounters/", include("encounters.urls")),
@@ -96,6 +100,9 @@ urlpatterns = [
     # AI Medical Scribe
     path("api/ai/", include("ai_scribe.urls")),
 
+    # Reports
+    path("api/reports/", include("reports.urls")),
+
     # FHIR Interoperability (not implemented)
     # path("api/fhir/", include("fhir.urls")),
 
@@ -108,11 +115,11 @@ urlpatterns = [
     # Reports (not implemented)
     # path("api/reports/", include("reports.urls")),
 
-    # Documents (not implemented)
-    # path("api/documents/", include("documents.urls")),
+    # Documents
+    path("api/documents/", include("documents.urls")),
 
-    # Consent (not implemented)
-    # path("api/consent/", include("consent.urls")),
+    # Consent
+    path("api/consent/", include("consent.urls")),
 
 # Monitoring (if enabled)
     # path("metrics/", include("config.monitoring.metrics_view")),
