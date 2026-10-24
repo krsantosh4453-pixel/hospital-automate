@@ -1,6 +1,33 @@
 # Production docker-compose
 version: '3.8'
 
+# Every Django process (web, worker, beat) loads the same production settings,
+# so they share one env file. Copy .env.production.example to .env.production
+# and fill it in; never commit the filled-in file.
+x-django-env: &django-env
+  DJANGO_ENV: production
+  DATABASE_URL: postgres://${POSTGRES_USER:-hms_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hms_prod}
+  REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+  CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+  CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/0
+  BACKUP_STORAGE_PATH: /backups
+
+x-django-service: &django-service
+  build:
+    context: .
+    dockerfile: backend/Dockerfile
+    target: runtime
+  env_file:
+    - .env.production
+  environment:
+    <<: *django-env
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
 services:
   # PostgreSQL Database
   postgres:
@@ -52,10 +79,7 @@ services:
 
   # Backend (Django + Gunicorn)
   backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-      target: runtime
+    <<: *django-service
     container_name: hms-backend-prod
     command: >
       gunicorn config.wsgi:application
@@ -72,48 +96,8 @@ services:
       --log-level info
       --preload
     environment:
-      - DJANGO_ENV=production
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - DATABASE_URL=postgres://${POSTGRES_USER:-hms_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hms_prod}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - EMAIL_HOST=${EMAIL_HOST}
-      - EMAIL_PORT=${EMAIL_PORT:-587}
-      - EMAIL_USE_TLS=${EMAIL_USE_TLS:-True}
-      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
-      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
-      - SECURE_SSL_REDIRECT=${SECURE_SSL_REDIRECT:-True}
-      - SECURE_HSTS_SECONDS=${SECURE_HSTS_SECONDS:-31536000}
-      - AI_SCRIBE_ENABLED=${AI_SCRIBE_ENABLED:-True}
-      - AI_SCRIBE_PROVIDER=${AI_SCRIBE_PROVIDER:-openai}
-      - AI_SCRIBE_API_KEY=${AI_SCRIBE_API_KEY}
-      - AI_SCRIBE_MODEL=${AI_SCRIBE_MODEL:-gpt-4}
-      - FHIR_ENABLED=${FHIR_ENABLED:-True}
-      - FHIR_BASE_URL=${FHIR_BASE_URL}
-      - HL7_ENABLED=${HL7_ENABLED:-True}
-      - ABDM_ENABLED=${ABDM_ENABLED:-True}
-      - ABDM_BASE_URL=${ABDM_BASE_URL}
-      - ABDM_CLIENT_ID=${ABDM_CLIENT_ID}
-      - ABDM_CLIENT_SECRET=${ABDM_CLIENT_SECRET}
-      - SMS_PROVIDER=${SMS_PROVIDER:-twilio}
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
-      - WHATSAPP_PROVIDER=${WHATSAPP_PROVIDER:-twilio}
-      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
-      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
-      - SENTRY_DSN=${SENTRY_DSN}
-      - SENTRY_ENVIRONMENT=production
-      - BACKUP_ENABLED=${BACKUP_ENABLED:-True}
-      - BACKUP_STORAGE_PATH=/backups
-      - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}
-      - MONITORING_ENABLED=${MONITORING_ENABLED:-False}
+      <<: *django-env
+      RUN_MIGRATIONS: "true"
     volumes:
       - staticfiles:/app/staticfiles
       - media:/app/media
@@ -121,18 +105,12 @@ services:
       - ./backups:/backups
     ports:
       - "127.0.0.1:8000:8000"  # Only accessible locally (via nginx)
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/ready/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -142,10 +120,7 @@ services:
 
   # Celery Worker
   celery-worker:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-      target: runtime
+    <<: *django-service
     container_name: hms-celery-worker-prod
     command: >
       celery -A config worker
@@ -154,24 +129,9 @@ services:
       --prefetch-multiplier=1
       --max-tasks-per-child=1000
       -Q default,notifications,reports,ai_processing,audit,maintenance
-    environment:
-      - DJANGO_ENV=production
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - DATABASE_URL=postgres://${POSTGRES_USER:-hms_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hms_prod}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - AI_SCRIBE_API_KEY=${AI_SCRIBE_API_KEY}
-      - SENTRY_DSN=${SENTRY_DSN}
     volumes:
-      - ./backend/media:/app/media
+      - media:/app/media
       - ./logs:/app/logs
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -181,30 +141,14 @@ services:
 
   # Celery Beat (scheduler)
   celery-beat:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-      target: runtime
+    <<: *django-service
     container_name: hms-celery-beat-prod
     command: >
       celery -A config beat
       --loglevel=info
       --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    environment:
-      - DJANGO_ENV=production
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - DATABASE_URL=postgres://${POSTGRES_USER:-hms_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hms_prod}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
     volumes:
       - ./logs:/app/logs
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
     deploy:
       resources:
         limits:

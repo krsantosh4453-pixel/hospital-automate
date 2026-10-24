@@ -1,3 +1,4 @@
+import hmac
 import logging
 import uuid
 from datetime import date
@@ -34,6 +35,8 @@ from .patient_auth import (
 )
 from .sms import SMSService
 from .twilio_verify import get_twilio_verify_service
+from . import security
+from audit.services import record_audit
 
 
 def _auth_response(user, patient=None, extra=None):
@@ -213,10 +216,18 @@ def staff_login(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    if security.is_locked_out(username):
+        return Response(
+            {"error": "Too many failed sign-in attempts. Try again in 15 minutes or reset your password."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
     # Authenticate using Django's authenticate (supports username or email)
     user = authenticate(request, username=username, password=password)
 
     if user is None:
+        security.record_failure(username)
+        record_audit(request, "auth.staff_login.failed", details={"username": str(username)[:150]})
         return Response(
             {"error": "Invalid credentials."},
             status=status.HTTP_401_UNAUTHORIZED
@@ -235,6 +246,15 @@ def staff_login(request):
             {"error": "Not authorized as staff."},
             status=status.HTTP_403_FORBIDDEN
         )
+
+    if security.otp_required_for_staff():
+        return Response(
+            {"error": "This hospital requires a one-time code. Use the OTP sign-in.", "otp_required": True},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    security.clear_failures(username)
+    record_audit(request, "auth.staff_login.success", user=user)
 
     # Generate JWT tokens
     refresh = RefreshToken.for_user(user)
@@ -271,9 +291,17 @@ def staff_login_start_otp(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    if security.is_locked_out(username):
+        return Response(
+            {"error": "Too many failed sign-in attempts. Try again in 15 minutes or reset your password."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
     user = authenticate(request, username=username, password=password)
 
     if user is None:
+        security.record_failure(username)
+        record_audit(request, "auth.staff_login.failed", details={"username": str(username)[:150]})
         return Response(
             {"error": "Invalid credentials."},
             status=status.HTTP_401_UNAUTHORIZED
@@ -291,6 +319,7 @@ def staff_login_start_otp(request):
             {"error": "Not authorized as staff."},
             status=status.HTTP_403_FORBIDDEN
         )
+    security.clear_failures(username)
 
     phone = staff_data.get("phone")
     if not phone:
@@ -331,6 +360,8 @@ def staff_login_start_otp(request):
     return Response({
         "otp_required": True,
         "message": f"OTP sent to your registered mobile number ({masked_phone}).",
+        # The verify/resend steps need this signed proof of the password step.
+        "challenge": security.issue_otp_challenge(user),
         "user_id": user.id,
         "staff_role": staff_data["staff_role"],
     })
@@ -342,12 +373,12 @@ def staff_otp_verify(request):
     """
     Staff login step 2: Verify OTP and issue JWT tokens.
     """
-    user_id = request.data.get("user_id")
+    user_id = security.read_otp_challenge(request.data.get("challenge"))
     otp = request.data.get("otp")
 
     if not user_id or not otp:
         return Response(
-            {"error": "User ID and OTP are required."},
+            {"error": "Sign-in session expired or invalid. Enter your password again."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -392,11 +423,13 @@ def staff_otp_verify(request):
         code = status.HTTP_401_UNAUTHORIZED
         if "too many" in result.message.lower() or "rate limit" in result.message.lower():
             code = status.HTTP_429_TOO_MANY_REQUESTS
+        record_audit(request, "auth.staff_otp.failed", user=user)
         return Response(
             {"error": result.message},
             status=code
         )
 
+    record_audit(request, "auth.staff_login.success", user=user, details={"method": "otp"})
     refresh = RefreshToken.for_user(user)
     access = refresh.access_token
     access["staff_id"] = user.id
@@ -419,11 +452,11 @@ def staff_otp_resend(request):
     """
     Resend OTP for staff login with cooldown and rate limiting.
     """
-    user_id = request.data.get("user_id")
+    user_id = security.read_otp_challenge(request.data.get("challenge"))
 
     if not user_id:
         return Response(
-            {"error": "User ID is required."},
+            {"error": "Sign-in session expired or invalid. Enter your password again."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -666,7 +699,7 @@ def register_account(request):
     if requested_role == "Admin":
         expected = (getattr(settings, "ADMIN_INVITE_CODE", "") or "").strip()
         invite = str(data.get("invite_code") or data.get("admin_invite_code") or "").strip()
-        if not expected or invite != expected:
+        if not expected or not hmac.compare_digest(invite.encode(), expected.encode()):
             return Response(
                 {
                     "error": (
@@ -925,3 +958,83 @@ def patient_me(request):
             "email": request.user.email,
         },
     })
+
+
+# ----------------------------------------------------------------------
+# Staff password reset by SMS one-time code (Twilio Verify)
+# ----------------------------------------------------------------------
+
+_RESET_SENT = "If an active staff account matches, a code was sent to its registered mobile number."
+
+
+def _staff_user_for_reset(identifier):
+    identifier = str(identifier or "").strip()
+    if not identifier:
+        return None, None
+    user = (
+        User.objects.filter(username__iexact=identifier, is_active=True).first()
+        or User.objects.filter(email__iexact=identifier, is_active=True).first()
+    )
+    staff_data = _get_staff_data(user) if user else None
+    phone = normalize_phone(staff_data.get("phone")) if staff_data else ""
+    if not phone:
+        return None, None
+    return user, phone
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def staff_password_reset_request(request):
+    """Send a reset code to the staff member's registered mobile. Never reveals whether the account exists."""
+    user, phone = _staff_user_for_reset(request.data.get("username") or request.data.get("email"))
+    verify_service = get_twilio_verify_service()
+    if not verify_service.is_configured():
+        return Response(
+            {"error": "Password reset by SMS is not configured. Contact your hospital administrator."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    if user is not None:
+        result = verify_service.start_verification(phone, channel="sms")
+        if not result.ok:
+            logger.warning("Password reset code could not be sent")
+        record_audit(request, "auth.password_reset.requested", user=user)
+    return Response({"message": _RESET_SENT})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def staff_password_reset_confirm(request):
+    """Check the code, set the new password and sign the account out everywhere."""
+    from django.contrib.auth.password_validation import validate_password
+    from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+
+    identifier = request.data.get("username") or request.data.get("email")
+    code = "".join(ch for ch in str(request.data.get("code") or request.data.get("otp") or "") if ch.isdigit())
+    new_password = request.data.get("new_password") or ""
+    if not identifier or len(code) < 4 or not new_password:
+        return Response(
+            {"error": "Username, code and new password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if security.is_locked_out(f"reset:{identifier}"):
+        return Response({"error": "Too many attempts. Try again later."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+    user, phone = _staff_user_for_reset(identifier)
+    verify_service = get_twilio_verify_service()
+    if user is None or not verify_service.is_configured() or not verify_service.check_verification(phone, code).ok:
+        security.record_failure(f"reset:{identifier}")
+        return Response({"error": "The code is invalid or has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        validate_password(new_password, user=user)
+    except ValidationError as exc:
+        return Response({"error": " ".join(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(new_password)
+    user.save(update_fields=["password"])
+    for token in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=token)
+    security.clear_failures(identifier)
+    security.clear_failures(f"reset:{identifier}")
+    record_audit(request, "auth.password_reset.completed", user=user)
+    return Response({"message": "Password updated. Sign in with your new password."})

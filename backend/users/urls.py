@@ -1,6 +1,5 @@
 from django.urls import path
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
     TokenRefreshView,
     TokenVerifyView,
 )
@@ -21,13 +20,16 @@ from .views import (
     staff_me,
     staff_otp_resend,
     staff_otp_verify,
+    staff_password_reset_confirm,
+    staff_password_reset_request,
 )
 
 
 urlpatterns = [
     path("google/", google_login, name="google-login"),
     path("register/", register_account, name="register-account"),
-    path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    # Tokens are only issued by the staff/patient sign-in views, which apply
+    # lockout, OTP policy and audit. The bare SimpleJWT obtain view is not exposed.
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
     # Staff authentication endpoints
@@ -37,6 +39,8 @@ urlpatterns = [
     path("staff/login/otp/resend/", staff_otp_resend, name="staff-otp-resend"),
     path("staff/logout/", staff_logout, name="staff-logout"),
     path("staff/me/", staff_me, name="staff-me"),
+    path("password/reset/", staff_password_reset_request, name="staff-password-reset"),
+    path("password/reset/confirm/", staff_password_reset_confirm, name="staff-password-reset-confirm"),
     path("patient/otp/request/", patient_otp_request, name="patient-otp-request"),
     path("patient/otp/verify/", patient_otp_verify, name="patient-otp-verify"),
     path("patient/email-otp/request/", patient_email_otp_request, name="patient-email-otp-request"),

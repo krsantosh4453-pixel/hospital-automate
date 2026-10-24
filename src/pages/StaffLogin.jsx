@@ -1,10 +1,11 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../assets/context/AuthContext.jsx"
+import api from "../services/api.js"
 
 function StaffLogin() {
   const navigate = useNavigate()
-  const { staffLoginStartOtp, staffOtpVerify, staffOtpResend, applyDevelopmentAccess } = useAuth()
+  const { staffLoginStartOtp, staffOtpVerify, staffOtpResend, applyDevelopmentAccess, devBypassAvailable } = useAuth()
 
   const [step, setStep] = useState("credentials")
   const [username, setUsername] = useState("")
@@ -12,7 +13,10 @@ function StaffLogin() {
   const [otp, setOtp] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [userId, setUserId] = useState(null)
+  const [challenge, setChallenge] = useState(null)
+  const [notice, setNotice] = useState("")
+  const [resetCode, setResetCode] = useState("")
+  const [newPassword, setNewPassword] = useState("")
   const [staffRole, setStaffRole] = useState("")
   const [maskedPhone, setMaskedPhone] = useState("")
 
@@ -24,7 +28,7 @@ function StaffLogin() {
     try {
       const data = await staffLoginStartOtp(username, password)
       if (data.otp_required) {
-        setUserId(data.user_id)
+        setChallenge(data.challenge)
         setStaffRole(data.staff_role)
         setMaskedPhone(data.message.match(/\((.*?)\)/)?.[1] || "******")
         setStep("otp")
@@ -45,7 +49,7 @@ function StaffLogin() {
     setLoading(true)
 
     try {
-      await staffOtpVerify(userId, otp)
+      await staffOtpVerify(challenge, otp)
       navigate("/")
     } catch (err) {
       setError(err.message || "Invalid or expired OTP.")
@@ -59,7 +63,7 @@ function StaffLogin() {
     setLoading(true)
 
     try {
-      await staffOtpResend(userId)
+      await staffOtpResend(challenge)
       setOtp("")
     } catch (err) {
       setError(err.message || "Failed to resend OTP.")
@@ -73,10 +77,45 @@ function StaffLogin() {
     navigate("/")
   }
 
+  const handleResetRequest = async (e) => {
+    e.preventDefault()
+    setError("")
+    setNotice("")
+    setLoading(true)
+    try {
+      const data = await api.auth.requestPasswordReset(username)
+      setNotice(data.message)
+      setStep("reset-confirm")
+    } catch (err) {
+      setError(err.message || "Could not start password reset.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResetConfirm = async (e) => {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+    try {
+      const data = await api.auth.confirmPasswordReset(username, resetCode, newPassword)
+      setNotice(data.message)
+      setPassword("")
+      setResetCode("")
+      setNewPassword("")
+      setStep("credentials")
+    } catch (err) {
+      setError(err.message || "Could not reset password.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const goBackToCredentials = () => {
     setStep("credentials")
     setOtp("")
-    setUserId(null)
+    setError("")
+    setChallenge(null)
     setStaffRole("")
     setMaskedPhone("")
   }
@@ -101,12 +140,18 @@ function StaffLogin() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
           <div className="mb-6">
             <h2 className="text-lg font-bold text-gray-800">
-              {step === "credentials" ? "Sign in to your account" : "Verify your identity"}
+              {step === "credentials"
+                ? "Sign in to your account"
+                : step === "otp"
+                  ? "Verify your identity"
+                  : "Reset your password"}
             </h2>
             <p className="text-gray-500 text-xs mt-0.5">
               {step === "credentials"
                 ? "Enter your credentials to access the hospital system"
-                : `Enter the 6-digit code sent to your mobile number (${maskedPhone})`}
+                : step === "otp"
+                  ? `Enter the 6-digit code sent to your mobile number (${maskedPhone})`
+                  : "A code is sent to the mobile number registered on your staff account"}
             </p>
           </div>
 
@@ -116,7 +161,82 @@ function StaffLogin() {
             </div>
           )}
 
-          {step === "credentials" ? (
+          {notice && !error && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm" role="status">
+              {notice}
+            </div>
+          )}
+
+          {step === "reset-request" || step === "reset-confirm" ? (
+            <form onSubmit={step === "reset-request" ? handleResetRequest : handleResetConfirm} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="reset-username">
+                  Username or Email
+                </label>
+                <input
+                  id="reset-username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  autoComplete="username"
+                  disabled={loading || step === "reset-confirm"}
+                />
+              </div>
+              {step === "reset-confirm" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="reset-code">
+                      Code from SMS
+                    </label>
+                    <input
+                      id="reset-code"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={8}
+                      value={resetCode}
+                      onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ""))}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5" htmlFor="reset-password">
+                      New Password
+                    </label>
+                    <input
+                      id="reset-password"
+                      type="password"
+                      minLength={8}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      autoComplete="new-password"
+                      disabled={loading}
+                    />
+                  </div>
+                </>
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+              >
+                {loading ? "Please wait..." : step === "reset-request" ? "Send Reset Code" : "Set New Password"}
+              </button>
+              <button
+                type="button"
+                onClick={goBackToCredentials}
+                className="text-blue-600 hover:text-blue-700 cursor-pointer text-xs"
+                disabled={loading}
+              >
+                ← Back to sign in
+              </button>
+            </form>
+          ) : step === "credentials" ? (
             <form onSubmit={handleCredentialsSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">
@@ -156,6 +276,14 @@ function StaffLogin() {
                 className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Sending OTP..." : "Send OTP"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setError(""); setNotice(""); setStep("reset-request") }}
+                className="text-blue-600 hover:text-blue-700 cursor-pointer text-xs"
+                disabled={loading}
+              >
+                Forgot password?
               </button>
             </form>
           ) : (
@@ -210,6 +338,7 @@ function StaffLogin() {
             </form>
           )}
 
+          {devBypassAvailable && (
           <div className="mt-6 border-t border-gray-200 pt-5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
               Temporary Development Access
@@ -226,6 +355,7 @@ function StaffLogin() {
               <span className="font-semibold text-gray-700"> VITE_DEV_AUTH_BYPASS=false</span>.
             </p>
           </div>
+          )}
 
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
@@ -264,15 +394,17 @@ function StaffLogin() {
             </p>
           </div>
 
+          {devBypassAvailable && (
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-500 text-center">
-              Demo credentials:
+              Demo credentials (local seed data only):
               <br />
               <span className="font-mono text-gray-700">doctor_a / testpass123</span> (Doctor - Hospital A)
               <br />
               <span className="font-mono text-gray-700">nurse_b / testpass123</span> (Nurse - Hospital B)
             </p>
           </div>
+          )}
         </div>
       </div>
     </div>

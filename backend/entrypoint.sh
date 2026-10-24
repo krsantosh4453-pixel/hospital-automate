@@ -18,16 +18,14 @@ if db_url:
     port = result.port or 5432
     
     import socket
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(1)
     start = time.time()
     while time.time() - start < 60:
+        # A socket cannot be reused after a failed connect; make a new one.
         try:
-            sock.connect((host, port))
-            sock.close()
-            print('Database is ready!')
-            break
-        except (ConnectionRefusedError, socket.timeout):
+            with socket.create_connection((host, port), timeout=1):
+                print('Database is ready!')
+                break
+        except OSError:
             time.sleep(1)
     else:
         print('Database connection timeout')
@@ -35,18 +33,19 @@ if db_url:
 "
 fi
 
-# Run migrations
-echo "Running migrations..."
-python manage.py migrate --noinput
-
-# Collect static files
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
+# Only the web container migrates (RUN_MIGRATIONS=true); workers and beat
+# share this entrypoint and must not race each other on schema changes.
+if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
+    echo "Running migrations..."
+    python manage.py migrate --noinput
+    echo "Collecting static files..."
+    python manage.py collectstatic --noinput
+fi
 
 # Create superuser if needed
 if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
     echo "Creating superuser..."
-    python manage.py createsuperuser --noinput --username "$DJANGO_SUPERUSER_USERNAME" --email "$DJANGO_SUPERUSER_EMAIL" || true
+    python manage.py createsuperuser --noinput --username "$DJANGO_SUPERUSER_USERNAME" --email "$DJANGO_SUPERUSER_EMAIL" || echo "Superuser not created (it may already exist)."
 fi
 
 # Execute the main command

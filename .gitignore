@@ -124,3 +124,7 @@ logs/
 
 # Kubernetes
 kubeconfig
+# Local data (may contain patient-like records; never commit)
+backend/db.sqlite3
+!.env.example
+!.env.production.example

@@ -369,7 +369,9 @@ if AI_SCRIBE_ENABLED and not AI_SCRIBE_API_KEY:
 # FHIR - Production
 # ============================================================
 
-FHIR_ENABLED = os.environ.get('FHIR_ENABLED', 'True').lower() == 'true'
+# FHIR/HL7/ABDM routes are not mounted (config/urls.py); keep them off unless
+# a deployment has completed their conformance and security review.
+FHIR_ENABLED = os.environ.get('FHIR_ENABLED', 'False').lower() == 'true'
 FHIR_BASE_URL = os.environ.get('FHIR_BASE_URL')
 FHIR_VERSION = os.environ.get('FHIR_VERSION', 'R4')
 
@@ -378,7 +380,7 @@ FHIR_VERSION = os.environ.get('FHIR_VERSION', 'R4')
 # HL7 - Production
 # ============================================================
 
-HL7_ENABLED = os.environ.get('HL7_ENABLED', 'True').lower() == 'true'
+HL7_ENABLED = os.environ.get('HL7_ENABLED', 'False').lower() == 'true'
 HL7_LISTEN_PORT = int(os.environ.get('HL7_LISTEN_PORT', '2575'))
 HL7_MSH_SENDING_APPLICATION = os.environ.get('HL7_MSH_SENDING_APPLICATION', 'HMS')
 HL7_MSH_SENDING_FACILITY = os.environ.get('HL7_MSH_SENDING_FACILITY', 'HOSPITAL')
@@ -400,7 +402,7 @@ if HL7_ENABLED and not HL7_API_KEY:
 # ABDM/ABHA - Production
 # ============================================================
 
-ABDM_ENABLED = os.environ.get('ABDM_ENABLED', 'True').lower() == 'true'
+ABDM_ENABLED = os.environ.get('ABDM_ENABLED', 'False').lower() == 'true'
 ABDM_BASE_URL = os.environ.get('ABDM_BASE_URL')
 ABDM_CLIENT_ID = os.environ.get('ABDM_CLIENT_ID')
 ABDM_CLIENT_SECRET = os.environ.get('ABDM_CLIENT_SECRET')
@@ -429,6 +431,9 @@ TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
 OTP_PROVIDER = os.environ.get('OTP_PROVIDER', 'twilio')
 if OTP_PROVIDER != 'twilio':
     raise ImproperlyConfigured("OTP_PROVIDER must be 'twilio' in production")
+
+# Staff must complete SMS OTP after the password in production unless explicitly disabled.
+STAFF_LOGIN_REQUIRE_OTP = os.environ.get('STAFF_LOGIN_REQUIRE_OTP', 'True').lower() == 'true'
 
 # Validate Twilio Verify configuration in production
 if not (TWILIO_ACCOUNT_SID and TWILIO_API_KEY and TWILIO_API_SECRET and TWILIO_VERIFY_SERVICE_SID):

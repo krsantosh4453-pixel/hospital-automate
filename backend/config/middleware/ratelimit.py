@@ -25,10 +25,14 @@ class RateLimitMiddleware(MiddlewareMixin):
     RATE_LIMITS = {
         # Auth endpoints - strict limits
         '/api/auth/staff/login/': {'limit': 5, 'window': 60, 'scope': 'ip'},  # 5/min per IP
-        '/api/auth/token/': {'limit': 10, 'window': 60, 'scope': 'ip'},
         '/api/auth/token/refresh/': {'limit': 20, 'window': 60, 'scope': 'user'},
         '/api/auth/token/verify/': {'limit': 30, 'window': 60, 'scope': 'user'},
         '/api/auth/google/': {'limit': 5, 'window': 60, 'scope': 'ip'},
+        '/api/auth/patient/otp/': {'limit': 5, 'window': 60, 'scope': 'ip'},
+        '/api/auth/patient/email-otp/': {'limit': 5, 'window': 60, 'scope': 'ip'},
+        '/api/auth/patient/login/': {'limit': 5, 'window': 60, 'scope': 'ip'},
+        '/api/auth/patient/token/': {'limit': 5, 'window': 60, 'scope': 'ip'},
+        '/api/auth/register/': {'limit': 5, 'window': 300, 'scope': 'ip'},
         '/api/auth/staff/logout/': {'limit': 30, 'window': 60, 'scope': 'user'},
 
         # OTP endpoints
@@ -36,8 +40,9 @@ class RateLimitMiddleware(MiddlewareMixin):
         '/api/notifications/otp/verify/': {'limit': 5, 'window': 60, 'scope': 'phone'},
 
         # Password reset
-        '/api/auth/password/reset/': {'limit': 2, 'window': 3600, 'scope': 'email'},
+        # confirm is listed first: rules match by prefix in order.
         '/api/auth/password/reset/confirm/': {'limit': 5, 'window': 3600, 'scope': 'ip'},
+        '/api/auth/password/reset/': {'limit': 3, 'window': 3600, 'scope': 'ip'},
 
         # AI endpoints - resource intensive
         '/api/ai/': {'limit': 30, 'window': 60, 'scope': 'user'},

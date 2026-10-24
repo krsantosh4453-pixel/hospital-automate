@@ -167,14 +167,14 @@ export function AuthProvider({ children }) {
     return data
   }
 
-  const staffOtpVerify = async (userId, otp) => {
-    const data = await api.auth.staffOtpVerify(userId, otp)
+  const staffOtpVerify = async (challenge, otp) => {
+    const data = await api.auth.staffOtpVerify(challenge, otp)
     clearDevelopmentAccess()
     return applyStaffSession(data.user)
   }
 
-  const staffOtpResend = async (userId) => {
-    const data = await api.auth.staffOtpResend(userId)
+  const staffOtpResend = async (challenge) => {
+    const data = await api.auth.staffOtpResend(challenge)
     return data
   }
 
@@ -227,6 +227,7 @@ export function AuthProvider({ children }) {
         clearPatientData,
         refreshUser: loadUserFromToken,
         applyDevelopmentAccess,
+        devBypassAvailable: isDevelopmentAuthBypassEnabled(),
       }}
     >
       {children}

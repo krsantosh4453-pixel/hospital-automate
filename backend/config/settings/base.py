@@ -508,6 +508,9 @@ CELERY_TASK_ROUTES = {
     'backup.tasks.*': {'queue': 'maintenance'},
 }
 
+# When True, staff password sign-in never issues tokens: the SMS OTP step is mandatory.
+STAFF_LOGIN_REQUIRE_OTP = os.environ.get('STAFF_LOGIN_REQUIRE_OTP', 'False').lower() == 'true'
+
 # Audit rows older than this are purged daily; 0 keeps them forever.
 AUDIT_LOG_RETENTION_DAYS = int(os.environ.get('AUDIT_LOG_RETENTION_DAYS', '0'))
 

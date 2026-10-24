@@ -50,6 +50,7 @@ function shouldAttemptRefresh(url) {
     '/auth/token/refresh/',
     '/auth/staff/login/',
     '/auth/staff/logout/',
+    '/auth/password/reset/',
     '/auth/patient/otp/',
     '/auth/patient/email-otp/',
     '/auth/patient/login/',
@@ -172,10 +173,11 @@ const api = {
         method: 'POST',
         ...jsonBody({ username, password }),
       }),
-    staffOtpVerify: async (userId, otp) => {
+    // `challenge` is the signed token returned by staffLoginStartOtp.
+    staffOtpVerify: async (challenge, otp) => {
       const data = await request(`${API_BASE_URL}/auth/staff/login/otp/verify/`, {
         method: 'POST',
-        ...jsonBody({ user_id: userId, otp }),
+        ...jsonBody({ challenge, otp }),
       })
       setTokens({ access: data.access, refresh: data.refresh })
       if (data.user) localStorage.setItem('user', JSON.stringify(data.user))
@@ -185,10 +187,20 @@ const api = {
       }
       return data
     },
-    staffOtpResend: async (userId) =>
+    staffOtpResend: async (challenge) =>
       request(`${API_BASE_URL}/auth/staff/login/otp/resend/`, {
         method: 'POST',
-        ...jsonBody({ user_id: userId }),
+        ...jsonBody({ challenge }),
+      }),
+    requestPasswordReset: async (username) =>
+      request(`${API_BASE_URL}/auth/password/reset/`, {
+        method: 'POST',
+        ...jsonBody({ username }),
+      }),
+    confirmPasswordReset: async (username, code, newPassword) =>
+      request(`${API_BASE_URL}/auth/password/reset/confirm/`, {
+        method: 'POST',
+        ...jsonBody({ username, code, new_password: newPassword }),
       }),
     getMe: async () => request(`${API_BASE_URL}/auth/staff/me/`),
     logout: async () => {
