@@ -173,7 +173,9 @@ def _get_staff_data(user):
         is_active=True
     ).select_related("hospital", "department")
 
-    roles = [staff_profile.role]
+    # Authorization uses membership roles only (see users.permissions.get_user_roles);
+    # staff_role below is the profile's display default.
+    roles = []
     hospitals = []
 
     for membership in memberships:

@@ -68,6 +68,9 @@ urlpatterns = [
     # Authentication
     path("api/auth/", include("users.urls")),
 
+    # Hospital staff administration
+    path("api/users/", include("users.staff_urls")),
+
     # Django Admin
     path(settings.ADMIN_URL, admin.site.urls),
 
