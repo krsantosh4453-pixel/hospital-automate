@@ -5,39 +5,69 @@ from .models import (
     Payment,
     InsuranceClaim,
 )
-import uuid
+from django.db import transaction
+
+from .services import line_subtotal, new_reference, recalculate
 
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
+    """Line subtotal is always quantity x unit price, computed on the server."""
+
     class Meta:
         model = InvoiceItem
-        fields = ["id", "description", "quantity", "unit_price", "subtotal", "tax_rate"]
-        extra_kwargs = {
-            "invoice": {"required": False},
-            "subtotal": {"required": False},
-        }
-        read_only_fields = ["id"]
+        fields = ["id", "invoice", "description", "quantity", "unit_price", "subtotal", "tax_rate"]
+        extra_kwargs = {"invoice": {"required": False}}
+        read_only_fields = ["id", "subtotal"]
+
+    def validate_quantity(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Quantity must be at least 1.")
+        return value
+
+    def validate_unit_price(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Price cannot be negative.")
+        return value
+
+    def validate_tax_rate(self, value):
+        if value < 0 or value > 100:
+            raise serializers.ValidationError("Tax rate must be between 0 and 100.")
+        return value
 
     def create(self, validated_data):
-        # Calculate subtotal from quantity and unit_price
-        if "subtotal" not in validated_data:
-            quantity = validated_data.get("quantity", 1)
-            unit_price = validated_data.get("unit_price", 0)
-            validated_data["subtotal"] = quantity * unit_price
+        validated_data["subtotal"] = line_subtotal(validated_data.get("quantity", 1), validated_data["unit_price"])
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        instance.subtotal = line_subtotal(instance.quantity, instance.unit_price)
+        instance.save(update_fields=["subtotal"])
+        return instance
 
 
 class PaymentSerializer(serializers.ModelSerializer):
+    """Create-only; amounts are checked against the server-side balance."""
+
+    idempotency_key = serializers.CharField(max_length=80, required=False, allow_blank=True)
+
     class Meta:
         model = Payment
         fields = [
             "id",
             "invoice",
+            "kind",
             "amount",
             "payment_method",
+            "receipt_number",
+            "reference",
+            "idempotency_key",
+            "received_by",
             "paid_at",
         ]
-        read_only_fields = ["id", "paid_at"]
+        read_only_fields = ["id", "kind", "receipt_number", "received_by", "paid_at"]
+        # Duplicate keys are resolved by billing.services.record_payment
+        # (returns the original payment), not rejected as a validation error.
+        validators = []
 
 
 class InsuranceClaimSerializer(serializers.ModelSerializer):
@@ -45,6 +75,7 @@ class InsuranceClaimSerializer(serializers.ModelSerializer):
         model = InsuranceClaim
         fields = [
             "id",
+            "hospital",
             "patient",
             "invoice",
             "insurance_company",
@@ -52,7 +83,22 @@ class InsuranceClaimSerializer(serializers.ModelSerializer):
             "status",
             "amount",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "hospital"]
+
+    def validate(self, attrs):
+        invoice = attrs.get("invoice")
+        patient = attrs.get("patient")
+        amount = attrs.get("amount")
+        if invoice is not None and patient is not None and invoice.patient_id != patient.id:
+            raise serializers.ValidationError({"invoice": "Invoice belongs to a different patient."})
+        if invoice is not None and amount is not None and amount > invoice.total:
+            raise serializers.ValidationError({"amount": "Claim cannot exceed the invoice total."})
+        return attrs
+
+    def validate_amount(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Amount cannot be negative.")
+        return value
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
@@ -97,7 +143,11 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "tax_amount",
             "total_amount",
         ]
-        read_only_fields = ["id", "created_at", "total_paid", "balance_due", "is_paid", "hospital", "invoice_number", "subtotal", "tax_amount", "total_amount"]
+        # Money and status are derived from items and payments (billing.services).
+        read_only_fields = [
+            "id", "created_at", "total_paid", "balance_due", "is_paid", "hospital", "invoice_number",
+            "subtotal", "tax_amount", "total_amount", "tax", "total", "status",
+        ]
 
     def validate_hospital(self, value):
         """Ensure user has access to the hospital."""
@@ -149,54 +199,42 @@ class InvoiceSerializer(serializers.ModelSerializer):
     def get_total_amount(self, obj):
         return obj.total_amount
 
+    def validate_discount(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Discount cannot be negative.")
+        return value
+
     def create(self, validated_data):
-        # Set hospital from context if not provided
         if "hospital" not in validated_data:
             scoped_hospital = self.context.get("scoped_hospital")
             if scoped_hospital:
                 validated_data["hospital"] = scoped_hospital
-        
-        # Generate invoice number
-        if "invoice_number" not in validated_data:
-            validated_data["invoice_number"] = f"INV-{uuid.uuid4().hex[:8].upper()}"
-        
+        validated_data["invoice_number"] = new_reference("INV")
         items_data = validated_data.pop("items_data", [])
-        
-        # Calculate totals from items
-        subtotal = 0
-        tax_total = 0
-        for item_data in items_data:
-            quantity = item_data.get("quantity", 1)
-            unit_price = float(item_data.get("unit_price", 0))
-            tax_rate = float(item_data.get("tax_rate", 0))
-            item_subtotal = quantity * unit_price
-            item_tax = item_subtotal * tax_rate / 100
-            subtotal += item_subtotal
-            tax_total += item_tax
-        
-        validated_data["total"] = subtotal + tax_total - float(validated_data.get("discount", 0))
-        validated_data["tax"] = tax_total
-        
-        invoice = Invoice.objects.create(**validated_data)
-        for item_data in items_data:
-            # Calculate subtotal for item
-            quantity = item_data.get("quantity", 1)
-            unit_price = float(item_data.get("unit_price", 0))
-            item_data["subtotal"] = quantity * unit_price
-            InvoiceItem.objects.create(invoice=invoice, **item_data)
+        with transaction.atomic():
+            invoice = Invoice.objects.create(**validated_data)
+            for item_data in items_data:
+                item_data.pop("invoice", None)
+                item_data["subtotal"] = line_subtotal(item_data.get("quantity", 1), item_data["unit_price"])
+                InvoiceItem.objects.create(invoice=invoice, **item_data)
+            recalculate(invoice)
         return invoice
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop("items_data", None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        
-        if items_data is not None:
-            instance.items.all().delete()
-            for item_data in items_data:
-                quantity = item_data.get("quantity", 1)
-                unit_price = float(item_data.get("unit_price", 0))
-                item_data["subtotal"] = quantity * unit_price
-                InvoiceItem.objects.create(invoice=instance, **item_data)
+        if items_data is not None and instance.payments.exists():
+            raise serializers.ValidationError(
+                {"items_data": "Items cannot be replaced after a payment; issue a refund or a new invoice."}
+            )
+        with transaction.atomic():
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+            if items_data is not None:
+                instance.items.all().delete()
+                for item_data in items_data:
+                    item_data.pop("invoice", None)
+                    item_data["subtotal"] = line_subtotal(item_data.get("quantity", 1), item_data["unit_price"])
+                    InvoiceItem.objects.create(invoice=instance, **item_data)
+            recalculate(instance)
         return instance

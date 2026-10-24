@@ -110,12 +110,28 @@ class PharmacyAPITests(TestCase):
         self.assertEqual(update.status_code, 200, update.data)
         self.assertEqual(update.data["quantity"], 40)
 
-        # Delete
-        delete = self.client.delete(f"/api/pharmacy/{medicine_id}/")
-        self.assertEqual(delete.status_code, 204)
-        self.assertFalse(
-            Medicine.objects.filter(pk=medicine_id).exists()
+        # Every stock change above is in the ledger.
+        from procurement.models import StockTransaction
+        kinds = list(
+            StockTransaction.objects.filter(medicine_id=medicine_id)
+            .order_by("id").values_list("transaction_type", flat=True)
         )
+        self.assertEqual(kinds, [StockTransaction.TYPE_IN, StockTransaction.TYPE_ADJUST])
+
+        # A medicine with stock history cannot be hard-deleted.
+        delete = self.client.delete(f"/api/pharmacy/{medicine_id}/")
+        self.assertEqual(delete.status_code, 400)
+        self.assertTrue(Medicine.objects.filter(pk=medicine_id).exists())
+
+        # One without history can.
+        empty = self.client.post(
+            "/api/pharmacy/",
+            {"name": "Unused", "hospital": self.hospital_a.id, "quantity": 0, "price": "1.00"},
+            format="json",
+        )
+        self.assertEqual(empty.status_code, 201, empty.data)
+        delete = self.client.delete(f"/api/pharmacy/{empty.data['id']}/")
+        self.assertEqual(delete.status_code, 204)
 
     # 2. Medicine can be filtered by hospital.
     def test_medicine_filter_by_hospital(self):

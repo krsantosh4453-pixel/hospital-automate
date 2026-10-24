@@ -1,6 +1,10 @@
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
+
+from audit.services import record_audit
+from procurement.models import StockTransaction
 from django.db.models import F
 from rest_framework import serializers, viewsets
 
@@ -41,16 +45,41 @@ class MedicineViewSet(HospitalScopedViewSet):
 
         return queryset
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-
-        hospital_id = self.request.query_params.get("hospital")
-        if hospital_id:
-            context["scoped_hospital"] = (
-                Hospital.objects.filter(pk=hospital_id).first()
+    def _ledger(self, medicine, kind, quantity, reason):
+        if quantity:
+            StockTransaction.objects.create(
+                medicine=medicine,
+                hospital_id=medicine.hospital_id,
+                transaction_type=kind,
+                quantity=quantity,
+                reason=reason,
+                reference=f"MED-{medicine.pk}",
             )
 
-        return context
+    @transaction.atomic
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        medicine = serializer.instance
+        if medicine.hospital_id:
+            self._ledger(medicine, StockTransaction.TYPE_IN, medicine.quantity, "Opening stock")
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        before = Medicine.objects.select_for_update().get(pk=serializer.instance.pk).quantity
+        super().perform_update(serializer)
+        medicine = serializer.instance
+        delta = medicine.quantity - before
+        if delta and medicine.hospital_id:
+            reason = self.request.data.get("adjustment_reason") or "Manual stock correction"
+            self._ledger(medicine, StockTransaction.TYPE_ADJUST, abs(delta),
+                         f"{reason} ({'+' if delta > 0 else '-'}{abs(delta)})")
+
+    def perform_destroy(self, instance):
+        if instance.sales.exists() or instance.stock_transactions.exists():
+            raise serializers.ValidationError(
+                "This medicine has stock history and cannot be deleted; set its status to Discontinued."
+            )
+        super().perform_destroy(instance)
 
 
 class SaleViewSet(HospitalScopedViewSet):
@@ -92,6 +121,7 @@ class SaleViewSet(HospitalScopedViewSet):
 
     @transaction.atomic
     def perform_create(self, serializer):
+        self._check_tenancy(serializer.validated_data)
         medicine = serializer.validated_data["medicine"]
         quantity = serializer.validated_data["quantity"]
 
@@ -119,6 +149,14 @@ class SaleViewSet(HospitalScopedViewSet):
                 }
             )
 
+        if medicine.expiry_date and medicine.expiry_date < timezone.localdate():
+            raise serializers.ValidationError(
+                {"medicine": f"This batch expired on {medicine.expiry_date}; it cannot be dispensed."}
+            )
+        prescription = serializer.validated_data.get("prescription")
+        if prescription is not None and prescription.hospital_id != hospital.pk:
+            raise serializers.ValidationError({"prescription": "Prescription is from another hospital."})
+
         # Atomic, DB-level guard: the UPDATE only matches while
         # enough stock exists, so concurrent sales can never
         # oversell or drive quantity negative. Works on SQLite.
@@ -140,9 +178,7 @@ class SaleViewSet(HospitalScopedViewSet):
 
         medicine.refresh_from_db(fields=["quantity"])
 
-        unit_price = serializer.validated_data.get("unit_price")
-        if unit_price is None:
-            unit_price = medicine.price
+        unit_price = medicine.price
 
         total = (
             Decimal(quantity) * Decimal(unit_price)
@@ -150,8 +186,19 @@ class SaleViewSet(HospitalScopedViewSet):
 
         # Deduct stock first: rolled back automatically if the
         # sale insert below fails.
-        serializer.save(
+        sale = serializer.save(
             hospital=hospital,
             unit_price=unit_price,
             total=total,
         )
+        # Every stock change is mirrored in the append-only ledger.
+        StockTransaction.objects.create(
+            medicine=medicine,
+            hospital=hospital,
+            transaction_type=StockTransaction.TYPE_OUT,
+            quantity=quantity,
+            reason="Pharmacy sale",
+            reference=f"SALE-{sale.pk}",
+        )
+        record_audit(self.request, "pharmacy.sale.create", sale, hospital=hospital.pk,
+                     details={"medicine": medicine.pk, "quantity": quantity})

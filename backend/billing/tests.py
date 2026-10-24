@@ -140,7 +140,7 @@ class BillingAPITests(TestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         self.assertEqual(Decimal(response.data["amount"]), Decimal("500.00"))
         invoice.refresh_from_db()
 

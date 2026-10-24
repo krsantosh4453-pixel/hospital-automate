@@ -97,7 +97,8 @@ class SaleSerializer(serializers.ModelSerializer):
             "prescription",
             "created_at",
         ]
-        read_only_fields = ["id", "total", "created_at"]
+        # Price comes from the medicine record, never from the client.
+        read_only_fields = ["id", "unit_price", "total", "created_at"]
         extra_kwargs = {
             "hospital": {"required": False},
             "unit_price": {"required": False},
