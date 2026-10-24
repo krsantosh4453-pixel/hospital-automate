@@ -21,8 +21,24 @@ function clearTokens() {
   localStorage.removeItem(REFRESH_TOKEN_KEY)
 }
 
+// The hospital chosen in the hospital switcher. Sent on every request so the
+// backend scopes data and role checks to it (an explicit ?hospital= wins).
+function getSelectedHospitalId() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('selectedHospital') || 'null')
+    const id = saved && typeof saved === 'object' ? saved.id : saved
+    return id && /^\d+$/.test(String(id)) ? String(id) : null
+  } catch {
+    return null
+  }
+}
+
 function buildHeaders(extra = {}, body) {
   const headers = { ...extra }
+  const hospitalId = getSelectedHospitalId()
+  if (hospitalId && !headers['X-Hospital-ID']) {
+    headers['X-Hospital-ID'] = hospitalId
+  }
   if (body && !(body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json'
   }

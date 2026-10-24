@@ -9,21 +9,15 @@ from . import views
 
 app_name = 'documents'
 
+# Literal paths come before '<id>/' so they are not read as document ids.
 urlpatterns = [
-    # Document listing and upload
     path('', views.DocumentListView.as_view(), name='document-list'),
-    path('<str:id>/', views.DocumentDetailView.as_view(), name='document-detail'),
-    path('<str:id>/download/', views.document_download, name='document-download'),
-    path('<str:id>/preview/', views.document_preview, name='document-preview'),
-
-    # Patient documents
-    path('patient/<str:patient_id>/', views.PatientDocumentListView.as_view(), name='patient-documents'),
-    path('patient/<str:patient_id>/upload/', views.PatientDocumentUploadView.as_view(), name='patient-document-upload'),
-
-    # Categories/Folders
     path('categories/', views.DocumentCategoryListView.as_view(), name='document-categories'),
     path('categories/<str:id>/', views.DocumentCategoryDetailView.as_view(), name='document-category-detail'),
-
-    # Search
-    path('search/', views.document_search, name='document-search'),
+    path('search/', views.DocumentSearchView.as_view(), name='document-search'),
+    path('patient/<str:patient_id>/', views.PatientDocumentListView.as_view(), name='patient-documents'),
+    path('patient/<str:patient_id>/upload/', views.PatientDocumentUploadView.as_view(), name='patient-document-upload'),
+    path('<int:id>/', views.DocumentDetailView.as_view(), name='document-detail'),
+    path('<int:id>/download/', views.DocumentDownloadView.as_view(), name='document-download'),
+    path('<int:id>/preview/', views.DocumentPreviewView.as_view(), name='document-preview'),
 ]

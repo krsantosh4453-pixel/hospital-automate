@@ -265,6 +265,11 @@ CORS_ALLOWED_ORIGINS = []
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Override in development
 
+# Headers the frontend sends in addition to django-cors-headers' defaults.
+from corsheaders.defaults import default_headers  # noqa: E402
+
+CORS_ALLOW_HEADERS = (*default_headers, "x-hospital-id", "idempotency-key", "x-request-id")
+
 
 # ============================================================
 # Email Configuration (Base - overridden in env-specific settings)

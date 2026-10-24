@@ -33,7 +33,8 @@ http {
     keepalive_timeout 65;
     keepalive_requests 1000;
     types_hash_max_size 2048;
-    client_max_body_size 50M;
+    # Consultation audio may be up to 100 MB (ai_scribe MAX_AUDIO_BYTES).
+    client_max_body_size 100M;
 
     # Gzip compression
     gzip on;
@@ -60,7 +61,8 @@ http {
 
     # Rate limiting zones
     limit_req_zone $binary_remote_addr zone=api:10m rate=100r/s;
-    limit_req_zone $binary_remote_addr zone=auth:10m rate=5r/m;
+    # Many staff share one hospital NAT address; per-account lockout is in Django.
+    limit_req_zone $binary_remote_addr zone=auth:10m rate=30r/m;
     limit_req_zone $binary_remote_addr zone=ai:10m rate=30r/m;
 
     # Upstream backend
@@ -114,11 +116,11 @@ http {
 
         # Security headers
         add_header X-Frame-Options "DENY" always;
-        add_header X-Content-Type-Nosniff "nosniff" always;
-        add_header X-XSS-Protection "1; mode=block" always;
+        add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:;" always;
-        add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+        # Microphone is allowed for this origin only: the AI consultation recorder needs it.
+        add_header Permissions-Policy "geolocation=(), microphone=(self), camera=()" always;
 
         # OCSP Stapling
         ssl_stapling on;
@@ -138,72 +140,62 @@ http {
             access_log off;
         }
 
-        # Media files - served directly by nginx (with auth check for private media)
+        # Uploaded media (patient documents, consultation audio) is private.
+        # It is only served by the API (/api/documents/<id>/download/), which
+        # checks hospital access and writes an audit entry.
         location /media/ {
-            alias /var/www/media/;
-            expires 30d;
-            add_header Cache-Control "public";
-            add_header Vary "Accept-Encoding";
-            # For private media, add auth_request to check permissions
-            # auth_request /auth/media-access;
+            return 404;
         }
 
-        # API endpoints
-        location /api/ {
-            # Rate limiting
-            limit_req zone=api burst=200 nodelay;
-
-            # Stricter rate limiting for auth endpoints
-            location ~* ^/api/auth/(login|token|otp|password) {
-                limit_req zone=auth burst=10 nodelay;
-            }
-
-            # Stricter rate limiting for AI endpoints
-            location ~* ^/api/ai/ {
-                limit_req zone=ai burst=50 nodelay;
-            }
-
+        # Auth endpoints: tighter rate limit. Each proxied location carries its
+        # own proxy settings because nested locations do not inherit proxy_pass.
+        # No add_header here, so the server-level security headers still apply;
+        # CORS is answered by Django (CORS_ALLOWED_ORIGINS), not reflected here.
+        location ~* ^/api/auth/(staff/login|patient|password|register|google) {
+            limit_req zone=auth burst=30 nodelay;
             proxy_pass http://backend;
             proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
             proxy_set_header X-Request-ID $http_x_request_id;
-            proxy_cache_bypass $http_upgrade;
+            proxy_connect_timeout 10s;
+            proxy_send_timeout 30s;
+            proxy_read_timeout 30s;
+        }
 
-            # Timeouts
+        location ^~ /api/ai/ {
+            limit_req zone=ai burst=50 nodelay;
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Request-ID $http_x_request_id;
+            proxy_connect_timeout 10s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
+        }
+
+        location /api/ {
+            limit_req zone=api burst=200 nodelay;
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Request-ID $http_x_request_id;
             proxy_connect_timeout 10s;
             proxy_send_timeout 60s;
             proxy_read_timeout 60s;
-
-            # Buffering
             proxy_buffering on;
             proxy_buffer_size 4k;
             proxy_buffers 8 4k;
-
-            # CORS headers (if not handled by Django)
-            add_header Access-Control-Allow-Origin $http_origin always;
-            add_header Access-Control-Allow-Credentials true always;
-            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
-            add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With, X-Request-ID" always;
-
-            # Handle preflight
-            if ($request_method = 'OPTIONS') {
-                add_header Access-Control-Allow-Origin $http_origin;
-                add_header Access-Control-Allow-Credentials true;
-                add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS";
-                add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With, X-Request-ID";
-                add_header Access-Control-Max-Age 86400;
-                add_header Content-Length 0;
-                add_header Content-Type text/plain;
-                return 204;
-            }
         }
 
-        # Health checks (no rate limiting)
         location /health/ {
             proxy_pass http://backend;
             proxy_set_header Host $host;

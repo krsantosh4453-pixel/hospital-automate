@@ -7,12 +7,14 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 
 from .models import Patient, PatientDocument, PatientHospital
 from .serializers import PatientSerializer, PatientHospitalSerializer
+from audit.services import record_audit
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import (
     IsReceptionist,
     IsDoctor,
     IsNurse,
     IsAdmin,
+    IsHospitalManager,
     IsPatientReadOnly,
     IsLinkedPatient,
     get_linked_patient,
@@ -28,14 +30,19 @@ class PatientViewSet(HospitalScopedViewSet):
     permission_classes = [IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsPatientReadOnly]
 
     def get_permissions(self):
-        if getattr(self, "action", None) in {"documents", "delete_document"}:
+        action_name = getattr(self, "action", None)
+        if action_name == "delete_document":
+            # Clinical documents are evidence; only an administrator removes them.
+            return [(IsAdmin | IsHospitalManager)()]
+        if action_name == "documents":
             return [(IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
         return super().get_permissions()
 
     def _document_payload(self, document):
+        # Files are private; they are fetched through the audited documents API.
         file_url = None
         if document.file:
-            file_url = self.request.build_absolute_uri(document.file.url)
+            file_url = self.request.build_absolute_uri(f"/api/documents/{document.id}/download/")
         return {
             "id": document.id,
             "patient": document.patient_id,
@@ -63,6 +70,11 @@ class PatientViewSet(HospitalScopedViewSet):
                 {"error": "A file is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        from documents.views import validate_file_upload
+
+        is_valid, error = validate_file_upload(upload)
+        if not is_valid:
+            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
         hospital_id = self.get_object_hospital_id(patient)
         if hospital_id is None:
             raise PermissionDenied("Select the hospital this document belongs to.")
@@ -73,6 +85,7 @@ class PatientViewSet(HospitalScopedViewSet):
             folder=(request.data.get("folder") or "")[:100],
             file=upload,
         )
+        record_audit(request, "documents.document.upload", document, hospital=hospital_id)
         return Response(self._document_payload(document), status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["delete"], url_path=r"documents/(?P<doc_id>[0-9]+)")
@@ -84,6 +97,7 @@ class PatientViewSet(HospitalScopedViewSet):
         patient = self.get_queryset().filter(pk=document.patient_id).first()
         if patient is None or not self._document_scope(patient).filter(pk=document.pk).exists():
             raise NotFound("Document not found.")
+        record_audit(request, "documents.document.delete", document, hospital=document.hospital_id)
         document.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
