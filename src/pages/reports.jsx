@@ -1,7 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import api from "../services/api.js"
 import { usePatient } from "../assets/context/PatientContext.jsx"
-import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
-import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 
 
 function Reports() {
@@ -14,24 +13,6 @@ function Reports() {
 
 
   // =====================================
-  // SHARED PHARMACY DATA
-  // =====================================
-
-  const {
-    getHospitalSales,
-  } = usePharmacy()
-
-
-  // =====================================
-  // PRESCRIPTION DATA
-  // =====================================
-
-  const {
-    getHospitalPrescriptions,
-  } = usePrescription()
-
-
-  // =====================================
   // REPORT PERIOD
   // =====================================
 
@@ -40,253 +21,56 @@ function Reports() {
 
 
   // =====================================
-  // DEMO HOSPITAL DATA
-  // =====================================
-  // Later these will come from Django API.
-  // hospitalId keeps data isolated.
+  // LIVE DATA (analytics API, counted on the server)
   // =====================================
 
-  const patients = [
+  const PERIODS = {
+    Today: "today",
+    "This Week": "last_7_days",
+    "This Month": "this_month",
+    "This Year": "this_year",
+  }
 
-    {
-      id: "P001",
-      name: "Rahul Kumar",
-      hospitalId: 1,
-      gender: "Male",
-      age: 32,
-    },
+  const [kpis, setKpis] = useState(null)
+  const [hospitalDoctors, setHospitalDoctors] = useState([])
+  const [hospitalLaboratory, setHospitalLaboratory] = useState([])
+  const [prescriptionTotal, setPrescriptionTotal] = useState(0)
+  const [loadError, setLoadError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-    {
-      id: "P002",
-      name: "Priya Singh",
-      hospitalId: 1,
-      gender: "Female",
-      age: 28,
-    },
-
-    {
-      id: "P003",
-      name: "Amit Kumar",
-      hospitalId: 2,
-      gender: "Male",
-      age: 45,
-    },
-
-    {
-      id: "P004",
-      name: "Neha Kumari",
-      hospitalId: 2,
-      gender: "Female",
-      age: 36,
-    },
-
-    {
-      id: "P005",
-      name: "Ravi Sharma",
-      hospitalId: 3,
-      gender: "Male",
-      age: 51,
-    },
-
-  ]
-
-
-  const doctors = [
-
-    {
-      id: "D001",
-      name: "Dr. Sharma",
-      department: "General Medicine",
-      hospitalId: 1,
-      status: "Active",
-    },
-
-    {
-      id: "D002",
-      name: "Dr. Kumar",
-      department: "Cardiology",
-      hospitalId: 1,
-      status: "Active",
-    },
-
-    {
-      id: "D003",
-      name: "Dr. Singh",
-      department: "Orthopedics",
-      hospitalId: 2,
-      status: "Active",
-    },
-
-    {
-      id: "D004",
-      name: "Dr. Verma",
-      department: "Pediatrics",
-      hospitalId: 3,
-      status: "Active",
-    },
-
-  ]
-
-
-  const appointments = [
-
-    {
-      id: "A001",
-      patient: "Rahul Kumar",
-      doctor: "Dr. Sharma",
-      hospitalId: 1,
-      status: "Completed",
-      time: "10:30 AM",
-    },
-
-    {
-      id: "A002",
-      patient: "Priya Singh",
-      doctor: "Dr. Kumar",
-      hospitalId: 1,
-      status: "Waiting",
-      time: "11:00 AM",
-    },
-
-    {
-      id: "A003",
-      patient: "Amit Kumar",
-      doctor: "Dr. Singh",
-      hospitalId: 2,
-      status: "Confirmed",
-      time: "11:30 AM",
-    },
-
-    {
-      id: "A004",
-      patient: "Neha Kumari",
-      doctor: "Dr. Verma",
-      hospitalId: 3,
-      status: "Completed",
-      time: "12:00 PM",
-    },
-
-  ]
-
-
-  const laboratory = [
-
-    {
-      id: "LAB001",
-      patient: "Rahul Kumar",
-      test: "CBC",
-      amount: 500,
-      hospitalId: 1,
-      status: "Completed",
-    },
-
-    {
-      id: "LAB002",
-      patient: "Priya Singh",
-      test: "Blood Sugar",
-      amount: 200,
-      hospitalId: 1,
-      status: "Completed",
-    },
-
-    {
-      id: "LAB003",
-      patient: "Amit Kumar",
-      test: "X-Ray",
-      amount: 800,
-      hospitalId: 2,
-      status: "Pending",
-    },
-
-    {
-      id: "LAB004",
-      patient: "Neha Kumari",
-      test: "Urine Test",
-      amount: 300,
-      hospitalId: 3,
-      status: "Completed",
-    },
-
-  ]
-
-
-  const bills = [
-
-    {
-      id: "BILL001",
-      patient: "Rahul Kumar",
-      hospitalId: 1,
-      consultation: 500,
-      laboratory: 500,
-      pharmacy: 150,
-      other: 0,
-      status: "Paid",
-    },
-
-    {
-      id: "BILL002",
-      patient: "Priya Singh",
-      hospitalId: 1,
-      consultation: 500,
-      laboratory: 200,
-      pharmacy: 250,
-      other: 100,
-      status: "Pending",
-    },
-
-    {
-      id: "BILL003",
-      patient: "Amit Kumar",
-      hospitalId: 2,
-      consultation: 700,
-      laboratory: 800,
-      pharmacy: 300,
-      other: 0,
-      status: "Paid",
-    },
-
-  ]
-
-
-  const beds = [
-
-    {
-      id: "BED001",
-      ward: "General",
-      hospitalId: 1,
-      status: "Available",
-    },
-
-    {
-      id: "BED002",
-      ward: "General",
-      hospitalId: 1,
-      status: "Occupied",
-    },
-
-    {
-      id: "BED003",
-      ward: "ICU",
-      hospitalId: 1,
-      status: "Occupied",
-    },
-
-    {
-      id: "BED004",
-      ward: "General",
-      hospitalId: 2,
-      status: "Available",
-    },
-
-    {
-      id: "BED005",
-      ward: "ICU",
-      hospitalId: 3,
-      status: "Available",
-    },
-
-  ]
-
+  useEffect(() => {
+    if (!selectedHospital) return
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      setLoadError("")
+      const results = await Promise.allSettled([
+        api.reports.dashboard(selectedHospital.id, PERIODS[period] || "today"),
+        api.doctors.list(selectedHospital.id),
+        api.laboratory.tests.list(selectedHospital.id),
+        api.prescriptions.list({ hospitalId: selectedHospital.id }),
+      ])
+      if (cancelled) return
+      const [dash, docs, labs, rx] = results
+      const rows = (r) => (r.status === "fulfilled" ? (Array.isArray(r.value) ? r.value : r.value?.results || []) : [])
+      setKpis(dash.status === "fulfilled" ? dash.value : null)
+      setHospitalDoctors(rows(docs).map((d) => ({
+        id: d.id, name: d.name, department: d.specialization || "", status: d.status,
+      })))
+      setHospitalLaboratory(rows(labs).slice(0, 10).map((t) => ({
+        id: `LAB-${t.id}`, test: t.name, patient: t.patient_name, status: t.status,
+      })))
+      setPrescriptionTotal(rx.status === "fulfilled" ? rx.value?.count ?? rows(rx).length : 0)
+      const failed = results.filter((r) => r.status === "rejected")
+      if (failed.length) setLoadError(failed[0].reason?.message || "Some report data could not be loaded.")
+      setLoading(false)
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedHospital?.id, period])
 
   // =====================================
   // NO HOSPITAL
@@ -334,272 +118,30 @@ function Reports() {
 
 
   // =====================================
-  // HOSPITAL FILTERING
+  // FIGURES FROM THE KPIs
   // =====================================
 
-  const hospitalPatients =
-    patients.filter(
-      (patient) =>
-        patient.hospitalId ===
-        selectedHospital.id
-    )
+  const k = kpis || {}
+  const patientsTotal = k.patients?.total ?? 0
+  const doctorsTotal = k.doctors?.total ?? doctorsTotal
+  const appointmentsTotal = k.appointments?.period_total ?? 0
+  const completedAppointments = k.appointments?.completed ?? 0
+  const confirmedAppointments = k.appointments?.scheduled ?? 0
+  const waitingAppointments = k.queue?.waiting ?? 0
+  const billsTotal = k.billing?.period_invoices ?? 0
+  const paidBills = k.billing?.paid ?? 0
+  const pendingBills = (k.billing?.unpaid ?? 0) + (k.billing?.partial ?? 0)
+  const pharmacyRevenue = Number(k.pharmacy?.period_revenue ?? 0)
+  const billingRevenue = Number(k.billing?.period_revenue ?? 0)
+  const totalRevenue = billingRevenue + pharmacyRevenue
+  const totalBeds = k.ipd?.total_beds ?? 0
+  const availableBeds = k.ipd?.available_beds ?? 0
+  const occupiedBeds = k.ipd?.occupied_beds ?? 0
+  // Lab tests carry no price in this system, so lab revenue is not reported.
+  const laboratoryRevenue = null
+  // No activity feed API yet; the section shows only what the server reports.
+  const recentActivity = []
 
-
-  const hospitalDoctors =
-    doctors.filter(
-      (doctor) =>
-        doctor.hospitalId ===
-        selectedHospital.id
-    )
-
-
-  const hospitalAppointments =
-    appointments.filter(
-      (appointment) =>
-        appointment.hospitalId ===
-        selectedHospital.id
-    )
-
-
-  const hospitalLaboratory =
-    laboratory.filter(
-      (test) =>
-        test.hospitalId ===
-        selectedHospital.id
-    )
-
-
-  const hospitalBills =
-    bills.filter(
-      (bill) =>
-        bill.hospitalId ===
-        selectedHospital.id
-    )
-
-
-  const hospitalBeds =
-    beds.filter(
-      (bed) =>
-        bed.hospitalId ===
-        selectedHospital.id
-    )
-
-
-  const hospitalSales =
-    getHospitalSales(
-      selectedHospital.id
-    )
-
-
-  const hospitalPrescriptions =
-    getHospitalPrescriptions(
-      selectedHospital.id
-    )
-
-
-  // =====================================
-  // PHARMACY REVENUE
-  // =====================================
-
-  const pharmacyRevenue =
-    hospitalSales.reduce(
-      (total, sale) =>
-        total +
-        Number(
-          sale.total || 0
-        ),
-      0
-    )
-
-
-  // =====================================
-  // LAB REVENUE
-  // =====================================
-
-  const laboratoryRevenue =
-    hospitalLaboratory.reduce(
-      (total, test) =>
-        total +
-        Number(
-          test.amount || 0
-        ),
-      0
-    )
-
-
-  // =====================================
-  // BILL REVENUE
-  // =====================================
-
-  const billingRevenue =
-    hospitalBills.reduce(
-      (total, bill) =>
-
-        total +
-
-        Number(
-          bill.consultation || 0
-        ) +
-
-        Number(
-          bill.laboratory || 0
-        ) +
-
-        Number(
-          bill.pharmacy || 0
-        ) +
-
-        Number(
-          bill.other || 0
-        ),
-
-      0
-    )
-
-
-  // =====================================
-  // BED STATS
-  // =====================================
-
-  const availableBeds =
-    hospitalBeds.filter(
-      (bed) =>
-        bed.status ===
-        "Available"
-    ).length
-
-
-  const occupiedBeds =
-    hospitalBeds.filter(
-      (bed) =>
-        bed.status ===
-        "Occupied"
-    ).length
-
-
-  const totalBeds =
-    hospitalBeds.length
-
-
-  // =====================================
-  // APPOINTMENT STATS
-  // =====================================
-
-  const completedAppointments =
-    hospitalAppointments.filter(
-      (appointment) =>
-        appointment.status ===
-        "Completed"
-    ).length
-
-
-  const waitingAppointments =
-    hospitalAppointments.filter(
-      (appointment) =>
-        appointment.status ===
-        "Waiting"
-    ).length
-
-
-  const confirmedAppointments =
-    hospitalAppointments.filter(
-      (appointment) =>
-        appointment.status ===
-        "Confirmed"
-    ).length
-
-
-  // =====================================
-  // BILL STATUS
-  // =====================================
-
-  const paidBills =
-    hospitalBills.filter(
-      (bill) =>
-        bill.status ===
-        "Paid"
-    ).length
-
-
-  const pendingBills =
-    hospitalBills.filter(
-      (bill) =>
-        bill.status ===
-        "Pending"
-    ).length
-
-
-  // =====================================
-  // TOTAL REVENUE
-  // =====================================
-
-  const totalRevenue =
-    billingRevenue +
-    pharmacyRevenue +
-    laboratoryRevenue
-
-
-  // =====================================
-  // RECENT ACTIVITY
-  // =====================================
-
-  const recentActivity = [
-
-      {
-        icon: "👤",
-        title: "Patient Registration",
-        text:
-          hospitalPatients.length > 0
-            ? `${hospitalPatients[0].name} registered`
-            : "No recent patient",
-        time: "Today",
-      },
-
-      {
-        icon: "📅",
-        title: "Appointment",
-        text:
-          hospitalAppointments.length > 0
-            ? `${hospitalAppointments[0].patient} appointment`
-            : "No appointments",
-        time: "Today",
-      },
-
-      {
-        icon: "💊",
-        title: "Pharmacy",
-        text:
-          hospitalSales.length > 0
-            ? `${hospitalSales[0].medicineName} dispensed`
-            : "No pharmacy activity",
-        time: "Today",
-      },
-
-      {
-        icon: "🧪",
-        title: "Laboratory",
-        text:
-          hospitalLaboratory.length > 0
-            ? `${hospitalLaboratory[0].test} completed`
-            : "No lab activity",
-        time: "Today",
-      },
-
-      {
-        icon: "🧾",
-        title: "Billing",
-        text:
-          hospitalBills.length > 0
-            ? `${hospitalBills[0].id} generated`
-            : "No billing activity",
-        time: "Today",
-      },
-
-    ]
-
-
-  // =====================================
-  // REPORT CARD
   // =====================================
 
   const ReportCard = ({
@@ -744,6 +286,15 @@ function Reports() {
           OVERVIEW
       ===================================== */}
 
+      {loadError && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm" role="alert">
+          {loadError}
+        </div>
+      )}
+      {loading && (
+        <p className="text-sm text-gray-500" role="status">Loading report figures…</p>
+      )}
+
       <div>
 
         <h2 className="text-xl font-bold text-gray-800 mb-4">
@@ -757,7 +308,7 @@ function Reports() {
           <ReportCard
             title="Patients"
             value={
-              hospitalPatients.length
+              patientsTotal
             }
             subtitle="Registered patients"
             icon="👥"
@@ -768,7 +319,7 @@ function Reports() {
           <ReportCard
             title="Doctors"
             value={
-              hospitalDoctors.length
+              doctorsTotal
             }
             subtitle="Active doctors"
             icon="👨‍⚕️"
@@ -779,7 +330,7 @@ function Reports() {
           <ReportCard
             title="Appointments"
             value={
-              hospitalAppointments.length
+              appointmentsTotal
             }
             subtitle="Appointments"
             icon="📅"
@@ -790,7 +341,7 @@ function Reports() {
           <ReportCard
             title="Prescriptions"
             value={
-              hospitalPrescriptions.length
+              prescriptionTotal
             }
             subtitle="Doctor prescriptions"
             icon="🧾"
@@ -836,7 +387,7 @@ function Reports() {
 
           <ReportCard
             title="Laboratory"
-            value={`₹${laboratoryRevenue.toLocaleString("en-IN")}`}
+            value={laboratoryRevenue === null ? "Not tracked" : `₹${laboratoryRevenue.toLocaleString("en-IN")}`}
             subtitle="Laboratory revenue"
             icon="🧪"
             iconBg="bg-blue-100"
@@ -846,7 +397,7 @@ function Reports() {
           <ReportCard
             title="Bills"
             value={
-              hospitalBills.length
+              billsTotal
             }
             subtitle={`${paidBills} paid • ${pendingBills} pending`}
             icon="🧾"
@@ -900,8 +451,8 @@ function Reports() {
                   className="h-2 bg-green-500 rounded-full"
                   style={{
                     width:
-                      hospitalAppointments.length
-                        ? `${(completedAppointments / hospitalAppointments.length) * 100}%`
+                      appointmentsTotal
+                        ? `${(completedAppointments / appointmentsTotal) * 100}%`
                         : "0%",
                   }}
                 />
@@ -932,8 +483,8 @@ function Reports() {
                   className="h-2 bg-orange-500 rounded-full"
                   style={{
                     width:
-                      hospitalAppointments.length
-                        ? `${(waitingAppointments / hospitalAppointments.length) * 100}%`
+                      appointmentsTotal
+                        ? `${(waitingAppointments / appointmentsTotal) * 100}%`
                         : "0%",
                   }}
                 />
@@ -964,8 +515,8 @@ function Reports() {
                   className="h-2 bg-blue-500 rounded-full"
                   style={{
                     width:
-                      hospitalAppointments.length
-                        ? `${(confirmedAppointments / hospitalAppointments.length) * 100}%`
+                      appointmentsTotal
+                        ? `${(confirmedAppointments / appointmentsTotal) * 100}%`
                         : "0%",
                   }}
                 />

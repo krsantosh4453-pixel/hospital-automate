@@ -145,3 +145,41 @@ class FinancialIntegrityTests(TestCase):
         self.assertEqual(resp.status_code, 400)
         medicine.refresh_from_db()
         self.assertEqual(medicine.quantity, 5)
+
+
+class BillingKPITests(TestCase):
+    """Report figures must agree with the billing service."""
+
+    def test_revenue_net_of_refunds_and_partial_counted(self):
+        from billing.services import record_payment, record_refund
+        from reports.services import KPIService
+
+        hospital = Hospital.objects.create(name="Synthetic KPI", is_active=True)
+        patient = Patient.objects.create(name="Synthetic KPI Patient", age=40, gender="Male",
+                                         phone="9000000095", hospital=hospital)
+        from billing.models import InvoiceItem
+        from billing.services import recalculate
+
+        invoice = Invoice.objects.create(patient=patient, hospital=hospital, invoice_number="INV-KPI-1")
+        InvoiceItem.objects.create(invoice=invoice, description="Ward", quantity=1,
+                                   unit_price=Decimal("1000.00"), subtotal=Decimal("1000.00"))
+        recalculate(invoice)
+        record_payment(invoice, "600.00")
+        record_refund(invoice, "100.00", "Overcharge")
+
+        kpis = KPIService(hospital.id).get_billing_kpis("today")
+        self.assertEqual(kpis["period_revenue"], 500.0)
+        self.assertEqual(kpis["partial"], 1)
+        self.assertEqual(kpis["period_outstanding"], 500.0)
+
+    def test_patient_login_cannot_read_analytics(self):
+        from django.contrib.auth import get_user_model
+
+        hospital = Hospital.objects.create(name="Synthetic KPI 2", is_active=True)
+        login = get_user_model().objects.create_user(username="kpi_patient", password="Synthetic-Pass-123")
+        Patient.objects.create(name="Synthetic KPI Login", age=30, gender="Male", phone="9000000096",
+                               hospital=hospital, user=login)
+        client = APIClient()
+        client.force_authenticate(login)
+        resp = client.get(f"/api/reports/analytics/dashboard/?hospital={hospital.id}")
+        self.assertEqual(resp.status_code, 403)

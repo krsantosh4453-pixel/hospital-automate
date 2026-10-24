@@ -597,17 +597,30 @@ class KPIService:
 
         pay_qs = Payment.objects.filter(invoice__hospital_id=self.hospital_id)
         pay_in_period = pay_qs.filter(paid_at__gte=start, paid_at__lte=end)
+        refunds_in_period = pay_in_period.filter(kind=Payment.Kind.REFUND)
+        pay_in_period = pay_in_period.filter(kind=Payment.Kind.PAYMENT)
 
         total_invoices = inv_qs.count()
         period_invoices = inv_in_period.count()
-        paid_invoices = inv_in_period.filter(status="Paid").count()
-        unpaid_invoices = inv_in_period.filter(status="Unpaid").count()
-        partial_invoices = inv_in_period.filter(status="Partial").count()
+        paid_invoices = inv_in_period.filter(status=Invoice.Status.PAID).count()
+        unpaid_invoices = inv_in_period.filter(status=Invoice.Status.UNPAID).count()
+        partial_invoices = inv_in_period.filter(status=Invoice.Status.PARTIALLY_PAID).count()
 
-        period_revenue = pay_in_period.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-        period_outstanding = inv_in_period.exclude(status="Paid").aggregate(
-            total=Sum("total")
-        )["total"] or Decimal("0")
+        # Revenue is money received minus refunds given in the period.
+        received = pay_in_period.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        refunded = refunds_in_period.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        period_revenue = received - refunded
+
+        # Outstanding = billed minus net received, for invoices still owing.
+        open_invoices = inv_in_period.filter(
+            status__in=[Invoice.Status.UNPAID, Invoice.Status.PARTIALLY_PAID]
+        )
+        billed = open_invoices.aggregate(total=Sum("total"))["total"] or Decimal("0")
+        open_paid = Payment.objects.filter(invoice__in=open_invoices, kind=Payment.Kind.PAYMENT).aggregate(
+            total=Sum("amount"))["total"] or Decimal("0")
+        open_refunded = Payment.objects.filter(invoice__in=open_invoices, kind=Payment.Kind.REFUND).aggregate(
+            total=Sum("amount"))["total"] or Decimal("0")
+        period_outstanding = billed - (open_paid - open_refunded)
 
         # Payment method breakdown
         by_method = pay_in_period.values("payment_method").annotate(

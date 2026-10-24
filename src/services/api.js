@@ -1539,6 +1539,12 @@ api.departments = {
     request(`${API_BASE_URL}/hospital/departments/${id}/`, { method: "DELETE" }),
 }
 
+// Hospital KPIs, counted on the server for the selected period.
+api.reports = {
+  dashboard: async (hospitalId, period = "last_30_days") =>
+    request(`${API_BASE_URL}/reports/analytics/dashboard/?hospital=${encodeURIComponent(hospitalId)}&period=${encodeURIComponent(period)}`),
+}
+
 api.hospitals = {
   list: async () => request(`${API_BASE_URL}/hospital/hospitals/`),
   // Active hospitals any signed-in user (incl. patients) may choose from.
