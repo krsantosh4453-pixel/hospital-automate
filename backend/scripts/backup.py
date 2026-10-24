@@ -49,6 +49,24 @@ class DatabaseBackup:
             'password': parsed.password,
         }
 
+    def _pg_env(self) -> dict:
+        env = os.environ.copy()
+        if self.db_config['password']:
+            env['PGPASSWORD'] = self.db_config['password']
+        return env
+
+    def _read_plain_sql(self, backup_path: Path) -> bytes:
+        """Return the SQL text of a backup (decrypting / decompressing in memory)."""
+        data = backup_path.read_bytes()
+        if backup_path.suffix == '.enc':
+            if not self.cipher:
+                raise ValueError("Encryption key required for encrypted backup")
+            data = self.cipher.decrypt(data)
+            return gzip.decompress(data)
+        if backup_path.suffix == '.gz':
+            return gzip.decompress(data)
+        return data
+
     def create_backup(self, suffix: str = None) -> Path:
         """
         Create a database backup.
@@ -68,8 +86,7 @@ class DatabaseBackup:
         logger.info(f"Creating backup: {filename}")
 
         # Run pg_dump
-        env = os.environ.copy()
-        env['PGPASSWORD'] = self.db_config['password']
+        env = self._pg_env()
 
         cmd = [
             'pg_dump',
@@ -122,7 +139,7 @@ class DatabaseBackup:
 
     def verify_backup(self, backup_path: Path) -> bool:
         """
-        Verify backup integrity by attempting to read it.
+        Verify a backup can be decrypted and decompressed and is a pg_dump file.
 
         Returns:
             True if backup is valid
@@ -130,22 +147,9 @@ class DatabaseBackup:
         logger.info(f"Verifying backup: {backup_path.name}")
 
         try:
-            if backup_path.suffix == '.enc':
-                # Decrypt first
-                with open(backup_path, 'rb') as f_in:
-                    decrypted = self.cipher.decrypt(f_in.read())
-                # Check if it's valid gzip
-                import gzip
-                with gzip.GzipFile(fileobj=type('obj', (object,), {'read': lambda self, n: decrypted[:n]})()) as gz:
-                    gz.read(1024)  # Read first 1KB to verify
-            elif backup_path.suffix == '.gz':
-                with gzip.open(backup_path, 'rb') as f:
-                    f.read(1024)
-            else:
-                # Plain SQL
-                with open(backup_path, 'r') as f:
-                    f.read(1024)
-
+            sql = self._read_plain_sql(backup_path)
+            if b"PostgreSQL database dump" not in sql[:4096]:
+                raise ValueError("not a pg_dump file")
             logger.info("Backup verification passed")
             return True
 
@@ -167,36 +171,15 @@ class DatabaseBackup:
         # Determine target database
         target_db = target_database or self.db_config['database']
 
-        # Prepare file for restore
-        if backup_path.suffix == '.enc':
-            if not self.cipher:
-                raise ValueError("Encryption key required for encrypted backup")
-            logger.info("Decrypting backup...")
-            with open(backup_path, 'rb') as f_in:
-                decrypted = self.cipher.decrypt(f_in.read())
-            temp_path = backup_path.with_suffix('.sql.gz')
-            with open(temp_path, 'wb') as f_out:
-                f_out.write(decrypted)
-            restore_path = temp_path
-        elif backup_path.suffix == '.gz':
-            restore_path = backup_path
-        else:
-            restore_path = backup_path
+        # Decrypted SQL holds patient data: write it only to a private temp
+        # directory and always delete it afterwards.
+        import tempfile
 
-        # Decompress if needed
-        if restore_path.suffix == '.gz':
-            logger.info("Decompressing backup...")
-            sql_path = restore_path.with_suffix('.sql')
-            with gzip.open(restore_path, 'rb') as f_in:
-                with open(sql_path, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-            restore_path = sql_path
+        with tempfile.TemporaryDirectory(prefix="hms-restore-") as tmp:
+            os.chmod(tmp, 0o700)
+            restore_path = Path(tmp) / "restore.sql"
+            restore_path.write_bytes(self._read_plain_sql(backup_path))
 
-        # Run pg_restore or psql
-        env = os.environ.copy()
-        env['PGPASSWORD'] = self.db_config['password']
-
-        if restore_path.suffix == '.sql':
             cmd = [
                 'psql',
                 '-h', self.db_config['host'],
@@ -205,29 +188,11 @@ class DatabaseBackup:
                 '-d', target_db,
                 '-f', str(restore_path),
                 '-v', 'ON_ERROR_STOP=1',
-            ]
-        else:
-            # Custom format
-            cmd = [
-                'pg_restore',
-                '-h', self.db_config['host'],
-                '-p', str(self.db_config['port']),
-                '-U', self.db_config['user'],
-                '-d', target_db,
-                '--no-owner',
-                '--no-privileges',
-                '--clean',
-                '--if-exists',
-                str(restore_path),
+                '-q',
             ]
 
-        logger.info("Running restore...")
-        result = subprocess.run(cmd, env=env, capture_output=True, text=True)
-
-        # Cleanup temp files
-        for temp_file in [restore_path.with_suffix('.sql'), restore_path.with_suffix('.sql.gz')]:
-            if temp_file.exists() and temp_file != backup_path:
-                temp_file.unlink()
+            logger.info("Running restore...")
+            result = subprocess.run(cmd, env=self._pg_env(), capture_output=True, text=True)
 
         if result.returncode != 0:
             logger.error(f"Restore failed: {result.stderr}")
