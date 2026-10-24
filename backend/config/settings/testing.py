@@ -124,6 +124,7 @@ CELERY_BEAT_SCHEDULE = {}
 # ============================================================
 
 AI_SCRIBE_ENABLED = False
+AI_SCRIBE_ALLOW_MOCK_PROVIDERS = True
 
 
 # ============================================================

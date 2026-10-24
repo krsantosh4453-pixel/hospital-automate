@@ -427,6 +427,9 @@ MEDICAL_REPORTS_UPLOAD_PATH = 'medical_reports/'
 
 # AI Medical Scribe
 AI_SCRIBE_ENABLED = True
+# Mock STT/LLM providers return canned clinical text. Never allow them where
+# real patients are documented.
+AI_SCRIBE_ALLOW_MOCK_PROVIDERS = False
 AI_SCRIBE_PROVIDER = 'openai'  # openai, anthropic, local
 AI_SCRIBE_MODEL = 'gpt-4'
 AI_SCRIBE_MAX_TOKENS = 4000

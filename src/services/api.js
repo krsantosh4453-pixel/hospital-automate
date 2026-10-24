@@ -1916,8 +1916,11 @@ api.aiScribe.consultationSessions = {
   },
   create: async (data) =>
     request(`${API_BASE_URL}/ai/consultation-sessions/`, { method: "POST", ...jsonBody(data) }),
-  startRecording: async (id) =>
-    request(`${API_BASE_URL}/ai/consultation-sessions/${id}/start_recording/`, { method: "POST" }),
+  startRecording: async (id, data) =>
+    request(`${API_BASE_URL}/ai/consultation-sessions/${id}/start_recording/`, {
+      method: "POST",
+      ...jsonBody(data || {}),
+    }),
   stopRecording: async (id, data) =>
     request(`${API_BASE_URL}/ai/consultation-sessions/${id}/stop_recording/`, {
       method: "POST",

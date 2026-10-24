@@ -8,6 +8,7 @@ class DoctorSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "hospital",
+            "user",
             "name",
             "specialization",
             "email",
@@ -27,3 +28,18 @@ class DoctorSerializer(serializers.ModelSerializer):
         if value.id not in hospital_ids:
             raise serializers.ValidationError("You can only create doctors in your authorized hospitals.")
         return value
+
+    def validate(self, attrs):
+        """A linked login must be an active Doctor member of the same hospital."""
+        attrs = super().validate(attrs)
+        user = attrs.get("user", getattr(self.instance, "user", None))
+        hospital = attrs.get("hospital", getattr(self.instance, "hospital", None))
+        if user is not None:
+            from users.models import StaffHospitalMembership, StaffRole
+            if hospital is None or not StaffHospitalMembership.objects.filter(
+                staff__user=user, hospital=hospital, role=StaffRole.DOCTOR, is_active=True
+            ).exists():
+                raise serializers.ValidationError(
+                    {"user": "The login must belong to an active Doctor of this hospital."}
+                )
+        return attrs

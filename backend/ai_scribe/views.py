@@ -1,6 +1,8 @@
 import uuid
 import json
 import logging
+
+from django.conf import settings
 from datetime import timedelta
 
 from django.utils import timezone
@@ -10,7 +12,7 @@ from django.db.models import Max
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsDoctor, IsClinicalStaff
@@ -33,7 +35,42 @@ from .serializers import (
     AIPromptTemplateSerializer,
 )
 
+from audit.services import record_audit
+
 logger = logging.getLogger(__name__)
+
+ALLOWED_AUDIO_TYPES = [
+    "audio/wav",
+    "audio/x-wav",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/ogg",
+    "audio/webm",
+]
+MAX_AUDIO_BYTES = 100 * 1024 * 1024
+PROVIDER_UNAVAILABLE = (
+    "AI service is not configured for this hospital. "
+    "Document the consultation manually."
+)
+
+
+def _audio_error(audio_file):
+    """Return an error message for an unacceptable upload, else None."""
+    if audio_file.size > MAX_AUDIO_BYTES:
+        return "Audio file too large. Maximum 100MB."
+    content_type = (audio_file.content_type or "").split(";")[0].strip()
+    if content_type not in ALLOWED_AUDIO_TYPES:
+        return f"Unsupported audio format. Allowed: {', '.join(ALLOWED_AUDIO_TYPES)}"
+    return None
+
+
+def _doctor_for(request, hospital_id):
+    """The Doctor profile of the signed-in user at this hospital, if any."""
+    from doctors.models import Doctor
+
+    return Doctor.objects.filter(user=request.user, hospital_id=hospital_id).first()
 
 
 class ConsultationSessionViewSet(HospitalScopedViewSet):
@@ -46,7 +83,7 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
     ).prefetch_related("transcript", "ai_drafts")
     serializer_class = ConsultationSessionSerializer
     permission_classes = [IsClinicalStaff]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -66,9 +103,20 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        consent = str(request.data.get("patient_consent", "")).lower() in ("true", "1", "yes")
+        if not consent and not session.recording_consent_at:
+            return Response(
+                {"error": "Record the patient's consent to audio recording before starting."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not session.recording_consent_at:
+            session.recording_consent_at = timezone.now()
+            session.recording_consent_by = request.user
+            record_audit(request, "ai.recording_consent.recorded", session, hospital=session.hospital_id)
+
         session.status = ConsultationSession.Status.RECORDING
         session.recording_started_at = timezone.now()
-        session.save(update_fields=["status", "recording_started_at"])
+        session.save(update_fields=["status", "recording_started_at", "recording_consent_at", "recording_consent_by"])
 
         return Response(self.get_serializer(session).data)
 
@@ -89,6 +137,9 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
         audio_format = request.data.get("format", "")
 
         if audio_file:
+            error = _audio_error(audio_file)
+            if error:
+                return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
             session.audio_file = audio_file
         if audio_duration:
             try:
@@ -126,30 +177,9 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Validate file size (max 100MB)
-        max_size = 100 * 1024 * 1024
-        if audio_file.size > max_size:
-            return Response(
-                {"error": "Audio file too large. Maximum 100MB."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Validate file type
-        allowed_types = [
-            "audio/wav",
-            "audio/x-wav",
-            "audio/mpeg",
-            "audio/mp3",
-            "audio/mp4",
-            "audio/m4a",
-            "audio/ogg",
-            "audio/webm",
-        ]
-        if audio_file.content_type not in allowed_types:
-            return Response(
-                {"error": f"Unsupported audio format. Allowed: {', '.join(allowed_types)}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        error = _audio_error(audio_file)
+        if error:
+            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
         session.audio_file = audio_file
         session.audio_format = audio_file.content_type.split("/")[-1]
@@ -196,23 +226,37 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
                 language=session.language,
             )
 
-            transcript.text = result.get("text", "")
-            transcript.structured_data = result.get("structured_data", {})
-            transcript.provider = result.get("provider", "")
-            transcript.provider_model = result.get("model", "")
-            transcript.provider_metadata = result.get("metadata", {})
-            transcript.detected_language = result.get("detected_language", "")
-            transcript.language_confidence = result.get("language_confidence")
+            transcript.text = result.text or ""
+            transcript.structured_data = result.structured_data or {}
+            transcript.provider = result.provider or ""
+            transcript.provider_model = result.model or ""
+            transcript.provider_metadata = result.metadata or {}
+            transcript.detected_language = result.detected_language or ""
+            transcript.language_confidence = result.language_confidence
             transcript.status = ConversationTranscript.Status.COMPLETED
             transcript.processing_completed_at = timezone.now()
 
         except Exception as e:
             logger.exception("STT processing failed")
             transcript.status = ConversationTranscript.Status.FAILED
-            transcript.error_message = str(e)
+            transcript.error_message = str(e)[:1000]
             transcript.processing_completed_at = timezone.now()
+            transcript.save()
+            return Response(
+                {"error": PROVIDER_UNAVAILABLE if "not available" in str(e) else "Transcription failed. Try again or document manually.",
+                 "transcript": ConversationTranscriptSerializer(transcript).data},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         transcript.save()
+        # Give the doctor a draft to generate into; it stays a pending-review draft.
+        if not session.ai_drafts.exists():
+            AIConsultationDraft.objects.create(
+                consultation=session,
+                transcript=transcript,
+                version=1,
+                status=AIConsultationDraft.Status.GENERATED,
+            )
         return Response(ConversationTranscriptSerializer(transcript).data)
 
 
@@ -309,10 +353,17 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
             draft.status = AIConsultationDraft.Status.UNDER_REVIEW
 
         except Exception as e:
+            # Nothing is written to the clinical record on failure.
             logger.exception("LLM generation failed")
             draft.status = AIConsultationDraft.Status.GENERATED
             draft.generation_completed_at = timezone.now()
-            draft.provider_metadata = {"error": str(e)}
+            draft.provider_metadata = {"error": str(e)[:1000]}
+            draft.save()
+            return Response(
+                {"error": PROVIDER_UNAVAILABLE if "not available" in str(e) else "AI draft generation failed. Try again or document manually.",
+                 "draft": self.get_serializer(draft).data},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         draft.save()
         return Response(self.get_serializer(draft).data)
@@ -339,7 +390,7 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
         # Log the regeneration request
         DoctorReview.objects.create(
             ai_draft=old_draft,
-            doctor=request.user.staff_profile.doctor_profile if hasattr(request.user, "staff_profile") else None,
+            doctor=_doctor_for(request, old_draft.consultation.hospital_id),
             hospital=old_draft.consultation.hospital,
             action=DoctorReview.Action.REGENERATE_REQUESTED,
             section="full_draft",
@@ -377,14 +428,7 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Get doctor profile
-        doctor = None
-        if hasattr(request.user, "staff_profile"):
-            from doctors.models import Doctor
-            try:
-                doctor = Doctor.objects.get(user=request.user)
-            except Doctor.DoesNotExist:
-                pass
+        doctor = _doctor_for(request, draft.consultation.hospital_id)
 
         review = DoctorReview.objects.create(
             ai_draft=draft,
@@ -418,20 +462,21 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Get doctor profile
-        doctor = None
-        if hasattr(request.user, "staff_profile"):
-            from doctors.models import Doctor
-            try:
-                doctor = Doctor.objects.get(user=request.user)
-            except Doctor.DoesNotExist:
-                pass
+        doctor = _doctor_for(request, draft.consultation.hospital_id)
 
         if not doctor:
             return Response(
-                {"error": "Only doctors can approve clinical drafts"},
+                {"error": "Only a doctor of this hospital, linked to your login, can approve clinical drafts."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        if draft.provider == "development" and not getattr(settings, "AI_SCRIBE_ALLOW_MOCK_PROVIDERS", False):
+            return Response(
+                {"error": "This draft came from the development mock provider and cannot enter a medical record."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not draft.consultation.visit_id:
+            return Response({"error": "The consultation has no visit to attach a note to."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
             # Create final clinical note
@@ -474,6 +519,8 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
                 notes="Draft approved and clinical note created",
             )
 
+        record_audit(request, "ai.draft.approved", draft, hospital=draft.consultation.hospital_id,
+                     details={"clinical_note": clinical_note.id, "version": draft.version})
         return Response(
             {
                 "message": "Draft approved and clinical note created",
@@ -493,13 +540,7 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        doctor = None
-        if hasattr(request.user, "staff_profile"):
-            from doctors.models import Doctor
-            try:
-                doctor = Doctor.objects.get(user=request.user)
-            except Doctor.DoesNotExist:
-                pass
+        doctor = _doctor_for(request, draft.consultation.hospital_id)
 
         draft.status = AIConsultationDraft.Status.REJECTED
         draft.reviewed_by = doctor

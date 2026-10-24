@@ -34,6 +34,7 @@ class ConsultationSessionSerializer(serializers.ModelSerializer):
             "audio_duration_seconds",
             "audio_format",
             "language",
+            "recording_consent_at",
             "created_by",
             "patient_name",
             "doctor_name",
@@ -42,6 +43,11 @@ class ConsultationSessionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "status",
+            "audio_file",
+            "audio_duration_seconds",
+            "audio_format",
+            "recording_consent_at",
             "started_at",
             "recording_started_at",
             "recording_stopped_at",
@@ -134,7 +140,22 @@ class ConversationTranscriptSerializer(serializers.ModelSerializer):
         ]
 
 
+
+def draft_review_label(draft):
+    """Shown on every AI draft so unreviewed text is never mistaken for a record."""
+    if draft.status == "approved":
+        return "Approved by clinician"
+    if draft.status == "rejected":
+        return "AI Draft — Rejected"
+    return "AI Draft — Pending Review"
+
+
 class AIConsultationDraftSerializer(serializers.ModelSerializer):
+    review_label = serializers.SerializerMethodField()
+
+    def get_review_label(self, obj):
+        return draft_review_label(obj)
+
     consultation_id = serializers.IntegerField(source="consultation.id", read_only=True)
     patient_name = serializers.CharField(
         source="consultation.patient.name", read_only=True
@@ -152,6 +173,7 @@ class AIConsultationDraftSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIConsultationDraft
         fields = [
+            "review_label",
             "id",
             "consultation",
             "transcript",
@@ -180,19 +202,38 @@ class AIConsultationDraftSerializer(serializers.ModelSerializer):
             "reviewed_by_name",
             "approved_by_name",
         ]
+        # Workflow state changes only through the generate/review/approve/
+        # reject actions, which check the clinician and write the audit trail.
         read_only_fields = [
             "id",
             "created_at",
             "updated_at",
+            "version",
+            "structured_extraction",
+            "summary",
+            "provider",
+            "provider_model",
+            "prompt_version",
+            "provider_metadata",
             "generation_started_at",
             "generation_completed_at",
             "generation_duration_ms",
+            "status",
+            "reviewed_by",
             "reviewed_at",
+            "review_notes",
+            "approved_by",
             "approved_at",
+            "final_clinical_note",
         ]
 
 
 class AIConsultationDraftListSerializer(serializers.ModelSerializer):
+    review_label = serializers.SerializerMethodField()
+
+    def get_review_label(self, obj):
+        return draft_review_label(obj)
+
     """Lightweight serializer for list views"""
     consultation_id = serializers.IntegerField(source="consultation.id", read_only=True)
     patient_name = serializers.CharField(
@@ -202,6 +243,7 @@ class AIConsultationDraftListSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIConsultationDraft
         fields = [
+            "review_label",
             "id",
             "consultation_id",
             "patient_name",

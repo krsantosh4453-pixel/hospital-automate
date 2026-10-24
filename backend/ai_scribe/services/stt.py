@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any, BinaryIO
 from pathlib import Path
 
+from django.conf import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -420,8 +422,10 @@ class SpeechToTextService:
 
     def _initialize_providers(self):
         """Initialize available providers based on configuration"""
-        # Always register development provider as fallback
-        self._providers["development"] = DevelopmentSTTProvider()
+        # The development provider returns canned clinical text. It is only
+        # registered where settings explicitly allow it (local dev, tests).
+        if getattr(settings, "AI_SCRIBE_ALLOW_MOCK_PROVIDERS", False):
+            self._providers["development"] = DevelopmentSTTProvider()
 
         # Try to register Whisper (local)
         whisper_local = WhisperSTTProvider(use_api=False)
@@ -445,13 +449,11 @@ class SpeechToTextService:
             if not self._default_provider:
                 self._default_provider = "google"
 
-        # Default to development if nothing else
-        if not self._default_provider:
+        # Fall back to the development provider only where it is allowed;
+        # otherwise there is no provider and callers report "unavailable".
+        if not self._default_provider and "development" in self._providers:
             self._default_provider = "development"
-            logger.warning(
-                "No production STT provider configured. Using DEVELOPMENT provider. "
-                "Set OPENAI_API_KEY for Whisper API or GOOGLE_APPLICATION_CREDENTIALS for Google STT."
-            )
+            logger.warning("No real STT provider configured; using the DEVELOPMENT mock provider.")
 
     def get_provider(self, provider_name: Optional[str] = None) -> SpeechToTextProvider:
         """Get STT provider by name or default"""
@@ -506,5 +508,3 @@ class SpeechToTextService:
 
         logger.info(f"Transcribing {audio_file} with {stt_provider.provider_name} (language={language})")
         return stt_provider.transcribe(audio_file, language, **kwargs)
-
-(End of file)

@@ -1,15 +1,25 @@
-from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 
 from .models import Doctor
 from .serializers import DoctorSerializer
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import IsAdmin, IsHospitalManager, IsDoctor
+from users.permissions import IsAdmin, IsHospitalManager, IsHospitalMember, IsStaffUser
+
+_WRITE_ACTIONS = {"create", "update", "partial_update", "destroy"}
 
 
 class DoctorViewSet(HospitalScopedViewSet):
+    """Every staff member of a hospital can see its doctors (reception books
+    appointments against them); only its Admin or Manager edits profiles."""
+
     queryset = Doctor.objects.select_related("hospital")
     serializer_class = DoctorSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
+
+    def get_permissions(self):
+        base = [IsAuthenticated(), IsStaffUser(), IsHospitalMember()]
+        if getattr(self, "action", None) in _WRITE_ACTIONS:
+            return base + [(IsAdmin | IsHospitalManager)()]
+        return base
 
     def get_queryset(self):
         queryset = super().get_queryset()

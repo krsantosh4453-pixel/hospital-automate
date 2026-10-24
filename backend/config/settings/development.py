@@ -139,6 +139,7 @@ REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 # ============================================================
 
 AI_SCRIBE_ENABLED = True
+AI_SCRIBE_ALLOW_MOCK_PROVIDERS = os.environ.get('AI_SCRIBE_ALLOW_MOCK_PROVIDERS', 'True').lower() == 'true'
 AI_SCRIBE_PROVIDER = os.environ.get('AI_SCRIBE_PROVIDER', 'openai')
 AI_SCRIBE_API_KEY = os.environ.get('AI_SCRIBE_API_KEY', '')
 

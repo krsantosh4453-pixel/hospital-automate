@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 
@@ -75,6 +75,7 @@ const mapDraftFromApi = (record) => ({
   promptVersion: record.prompt_version || "v1",
   providerMetadata: record.provider_metadata || {},
   status: record.status || "generated",
+  reviewLabel: record.review_label || "AI Draft — Pending Review",
   reviewedBy: record.reviewed_by,
   reviewedByName: record.reviewed_by_name,
   approvedBy: record.approved_by,
@@ -163,6 +164,7 @@ function AIScribe() {
   const [isRecording, setIsRecording] = useState(false)
   const [audioBlob, setAudioBlob] = useState(null)
   const [mediaRecorder, setMediaRecorder] = useState(null)
+  const recordingDone = useRef(null)
   const [recordingTime, setRecordingTime] = useState(0)
 
   const selectedVisit = useMemo(
@@ -348,6 +350,16 @@ function AIScribe() {
 
   // Audio recording handlers
   const handleStartRecording = async () => {
+    if (!session) return
+    // The backend refuses to record until the patient's consent is captured.
+    if (
+      !session.recording_consent_at &&
+      !window.confirm(
+        "Has the patient agreed to this consultation being recorded for AI-assisted documentation?"
+      )
+    ) {
+      return
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream, {
@@ -356,11 +368,16 @@ function AIScribe() {
       const chunks = []
 
       recorder.ondataavailable = (e) => chunks.push(e.data)
-      recorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: "audio/webm" })
-        setAudioBlob(blob)
-        stream.getTracks().forEach(t => t.stop())
-      }
+      // Resolved with the finished recording so stop can upload it directly
+      // (reading the audioBlob state there would see the previous render's value).
+      recordingDone.current = new Promise((resolve) => {
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: "audio/webm" })
+          setAudioBlob(blob)
+          stream.getTracks().forEach(t => t.stop())
+          resolve(blob)
+        }
+      })
 
       setMediaRecorder(recorder)
       recorder.start(100) // Collect data every 100ms
@@ -368,10 +385,10 @@ function AIScribe() {
       setRecordingTime(0)
 
       // Start recording on backend
-      if (session) {
-        await api.aiScribe.consultationSessions.startRecording(session.id)
-        setSession({ ...session, status: "recording" })
-      }
+      const started = await api.aiScribe.consultationSessions.startRecording(session.id, {
+        patient_consent: true,
+      })
+      setSession(started)
     } catch (error) {
       setErrorMessage("Failed to start recording: " + error.message)
     }
@@ -382,12 +399,11 @@ function AIScribe() {
       mediaRecorder.stop()
       setIsRecording(false)
 
-      // Wait for blob to be ready
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const recorded = await recordingDone.current
 
-      if (audioBlob && session) {
+      if (recorded && session) {
         try {
-          await api.aiScribe.consultationSessions.uploadAudio(session.id, audioBlob, {
+          await api.aiScribe.consultationSessions.uploadAudio(session.id, recorded, {
             duration_seconds: recordingTime,
             format: "webm",
           })
@@ -397,7 +413,7 @@ function AIScribe() {
             format: "webm",
           })
 
-          setSession({ ...session, status: "completed" })
+          setSession((prev) => ({ ...prev, status: "completed" }))
           setSuccessMessage("Recording uploaded successfully")
         } catch (error) {
           setErrorMessage("Failed to upload recording: " + error.message)
@@ -414,6 +430,11 @@ function AIScribe() {
     try {
       const result = await api.aiScribe.consultationSessions.transcribe(session.id)
       setTranscript(mapTranscriptFromApi(result.transcript || result))
+      // A successful transcription creates the draft the doctor generates into.
+      const draftsData = await api.aiScribe.drafts.list(session.id)
+      const draftsList = readResults(draftsData).map(mapDraftFromApi)
+      setDrafts(draftsList)
+      if (draftsList.length > 0) setSelectedDraftId(draftsList[0].apiId)
       setSuccessMessage("Transcription completed")
     } catch (error) {
       setTranscriptError(error.message || "Transcription failed")
@@ -794,6 +815,12 @@ function AIScribe() {
               {selectedDraft && (
                 <>
                   <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                    <p
+                      className={`mb-3 text-sm font-semibold ${selectedDraft.status === "approved" ? "text-emerald-700" : "text-amber-700"}`}
+                      role="status"
+                    >
+                      {selectedDraft.reviewLabel}
+                    </p>
                     <div className="flex flex-wrap items-center gap-4 text-sm">
                       <span className={`px-3 py-1 rounded-full ${selectedDraft.status === "approved" ? "bg-emerald-100 text-emerald-700" : selectedDraft.status === "under_review" ? "bg-blue-100 text-blue-700" : selectedDraft.status === "edited" ? "bg-amber-100 text-amber-700" : selectedDraft.status === "rejected" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"}`}>
                         {selectedDraft.status.replace("_", " ").toUpperCase()}

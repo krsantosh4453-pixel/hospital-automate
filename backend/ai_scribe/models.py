@@ -68,6 +68,17 @@ class ConsultationSession(models.Model):
         help_text="Audio format (wav, mp3, m4a, etc.)",
     )
 
+    # Patient agreement to record the conversation, captured before recording.
+    recording_consent_at = models.DateTimeField(null=True, blank=True)
+    recording_consent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Staff member who recorded the patient's consent",
+    )
+
     # Language for STT
     language = models.CharField(
         max_length=10,

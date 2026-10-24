@@ -352,6 +352,8 @@ CELERY_BEAT_SCHEDULE = {
 # ============================================================
 
 AI_SCRIBE_ENABLED = os.environ.get('AI_SCRIBE_ENABLED', 'True').lower() == 'true'
+# Mock providers produce canned clinical content and are never allowed here.
+AI_SCRIBE_ALLOW_MOCK_PROVIDERS = False
 AI_SCRIBE_PROVIDER = os.environ.get('AI_SCRIBE_PROVIDER', 'openai')
 AI_SCRIBE_API_KEY = os.environ.get('AI_SCRIBE_API_KEY')
 AI_SCRIBE_MODEL = os.environ.get('AI_SCRIBE_MODEL', 'gpt-4')

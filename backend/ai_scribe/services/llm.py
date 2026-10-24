@@ -660,8 +660,10 @@ class LLMClinicalService:
 
     def _initialize_providers(self):
         """Initialize available providers based on configuration"""
-        # Always register development provider as fallback
-        self._providers["development"] = DevelopmentLLMProvider()
+        # The development provider returns canned clinical text. It is only
+        # registered where settings explicitly allow it (local dev, tests).
+        if getattr(settings, "AI_SCRIBE_ALLOW_MOCK_PROVIDERS", False):
+            self._providers["development"] = DevelopmentLLMProvider()
 
         # Try to register OpenAI
         if os.getenv("OPENAI_API_KEY"):
@@ -694,13 +696,11 @@ class LLMClinicalService:
             if not self._default_provider:
                 self._default_provider = "local"
 
-        # Default to development if nothing else
-        if not self._default_provider:
+        # Fall back to the development provider only where it is allowed;
+        # otherwise there is no provider and callers report "unavailable".
+        if not self._default_provider and "development" in self._providers:
             self._default_provider = "development"
-            logger.warning(
-                "No production LLM provider configured. Using DEVELOPMENT provider. "
-                "Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY, or run Ollama locally."
-            )
+            logger.warning("No real LLM provider configured; using the DEVELOPMENT mock provider.")
 
     def _load_default_prompt(self):
         """Load the default clinical extraction prompt template"""
@@ -859,24 +859,40 @@ Conversation Transcript:
 Extract the clinical information in the specified JSON format. 
 Remember: Only extract what is explicitly stated. Use empty arrays for missing information."""
 
+    MAX_ITEM_CHARS = 1000
+    MAX_ITEMS = 50
+
     def _validate_extraction(self, extraction: Dict[str, Any]) -> None:
-        """Validate extraction against schema (basic validation)"""
-        required_fields = ["chief_complaint", "symptoms", "assessment", "plan"]
-        for field in required_fields:
-            if field not in extraction:
-                extraction[field] = []
-            elif not isinstance(extraction[field], list):
-                extraction[field] = [str(extraction[field])]
-
-        # Ensure all fields are present
-        for field in self.DEFAULT_SCHEMA["properties"]:
-            if field not in extraction:
-                prop = self.DEFAULT_SCHEMA["properties"][field]
-                if prop["type"] == "array":
-                    extraction[field] = []
-                elif prop["type"] == "object":
-                    extraction[field] = {}
-                elif prop["type"] == "string":
-                    extraction[field] = ""
-
-(End of file)
+        """
+        Coerce provider output to the schema in place: unknown keys are
+        dropped, list fields hold only short strings, the vitals object only
+        known string fields. Nothing is invented: missing fields become empty.
+        """
+        if not isinstance(extraction, dict):
+            raise LLMGenerationError("Provider output is not a JSON object.")
+        properties = self.DEFAULT_SCHEMA["properties"]
+        for key in list(extraction):
+            if key not in properties:
+                extraction.pop(key)
+        for field, prop in properties.items():
+            value = extraction.get(field)
+            if prop["type"] == "array":
+                if value in (None, ""):
+                    value = []
+                elif not isinstance(value, list):
+                    value = [value]
+                extraction[field] = [
+                    str(item).strip()[: self.MAX_ITEM_CHARS]
+                    for item in value[: self.MAX_ITEMS]
+                    if item not in (None, "") and not isinstance(item, (dict, list))
+                ]
+            elif prop["type"] == "object":
+                allowed = prop.get("properties", {})
+                value = value if isinstance(value, dict) else {}
+                extraction[field] = {
+                    k: str(v).strip()[: self.MAX_ITEM_CHARS]
+                    for k, v in value.items()
+                    if k in allowed and v not in (None, "") and not isinstance(v, (dict, list))
+                }
+            elif prop["type"] == "string":
+                extraction[field] = "" if value is None else str(value).strip()[: self.MAX_ITEM_CHARS * 4]

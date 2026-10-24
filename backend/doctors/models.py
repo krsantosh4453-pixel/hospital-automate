@@ -1,7 +1,17 @@
+from django.conf import settings
 from django.db import models
 
 
 class Doctor(models.Model):
+    # The staff login of this doctor. Needed to record who approved
+    # clinical documentation (e.g. AI drafts); null for unlinked profiles.
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="doctor_profiles",
+    )
     hospital = models.ForeignKey(
         "hospital.Hospital",
         on_delete=models.CASCADE,
@@ -45,6 +55,13 @@ class Doctor(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "hospital"],
+                condition=models.Q(user__isnull=False),
+                name="doctor_unique_user_per_hospital",
+            ),
+        ]
         indexes = [
             models.Index(fields=["hospital", "status"]),
             models.Index(fields=["hospital", "specialization"]),
