@@ -85,6 +85,7 @@ export function AuthProvider({ children }) {
     setIsPatient(true)
     setIsLoggedIn(true)
     localStorage.setItem("patient", JSON.stringify(session.patient))
+    window.dispatchEvent(new Event("auth:login"))
     return session
   }, [])
 
@@ -94,6 +95,7 @@ export function AuthProvider({ children }) {
     setIsStaff(true)
     setIsPatient(false)
     setIsLoggedIn(true)
+    window.dispatchEvent(new Event("auth:login"))
     return userData
   }, [])
 

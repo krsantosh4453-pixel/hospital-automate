@@ -3,11 +3,38 @@ from .models import Hospital, Department, Ward, Room, Bed
 
 
 class HospitalSerializer(serializers.ModelSerializer):
+    type = serializers.ChoiceField(source="hospital_type", choices=Hospital.Type.choices, required=False)
+    status = serializers.SerializerMethodField()
+    departments = serializers.SerializerMethodField()
+    doctors = serializers.SerializerMethodField()
+    nurses = serializers.SerializerMethodField()
+
+    def get_status(self, obj):
+        return "Active" if obj.is_active else "Inactive"
+
+    def get_departments(self, obj):
+        return obj.departments.count()
+
+    def get_doctors(self, obj):
+        return obj.doctors.count()
+
+    def get_nurses(self, obj):
+        return obj.nurses.count()
+
+    def validate_code(self, value):
+        return (value or "").strip().upper() or None
+
     class Meta:
         model = Hospital
         fields = [
             "id",
             "name",
+            "code",
+            "type",
+            "status",
+            "departments",
+            "doctors",
+            "nurses",
             "address",
             "city",
             "state",

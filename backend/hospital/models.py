@@ -2,7 +2,15 @@ from django.db import models
 
 
 class Hospital(models.Model):
+    class Type(models.TextChoices):
+        PRIVATE = "Private", "Private"
+        GOVERNMENT = "Government", "Government"
+        TRUST = "Trust", "Trust / Charitable"
+
     name = models.CharField(max_length=150, db_index=True)
+    # Short registration code shown in admin lists; optional for older rows.
+    code = models.CharField(max_length=30, unique=True, null=True, blank=True)
+    hospital_type = models.CharField(max_length=20, choices=Type.choices, default=Type.PRIVATE)
     address = models.TextField(blank=True)
     city = models.CharField(max_length=100, blank=True)
     state = models.CharField(max_length=100, blank=True)

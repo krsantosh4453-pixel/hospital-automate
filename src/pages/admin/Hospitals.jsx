@@ -8,7 +8,12 @@ function Hospitals() {
     updateHospital,
     deleteHospital: removeHospital,
     toggleHospitalStatus,
+    loading,
+    error: loadError,
   } = useHospitals()
+
+  const [actionError, setActionError] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState("All")
@@ -64,6 +69,7 @@ function Hospitals() {
 
   const closeModal = () => {
     setShowModal(false)
+    setActionError("")
     resetForm()
   }
 
@@ -85,53 +91,63 @@ function Hospitals() {
     })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setActionError("")
 
     if (!formData.name.trim()) {
-      alert("Please enter hospital name")
+      setActionError("Please enter hospital name")
       return
     }
 
     if (!formData.code.trim()) {
-      alert("Please enter hospital code")
+      setActionError("Please enter hospital code")
       return
     }
 
     if (formData.phone.length !== 10) {
-      alert("Please enter valid 10 digit phone number")
+      setActionError("Please enter valid 10 digit phone number")
       return
     }
 
-    if (editingHospital) {
-      updateHospital(
-        editingHospital.id,
-        formData
-      )
-    } else {
-      addHospital({
-        ...formData,
-        doctors: 0,
-        nurses: 0,
-        departments: 0,
-      })
+    setSaving(true)
+    try {
+      if (editingHospital) {
+        await updateHospital(editingHospital.id, formData)
+      } else {
+        await addHospital(formData)
+      }
+      closeModal()
+    } catch (err) {
+      // e.g. 403 when the signed-in user is not a platform administrator
+      setActionError(err.message || "Could not save the hospital.")
+    } finally {
+      setSaving(false)
     }
-
-    closeModal()
   }
 
-  const handleDeleteHospital = (id) => {
+  const handleDeleteHospital = async (id) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this hospital?"
     )
 
     if (!confirmDelete) return
 
-    removeHospital(id)
+    setActionError("")
+    try {
+      await removeHospital(id)
+    } catch (err) {
+      setActionError(err.message || "Could not delete the hospital.")
+    }
   }
 
-  const handleToggleStatus = (id) => {
-    toggleHospitalStatus(id)
+  const handleToggleStatus = async (id) => {
+    setActionError("")
+    try {
+      await toggleHospitalStatus(id)
+    } catch (err) {
+      setActionError(err.message || "Could not change the hospital status.")
+    }
   }
 
   const filteredHospitals = hospitals.filter(
@@ -210,6 +226,15 @@ function Hospitals() {
         </button>
 
       </div>
+
+      {(loadError || actionError) && !showModal && (
+        <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
+          {actionError || loadError}
+        </div>
+      )}
+      {loading && (
+        <p className="mb-6 text-sm text-gray-500" role="status">Loading hospitals…</p>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -553,6 +578,11 @@ function Hospitals() {
               onSubmit={handleSubmit}
               className="p-6 space-y-4"
             >
+              {actionError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
+                  {actionError}
+                </div>
+              )}
 
               {/* Hospital Name */}
               <div>
@@ -710,11 +740,14 @@ function Hospitals() {
 
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                  disabled={saving}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
                 >
-                  {editingHospital
-                    ? "Update Hospital"
-                    : "Add Hospital"}
+                  {saving
+                    ? "Saving…"
+                    : editingHospital
+                      ? "Update Hospital"
+                      : "Add Hospital"}
                 </button>
 
               </div>

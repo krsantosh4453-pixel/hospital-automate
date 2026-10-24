@@ -1712,6 +1712,13 @@ api.hospitals = {
   directory: async (search = "") =>
     request(`${API_BASE_URL}/hospital/directory/${search ? `?search=${encodeURIComponent(search)}` : ""}`),
   get: async (id) => request(`${API_BASE_URL}/hospital/hospitals/${id}/`),
+  // Creating/deleting is limited to platform administrators by the backend.
+  create: async (data) =>
+    request(`${API_BASE_URL}/hospital/hospitals/`, { method: 'POST', ...jsonBody(data) }),
+  update: async (id, data) =>
+    request(`${API_BASE_URL}/hospital/hospitals/${id}/`, { method: 'PATCH', ...jsonBody(data) }),
+  remove: async (id) =>
+    request(`${API_BASE_URL}/hospital/hospitals/${id}/`, { method: 'DELETE' }),
   myHospitals: async () => {
     try {
       const me = await api.auth.getMe()

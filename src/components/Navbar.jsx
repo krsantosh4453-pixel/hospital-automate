@@ -29,85 +29,17 @@ function Navbar() {
   const notificationRef = useRef(null)
   const roleRef = useRef(null)
 
-  // Default coordinate mapping for hospitals
-  const defaultCoords = {
-    1: { latitude: 25.4182, longitude: 86.1272 },
-    2: { latitude: 25.4145, longitude: 86.1215 },
-    3: { latitude: 25.4112, longitude: 86.1352 },
-    4: { latitude: 25.5941, longitude: 85.1376 },
-    5: { latitude: 25.6127, longitude: 85.1589 },
-  }
-
-  // Combine context hospitals with coordinates and fallback
-  const fallbackHospitals = [
-    {
-      id: 1,
-      name: "City Care Hospital",
-      address: "Main Road, Begusarai, Bihar",
-      phone: "9876543210",
-      latitude: 25.4182,
-      longitude: 86.1272,
-      type: "Multi-Speciality",
-    },
-    {
-      id: 2,
-      name: "LifeLine Hospital",
-      address: "Station Road, Begusarai, Bihar",
-      phone: "9876543211",
-      latitude: 25.4145,
-      longitude: 86.1215,
-      type: "General & Multi-Speciality",
-    },
-    {
-      id: 3,
-      name: "Shanti Medical Centre",
-      address: "NH-31, Begusarai, Bihar",
-      phone: "9876543212",
-      latitude: 25.4112,
-      longitude: 86.1352,
-      type: "Multi-Speciality",
-    },
-    {
-      id: 4,
-      name: "Apollo Care Hospital",
-      address: "Station Road, Patna, Bihar",
-      phone: "9876543213",
-      latitude: 25.5941,
-      longitude: 85.1376,
-      type: "Multi-Speciality",
-    },
-    {
-      id: 5,
-      name: "City Medical Centre",
-      address: "Gandhi Maidan, Patna, Bihar",
-      phone: "9876543214",
-      latitude: 25.6127,
-      longitude: 85.1589,
-      type: "General Hospital",
-    },
-  ]
-
-  const hospitalsList = useMemo(() => {
-    if (contextHospitals && contextHospitals.length > 0) {
-      return contextHospitals.map((hospital) => {
-        const coords = defaultCoords[hospital.id] || {
-          latitude: 25.4182,
-          longitude: 86.1272,
-        }
-        return {
-          ...hospital,
-          latitude: hospital.latitude || coords.latitude,
-          longitude: hospital.longitude || coords.longitude,
-          type: hospital.type || "Multi-Speciality",
-        }
-      })
-    }
-    return fallbackHospitals
-  }, [contextHospitals])
+  // Hospitals the user may act in (from the API). Distance is only shown for
+  // hospitals that have real coordinates; none are invented here.
+  const hospitalsList = useMemo(() => contextHospitals || [], [contextHospitals])
 
   // Automatically select first hospital if none is selected yet
+  // (also replaces a stale selection that is no longer in the user's list)
   useEffect(() => {
-    if (!selectedHospital && hospitalsList.length > 0) {
+    if (hospitalsList.length === 0) return
+    const stillValid =
+      selectedHospital && hospitalsList.some((h) => String(h.id) === String(selectedHospital.id))
+    if (!stillValid) {
       selectHospital(hospitalsList[0])
     }
   }, [selectedHospital, hospitalsList, selectHospital])
@@ -175,8 +107,17 @@ function Navbar() {
   }
 
   // Add distance
+  const hasCoords = (hospital) =>
+    Number.isFinite(Number(hospital.latitude)) && Number.isFinite(Number(hospital.longitude)) &&
+    hospital.latitude !== null && hospital.latitude !== undefined
+
+  const mapQuery = (hospital) =>
+    hasCoords(hospital)
+      ? `${hospital.latitude},${hospital.longitude}`
+      : encodeURIComponent([hospital.name, hospital.address, hospital.city, hospital.state].filter(Boolean).join(", "))
+
   const hospitalsWithDistance = hospitalsList.map((hospital) => {
-    if (!userLocation) {
+    if (!userLocation || !hasCoords(hospital)) {
       return {
         ...hospital,
         distance: null,
@@ -220,15 +161,15 @@ function Navbar() {
 
   // Open map
   const handleMap = (hospital) => {
-    const url = `https://www.google.com/maps/search/?api=1&query=${hospital.latitude},${hospital.longitude}`
+    const url = `https://www.google.com/maps/search/?api=1&query=${mapQuery(hospital)}`
     window.open(url, "_blank", "noopener,noreferrer")
   }
 
   // Directions
   const handleDirections = (hospital) => {
     let url = userLocation
-      ? `https://www.google.com/maps/dir/?api=1&origin=${userLocation.latitude},${userLocation.longitude}&destination=${hospital.latitude},${hospital.longitude}`
-      : `https://www.google.com/maps/dir/?api=1&destination=${hospital.latitude},${hospital.longitude}`
+      ? `https://www.google.com/maps/dir/?api=1&origin=${userLocation.latitude},${userLocation.longitude}&destination=${mapQuery(hospital)}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${mapQuery(hospital)}`
     window.open(url, "_blank", "noopener,noreferrer")
   }
 

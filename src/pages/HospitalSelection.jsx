@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useHospitals } from "../assets/context/HospitalsContext.jsx"
 
 function HospitalSelection() {
   const navigate = useNavigate()
@@ -12,43 +13,10 @@ function HospitalSelection() {
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationError, setLocationError] = useState("")
 
-  // Demo hospital data
-  // Later this will come from Django backend
-  const hospitals = [
-    {
-      id: 1,
-      name: "City Care Hospital",
-      address: "Main Road, Begusarai, Bihar",
-      phone: "9876543210",
-      latitude: 25.4182,
-      longitude: 86.1272,
-      type: "Multi-Speciality",
-      doctors: 24,
-      rating: "4.7",
-    },
-    {
-      id: 2,
-      name: "LifeLine Hospital",
-      address: "Station Road, Begusarai, Bihar",
-      phone: "9876543211",
-      latitude: 25.4145,
-      longitude: 86.1215,
-      type: "General & Multi-Speciality",
-      doctors: 18,
-      rating: "4.5",
-    },
-    {
-      id: 3,
-      name: "Shanti Medical Centre",
-      address: "NH-31, Begusarai, Bihar",
-      phone: "9876543212",
-      latitude: 25.4112,
-      longitude: 86.1352,
-      type: "Multi-Speciality",
-      doctors: 15,
-      rating: "4.6",
-    },
-  ]
+  // Real hospitals from the API (public directory for patients). Ratings
+  // and doctor counts are not invented; distance needs real coordinates.
+  const { hospitals: contextHospitals, loading: hospitalsLoading, error: hospitalsError } = useHospitals()
+  const hospitals = contextHospitals.filter((hospital) => hospital.status === "Active")
 
   // Calculate distance between patient and hospital
   const calculateDistance = (
@@ -128,7 +96,7 @@ function HospitalSelection() {
   const hospitalsWithDistance =
     hospitals.map((hospital) => {
 
-      if (!userLocation) {
+      if (!userLocation || hospital.latitude == null || hospital.longitude == null) {
         return {
           ...hospital,
           distance: null,
@@ -485,17 +453,23 @@ function HospitalSelection() {
                     {/* Tags */}
                     <div className="flex flex-wrap gap-2 mt-5">
 
-                      <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                        {hospital.type}
-                      </span>
+                      {hospital.type && (
+                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                          {hospital.type}
+                        </span>
+                      )}
 
-                      <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs">
-                        ⭐ {hospital.rating}
-                      </span>
+                      {hospital.registered && (
+                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                          ✓ Registered
+                        </span>
+                      )}
 
-                      <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                        👨‍⚕️ {hospital.doctors} Doctors
-                      </span>
+                      {hospital.city && (
+                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
+                          📍 {hospital.city}
+                        </span>
+                      )}
 
                     </div>
 
@@ -597,7 +571,15 @@ function HospitalSelection() {
 
 
           {/* No result */}
-          {filteredHospitals.length === 0 && (
+          {hospitalsError && (
+            <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm" role="alert">
+              {hospitalsError}
+            </div>
+          )}
+          {hospitalsLoading && (
+            <p className="text-sm text-gray-500" role="status">Loading hospitals…</p>
+          )}
+          {!hospitalsLoading && filteredHospitals.length === 0 && (
 
             <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
 
