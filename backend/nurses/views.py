@@ -1,10 +1,11 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsHospitalManager, IsNurse, IsDoctor
@@ -197,18 +198,24 @@ class MARViewSet(HospitalScopedViewSet):
         """Generate MAR administration schedule based on frequency."""
         mar = self.get_object()
 
-        # Delete existing future administrations
+        # Replace only future doses nobody has acted on; recorded outcomes stay.
         MARAdministration.objects.filter(
             mar=mar,
             scheduled_time__gt=timezone.now(),
-            status__in=["Administered", "Held", "Refused", "Missed"]
+            status=MARAdministration.SCHEDULED,
         ).delete()
 
         # Parse frequency (e.g., "Q8H", "BID", "TID", "QID", "Daily", "PRN")
         frequency = mar.frequency.upper()
         start_date = request.data.get("start_date")
         if start_date:
-            start_dt = timezone.datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
+            try:
+                start_dt = datetime.fromisoformat(str(start_date))
+            except ValueError:
+                return Response({"start_date": "Use ISO format, e.g. 2026-10-24T08:00."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            if timezone.is_naive(start_dt):
+                start_dt = timezone.make_aware(start_dt)
         else:
             start_dt = timezone.now()
 
@@ -243,7 +250,7 @@ class MARViewSet(HospitalScopedViewSet):
             MARAdministration.objects.get_or_create(
                 mar=mar,
                 scheduled_time=current_dt,
-                defaults={"status": "Administered"}
+                defaults={"status": MARAdministration.SCHEDULED}
             )
             current_dt += timedelta(hours=interval_hours)
 
@@ -254,6 +261,24 @@ class MARViewSet(HospitalScopedViewSet):
         ).order_by("scheduled_time")
 
         return Response(MARAdministrationSerializer(upcoming, many=True).data)
+
+    @action(detail=True, methods=["post"])
+    def prn(self, request, pk=None):
+        """Record an as-needed (PRN) dose given now."""
+        mar = self.get_object()
+        if "PRN" not in mar.frequency.upper():
+            return Response({"detail": "This order is not PRN; use the scheduled doses."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if not mar.is_active:
+            return Response({"detail": "This medication order is discontinued."}, status=status.HTTP_400_BAD_REQUEST)
+        now = timezone.now()
+        admin = MARAdministration.objects.create(
+            mar=mar, scheduled_time=now, administered_time=now, status=MARAdministration.ADMINISTERED,
+            is_prn=True, recorded_by=request.user,
+            dose_given=request.data.get("dose_given", mar.dose), route_given=request.data.get("route_given", mar.route),
+            notes=request.data.get("notes", ""),
+        )
+        return Response(MARAdministrationSerializer(admin).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"])
     def due_medications(self, request):
@@ -266,15 +291,15 @@ class MARViewSet(HospitalScopedViewSet):
             )
 
         now = timezone.now()
-        window_start = now - timedelta(minutes=30)
         window_end = now + timedelta(hours=1)
 
+        # Everything still due up to an hour ahead, including overdue (delayed) doses.
         administrations = MARAdministration.objects.filter(
+            mar__hospital_id__in=self.get_acting_hospital_ids(),
             mar__hospital_id=hospital_id,
             mar__is_active=True,
-            scheduled_time__gte=window_start,
             scheduled_time__lte=window_end,
-            status="Administered"  # Not yet administered
+            status=MARAdministration.SCHEDULED,
         ).select_related(
             "mar__patient", "mar__admission", "administered_by"
         ).order_by("scheduled_time")
@@ -300,19 +325,52 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
             qs = qs.filter(status=admin_status)
         return qs
 
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {"detail": "Doses come from MAR generate_schedule/ or prn/; outcomes from the dose actions."},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def _nurse(self, request, admin):
+        """Optional nurse profile named in the request; must work at this hospital."""
+        nurse_id = request.data.get("administered_by")
+        if not nurse_id:
+            return None
+        nurse = Nurse.objects.filter(pk=nurse_id, hospital_id=admin.mar.hospital_id).first()
+        if nurse is None:
+            raise ValidationError({"administered_by": "Nurse not found at this hospital."})
+        return nurse
+
+    @action(detail=True, methods=["post"])
+    def exclude(self, request, pk=None):
+        """Administration Excluded: a doctor's decision not to give this dose."""
+        admin = self.get_object()
+        if admin.status != MARAdministration.SCHEDULED:
+            return Response({"detail": f"Already {admin.status.lower()}."}, status=status.HTTP_400_BAD_REQUEST)
+        reason = str(request.data.get("reason") or "").strip()
+        if not reason:
+            return Response({"detail": "A reason is required."}, status=status.HTTP_400_BAD_REQUEST)
+        admin.status = "Excluded"
+        admin.notes = reason
+        admin.administered_time = timezone.now()
+        admin.recorded_by = request.user
+        admin.save()
+        return Response(MARAdministrationSerializer(admin).data)
+
     @action(detail=True, methods=["post"])
     def administer(self, request, pk=None):
         """Record medication administration."""
         admin = self.get_object()
 
-        if admin.status != "Administered":
+        if admin.status != MARAdministration.SCHEDULED:
             return Response(
                 {"detail": f"Already {admin.status.lower()}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         admin.administered_time = timezone.now()
-        admin.administered_by_id = request.data.get("administered_by")
+        admin.administered_by = self._nurse(request, admin)
+        admin.recorded_by = request.user
         admin.dose_given = request.data.get("dose_given", admin.mar.dose)
         admin.route_given = request.data.get("route_given", admin.mar.route)
         admin.site = request.data.get("site", "")
@@ -327,7 +385,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         """Hold medication."""
         admin = self.get_object()
 
-        if admin.status != "Administered":
+        if admin.status != MARAdministration.SCHEDULED:
             return Response(
                 {"detail": f"Cannot hold - already {admin.status.lower()}."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -336,7 +394,8 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         admin.status = "Held"
         admin.reason_held = request.data.get("reason", "")
         admin.notes = request.data.get("notes", "")
-        admin.administered_by_id = request.data.get("administered_by")
+        admin.administered_by = self._nurse(request, admin)
+        admin.recorded_by = request.user
         admin.administered_time = timezone.now()
         admin.save()
 
@@ -347,7 +406,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         """Patient refused medication."""
         admin = self.get_object()
 
-        if admin.status != "Administered":
+        if admin.status != MARAdministration.SCHEDULED:
             return Response(
                 {"detail": f"Cannot refuse - already {admin.status.lower()}."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -356,7 +415,8 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         admin.status = "Refused"
         admin.reason_refused = request.data.get("reason", "")
         admin.notes = request.data.get("notes", "")
-        admin.administered_by_id = request.data.get("administered_by")
+        admin.administered_by = self._nurse(request, admin)
+        admin.recorded_by = request.user
         admin.administered_time = timezone.now()
         admin.save()
 
@@ -367,7 +427,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         """Mark as missed."""
         admin = self.get_object()
 
-        if admin.status != "Administered":
+        if admin.status != MARAdministration.SCHEDULED:
             return Response(
                 {"detail": f"Cannot mark missed - already {admin.status.lower()}."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -376,6 +436,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         admin.status = "Missed"
         admin.notes = request.data.get("notes", "Missed dose")
         admin.administered_time = timezone.now()
+        admin.recorded_by = request.user
         admin.save()
 
         return Response(MARAdministrationSerializer(admin).data)

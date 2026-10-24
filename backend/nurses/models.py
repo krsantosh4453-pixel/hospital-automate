@@ -296,13 +296,22 @@ class MAR(models.Model):
 
 
 class MARAdministration(models.Model):
-    """Individual medication administration event."""
+    """
+    One scheduled (or PRN) dose. A dose starts as Scheduled and is only marked
+    Administered / Held / Refused / Missed / Vomited / Excluded by a nurse
+    action, which records who and when. "Delay" is a Scheduled dose more than
+    30 minutes past its time (computed, not stored).
+    """
+    SCHEDULED = "Scheduled"
+    ADMINISTERED = "Administered"
     STATUS_CHOICES = [
+        ("Scheduled", "Scheduled (due)"),
         ("Administered", "Administered"),
         ("Held", "Held"),
         ("Refused", "Refused"),
         ("Missed", "Missed"),
         ("Vomited", "Vomited"),
+        ("Excluded", "Administration Excluded"),
     ]
 
     mar = models.ForeignKey(
@@ -313,7 +322,12 @@ class MARAdministration(models.Model):
     )
     scheduled_time = models.DateTimeField(db_index=True)
     administered_time = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Administered", db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=SCHEDULED, db_index=True)
+    is_prn = models.BooleanField(default=False)
+    # Login that recorded the outcome (Nurse rows are not linked to logins).
+    recorded_by = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
     administered_by = models.ForeignKey(
         Nurse,
         on_delete=models.SET_NULL,

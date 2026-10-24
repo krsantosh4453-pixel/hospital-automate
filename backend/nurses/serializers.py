@@ -139,6 +139,13 @@ class CareTaskSerializer(serializers.ModelSerializer):
 
 class MARAdministrationSerializer(serializers.ModelSerializer):
     administered_by_name = serializers.CharField(source="administered_by.name", read_only=True)
+    is_delayed = serializers.SerializerMethodField()
+
+    def get_is_delayed(self, obj):
+        """A due dose more than 30 minutes past its scheduled time."""
+        from datetime import timedelta
+        from django.utils import timezone
+        return obj.status == "Scheduled" and obj.scheduled_time < timezone.now() - timedelta(minutes=30)
 
     class Meta:
         model = MARAdministration
@@ -155,10 +162,15 @@ class MARAdministrationSerializer(serializers.ModelSerializer):
             "reason_held",
             "reason_refused",
             "notes",
+            "is_prn",
+            "is_delayed",
+            "recorded_by",
             "created_at",
             "administered_by_name",
         ]
-        read_only_fields = ["id", "created_at", "administered_by_name"]
+        # Outcomes are recorded through the dose actions, never by editing fields.
+        read_only_fields = ["id", "created_at", "administered_by_name", "status", "administered_time",
+                            "administered_by", "recorded_by", "is_prn", "is_delayed"]
 
 
 class MARSerializer(serializers.ModelSerializer):
