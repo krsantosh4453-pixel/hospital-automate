@@ -1,398 +1,142 @@
-# Hospital Management System — Architecture Documentation
+# Hospital Management System — Architecture
 
-This document describes the actual architecture of the Hospital Management System as implemented in the repository.
+This describes the system as implemented on branch `audit/production-readiness-2026-10-24` (2026-10-25). For module status see `REQUIREMENTS_TRACEABILITY.md`; for the API see `API_DOCUMENTATION.md`.
 
-## System Overview
+## Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            FRONTEND (React)                                 │
-│  ┌──────────┐  ┌─────────────┐  ┌──────────┐  ┌───────────┐  ┌──────────┐  │
-│  │  Pages   │  │ Components  │  │ Contexts │  │ API Svc   │  │ Router   │  │
-│  └──────────┘  └─────────────┘  └──────────┘  └───────────┘  └──────────┘  │
-└─────────────────────────────────┬───────────────────────────────────────────┘
-                                  │ HTTPS / REST API
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          BACKEND (Django + DRF)                             │
-│  ┌────────────┐  ┌──────────┐  ┌───────────┐  ┌──────────┐  ┌──────────┐  │
-│  │  ViewSets  │  │Serializers│  │Permissions│  │ Auth     │  │  Models  │  │
-│  └────────────┘  └──────────┘  └───────────┘  └──────────┘  └──────────┘  │
-└─────────────────────────────────┬───────────────────────────────────────────┘
-                                  │ ORM
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           DATABASE (PostgreSQL/SQLite)                      │
-└─────────────────────────────────────────────────────────────────────────────┘
+Browser (React SPA) ──HTTPS──> nginx ──┬─ /           static build (frontend container)
+                                       ├─ /api/       Django + DRF (gunicorn)
+                                       ├─ /health/    Django health checks
+                                       └─ /media/     404: files only via the audited API
+Django ── PostgreSQL 16 (data) ── Redis (cache, Celery broker) ── Celery worker + beat
+Django ── external (optional): Twilio Verify/SMS, email, STT/LLM providers, Google sign-in
 ```
 
----
+Every staff request acts in **one hospital** (see "Tenancy"). Patients authenticate separately and see only their own records.
 
-## Frontend Architecture
+## Frontend (`src/`)
 
-### Technology Stack
-- **React 19** — UI library
-- **Vite** — Build tool and dev server
-- **React Router v7** — Client-side routing
-- **Tailwind CSS 4** — Utility-first styling
-- **Context API** — State management (no Redux/Zustand)
+- **Stack:** React 19, Vite 8, React Router 7, Tailwind 4, Context API.
+- **Directories:**
+  - `pages/` — one component per route
+  - `components/` — Navbar, Sidebar, …
+  - `layouts/` — staff Layout, PatientLayout
+  - `assets/context/` — providers
+  - `services/api.js` — the only HTTP client
+  - `utils/roleRouting.js`
 
-### Key Directories
-```
-src/
-├── pages/              # Page-level components (one per route)
-├── components/         # Reusable UI components
-├── services/           # API service layer (api.js)
-├── assets/context/     # React Context providers
-├── layouts/            # Layout wrappers (Layout, PatientLayout)
-└── utils/              # Utility functions
-```
+### Context providers
 
-### React Context Providers (in `src/assets/context/`)
 | Context | Purpose |
-|---------|---------|
-| `AuthContext` | JWT token management, login/logout, token refresh |
-| `RoleContext` | Role definitions, permissions, active role switching |
-| `PatientContext` | Current patient data for patient portal |
-| `PrescriptionContext` | Prescription state during consultation |
-| `PharmacyContext` | Pharmacy/cart state |
-| `HospitalsContext` | Hospital selection and list |
-| `SidebarContext` | Sidebar open/close state |
-| `RoleAuthBridge` | Syncs backend roles to frontend |
+|---|---|
+| `LanguageContext` | English/Hindi interface text (`t()`), stored in `localStorage` as `hms_language`; sets `<html lang>` |
+| `AuthContext` | Staff/patient session, token storage, login flows; dev bypass only in development builds |
+| `HospitalsContext` | Hospitals from the API only (staff: memberships; patients: `/api/hospital/directory/`) |
+| `PatientContext` | Selected hospital (`localStorage.selectedHospital`) and patient state |
+| `RoleContext` / `RoleAuthBridge` | Which menu items a role sees. UI only; the server enforces access. |
+| `PrescriptionContext`, `PharmacyContext` | API-backed lists; writes succeed only when the server accepts them |
+| `SidebarContext` | Sidebar open or closed |
 
-### Routing Structure (`src/App.jsx`)
-- **Staff routes** (`/`) — Protected by `ProtectedRoute audience="staff"`
-  - Dashboard, Patients, Appointments, Queue, Consultation, Prescription
-  - Doctors, Nurses, Compounder, Pharmacy, Laboratory, Billing
-  - Inventory, Reports, Emergency, Blood Bank, IPD, AI Scribe
-  - Admin: Dashboard, Users, Roles, Hospitals, Departments, Permissions
-  - Settings, Hospital Selection
-- **Patient routes** (`/patient/*`) — Protected by `ProtectedRoute audience="patient"`
-  - Dashboard, Appointments, Queue, Prescriptions, Lab Results, Bills, Documents, Consent
+### API client (`services/api.js`)
 
-### API Service Layer (`src/services/api.js`)
-- Base URL: `import.meta.env.VITE_API_BASE_URL || '/api'`
-- Automatic JWT attachment via `Authorization: Bearer <access_token>`
-- Automatic token refresh on 401 (except for auth endpoints)
-- Timeout: 8 seconds
-- Error parsing with `parseErrorDetail()`
+- Base URL `VITE_API_BASE_URL || '/api'`.
+- Attaches `Authorization: Bearer …` and `X-Hospital-ID` (the selected hospital).
+- Refreshes the token once on 401.
+- 8-second timeout.
+- Errors show the server's `message`.
+- `backend/security_tests/test_frontend_contract.py` fails if any client URL has no backend route.
 
----
+### Routing
 
-## Backend Architecture
+- **Staff routes:** `ProtectedRoute audience="staff"` plus a backend-role check.
+- **Patient routes:** under `/patient/*`.
+- **Production builds:** always require login.
 
-### Technology Stack
-- **Django 5.2** — Web framework
-- **Django REST Framework 3.15** — API framework
-- **djangorestframework-simplejwt** — JWT authentication
-- **django-cors-headers** — CORS handling
-- **PostgreSQL** (production) / **SQLite** (development)
+## Backend (`backend/`)
 
-### Project Structure
-```
-backend/
-├── config/             # Project settings, URLs, health, schema
-├── users/              # Authentication, authorization, staff/patient
-├── patients/           # Patient management
-├── doctors/            # Doctor management
-├── appointments/       # Appointment scheduling
-├── nurses/             # Nursing: assessments, notes, MAR, care tasks
-├── pharmacy/           # Medicine inventory, sales
-├── laboratory/         # Lab tests, samples, results, dispatch
-├── clinical/           # Clinical notes, prescriptions, diagnoses, procedures
-├── encounters/         # Visits, queue tokens, doctor schedules
-├── hospital/           # Hospital, department, ward, room, bed
-├── billing/            # Invoices, payments, insurance claims
-├── bloodbank/          # Blood inventory, requests, transactions
-├── ipd/                # Admissions, bed allocations, discharge
-├── emergency/          # Emergency visits, triage, orders, medications
-├── procurement/        # Suppliers, purchase orders, GRN, stock transactions
-├── ai_scribe/          # AI Medical Scribe (STT + LLM)
-├── audit/              # Audit logging
-├── notifications/      # Notification system
-├── reports/            # Reports (stubbed)
-├── fhir/               # FHIR (UNMOUNTED)
-├── hl7/                # HL7 (UNMOUNTED)
-├── abdm/               # ABDM/ABHA (UNMOUNTED)
-├── consent/            # Consent (UNMOUNTED)
-├── documents/          # Documents (UNMOUNTED)
-└── interoperability/   # Interoperability utilities
-```
+- **Stack:** Django 6.0, DRF 3.18, SimpleJWT, django-cors-headers, drf-spectacular, Celery 5 with django-celery-beat. Exact versions are in `requirements-lock.txt`.
+- **Apps:**
+  - `users` — auth, permissions, staff admin, scoped base viewsets
+  - `patients`, `doctors`, `appointments`
+  - `encounters` — visits, queue tokens, schedules
+  - `clinical` — vitals, allergies, notes, diagnoses, orders, procedures, prescriptions
+  - `laboratory`, `pharmacy`, `procurement`
+  - `nurses` — assessments, notes, care tasks, MAR
+  - `ipd`, `emergency`, `billing`, `bloodbank`
+  - `notifications` — engine, consent, delivery log
+  - `consent` — forms, record sharing
+  - `documents` — file API
+  - `ai_scribe`
+  - `audit`
+  - `reports` — KPIs, forecasts
+  - `hospital` — hospital, department, ward, room, bed
+- **Not mounted:** `fhir`, `hl7`, `abdm` (code present; no URLs).
 
-### Core Patterns
+### Tenancy (`users/viewsets.py`)
 
-#### ViewSets
-- Base: `HospitalScopedViewSet` (filters queryset by user's hospital membership)
-- Permissions: Role-based permission classes from `users.permissions`
-- Serializers: Separate list/detail serializers where needed
+- `HospitalScopedViewSet` and `ReadOnlyHospitalScopedViewSet` resolve each model's path to its owning hospital (`resolve_hospital_lookup`). They never route through the shared Patient identity, and filter to the user's active memberships, narrowed to the acting hospital.
+- Scoping **fails closed:** a model with no path returns nothing.
+- Writes run `_check_tenancy`: the record's own hospital must be one of the user's, every related object must belong to the same hospital, and any patient must be registered there.
+- The acting hospital comes from `?hospital=`, a body `hospital` field, or the `X-Hospital-ID` header (`users/permissions.get_request_hospital_id`). Malformed values return 400.
 
-#### Hospital Scoping
-All hospital-scoped models include `hospital = ForeignKey(Hospital)` and are filtered by `HospitalScopedViewSet` using the user's active `StaffHospitalMembership`.
+### Authorization (`users/permissions.py`)
 
-#### Serializers
-- Use `ModelSerializer` with explicit fields
-- Nested serializers for relationships
-- Custom validation in `validate()` methods
+- Roles come from `StaffHospitalMembership.role` in the acting hospital (`get_user_roles(user, hospital_id)`). The `StaffProfile.role` field is only a display default.
+- Role classes (`IsDoctor`, `IsNurse`, …) check the role in the acting hospital and, per object, in the object's owning hospital.
+- `IsPatientReadOnly` lets a linked patient read their own rows, further filtered per resource (for example, only released lab results).
+- Platform superusers alone create or delete hospitals and see OTP rows. There is no cross-hospital superuser data access through the scoped APIs.
 
-#### Permissions (`users/permissions.py`)
-- `IsStaffUser` — Authenticated staff with active profile
-- `IsHospitalMember` — Staff member of requested hospital
-- `RoleBasedPermission` — Base class for role-specific permissions
-  - `IsAdmin`, `IsDoctor`, `IsNurse`, `IsReceptionist`, `IsPharmacist`
-  - `IsLabStaff`, `IsBillingStaff`, `IsInventoryStaff`, `IsBloodBankStaff`
-  - `IsHospitalManager`, `IsClinicalStaff`, `IsAdminOrManager`
-- Object-level: `IsOwnerOrHospitalAdmin`, `IsHospitalScoped`
-- Patient: `IsLinkedPatient`, `IsPatientReadOnly`
+### Domain services
 
----
+- `billing/services.py`: Decimal totals, locked and idempotent payments, refunds.
+- `audit/services.record_audit`: never raises; redacts secrets.
+- `notifications/services/engine.py`: consent check (latest answer per hospital and purpose), providers, a durable `NotificationDelivery` row per attempt.
+- `ai_scribe/services/{stt,llm}.py`: provider abstraction. Mock providers load only when `AI_SCRIBE_ALLOW_MOCK_PROVIDERS` is set. Extraction is coerced to a fixed schema.
+- `reports/services.KPIService`: hospital-scoped KPIs.
 
-## Database Architecture
+### Clinical safety rules (enforced server-side)
 
-### Development Database
-- **SQLite** (`backend/db.sqlite3`) — File-based, zero-config
-- Used for local development and testing
-- Migrations applied via `python manage.py migrate`
+- AI drafts are labelled "AI Draft — Pending Review". Workflow fields are read-only, approval needs the signed-in user's Doctor profile at that hospital, and approving creates the clinical note. Mock-provider drafts cannot be approved where mocks are disallowed.
+- Recording needs the patient's consent first.
+- Discharge summaries are finalized only by a linked doctor and are immutable afterwards. Discharge can't complete without a finalized summary.
+- Lab results move only through lab-staff actions; patients see Released results only.
+- MAR doses start as Scheduled; every outcome records who and when.
+- Every write is audited with previous values.
 
-### Production Database
-- **PostgreSQL 15+** — Configured via `DATABASE_URL` environment variable
-- Connection pooling via `psycopg2-binary`
-- Migrations managed in CI/CD pipeline
+### Background jobs
 
-### Major Entity Relationships
+- `config/celery.py`.
+- Beat schedule: `notifications.tasks.cleanup_expired_otp` (hourly) and `audit.tasks.cleanup_old_audit_logs` (daily; only when `AUDIT_LOG_RETENTION_DAYS > 0`).
+- The queue-token notification path calls the engine synchronously and never fails the request.
 
-```
-Hospital (1) ──────< (N) StaffHospitalMembership >────── (1) StaffProfile
-    │
-    ├─< (N) Patient (direct FK) 
-    │   └─< (N) PatientHospital (membership)
-    │
-    ├─< (N) Doctor
-    ├─< (N) Nurse
-    ├─< (N) Department
-    ├─< (N) Ward ──< (N) Room ──< (N) Bed
-    ├─< (N) Appointment
-    ├─< (N) Visit
-    ├─< (N) QueueToken
-    ├─< (N) Prescription
-    ├─< (N) Invoice
-    ├─< (N) BloodInventory
-    ├─< (N) BloodRequest
-    ├─< (N) EmergencyVisit
-    ├─< (N) Admission
-    ├─< (N) Supplier
-    ├─< (N) PurchaseOrder
-    └─< (N) Medicine
+## Authentication
 
-Patient (1) ──< (N) Appointment
-Patient (1) ──< (N) Visit
-Patient (1) ──< (N) Prescription
-Patient (1) ──< (N) Invoice
-Patient (1) ──< (N) Admission
-Patient (1) ──< (N) EmergencyVisit
-Patient (1) ──< (N) LabTest
-Patient (1) ──< (N) BloodRequest
+- **Staff:**
+  - password sign-in, with lockout after 5 failures for 15 minutes;
+  - SMS OTP via Twilio Verify, with a signed challenge from the password step (mandatory in production via `STAFF_LOGIN_REQUIRE_OTP`);
+  - OTP password reset that revokes refresh tokens.
+- **Patients:** mobile OTP, email OTP, verified-email password, or Google.
+- **Tokens:** JWT access 15 minutes and refresh 7 days (rotated, blacklisted on logout); RS256 in production. Tokens are kept in `localStorage` (see `SECURITY_AUDIT.md`, open item).
 
-Visit (1) ──< (N) VitalSign
-Visit (1) ──< (N) ClinicalNote
-Visit (1) ──< (N) Diagnosis
-Visit (1) ──< (N) ServiceOrder
-Visit (1) ──< (N) Procedure
-Visit (1) ──< (N) Prescription
-Visit (1) ──< (N) LabTest
-Visit (1) ──< (N) QueueToken
+## Deployment
 
-Prescription (1) ──< (N) PrescriptionItem
-Prescription (1) ──< (N) MAR
-Prescription (1) ──< (N) Sale (pharmacy)
+`docker-compose.prod.yml` runs:
 
-Admission (1) ──< (N) BedAllocation
-Admission (1) ──< (1) DischargePlan
-Admission (1) ──< (1) DischargeSummary
-Admission (1) ──< (N) DischargeNote
-Admission (1) ──< (N) NursingAssessment
-Admission (1) ──< (N) NursingNote
-Admission (1) ──< (N) CareTask
-Admission (1) ──< (N) MAR
-Admission (1) ──< (N) PatientAssignment
-```
+- `postgres:16-alpine` and `redis`;
+- `backend` (gunicorn; migrates when `RUN_MIGRATIONS=true`), `celery-worker` and `celery-beat` — all three share the `x-django-service` anchor and `.env.production`;
+- `frontend` (static build);
+- `nginx` (TLS, rate limits, private media, per-location proxying).
 
-### Key Indexes (Verified from Models)
-- Most FK fields have `db_index=True`
-- Composite indexes on `(hospital, status)`, `(hospital, created_at)`, `(hospital, date)`
-- Unique constraints on `QueueToken(hospital, token_date, token_number)`, `Supplier(hospital, name)`, `PurchaseOrder(hospital, reference)`, `GoodsReceipt(hospital, reference)`
+Health checks: `/health/live/` and `/health/ready/` (database and cache). See `DEPLOYMENT.md` and `OPERATIONS_RUNBOOK.md`.
 
----
+## Known architecture limitations
 
-## Authentication Architecture
+See `KNOWN_LIMITATIONS.md`. The main ones:
 
-### Staff Authentication
-1. **Login**: `POST /api/auth/staff/login/` with username/password
-2. **Response**: JWT access + refresh tokens, user object, roles array, hospitals array
-3. **Token Storage**: localStorage (access_token, refresh_token)
-4. **Access Token**: Short-lived (configurable via SIMPLE_JWT)
-5. **Refresh Token**: Long-lived, used to obtain new access token
-6. **Auto-refresh**: Frontend intercepts 401, calls `/api/auth/token/refresh/`, retries request
-
-### Patient Authentication
-1. **OTP Request**: `POST /api/auth/patient/otp/request/` with phone
-2. **OTP Verify**: `POST /api/auth/patient/otp/verify/` with phone + OTP
-3. **Email OTP**: Alternative flow via `/api/auth/patient/email-otp/`
-3. **Login**: `POST /api/auth/patient/login/` or `/api/auth/patient/token/`
-4. **Session**: JWT tokens same as staff, but linked to `Patient` via `user.patient_account`
-
-### Registration
-- `POST /api/auth/register/` — Creates User + Patient (if patient registration)
-- Staff accounts created via admin or Users management
-
-### Google OAuth
-- `POST /api/auth/google/` — Exchanges Google ID token for JWT
-
-### Token Endpoints (DRF SimpleJWT)
-- `POST /api/auth/token/` — Obtain pair (username/password)
-- `POST /api/auth/token/refresh/` — Refresh access token
-- `POST /api/auth/token/verify/` — Verify token validity
-
----
-
-## Authorization Architecture
-
-### Backend Enforcement (Source of Truth)
-All authorization decisions are made in **backend permission classes** (`users/permissions.py`):
-
-1. **Authentication** — `IsAuthenticated` (JWT valid)
-2. **Staff Check** — `IsStaffUser` (has StaffProfile, is_active_staff)
-3. **Hospital Membership** — `IsHospitalMember` (active membership in requested hospital)
-4. **Role Check** — `RoleBasedPermission` subclasses (IsDoctor, IsNurse, etc.)
-5. **Object-Level** — `IsOwnerOrHospitalAdmin`, `IsHospitalScoped`
-
-### Frontend Role Visibility (UI Only — NOT Security)
-Frontend uses `RoleContext` (`src/assets/context/RoleContext.jsx`) to control **visibility only**:
-
-- `DEFAULT_ROLES` defines 6 roles: Admin, Doctor, Nurse, Compounder, Receptionist, Patient
-- Each role has `permissions[module] = ["View", "Add", "Edit", "Delete"]`
-- `canView(module)`, `canAdd(module)`, etc. used in Sidebar and page components
-- **Critical**: Frontend hiding ≠ security. Backend permissions enforce actual access.
-
-### Role Mapping (Backend ↔ Frontend)
-| Backend Role (StaffRole) | Frontend Role | Notes |
-|--------------------------|---------------|-------|
-| ADMIN | Admin | Full access |
-| DOCTOR | Doctor | Clinical workflows |
-| NURSE | Nurse | Vitals, MAR, assessments |
-| COMPOUNDER | Compounder | Pharmacy dispensing |
-| RECEPTIONIST | Receptionist | Registration, appointments, queue |
-| PHARMACIST | (mapped to Compounder) | Frontend uses "Compounder" |
-| LAB_STAFF | (no dedicated frontend role) | Uses Laboratory module |
-| BILLING_STAFF | (no dedicated frontend role) | Uses Billing module |
-| INVENTORY_STAFF | (no dedicated frontend role) | Uses Inventory module |
-| BLOOD_BANK_STAFF | (no dedicated frontend role) | Uses Blood Bank module |
-| HOSPITAL_MANAGER | Admin (falls back) | No dedicated frontend role |
-
----
-
-## Deployment Architecture (Stage 7 — ACTUAL)
-
-### Container Structure
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        DOCKER COMPOSE                           │
-├──────────────┬──────────────┬──────────────┬──────────────────┤
-│   nginx      │   backend    │   frontend   │   postgres       │
-│  (reverse    │  (gunicorn)  │  (nginx +    │   (database)     │
-│   proxy)     │  + celery    │   static)    │                  │
-└──────────────┴──────────────┴──────────────┴──────────────────┘
-```
-
-### Services (from `docker-compose.prod.yml`)
-
-| Service | Image | Port | Purpose |
-|---------|-------|------|---------|
-| `nginx` | `nginx:alpine` | 80/443 | Reverse proxy, SSL termination, static files |
-| `backend` | Built from `Dockerfile` | 8000 | Gunicorn + Django, Celery worker, Celery beat |
-| `frontend` | Built from `Dockerfile.frontend` | 3000 | Nginx serving React build |
-| `postgres` | `postgres:15-alpine` | 5432 | Primary database |
-| `redis` | `redis:7-alpine` | 6379 | Cache, Celery broker, sessions |
-
-### Network & Volumes
-- All services on `hms-network` bridge network
-- Named volumes: `postgres_data`, `redis_data`, `media_files`, `static_files`, `backend_logs`
-
-### SSL/TLS
-- Nginx terminates SSL (Let's Encrypt or self-signed)
-- Certificates mounted at `/etc/nginx/certs/`
-- HTTP → HTTPS redirect enforced
-
-### Health Checks
-- `GET /health/` — Liveness
-- `GET /health/ready/` — Readiness (DB, Redis, migrations)
-- `GET /health/live/` — Liveness probe
-
-### Environment Configuration
-- `.env.production` → `docker-compose.prod.yml` via `env_file`
-- Secrets: `SECRET_KEY`, `DB_PASSWORD`, `REDIS_PASSWORD`, `JWT_SECRET`
-- See [Environment](ENVIRONMENT.md) for full variable list
-
----
-
-## Component Status Legend
-
-| Status | Meaning |
-|--------|---------|
-| **ACTIVE** | Fully implemented, mounted, tested |
-| **PARTIAL** | Partially implemented, some endpoints/models missing |
-| **MOCK** | Uses mock/demo data, not production-ready |
-| **UNMOUNTED** | Code exists but not included in URL routing |
-| **STUB** | Minimal implementation, placeholder only |
-| **PLANNED** | Designed but not implemented |
-| **BROKEN** | Known non-functional |
-| **NOT VERIFIED** | Status unknown, needs investigation |
-
----
-
-## Module Status Summary
-
-| Module | Frontend | Backend | API | Database | Status |
-|--------|----------|---------|-----|----------|--------|
-| Authentication | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Patients | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Doctors | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Appointments | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Nurses | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Compounder | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Pharmacy | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Laboratory | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Clinical | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Encounters/Visits | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Queue | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Hospital/Dept/Ward/Bed | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Billing | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Blood Bank | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| IPD/Admissions | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Emergency | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| Procurement | ✅ | ✅ | ✅ | ✅ | ACTIVE |
-| AI Scribe | ✅ | ✅ | ✅ | ✅ | **MOCK** (STT/LLM use dev providers) |
-| Reports | ✅ (UI) | ⚠️ | ⚠️ | ❌ | **PARTIAL / STUB** |
-| Notifications | ❌ | ✅ | ✅ | ✅ | **BACKEND ONLY** |
-| Audit | ❌ | ✅ | ✅ | ✅ | **BACKEND ONLY** |
-| FHIR | ❌ | ❌ | ❌ | ❌ | **UNMOUNTED** |
-| HL7 | ❌ | ❌ | ❌ | ❌ | **UNMOUNTED** |
-| ABDM | ❌ | ❌ | ❌ | ❌ | **UNMOUNTED** |
-| Consent | ✅ (UI) | ❌ | ❌ | ❌ | **UI ONLY / UNMOUNTED** |
-| Documents | ✅ (UI) | ✅ (model) | ❌ | ✅ | **UNMOUNTED** |
-
-See [Module Status](MODULE_STATUS.md) for detailed matrix.
-
----
-
-## Known Architecture Limitations
-
-1. **No API Gateway** — Direct nginx → backend routing
-2. **No Service Mesh** — Monolithic Django app, not microservices
-3. **Single Database** — No read replicas configured
-4. **Celery + Redis** — Single Redis instance (no sentinel/cluster)
-5. **Frontend Role Hiding** — Not a security boundary
-6. **AI Scribe Mock Providers** — Development STT/LLM providers active by default
-7. **Reports Module** — Backend stubbed, no real report generation
-8. **FHIR/HL7/ABDM** — Apps exist but completely unmounted
-9. **No Rate Limiting** — Not configured in DRF
-10. **No WebSocket** — Real-time updates not implemented (polling only)
+- Tokens in `localStorage`.
+- The main JavaScript bundle is about 836 kB (no code-splitting).
+- Notifications are sent synchronously (no Celery task yet).
+- FHIR, HL7 and ABDM are not mounted.
+- No structured EMR sections (complaint, history, examination).
+- No frontend test harness.

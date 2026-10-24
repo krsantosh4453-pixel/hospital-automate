@@ -52,3 +52,14 @@ Still to do: PrescriptionContext (keeps rejected prescriptions locally), reports
 admin Users/Roles/Departments pages (Users API exists at /api/users/), Hindi/English
 i18n, docs/*.md report set + final readiness report. Recommend moving the repo out of
 iCloud Drive (Desktop sync makes Python/Node hang).
+
+## Session 2 — 2026-10-25 (completed)
+
+All items above are done: prescriptions (cd2ce85), admin pages (c37552f), reports (dc69688),
+Hindi/English (094683b), page crash fixes found by browsing the build (199310c), patient
+portal hospital selection (80ee2b5), backup script verified on PostgreSQL 16 (dfe1e82),
+invoice N+1 (d9010df), dependency upgrades + lock file (08301e9), `.env.example` (fd3ff71),
+and the full docs set ending in `docs/FINAL_PRODUCTION_READINESS_REPORT.md`
+(verdict: CONDITIONALLY_READY_AFTER_LISTED_ACTIONS). Remaining work is listed in
+`docs/KNOWN_LIMITATIONS.md`. The `backend_env` venv is partly evicted by iCloud; build a
+fresh venv outside iCloud from `backend/requirements-lock.txt`.

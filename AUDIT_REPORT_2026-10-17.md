@@ -1,3 +1,5 @@
+> **Superseded (2026-10-25).** Historical report; it does not describe the current code. Current status: `docs/FINAL_PRODUCTION_READINESS_REPORT.md`, `docs/KNOWN_LIMITATIONS.md` and `docs/SECURITY_AUDIT.md`.
+
 # Hospital Management System — Evidence-Based Audit
 
 **Audit date:** 2026-10-17  

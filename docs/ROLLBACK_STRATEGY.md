@@ -1,5 +1,10 @@
 # Deployment Rollback Strategy - Hospital Management System
 
+> **Read with DEPLOYMENT.md (2026-10-25).** The supported deployment is Docker Compose; `kubectl` commands
+> here apply only if you move to Kubernetes. Run `scripts/backup.py` from the host with PostgreSQL 16 client
+> tools and `cryptography` installed. The backend image contains neither `pg_dump` nor `cryptography`.
+> The backup → verify → restore cycle was verified on PostgreSQL 16 (TEST_REPORT.md).
+
 ## Overview
 
 This document defines the rollback procedures for HMS deployments to minimize downtime and data loss during failed deployments.
@@ -258,7 +263,7 @@ Post-mortem scheduled: {date/time}
 ### Rollback Scripts
 - `scripts/migrate_safe.py rollback` - Safe migration rollback
 - `scripts/backup.py restore` - Database restore from backup
-- `scripts/deploy_rollback.sh` - Application rollback wrapper
+- Application rollback: check out the previous release tag and rebuild (see DEPLOYMENT.md §8); there is no wrapper script
 
 ### Monitoring During Rollback
 - Health checks: `/health/ready/` every 10 seconds

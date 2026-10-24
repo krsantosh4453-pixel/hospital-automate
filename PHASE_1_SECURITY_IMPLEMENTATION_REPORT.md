@@ -1,3 +1,5 @@
+> **Superseded (2026-10-25).** Historical report; it does not describe the current code. Current status: `docs/FINAL_PRODUCTION_READINESS_REPORT.md`, `docs/KNOWN_LIMITATIONS.md` and `docs/SECURITY_AUDIT.md`.
+
 # PHASE 1 SECURITY IMPLEMENTATION REPORT (UPDATED 2026-10-10)
 
 ## Executive Summary

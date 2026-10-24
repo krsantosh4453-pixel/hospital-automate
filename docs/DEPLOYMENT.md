@@ -1,469 +1,134 @@
-# Hospital Management System - Deployment Documentation
+# Deployment Guide
 
-**AUDIT NOTE (2026-10-10):** This deployment guide documents the intended production deployment process. As of 2026-10-10, the system is **NOT PRODUCTION READY** — automated tests cannot be executed, frontend build has Node.js compatibility issues, and several modules are incomplete (MOCK/STUB/UNMOUNTED). See README.md for current module status.
+Single-server Docker Compose deployment (`docker-compose.prod.yml`).
 
----
+The compose files were validated by parsing, but **Docker was not available where this guide was written**. Do a full staging rehearsal (steps 1–8) before production.
 
-## Overview
+## 1. Prerequisites
 
-This document describes the complete deployment process for the Hospital Management System (HMS) in production environments.
+- Linux host with Docker Engine 24+ and Compose v2; at least 4 GB RAM and 20 GB disk.
+- DNS A record for your domain; TLS certificate (Let's Encrypt or commercial).
+- Credentials:
+  - SMTP;
+  - Twilio Verify (required by production settings);
+  - Google OAuth client id (required by production settings);
+  - optional: an AI provider key, Sentry DSN.
+- PostgreSQL 16 client tools (`pg_dump`/`psql`) on the host for backups. The backend image does not include them.
 
-## Architecture
+## 2. Configuration
 
-```
-Internet
-   │
-   ▼
-┌─────────────────────────────────────┐
-│         Nginx (SSL Termination)     │
-│    Port 80 (redirect) / 443 (HTTPS) │
-└──────────────────┬──────────────────┘
-                   │
-        ┌──────────┼──────────┐
-        ▼          ▼          ▼
-   ┌────────┐ ┌────────┐ ┌──────────┐
-   │Static  │ │ Media  │ │  API/    │
-   │ Files  │ │ Files  │ │  Admin   │
-   └────────┘ └────────┘ └────┬─────┘
-                               │
-                    ┌──────────┼──────────┐
-                    ▼          ▼          ▼
-              ┌─────────────────────────────┐
-              │     Django (Gunicorn)       │
-              │  Port 8000 (internal only)  │
-              └──────────────┬──────────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              ▼              ▼              ▼
-         ┌──────────┐  ┌──────────┐  ┌──────────┐
-         │PostgreSQL│  │  Redis   │  │  Celery  │
-         │  (DB)    │  │ (Cache/  │  │ (Workers)│
-         │          │  │  Broker) │  │          │
-         └──────────┘  └──────────┘  └──────────┘
-```
+Two files sit next to `docker-compose.prod.yml` and are never committed:
 
-## Prerequisites
+| File | Purpose |
+|---|---|
+| `.env` | Compose interpolation only: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `REDIS_PASSWORD`, `DOMAIN_NAME` |
+| `.env.production` | Every Django process (backend, celery-worker, celery-beat). Copy `.env.production.example` and fill in **every REQUIRED value**. |
 
-### Infrastructure Requirements
+Production settings refuse to start if any of these are missing:
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| CPU | 4 vCPU | 8+ vCPU |
-| RAM | 8 GB | 16+ GB |
-| Storage | 100 GB SSD | 500+ GB NVMe |
-| Network | 1 Gbps | 10 Gbps |
+- `DJANGO_SECRET_KEY`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`
+- `DATABASE_URL` and `REDIS_URL` (compose builds both)
+- `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY` (RS256 PEM)
+- `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
+- `GOOGLE_CLIENT_ID`
+- Twilio Verify: `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY`, `TWILIO_API_SECRET`, `TWILIO_VERIFY_SERVICE_SID`
 
-### Software Requirements
-
-- Docker 24+
-- Docker Compose 2+
-- SSL Certificates (Let's Encrypt or commercial)
-
-### Domain & DNS
-
-- A record pointing to server IP
-- SSL certificate for `yourdomain.com` (and `api.yourdomain.com` if separate)
-
-## Environment Variables
-
-Create `.env` file from `.env.example`:
+Generate the JWT key pair:
 
 ```bash
-cp .env.example .env
-# Edit .env with production values
+openssl genrsa -out jwt_private.pem 2048
+openssl rsa -in jwt_private.pem -pubout -out jwt_public.pem
 ```
 
-### Required Variables
+Put the PEM text into `.env.production` (use `\n` for newlines, or a secret manager).
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DJANGO_SECRET_KEY` | Django secret key (50+ chars) | `django-insecure-xyz...` |
-| `JWT_SECRET_KEY` | JWT signing key (separate from Django) | `jwt-secret-xyz...` |
-| `DATABASE_URL` | PostgreSQL connection URL | `postgres://user:pass@host:5432/db` |
-| `REDIS_URL` | Redis connection URL | `redis://:pass@host:6379/0` |
-| `ALLOWED_HOSTS` | Comma-separated hostnames | `api.yourdomain.com,yourdomain.com` |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated frontend URLs | `https://yourdomain.com` |
+Policy and integration variables:
 
-### Email (Required for notifications)
+| Variable | Default (production) | Meaning |
+|---|---|---|
+| `STAFF_LOGIN_REQUIRE_OTP` | True | Staff must complete SMS OTP after the password |
+| `AI_SCRIBE_ENABLED` | True | Without a provider key the AI endpoints answer 503 "not configured"; mock providers are never used in production |
+| `FHIR_ENABLED`, `HL7_ENABLED`, `ABDM_ENABLED` | False | Their routes are not mounted; leave False |
+| `AUDIT_LOG_RETENTION_DAYS` | 0 (keep forever) | Choose according to your legal retention obligations |
 
-| Variable | Description |
-|----------|-------------|
-| `EMAIL_HOST` | SMTP server |
-| `EMAIL_PORT` | SMTP port (587) |
-| `EMAIL_USE_TLS` | Use TLS (True) |
-| `EMAIL_HOST_USER` | SMTP username |
-| `EMAIL_HOST_PASSWORD` | SMTP password |
+## 3. TLS
 
-### Optional Integrations (set to enable)
-
-| Variable | Description |
-|----------|-------------|
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `AI_SCRIBE_API_KEY` | OpenAI/Anthropic API key (enables AI Scribe) |
-| `ABDM_CLIENT_ID` | ABDM client ID (enables ABDM integration) |
-| `ABDM_CLIENT_SECRET` | ABDM client secret |
-| `TWILIO_ACCOUNT_SID` | Twilio SID (enables SMS/WhatsApp) |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token |
-| `SENTRY_DSN` | Sentry DSN for error tracking |
-| `BACKUP_ENCRYPTION_KEY` | Encryption key for backups |
-
-### Feature Flags (default: enabled, set to `False` to disable)
-
-| Variable | Description |
-|----------|-------------|
-| `AI_SCRIBE_ENABLED` | AI Medical Scribe |
-| `FHIR_ENABLED` | FHIR R4 interoperability |
-| `HL7_ENABLED` | HL7 v2 messaging |
-| `ABDM_ENABLED` | ABDM/ABHA integration |
-| `MONITORING_ENABLED` | Sentry monitoring |
-| `BACKUP_ENABLED` | Automated backups |
-
-## Deployment Method: Docker Compose (Single Server)
-
-### 1. Prepare Server
+Place `fullchain.pem` and `privkey.pem` in `./ssl/`. For example, with certbot in standalone mode before first start:
 
 ```bash
-# Install Docker and Docker Compose
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-# Log out and back in for group changes
-
-# Install Docker Compose v2 (if not included)
-docker compose version
+certbot certonly --standalone -d yourdomain.com
+cp /etc/letsencrypt/live/yourdomain.com/*.pem ./ssl/
 ```
 
-### 2. Clone and Configure
+Renew with a cron job that copies the files and runs `docker compose -f docker-compose.prod.yml restart nginx`.
+
+## 4. Build and start
 
 ```bash
-# 1. Clone repository
-git clone <repository-url>
-cd hospital-automate
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env with production values (see required variables above)
-
-# 3. Create SSL certificates directory
-mkdir -p ssl
-# Place fullchain.pem and privkey.pem in ssl/
-# See SSL/TLS Setup section below
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d postgres redis
+docker compose -f docker-compose.prod.yml up -d backend    # migrates (RUN_MIGRATIONS=true)
+docker compose -f docker-compose.prod.yml logs -f backend  # wait for gunicorn
+docker compose -f docker-compose.prod.yml up -d celery-worker celery-beat frontend nginx
 ```
 
-### 3. SSL/TLS Setup
+Only the `backend` container runs migrations and collectstatic; workers and beat don't, which avoids migration races.
 
-#### Let's Encrypt (Recommended)
+## 5. First administrator and hospital
 
 ```bash
-# Install certbot
-sudo apt-get update && sudo apt-get install -y certbot
-
-# Generate certificates (standalone mode - stop nginx first if running)
-sudo certbot certonly --standalone -d yourdomain.com
-
-# Certificates will be in /etc/letsencrypt/live/yourdomain.com/
-# Copy to ssl/ directory for Docker access
-sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ssl/
-sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ssl/
-sudo chown $USER:$USER ssl/*
-
-# Set up auto-renewal
-sudo certbot renew --dry-run
-# Add to crontab: 0 3 * * * certbot renew --quiet --post-hook "cp /etc/letsencrypt/live/yourdomain.com/*.pem /path/to/hospital-automate/ssl/ && docker compose -f /path/to/hospital-automate/docker-compose.prod.yml restart nginx"
+docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
 ```
 
-#### Manual Certificates
+Sign in to Django admin at `/<ADMIN_URL>/` as that superuser, then:
 
-Place in `ssl/` directory:
-- `fullchain.pem` - Certificate chain
-- `privkey.pem` - Private key
+1. Create the hospital: `POST /api/hospital/hospitals/` as superuser, or use admin.
+2. Create a `StaffProfile` for the first hospital Admin, with a `StaffHospitalMembership` (role Admin) at that hospital.
+3. From then on, the hospital Admin approves staff in **Admin → Users** (staff register via "Create Account").
+4. Link each doctor's login on their Doctor record (`user`). This is required for approving AI drafts and finalizing discharge summaries.
 
-Set permissions:
-```bash
-chmod 600 ssl/privkey.pem
-chmod 644 ssl/fullchain.pem
-```
-
-### 4. Start Services
+## 6. Post-deploy verification
 
 ```bash
-# Start all services (builds images on first run)
-docker compose -f docker-compose.prod.yml up -d
-
-# View logs
-docker compose -f docker-compose.prod.yml logs -f
-
-# Check status
-docker compose -f docker-compose.prod.yml ps
+curl -fsS https://yourdomain.com/health/live/
+curl -fsS https://yourdomain.com/health/ready/   # database and cache must be healthy
+docker compose -f docker-compose.prod.yml exec backend python manage.py check --deploy
+docker compose -f docker-compose.prod.yml exec backend python manage.py showmigrations | grep '\[ \]'   # expect no output
 ```
 
-The entrypoint script automatically:
-- Waits for database connectivity
-- Runs migrations
-- Collects static files
-- Creates superuser (if DJANGO_SUPERUSER_* vars set)
+Then in a browser:
 
-### 5. Verify Deployment
+- Sign in as the hospital Admin and confirm the hospital switcher shows only your hospital.
+- Open Users, Departments and Reports.
+- Check that `https://yourdomain.com/media/anything` returns 404.
+
+**After upgrading from a pre-2026-10-24 database**, count the rows the tenancy backfill could not assign (see `DATABASE.md`) and assign them deliberately.
+
+## 7. Backups
+
+Run from the host with PostgreSQL 16 client tools and `pip install cryptography>=50.0.2`:
 
 ```bash
-# Check health endpoints
-curl -f http://localhost/health/live/
-curl -f http://localhost/health/ready/
-
-# Check frontend
-curl -f http://localhost/
-
-# Check API
-curl -f http://localhost/api/
+python backend/scripts/backup.py create  --database-url "$DATABASE_URL" --backup-dir /var/backups/hms --encryption-key "$BACKUP_ENCRYPTION_KEY"
+python backend/scripts/backup.py verify  --database-url "$DATABASE_URL" --backup-dir /var/backups/hms --encryption-key "$BACKUP_ENCRYPTION_KEY" --backup-file <file>
+python backend/scripts/backup.py restore --database-url "$DATABASE_URL" --backup-dir /var/backups/hms --encryption-key "$BACKUP_ENCRYPTION_KEY" --backup-file <file> --target-database hms_restore_check
 ```
 
-## Service Management
+Generate the key once with `python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"` and store it away from the backups. This cycle was verified on PostgreSQL 16 (see `TEST_REPORT.md`). Schedule `create` daily with cron, and run a restore drill monthly into a scratch database.
 
-### Starting Services
+## 8. Upgrades and rollback
 
-```bash
-# Start all services
-docker compose -f docker-compose.prod.yml up -d
+1. Take a backup.
+2. `git pull`.
+3. Rebuild the images.
+4. `up -d backend` (it migrates).
+5. Check `/health/ready/`.
+6. `up -d` the rest.
 
-# View logs
-docker compose -f docker-compose.prod.yml logs -f
+**Rollback:** check out the previous tag and rebuild. If migrations changed, reverse them first with `manage.py migrate <app> <previous>`. Every migration added in this work reverses without data loss. Otherwise restore the backup. See `ROLLBACK_STRATEGY.md`.
 
-# Check status
-docker compose -f docker-compose.prod.yml ps
-```
+## Operational cautions
 
-### Stopping Services
-
-```bash
-# Graceful shutdown
-docker compose -f docker-compose.prod.yml down
-
-# With volumes (WARNING: deletes database data!)
-docker compose -f docker-compose.prod.yml down -v
-```
-
-### Restarting Services
-
-```bash
-# Restart specific service
-docker compose -f docker-compose.prod.yml restart backend
-
-# Restart all
-docker compose -f docker-compose.prod.yml restart
-```
-
-### Scaling
-
-```bash
-# Scale backend workers
-docker compose -f docker-compose.prod.yml up -d --scale backend=3
-
-# Scale celery workers
-docker compose -f docker-compose.prod.yml up -d --scale celery-worker=4
-```
-
-Note: When scaling backend, ensure your load balancer/nginx upstream configuration supports multiple backend instances.
-
-## Database Migrations
-
-Migrations run automatically on container startup via the entrypoint script.
-
-### Manual Migration Commands
-
-```bash
-# Run migrations manually
-docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
-
-# Show migration status
-docker compose -f docker-compose.prod.yml exec backend python manage.py showmigrations
-
-# Create new migrations (after model changes)
-docker compose -f docker-compose.prod.yml exec backend python manage.py makemigrations
-```
-
-### Rollback Procedure
-
-```bash
-# 1. Identify migration to rollback
-docker compose -f docker-compose.prod.yml exec backend python manage.py showmigrations
-
-# 2. Rollback specific migration
-docker compose -f docker-compose.prod.yml exec backend python manage.py migrate <app_name> <migration_name>
-
-# 3. Restore from backup if needed (see Backup section)
-```
-
-## Backup & Recovery
-
-### Automated Backups
-
-Backups run daily via Celery Beat (when `BACKUP_ENABLED=True` and `BACKUP_ENCRYPTION_KEY` set).
-
-### Manual Backup
-
-```bash
-# Create database backup
-docker compose -f docker-compose.prod.yml exec postgres pg_dump -U hms_user hms_prod | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
-
-# Backup media files
-docker compose -f docker-compose.prod.yml exec backend tar -czf media_backup_$(date +%Y%m%d_%H%M%S).tar.gz -C /app media/
-```
-
-### Recovery Procedure
-
-1. Stop application services: `docker compose -f docker-compose.prod.yml stop backend celery-worker celery-beat nginx frontend`
-2. Restore database: `gunzip -c backup_YYYYMMDD_HHMMSS.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U hms_user -d hms_prod`
-3. Restore media files: `docker compose -f docker-compose.prod.yml exec -T backend tar -xzf media_backup_YYYYMMDD_HHMMSS.tar.gz -C /app`
-4. Start application services: `docker compose -f docker-compose.prod.yml start backend celery-worker celery-beat nginx frontend`
-5. Verify data integrity
-
-## Monitoring & Observability
-
-### Health Checks
-
-| Endpoint | Purpose |
-|----------|---------|
-| `/health/live/` | Liveness - process is alive (no dependency checks) |
-| `/health/ready/` | Readiness - can serve traffic (checks DB, cache) |
-| `/health/` | Basic health |
-
-### Logging
-
-Structured JSON logs in `/app/logs/` (mounted to `./logs/` on host):
-- Application logs: `django.log`
-- Error logs: `django_errors.log`
-- Access logs: Nginx access log (stdout)
-
-### Sentry (Optional)
-
-Set `SENTRY_DSN` and `MONITORING_ENABLED=True` to enable error tracking.
-
-## Security Checklist
-
-- [ ] `DEBUG=False` (enforced in production settings)
-- [ ] `DJANGO_SECRET_KEY` from environment (50+ random chars)
-- [ ] `JWT_SECRET_KEY` from environment (separate from Django secret)
-- [ ] `ALLOWED_HOSTS` configured with actual domain names
-- [ ] HTTPS enforced (`SECURE_SSL_REDIRECT=True`)
-- [ ] Secure cookies (`SESSION_COOKIE_SECURE=True`, `CSRF_COOKIE_SECURE=True`)
-- [ ] HSTS enabled (`SECURE_HSTS_SECONDS=31536000`)
-- [ ] CORS restricted to known origins (`CORS_ALLOWED_ORIGINS`)
-- [ ] Rate limiting enabled (nginx + DRF throttling)
-- [ ] Admin URL obfuscated (`ADMIN_URL` env var)
-- [ ] Database credentials from environment
-- [ ] Redis password set (`REDIS_PASSWORD`)
-- [ ] SSL certificates valid and auto-renewing
-- [ ] Security headers present (CSP, HSTS, X-Frame-Options, etc.)
-- [ ] Hospital isolation enforced (`ENFORCE_HOSPITAL_ISOLATION=True`)
-- [ ] Audit logging enabled (`AUDIT_LOG_ENABLED=True`)
-
-## Implemented Features
-
-The following features are implemented and deployed:
-- ✅ Patient management (registration, documents, hospital memberships)
-- ✅ Doctor management (schedules, availability)
-- ✅ Appointment scheduling
-- ✅ Nursing (assessments, care tasks, MAR)
-- ✅ Clinical workflows (visits, vitals, diagnoses, prescriptions, procedures)
-- ✅ IPD (admissions, bed management, discharge)
-- ✅ Emergency (triage, orders, medications)
-- ✅ Laboratory (tests, samples, results)
-- ✅ Pharmacy (inventory, sales, procurement/GRN)
-- ✅ Blood Bank (inventory, requests, transactions)
-- ✅ Billing (invoices, payments, insurance claims)
-- ✅ Notifications (email, SMS, WhatsApp, push, in-app)
-- ✅ Audit logging
-- ✅ Reports (patient summary, financial, clinical, operational)
-- ✅ AI Medical Scribe (consultation recording, transcription, clinical drafts)
-- ✅ Multi-hospital support with isolation
-
-## Not Implemented / Placeholder Features
-
-The following are configured in settings but not fully implemented:
-- ⚠️ FHIR R4 endpoints (configured, routes commented out)
-- ⚠️ HL7 v2 messaging (configured, routes commented out)
-- ⚠️ ABDM/ABHA integration (configured, routes commented out)
-- ⚠️ Prometheus metrics (`/metrics/` - not implemented)
-- ⚠️ Automated backup scripts (`scripts/backup.py` - not implemented)
-- ⚠️ Safe migration scripts (`scripts/migrate_safe.py` - not implemented)
-
-## Troubleshooting
-
-### Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| 502 Bad Gateway | Check backend health (`docker compose logs backend`), increase proxy timeouts |
-| Database connection refused | Verify PostgreSQL is running, check `DATABASE_URL` credentials |
-| Redis connection refused | Verify Redis is running, check `REDIS_URL` and `REDIS_PASSWORD` |
-| Static files 404 | Run `collectstatic` (auto on startup), check nginx staticfiles volume |
-| Media files 404 | Check media volume mount, permissions |
-| Celery tasks not processing | Check Redis connection, worker logs (`docker compose logs celery-worker`) |
-| Migration stuck | Check for locks, kill stale connections |
-| SSL certificate errors | Verify cert paths in `ssl/`, check nginx config |
-
-### Debug Commands
-
-```bash
-# Check backend logs
-docker compose -f docker-compose.prod.yml logs backend
-
-# Check database
-docker compose -f docker-compose.prod.yml exec postgres psql -U hms_user -d hms_prod
-
-# Check Redis
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWORD ping
-
-# Check Celery
-docker compose -f docker-compose.prod.yml exec celery-worker celery -A config inspect active
-
-# Check nginx config
-docker compose -f docker-compose.prod.yml exec nginx nginx -t
-
-# Enter backend container
-docker compose -f docker-compose.prod.yml exec backend bash
-```
-
-## Maintenance
-
-### Daily
-- Monitor error rates (check logs)
-- Check backup completion (if enabled)
-- Review slow queries (PostgreSQL logs)
-
-### Weekly
-- Review security alerts (Sentry if configured)
-- Update dependencies (check for security updates)
-- Check disk space (`df -h`)
-
-### Monthly
-- Rotate secrets (DJANGO_SECRET_KEY, JWT_SECRET_KEY, passwords)
-- Test restore procedure
-- Review performance metrics
-- Update SSL certificates (if not auto-renewed)
-
-## CI/CD Pipeline
-
-The GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every push/PR:
-
-1. **Backend Lint** - Ruff, Black, isort
-2. **Frontend Lint & Build** - ESLint, Vite build
-3. **Backend Tests** - pytest with PostgreSQL and Redis services
-4. **Security Scan** - Trivy, Bandit, npm audit
-5. **Docker Build Test** - Build and test Docker images
-6. **Deploy Staging** (on develop branch) - placeholder
-7. **Deploy Production** (on version tags) - placeholder
-
-## Support Contacts
-
-| Role | Contact |
-|------|---------|
-| DevOps | devops@yourdomain.com |
-| Backend Team | backend@yourdomain.com |
-| Frontend Team | frontend@yourdomain.com |
-| Security | security@yourdomain.com |
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.0 | 2026-10-06 | Initial deployment documentation for Stage 7 |
+- `docker compose ... down -v` **deletes the database volume**. Never use `-v` on production.
+- Services have fixed `container_name`s, so `--scale` does not work. To scale, remove `container_name` and put a load balancer in front.
+- The frontend reads `VITE_API_BASE_URL` at build time and defaults to `/api`, which is correct for this compose layout. The Docker build excludes `.env*` (`.dockerignore`). A local `npm run build`, however, picks up a repo-root `.env`; if that file points at `http://localhost:8000/api`, the bundle will call localhost.

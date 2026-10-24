@@ -1,5 +1,10 @@
 # Disaster Recovery Plan - Hospital Management System
 
+> **Read with DEPLOYMENT.md (2026-10-25).** The supported deployment is Docker Compose; `kubectl` commands
+> here apply only if you move to Kubernetes. Run `scripts/backup.py` from the host with PostgreSQL 16 client
+> tools and `cryptography` installed. The backend image contains neither `pg_dump` nor `cryptography`.
+> The backup → verify → restore cycle was verified on PostgreSQL 16 (TEST_REPORT.md).
+
 ## Overview
 
 This document defines the disaster recovery strategy for the Hospital Management System (HMS), including Recovery Point Objective (RPO), Recovery Time Objective (RTO), and detailed recovery procedures.

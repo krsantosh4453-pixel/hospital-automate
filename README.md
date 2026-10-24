@@ -1,140 +1,47 @@
 # Hospital Management System (HMS)
 
-A comprehensive hospital management system built with React (Vite) frontend and Django REST Framework backend, designed for multi-hospital deployments with strict data isolation.
+Multi-hospital management system: React (Vite) frontend, Django REST Framework backend, strict per-hospital data isolation.
 
-**Current Status (2026-10-10): Development — Not Production Ready**
+**Status (2026-10-25): CONDITIONALLY_READY_AFTER_LISTED_ACTIONS for a defined pilot scope. Not complete against the full requirements.** See [`docs/FINAL_PRODUCTION_READINESS_REPORT.md`](docs/FINAL_PRODUCTION_READINESS_REPORT.md) for the verdict, its conditions and the coverage figures, and [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for what does not exist yet.
 
 ---
 
 ## 1. Project Overview
-
-### What the Project Does
-
-The Hospital Management System provides a digital platform for hospital operations. **Status varies significantly by module** — see Module Status table below for actual implementation state.
 
 ### Technology Stack
 
 | Layer | Technology |
 |-------|------------|
 | **Frontend** | React 19, Vite 8, React Router 7, Tailwind CSS 4 |
-| **Backend** | Django 5.2, Django REST Framework 3.15 |
-| **Database** | PostgreSQL 16 (production), SQLite (development) |
+| **Backend** | Django 6.0, Django REST Framework 3.18, SimpleJWT |
+| **Database** | PostgreSQL 16 (production), SQLite (development and tests) |
 | **Cache/Queue** | Redis 7, Celery 5 |
-| **Authentication** | JWT (SimpleJWT), Google OAuth 2.0, Patient OTP (SMS/Email) |
-| **API Documentation** | DRF Spectacular (OpenAPI 3), Swagger UI, ReDoc |
-| **Containerization** | Docker, Docker Compose |
-| **Reverse Proxy** | Nginx |
-| **Monitoring** | Health checks, structured JSON logging, Sentry (optional) |
+| **Authentication** | Staff: password + SMS OTP (Twilio Verify). Patients: mobile/email OTP, password, Google |
+| **API Documentation** | drf-spectacular: `/api/schema/`, `/api/docs/`, `/api/redoc/`; route table in `docs/API_DOCUMENTATION.md` |
+| **Deployment** | Docker Compose, nginx |
 
-### API Architecture
+Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Data model: [`docs/DATABASE.md`](docs/DATABASE.md).
 
-- **RESTful API** with JSON request/response
-- **JWT Authentication** — Access tokens (15 min), Refresh tokens (7 days, rotating)
-- **Hospital-scoped endpoints** — All data isolated by `hospital` query parameter or header
-- **ViewSets + Routers** — Standard DRF patterns for CRUD + custom actions
-- **OpenAPI 3 Schema** — Auto-generated at `/api/schema/`, Swagger at `/api/docs/`, ReDoc at `/api/redoc/`
+## 2. Module Status
 
-### Authentication Architecture
+Taken from [`docs/REQUIREMENTS_TRACEABILITY.md`](docs/REQUIREMENTS_TRACEABILITY.md) (116 requirement rows): 42 verified, 24 implemented, 23 partial, 23 missing, 3 blocked, 1 not applicable.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Authentication Flow                       │
-├─────────────────────────────────────────────────────────────────┤
-│  Staff Login          │  Patient Login                          │
-│  ─────────────        │  ─────────────                          │
-│  POST /api/auth/      │  1. Request OTP (phone/email)           │
-│    staff/login/       │     POST /api/auth/patient/otp/request/ │
-│  → {access, refresh,  │  2. Verify OTP                          │
-│    user, roles,       │     POST /api/auth/patient/otp/verify/  │
-│    hospitals}         │  → {access, refresh, patient}           │
-│                       │                                         │
-│  Google OAuth         │  Patient Email/Password                 │
-│  POST /api/auth/      │  POST /api/auth/patient/login/          │
-│    google/            │  → {access, refresh, patient}           │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Module | Status |
+|---|---|
+| Tenancy, roles, staff auth, audit | Verified by tests |
+| Patient registration and portal, consent, record sharing | Working; no proxy/caregiver access |
+| Appointments, OPD queue, consultation, prescriptions | Working; no ICD-10 search or structured EMR sections |
+| Laboratory | Working order → sample → result → release; no printing |
+| Pharmacy | Ledgered stock and dispensing; **no drug-interaction checking** |
+| IPD, nursing, MAR, discharge | Working; discharge requires a finalized summary |
+| Billing | Server-side Decimal totals, append-only idempotent payments, refunds; no advance payments or PDF |
+| AI scribe | Draft → clinician approval only; needs a real STT/LLM provider (mocks are disabled in production) |
+| Notifications | In-app with consent and delivery log; SMS/WhatsApp need credentials; no voice workflow |
+| Reports | Server-side KPIs |
+| FHIR, HL7, ABDM | Code present, **not mounted** |
+| Interface language | English / Hindi (navigation and patient menu) |
 
-- **Staff** — Username/password + Google OAuth, returns roles and hospital memberships
-- **Patients** — OTP (SMS/Email), email/password, or token login
-- **Hospital Isolation** — Staff must have `StaffHospitalMembership` for target hospital
-
-### Major Hospital Modules — Actual Implementation Status
-
-| Module | Backend App | Frontend Pages | Status | Notes |
-|--------|-------------|----------------|--------|-------|
-| **Core Auth** | users, hospital | StaffLogin, HospitalSelection | ✅ ACTIVE | JWT, RBAC, hospital isolation implemented |
-| **Patients** | patients | Patients, PatientDashboard, Patient* | ✅ ACTIVE | Full CRUD, hospital-scoped |
-| **Doctors** | doctors | Doctors | ✅ ACTIVE | Full CRUD, hospital-scoped |
-| **Appointments** | appointments | Appointments | ✅ ACTIVE | Full CRUD, hospital-scoped |
-| **Queue/Encounters** | encounters | Queue, Consultation, QueueToken | ✅ ACTIVE | Queue token issuance, state transitions |
-| **Clinical** | clinical | Prescription, Vitals, Diagnoses, Notes | ✅ ACTIVE | Visit-scoped clinical records |
-| **IPD** | ipd | IPD, Admissions, Beds, Discharge | ✅ ACTIVE | Admissions, bed allocation, discharge workflow |
-| **Emergency** | emergency | Emergency | ✅ ACTIVE | Triage, visits, orders, medications |
-| **Pharmacy** | pharmacy, procurement | Pharmacy, Inventory, Compounder | ✅ ACTIVE | Inventory, sales, procurement (PO/GRN) |
-| **Laboratory** | laboratory | Laboratory | ✅ ACTIVE | Test ordering, results, status workflow |
-| **Blood Bank** | bloodbank | BloodBank | ✅ ACTIVE | Inventory, requests, transactions (hospital FK added) |
-| **Billing** | billing | Billing, Reports | ✅ ACTIVE | Invoices, payments, insurance claims |
-| **Nursing** | nurses | Nurses | ⚠️ PARTIAL | Nurse CRUD ✅; Clinical workflows (vitals, assessments, MAR, orders) use **MOCK DATA** — not connected to clinical visit APIs |
-| **AI Scribe** | ai_scribe | AIScribe | ⚠️ MOCK/DEMO | Full pipeline structure exists but STT/LLM providers are **development mocks only** — no production API keys configured |
-| **Notifications** | notifications | (Integrated) | ⚠️ BACKEND ONLY | In-app Notification model exists; SMS/WhatsApp/Email providers NOT IMPLEMENTED; no event-driven notifications |
-| **Audit** | audit | (Backend only) | ✅ ACTIVE | Audit logs, AI interactions — read-only API |
-| **Reports** | reports | Reports | ⚠️ STUB | Backend stubbed, no real report generation; frontend UI only |
-| **Admin** | (Django admin + users) | AdminDashboard, Users, Roles, Hospitals, Departments, Permissions | ✅ ACTIVE | Full admin UI |
-| **FHIR** | fhir | — | ❌ UNMOUNTED | App exists, routes commented in urls.py |
-| **HL7** | hl7 | — | ❌ UNMOUNTED | App exists, routes commented in urls.py |
-| **ABDM** | abdm | — | ❌ UNMOUNTED | App exists, routes commented in urls.py |
-| **Consent** | consent | Consent (UI) | ❌ UNMOUNTED | UI exists, backend unmounted |
-| **Documents** | documents | Documents (UI) | ❌ UNMOUNTED | UI exists, backend unmounted |
-
-**Status Legend:**
-- ✅ **ACTIVE** — Fully implemented, mounted, tested
-- ⚠️ **PARTIAL** — Partially implemented, some endpoints/models missing
-- ⚠️ **MOCK/DEMO** — Uses mock/demo data, not production-ready
-- ⚠️ **BACKEND ONLY** — Backend implemented, no frontend integration
-- ⚠️ **STUB** — Minimal implementation, placeholder only
-- ❌ **UNMOUNTED** — Code exists but not included in URL routing
-- ❌ **NOT IMPLEMENTED** — No code exists
-
-## 2. AI/ML Features — Current Status
-
-> **IMPORTANT:** The audit reports AI/ML at 22% completion. The following clarifies what exists vs. what is claimed.
-
-### ✅ IMPLEMENTED: AI Medical Scribe (Mock/Demo Pipeline)
-
-The AI Scribe module exists as a **complete mock/demo pipeline** with:
-- Database models: `ConsultationSession`, `ConversationTranscript`, `AIConsultationDraft`, `DoctorReview`, `ClinicalExtractionSchema`, `AIPromptTemplate`
-- REST API endpoints at `/api/ai/` (consultation-sessions, transcripts, drafts, reviews, schemas, prompts)
-- Frontend page: `AIScribe.jsx` with recording UI
-- Audio upload → Transcript → AI Draft → Doctor Review → Clinical Note workflow
-- **Provider abstraction** for STT (Whisper, Google, Azure) and LLM (OpenAI, Anthropic, Local)
-- **Prompt versioning** and schema validation for reproducibility
-
-**However:** The AI provider integration is **mocked**. No actual OpenAI/Anthropic API calls are made in the current codebase. The `AI_SCRIBE_API_KEY` environment variable is defined but not consumed by working provider code.
-
-### ❌ NOT IMPLEMENTED
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| **CNN Imaging AI** | Not present | No computer vision models, no DICOM handling, no imaging endpoints |
-| **RAG/Embeddings/Vector DB** | Not present | No pgvector, no embedding generation, no retrieval pipeline |
-| **Production AI Scribe** | Mock only | Pipeline structure exists but providers are stubbed |
-| **ML Forecasting** | Partial | `backend/reports/forecasting.py` exists but not wired to API |
-
-### 📋 Documented in Settings (Base Config)
-
-The following AI-related settings exist in `config/settings/base.py` but are **not fully implemented**:
-
-```python
-AI_SCRIBE_ENABLED = True
-AI_SCRIBE_PROVIDER = 'openai'  # openai, anthropic, local
-AI_SCRIBE_MODEL = 'gpt-4'
-AI_SCRIBE_MAX_TOKENS = 4000
-AI_SCRIBE_TEMPERATURE = 0.1
-
-FHIR_ENABLED = True        # Not implemented (URLs commented)
-HL7_ENABLED = True         # Not implemented (URLs commented)
-ABDM_ENABLED = True        # Not implemented (URLs commented)
-```
+AI output is always labelled **"AI Draft — Pending Review"** until a linked doctor approves it.
 
 ---
 
@@ -232,23 +139,14 @@ docker-compose -f docker-compose.dev.yml up -d
 
 ### Running with Docker Compose (Production)
 
+Follow **`docs/DEPLOYMENT.md`**. In short: fill `.env` (compose variables) and `.env.production` (Django; copy `.env.production.example`), put TLS files in `./ssl/`, then:
+
 ```bash
-# Configure production environment
-cp .env.example .env
-# Edit .env with production values (SECRETS!)
-
-# Start services
-docker-compose -f docker-compose.prod.yml up -d
-
-# Run migrations
-docker-compose -f docker-compose.prod.yml exec backend python manage.py migrate
-
-# Create superuser
-docker-compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
-
-# Collect static files
-docker-compose -f docker-compose.prod.yml exec backend python manage.py collectstatic --noinput
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
 ```
+
+The backend container migrates and collects static files on start. Never run `down -v` on production: it deletes the database volume.
 
 ---
 
@@ -265,11 +163,11 @@ DJANGO_SECRET_KEY=django-insecure-dev-key-change-in-production
 DATABASE_URL=postgres://hms_user:hms_password@localhost:5432/hms_dev
 REDIS_URL=redis://localhost:6379/0
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-VITE_API_BASE_URL=http://localhost:8000/api
+VITE_API_BASE_URL=/api
 AI_SCRIBE_ENABLED=False  # Disable if no API key
 ```
 
-**Production requires:** `DJANGO_SECRET_KEY`, `JWT_SECRET_KEY`, `DATABASE_URL`, `REDIS_URL`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `EMAIL_*`, `SENTRY_DSN`, `BACKUP_ENCRYPTION_KEY`.
+**Production requires** (startup fails without them): `DJANGO_SECRET_KEY`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY`, `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD`, `GOOGLE_CLIENT_ID`, and Twilio Verify credentials. See `docs/DEPLOYMENT.md`.
 
 ---
 
@@ -354,13 +252,16 @@ hospital-automate/
 ### Running Tests
 
 ```bash
-# Backend
 cd backend
-python manage.py test
+python manage.py check --settings=config.settings.testing
+python manage.py test --settings=config.settings.testing   # 217 tests
 
-# Frontend
-npm test  # if configured
+cd ..
+npm run lint     # 0 errors expected
+npm run build
 ```
+
+There is no frontend test runner. If the repo sits in an iCloud-synced folder, run Python with `PYTHONPYCACHEPREFIX=/tmp/hms-pycache` or move the project out of iCloud (see `docs/OPERATIONS_RUNBOOK.md`). For a reproducible environment install `backend/requirements-lock.txt`.
 
 ### Database Migrations
 
@@ -387,39 +288,19 @@ python manage.py showmigrations
 
 ## 7. Deployment
 
-See **`docs/DEPLOYMENT.md`** for complete deployment guide covering:
-- Docker Compose (single server)
-- Kubernetes
-- Cloud providers (AWS/GCP/Azure)
-- Database setup, SSL, Nginx, monitoring
+See **`docs/DEPLOYMENT.md`** (Docker Compose, single server), **`docs/OPERATIONS_RUNBOOK.md`**, `docs/ROLLBACK_STRATEGY.md` and `docs/DISASTER_RECOVERY.md`. Backups: `backend/scripts/backup.py`, run from the host.
 
 ---
 
 ## 8. Security
 
-See **`docs/SECURITY_AUDIT_CHECKLIST.md`** for production security checklist.
+Findings, fixes and open items: **`docs/SECURITY_AUDIT.md`**. Deployment checklist: `docs/SECURITY_AUDIT_CHECKLIST.md`.
 
-Key security features implemented:
-- JWT with rotating refresh tokens, blacklisting
-- Hospital-level data isolation (enforced in ViewSets via HospitalScopedViewSet)
-- Role-based access control (RBAC) with 11 staff roles + Patient
-- Rate limiting (DRF throttling + custom middleware on auth endpoints)
-- Audit logging on all data modifications (AuditLog, AIInteraction models)
-- Secure headers (HSTS, CSP, X-Frame-Options, etc.) in production settings
-- File upload validation, private media protection (documents app)
-
-**Known Security Gaps:**
-- Password reset endpoints NOT IMPLEMENTED (throttle configured but no views)
-- Account lockout after failed login attempts NOT IMPLEMENTED
-- Frontend role hiding is UI-only — NOT a security boundary
-- FHIR/HL7/ABDM endpoints unmounted but config flags enabled
-- Some serializers may still allow mass assignment (verify with SECURITY_FINDINGS.md)
-
-**Production Deployment Requires:**
-- `DEBUG=False`, strong `DJANGO_SECRET_KEY`, `JWT_SECRET_KEY`
-- PostgreSQL with SSL, Redis with TLS
-- HTTPS enforcement, HSTS, secure cookies
-- `python manage.py check --deploy` passes with 0 issues
+- Hospital isolation is enforced server-side (fail-closed `HospitalScopedViewSet`, per-hospital roles), tested across 67 models.
+- Staff sign-in: password, lockout, SMS OTP bound to the password step, OTP password reset.
+- Every write is audited with previous values; patient documents are only served through an authenticated, audited API.
+- Frontend role hiding is UI only; the server is the security boundary.
+- **Open:** tokens are stored in `localStorage`; `backend/db.sqlite3` remains in git history.
 
 ---
 

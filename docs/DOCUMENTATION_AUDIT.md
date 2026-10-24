@@ -1,3 +1,5 @@
+> **Superseded (2026-10-25).** Historical report; it does not describe the current code. Current status: `docs/FINAL_PRODUCTION_READINESS_REPORT.md`, `docs/KNOWN_LIMITATIONS.md` and `docs/SECURITY_AUDIT.md`.
+
 # Documentation Audit Report (Internal)
 **Generated:** 2026-10-06
 **Purpose:** Internal audit of existing documentation vs actual implementation for Stage 8
