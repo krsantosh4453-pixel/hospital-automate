@@ -95,7 +95,11 @@ function Permissions() {
             Permissions & Role Access
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Control exact modules and actions for each hospital role
+            Choose which menu items each role sees in this browser
+          </p>
+          <p className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs" role="note">
+            These settings only change navigation on this device. What each role can read or change is
+            enforced by the server — see Roles &amp; Permissions.
           </p>
         </div>
 

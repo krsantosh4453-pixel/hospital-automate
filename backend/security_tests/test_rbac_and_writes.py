@@ -141,6 +141,17 @@ class OrganisationStructureTests(TwoHospitalCase):
         self.assertEqual(foreign.status_code, 403)
         self.assertFalse(Ward.objects.filter(name="W2").exists())
 
+    def test_department_head_must_be_local_doctor(self):
+        from doctors.models import Doctor
+        foreign = Doctor.objects.create(hospital=self.hospital_b, name="Dr Elsewhere", specialization="GP", phone="9000000090")
+        local = Doctor.objects.create(hospital=self.hospital_a, name="Dr Here", specialization="GP", phone="9000000091")
+        client = self.client_for(self.admin_a)
+        bad = client.post("/api/hospital/departments/", {"hospital": self.hospital_a.id, "name": "Cardio", "head": foreign.id}, format="json")
+        self.assertEqual(bad.status_code, 400)
+        ok = client.post("/api/hospital/departments/", {"hospital": self.hospital_a.id, "name": "Cardio", "code": "CARD", "head": local.id}, format="json")
+        self.assertEqual(ok.status_code, 201, ok.content)
+        self.assertEqual(ok.json()["head_name"], "Dr Here")
+
     def test_department_of_other_hospital_not_editable(self):
         dept = Department.objects.create(hospital=self.hospital_b, name="Synthetic Dept")
         resp = self.client_for(self.admin_a).delete(f"/api/hospital/departments/{dept.id}/")

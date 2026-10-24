@@ -34,6 +34,11 @@ class Department(models.Model):
         db_index=True
     )
     name = models.CharField(max_length=100)
+    code = models.CharField(max_length=20, blank=True)
+    # Head of department: a doctor of the same hospital (validated in the serializer).
+    head = models.ForeignKey(
+        "doctors.Doctor", on_delete=models.SET_NULL, null=True, blank=True, related_name="headed_departments"
+    )
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
 

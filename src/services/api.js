@@ -1510,12 +1510,33 @@ api.delete = async (url, config = {}) => {
   return { data }
 }
 
+// Staff administration for the selected hospital (Admin / Hospital Manager).
 api.users = {
   me: async () => api.auth.getMe(),
+  // -> { staff: [...], pending: [...] }
   list: async (params = {}) => {
     const query = new URLSearchParams(params).toString()
     return request(`${API_BASE_URL}/users/${query ? `?${query}` : ""}`)
   },
+  approve: async (userId, data) =>
+    request(`${API_BASE_URL}/users/${userId}/approve/`, { method: "POST", ...jsonBody(data) }),
+  // data: { role?, is_active?, department? }
+  updateMembership: async (userId, data) =>
+    request(`${API_BASE_URL}/users/${userId}/membership/`, { method: "PATCH", ...jsonBody(data) }),
+}
+
+// Departments / clinics of a hospital (Admin or Manager write).
+api.departments = {
+  list: async (hospitalId) => {
+    const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
+    return request(`${API_BASE_URL}/hospital/departments/${query}`)
+  },
+  create: async (data) =>
+    request(`${API_BASE_URL}/hospital/departments/`, { method: "POST", ...jsonBody(data) }),
+  update: async (id, data) =>
+    request(`${API_BASE_URL}/hospital/departments/${id}/`, { method: "PATCH", ...jsonBody(data) }),
+  remove: async (id) =>
+    request(`${API_BASE_URL}/hospital/departments/${id}/`, { method: "DELETE" }),
 }
 
 api.hospitals = {

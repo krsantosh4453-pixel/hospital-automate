@@ -47,16 +47,34 @@ class HospitalSerializer(serializers.ModelSerializer):
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
+    head_name = serializers.CharField(source="head.name", read_only=True, default="")
+    doctors = serializers.SerializerMethodField()
+
+    def get_doctors(self, obj):
+        return obj.doctors.count()
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        hospital = attrs.get("hospital", getattr(self.instance, "hospital", None))
+        head = attrs.get("head")
+        if head is not None and head.hospital_id != getattr(hospital, "pk", None):
+            raise serializers.ValidationError({"head": "The head must be a doctor of this hospital."})
+        return attrs
+
     class Meta:
         model = Department
         fields = [
             "id",
             "hospital",
             "name",
+            "code",
+            "head",
+            "head_name",
+            "doctors",
             "description",
             "is_active",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "head_name", "doctors"]
 
 
 class WardSerializer(serializers.ModelSerializer):
