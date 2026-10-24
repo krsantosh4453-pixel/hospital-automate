@@ -1,7 +1,9 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
+import { useHospitals } from "../assets/context/HospitalsContext.jsx"
+import { usePatient } from "../assets/context/PatientContext.jsx"
 
 const patientRoutes = [
   { path: "/patient", label: "Home", icon: "🏠" },
@@ -18,7 +20,19 @@ export default function PatientLayout() {
   const location = useLocation()
   const { patient, logout } = useAuth()
   const { language, setLanguage, t } = useLanguage()
+  const { hospitals } = useHospitals()
+  const { selectedHospital, selectHospital } = usePatient()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Records, appointments and consent are per hospital. Keep the selection
+  // on a hospital this patient is registered at; pick it automatically when
+  // there is only one.
+  const myHospitals = hospitals.filter((hospital) => hospital.registered)
+  useEffect(() => {
+    if (myHospitals.length === 0) return
+    const valid = selectedHospital && myHospitals.some((h) => String(h.id) === String(selectedHospital.id))
+    if (!valid) selectHospital(myHospitals[0])
+  }, [myHospitals, selectedHospital, selectHospital])
 
   const closeSidebar = () => setSidebarOpen(false)
 
@@ -34,6 +48,20 @@ export default function PatientLayout() {
             <div>
               <h2 className="font-bold text-gray-800">{language === "hi" ? "मरीज़ पोर्टल" : "Patient Portal"}</h2>
               <p className="text-xs text-gray-500">{patient?.name || "Patient"}</p>
+              {myHospitals.length > 1 ? (
+                <select
+                  aria-label={t("Select Hospital")}
+                  value={selectedHospital?.id || ""}
+                  onChange={(e) => selectHospital(myHospitals.find((h) => String(h.id) === e.target.value))}
+                  className="mt-2 w-full border border-gray-200 rounded-lg px-2 py-1 text-xs"
+                >
+                  {myHospitals.map((hospital) => (
+                    <option key={hospital.id} value={hospital.id}>{hospital.name}</option>
+                  ))}
+                </select>
+              ) : (
+                selectedHospital && <p className="text-xs text-blue-600 mt-1">{selectedHospital.name}</p>
+              )}
               <div className="mt-2 inline-flex bg-gray-100 rounded-lg p-0.5" role="group" aria-label="Language">
                 <button
                   type="button"

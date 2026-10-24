@@ -52,11 +52,11 @@ function buildHeaders(extra = {}, body) {
 function parseErrorDetail(body, status) {
   if (!body) return `Request failed (${status})`
   if (typeof body === 'string') return body
-  return (
-    body.detail ||
-    body.error ||
-    (typeof body === 'object' ? JSON.stringify(body) : `Request failed (${status})`)
+  // The backend wraps errors as { error: true, message, details }.
+  const text = [body.message, body.detail, body.error].find(
+    (value) => typeof value === 'string' && value.trim()
   )
+  return text || (typeof body === 'object' ? JSON.stringify(body.details || body) : `Request failed (${status})`)
 }
 
 let refreshPromise = null
