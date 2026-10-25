@@ -71,6 +71,8 @@ docker compose -f docker-compose.prod.yml build
 docker compose -f docker-compose.prod.yml up -d postgres redis
 docker compose -f docker-compose.prod.yml up -d backend    # migrates (RUN_MIGRATIONS=true)
 docker compose -f docker-compose.prod.yml logs -f backend  # wait for gunicorn
+# Django's log files live in the `app_logs` Docker volume (not ./logs on the host):
+# docker compose -f docker-compose.prod.yml exec backend tail -f /app/logs/django_errors.log
 docker compose -f docker-compose.prod.yml up -d celery-worker celery-beat frontend nginx
 ```
 

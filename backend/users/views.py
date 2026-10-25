@@ -17,6 +17,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
+from config.auth_cookies import REFRESH_COOKIE, clear_auth_cookies
+
 logger = logging.getLogger(__name__)
 
 from .models import GoogleAccount, StaffProfile, StaffHospitalMembership, StaffRole
@@ -535,28 +537,38 @@ def staff_otp_resend(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def staff_logout(request):
     """
-    Staff logout - blacklists the refresh token.
+    Logout - blacklists the refresh token (from the body, or the browser's
+    httpOnly cookie) and clears the session cookies. Open to anonymous
+    callers because an expired access token must not keep cookies alive;
+    holding the refresh token is what proves the session.
     """
-    refresh_token = request.data.get("refresh")
+    from_cookie = "refresh" not in request.data
+    refresh_token = request.data.get("refresh") or request.COOKIES.get(REFRESH_COOKIE)
 
     if not refresh_token:
-        return Response(
+        response = Response(
             {"error": "Refresh token is required."},
             status=status.HTTP_400_BAD_REQUEST
         )
+        clear_auth_cookies(response)
+        return response
 
     try:
-        token = RefreshToken(refresh_token)
-        token.blacklist()
-        return Response({"message": "Successfully logged out."})
+        RefreshToken(refresh_token).blacklist()
+        response = Response({"message": "Successfully logged out."})
     except TokenError:
-        return Response(
+        response = Response(
             {"error": "Invalid or expired refresh token."},
             status=status.HTTP_400_BAD_REQUEST
         )
+        if from_cookie:
+            # A stale cookie still means "signed out" for the browser.
+            response = Response({"message": "Successfully logged out."})
+    clear_auth_cookies(response)
+    return response
 
 
 @api_view(["GET"])

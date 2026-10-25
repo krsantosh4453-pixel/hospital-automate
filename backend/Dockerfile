@@ -20,9 +20,11 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Upgrade pip and install wheel
 RUN pip install --upgrade pip setuptools wheel
 
-# Install Python dependencies
-COPY backend/requirements-production.txt /tmp/requirements-production.txt
-RUN pip install -r /tmp/requirements-production.txt
+# Install Python dependencies from the pinned, audited lock file (the same
+# set CI tests). requirements-production.txt includes requirements.txt via -r,
+# which was never copied into the image.
+COPY backend/requirements-lock.txt /tmp/requirements-lock.txt
+RUN pip install -r /tmp/requirements-lock.txt
 
 
 # Runtime stage
@@ -35,8 +37,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=config.settings.production
 
 # Install runtime dependencies
+# libmagic1: python-magic sniffs uploaded file types (documents/views.py).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
+    libmagic1 \
     gettext \
     curl \
     && rm -rf /var/lib/apt/lists/*

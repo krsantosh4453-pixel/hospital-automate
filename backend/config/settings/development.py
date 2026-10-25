@@ -58,6 +58,13 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
 ]
 # Vite moves to 5174, 5175, ... when 5173 is taken; accept any port, loopback hosts only.
+# The Vite proxy rewrites Host to the backend, so cookie-authenticated writes
+# need the dev-server origins trusted for CSRF (ports cannot be wildcarded).
+CSRF_TRUSTED_ORIGINS = [
+    f'http://{host}:{port}'
+    for host in ('localhost', '127.0.0.1')
+    for port in [3000, *range(5173, 5200)]
+]
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^http://(localhost|127\.0\.0\.1|\[::1\]):\d+$',
 ]

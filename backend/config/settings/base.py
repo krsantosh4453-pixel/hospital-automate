@@ -34,6 +34,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "rest_framework_simplejwt.token_blacklist",
+    # Required by CELERY_BEAT_SCHEDULER (DatabaseScheduler); without it beat cannot start.
+    "django_celery_beat",
     "users",
 
     # Existing hospital apps
@@ -81,6 +83,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "config.auth_cookies.AuthCookieMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "config.middleware.correlation.CorrelationIdMiddleware",
@@ -195,7 +198,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # Bearer header, or the httpOnly cookie the browser client uses (config/auth_cookies.py).
+        'config.auth_cookies.CookieJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -232,6 +236,10 @@ REST_FRAMEWORK = {
 # trusting it without a proxy would let anyone pick their rate-limit key.
 TRUSTED_PROXY_COUNT = int(os.environ.get('TRUSTED_PROXY_COUNT', '0'))
 REST_FRAMEWORK['NUM_PROXIES'] = TRUSTED_PROXY_COUNT
+
+# httpOnly session cookies for the browser client (config/auth_cookies.py).
+AUTH_COOKIE_SECURE = False
+AUTH_COOKIE_SAMESITE = 'Lax'
 
 
 # ============================================================

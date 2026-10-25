@@ -80,3 +80,13 @@ Current list with ids and next actions: `DEFECT_REGISTER.md` ("Remaining"). It a
 
 - Penetration testing, a DPDP Act (India) privacy assessment, and ABDM certification were not performed and require qualified reviewers.
 - Twilio, the AI providers and Google OAuth need real credentials. Their failure paths are tested; their success paths are mocked.
+
+## Fixed 2026-10-26
+
+| # | Severity | Finding | Fix | Test |
+|---|---|---|---|---|
+| 34 (D-17) | High | Session tokens in `localStorage` (open item above) | httpOnly cookies (`Secure`, `SameSite=Strict` in production) + CSRF on cookie-authenticated writes; tokens never in the browser's JSON | `test_auth_cookies`, `apiSession.test.js`, HTTPS rehearsal |
+| 35 (D-18) | High | nginx CSP allowed `'unsafe-inline'` scripts and blocked Google sign-in | Script sources limited to self + Google Identity Services | Rehearsal headers |
+| 36 (D-27) | Medium | Health checks passed via a 301 without testing the database | Health paths exempt from the HTTPS redirect | Rehearsal |
+
+The High open item "tokens in `localStorage`" is therefore closed. `db.sqlite3` in history was approved for purge on 2026-10-26.

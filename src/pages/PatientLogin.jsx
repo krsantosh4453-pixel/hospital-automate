@@ -122,22 +122,10 @@ function PatientLogin() {
       setGoogleLoading(true)
       setGoogleStatus("Verifying with backend...")
 
-      // Same base URL as every other API call (the Vite proxy in development).
-      const apiBase = import.meta.env.VITE_API_BASE_URL || "/api"
-      let res
-      try {
-        res = await fetch(`${apiBase}/auth/google/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ credential: response.credential }),
-        })
-      } catch {
-        throw new Error("Cannot reach the server. Check that the Django backend is running.")
-      }
+      // Through the shared client so the session arrives as httpOnly cookies.
+      const data = await api.auth.googleLogin(response.credential)
 
-      const data = await res.json()
-
-      if (!res.ok || data.status !== "success" || !data.access) {
+      if (data.status !== "success" || !(data.access || data.session === "cookie")) {
         throw new Error(data.error || "Google verification failed.")
       }
 

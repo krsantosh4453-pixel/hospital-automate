@@ -219,3 +219,17 @@ See `DEFECT_REGISTER.md` → Remaining (R-01 to R-14). Summary:
    - Then follow `DEPLOYMENT_CHECKLIST.md` §5.
 
 **Completed work** is the "Implemented fixes" table. **Recommendations and blockers** are "Remaining defects" and "Production blockers".
+
+## Update 2026-10-26: production points 1–7
+
+The verdict stays **READY FOR STAGING VALIDATION**. Remaining blockers need credentials, a real server or people; none is a known code defect.
+
+| # | Point | Status | Evidence |
+|---|---|---|---|
+| 1 | Docker / nginx / HTTPS run | **Done locally.** The full production Compose stack ran with self-signed TLS after 9 deployment defects were fixed (D-19 to D-27); none of them could have been found without running it. Still needed: the same on a real server with a domain and CA certificate | `DEFECT_REGISTER.md` (update), T-029, T-039 to T-042 |
+| 2 | Real Twilio / email / Google / AI | **Blocked.** Your `.env` has every Twilio key blank and no SMTP settings | T-030 |
+| 3 | Tokens in `localStorage` | **Done.** httpOnly cookies + CSRF; nginx CSP without inline scripts; Google sign-in no longer blocked by the CSP | D-17, D-18, T-041, T-043 |
+| 4 | `db.sqlite3` in git history | Approved; purged and force-pushed as the final step of this round (see the commit log) | — |
+| 5 | Clinical safety sign-off | **Pack ready:** `CLINICAL_SAFETY_REVIEW_PACK.md`. Needs a clinician and pharmacist | — |
+| 6 | Penetration test / DPDP | **Pack ready:** `PRIVACY_AND_PENTEST_PACK.md`. Needs an external firm and a privacy assessor | — |
+| 7 | CI green on GitHub | Waiting for your pull request into `master`. Every CI command passes locally (262 tests on SQLite and PostgreSQL 16; 8 frontend tests) | T-034 to T-038 |

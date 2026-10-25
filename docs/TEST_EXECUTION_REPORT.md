@@ -105,3 +105,34 @@ Counting method: each backend test method counts once per database run. The SQLi
 | Method contract | 1 |
 
 No existing test was deleted, skipped or weakened, and no existing assertion was changed. One assertion was briefly displaced by an edit and then restored, as the diff shows.
+
+## Update 2026-10-26
+
+**Environment changes:**
+
+- The scratch copy was rebuilt from `git archive` after the session restarted.
+- Docker 29.5 runs via Colima (Homebrew).
+- The rehearsal ran from `~/hms-rehearsal`, because Colima only shares the home folder with its VM.
+
+| Test ID | Area | Test / command | Result | Evidence |
+|---|---|---|---|---|
+| T-034 | Backend | Full suite, SQLite | **262 run, 261 pass, 1 skipped** (+8 cookie-session tests) | `Ran 262 tests … OK (skipped=1)` |
+| T-035 | Backend | Full suite, PostgreSQL 16 (`postgres:16-alpine` container, `TEST_DATABASE_URL`) | **262 run, 261 pass, 1 skipped** | Same |
+| T-036 | Frontend | `npm test` | **8/8 pass** (+4 cookie-session tests) | Vitest |
+| T-037 | Frontend | lint / build / `npm audit` | 0 errors (68 warnings) / pass / 0 vulnerabilities | Command output |
+| T-038 | Deps | `pip-audit`; Ruff correctness | Clean; pass | Command output |
+| T-029 → PASS (local) | Infra | `docker compose -f docker-compose.prod.yml build` + `up` | **PASS after D-19 to D-27**: all 7 containers healthy | `docker compose ps`; container logs |
+| T-039 | Infra | Production checks on `https://localhost` | PASS: redirect 301, `/health/ready/` 200 (DB, cache, Redis, Celery), `/media/` 404, anonymous API 401, HSTS/CSP/XFO/nosniff present, static 200, `check --deploy` clean | curl output |
+| T-040 | Infra | Upgrade path: recreate backend only, nginx untouched | PASS (200); backend stopped → 504 (was a fake 404) | curl output |
+| T-041 | Security | Cookie session over HTTPS through nginx: login → cookies `HttpOnly; Secure`, no tokens in body → me 200 → write without CSRF 403 → with CSRF passes → refresh 200 → logout 200 → me 401 | PASS | curl output |
+| T-042 | Security | 40 bad logins with rotating spoofed `X-Forwarded-For` | PASS: 429 after 3 (Django), 503 after the nginx burst | curl output |
+| T-043 | E2E (browser) | Dev stack: staff sign-in → no JWT in storage, cookies hidden from JS → reload keeps session → create department 201 → logout → protected page redirects to login | PASS | Browser pane |
+| T-030 | Integrations | Real Twilio / SMTP / Google / AI | **BLOCKED**: every Twilio key in `.env` is blank and no SMTP settings exist | `.env` keys inspected (values never printed) |
+
+**Still not run:**
+
+- Backup/restore on the containers.
+- Load test.
+- Bandit.
+- Patient-portal browser pass.
+- A rehearsal on a real server with a real domain and CA certificate.

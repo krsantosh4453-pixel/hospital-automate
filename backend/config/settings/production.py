@@ -30,6 +30,9 @@ if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['']:
 
 # HTTPS/SSL Settings
 SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
+# Container health checks call /health/ over plain HTTP inside the network;
+# redirecting them to HTTPS made a 301 count as "healthy" without a DB check.
+SECURE_REDIRECT_EXEMPT = [r'^health/']
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Secure Cookies
@@ -39,6 +42,9 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Strict'
 CSRF_COOKIE_SAMESITE = 'Strict'
+# Login tokens (config/auth_cookies.py): HTTPS only, never sent cross-site.
+AUTH_COOKIE_SECURE = True
+AUTH_COOKIE_SAMESITE = 'Strict'
 
 # HSTS
 SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))  # 1 year
@@ -122,6 +128,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "config.auth_cookies.AuthCookieMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "csp.middleware.CSPMiddleware",  # Content Security Policy

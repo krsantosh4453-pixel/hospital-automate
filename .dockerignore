@@ -114,3 +114,5 @@ docs/
 # Scripts
 scripts/
 *.sh
+# The backend image's entrypoint (backend/Dockerfile copies it).
+!backend/entrypoint.sh

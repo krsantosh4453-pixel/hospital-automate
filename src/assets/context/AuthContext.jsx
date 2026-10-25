@@ -75,7 +75,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   const applyPatientSession = useCallback((session) => {
-    if (!session?.access || !session?.patient) {
+    // Browser sessions get their tokens as httpOnly cookies ("session": "cookie").
+    if (!(session?.access || session?.session === "cookie") || !session?.patient) {
       throw new Error("Patient login did not return a valid session.")
     }
     api.auth.applySession(session)

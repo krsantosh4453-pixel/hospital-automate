@@ -1,8 +1,7 @@
 from django.urls import path
-from rest_framework_simplejwt.views import (
-    TokenRefreshView,
-    TokenVerifyView,
-)
+from rest_framework_simplejwt.views import TokenVerifyView
+
+from config.auth_cookie_views import CookieTokenRefreshView, csrf_token
 
 from .views import (
     google_login,
@@ -30,7 +29,8 @@ urlpatterns = [
     path("register/", register_account, name="register-account"),
     # Tokens are only issued by the staff/patient sign-in views, which apply
     # lockout, OTP policy and audit. The bare SimpleJWT obtain view is not exposed.
-    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("token/refresh/", CookieTokenRefreshView.as_view(), name="token_refresh"),
+    path("csrf/", csrf_token, name="csrf-token"),
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
     # Staff authentication endpoints
     path("staff/login/", staff_login, name="staff-login"),

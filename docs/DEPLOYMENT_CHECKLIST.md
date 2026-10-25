@@ -4,7 +4,11 @@ Use this with `DEPLOYMENT.md` (how to do each step) and `SECURITY_AUDIT_CHECKLIS
 
 ## 0. Before anything
 
-- [ ] Decide R-01 (tokens in `localStorage`) and R-03 (patient and clinical hard deletes) in `DEFECT_REGISTER.md`. Both are policy or architecture decisions.
+- [x] R-01 (tokens in `localStorage`): done on 2026-10-26, now httpOnly cookies + CSRF.
+- [ ] Decide R-03 (patient and clinical hard deletes) in `DEFECT_REGISTER.md`; it is a policy decision.
+- [x] Local rehearsal of §2–3 on Docker (Colima, self-signed TLS) on 2026-10-26. It found and fixed 9 deployment defects. Still repeat it on the real staging server with a real domain and certificate.
+- [ ] Fill the blank Twilio and SMTP values, then run §3's sign-in and notification checks (point 2 is blocked until then).
+- Review packs for the §4 sign-offs: `CLINICAL_SAFETY_REVIEW_PACK.md`, `PRIVACY_AND_PENTEST_PACK.md`.
 - [ ] If the repository will be shared, purge `backend/db.sqlite3` from git history (R-02) and rotate anything it held.
 - [ ] Move the working copy out of iCloud Drive. Evicted files stall Python and Node; see `TEST_EXECUTION_REPORT.md`.
 - [ ] Commit the current work and push to `master`. CI now triggers on `master`; confirm every job is green on GitHub.

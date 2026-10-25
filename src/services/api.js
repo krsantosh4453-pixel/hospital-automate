@@ -1,24 +1,49 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
-const ACCESS_TOKEN_KEY = 'access_token'
-const REFRESH_TOKEN_KEY = 'refresh_token'
+// Login tokens live in httpOnly cookies that the server sets for requests
+// carrying X-Auth-Mode: cookie, so no script on the page (or an XSS) can read
+// them. This flag only remembers that a session exists, to decide whether a
+// 401 is worth a refresh attempt; it is not a secret.
+const SESSION_KEY = 'hms_session'
+// Earlier builds stored the tokens themselves here.
+const LEGACY_TOKEN_KEYS = ['access_token', 'refresh_token']
 
-function getAccessToken() {
-  return localStorage.getItem(ACCESS_TOKEN_KEY)
+function hasSession() {
+  try {
+    return localStorage.getItem(SESSION_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
-function getRefreshToken() {
-  return localStorage.getItem(REFRESH_TOKEN_KEY)
-}
-
-function setTokens({ access, refresh } = {}) {
-  if (access) localStorage.setItem(ACCESS_TOKEN_KEY, access)
-  if (refresh) localStorage.setItem(REFRESH_TOKEN_KEY, refresh)
+// Called after a successful sign-in or refresh; the tokens are cookies.
+function setTokens() {
+  localStorage.setItem(SESSION_KEY, '1')
 }
 
 function clearTokens() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem(SESSION_KEY)
+  for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key)
+}
+
+try {
+  for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key)
+} catch {
+  // Storage unavailable (private mode): nothing was stored either.
+}
+
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+let csrfToken = null
+
+// Cookie-authenticated writes must carry the CSRF token; the CSRF cookie is
+// httpOnly, so the server hands the token out from /auth/csrf/.
+async function getCsrfToken(renew = false) {
+  if (!csrfToken || renew) {
+    const response = await fetch(`${API_BASE_URL}/auth/csrf/`, { credentials: 'include' })
+    if (!response.ok) throw new Error(`CSRF token request failed (${response.status})`)
+    csrfToken = (await response.json()).csrfToken
+  }
+  return csrfToken
 }
 
 // Patient rows some pages keep in the browser (offline saves, the patient
@@ -62,10 +87,7 @@ function buildHeaders(extra = {}, body) {
   if (body && !(body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json'
   }
-  const token = getAccessToken()
-  if (token && !headers.Authorization) {
-    headers.Authorization = `Bearer ${token}`
-  }
+  headers['X-Auth-Mode'] = 'cookie'
   return headers
 }
 
@@ -99,21 +121,24 @@ function shouldAttemptRefresh(url) {
 async function refreshAccessToken() {
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      const refresh = getRefreshToken()
-      if (!refresh) {
+      if (!hasSession()) {
         throw new Error('Session expired')
       }
+      // The refresh token is sent as an httpOnly cookie; new tokens come back as cookies.
       const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh }),
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Mode': 'cookie',
+          'X-CSRFToken': await getCsrfToken(),
+        },
+        body: '{}',
       })
       if (!response.ok) {
         throw new Error('Session expired')
       }
-      const data = await response.json()
-      setTokens({ access: data.access, refresh: data.refresh || refresh })
-      return data.access
+      setTokens()
     })().finally(() => {
       refreshPromise = null
     })
@@ -135,12 +160,14 @@ function failAuthSession() {
 // Shared request helper with consistent error handling.
 async function request(url, options = {}) {
   let response
-  const { headers: extraHeaders, _retried = false, timeout = 8000, ...rest } = options
+  const { headers: extraHeaders, _retried = false, _csrfRetried = false, timeout = 8000, ...rest } = options
   const headers = buildHeaders(extraHeaders || {}, rest.body)
+  const unsafe = UNSAFE_METHODS.has(String(rest.method || 'GET').toUpperCase())
 
   try {
+    if (unsafe) headers['X-CSRFToken'] = await getCsrfToken(_csrfRetried)
     const timeoutSignal = rest.signal || AbortSignal.timeout(timeout)
-    response = await fetch(url, { ...rest, headers, signal: timeoutSignal })
+    response = await fetch(url, { ...rest, headers, credentials: 'include', signal: timeoutSignal })
   } catch (networkError) {
     // fetch() only rejects when no HTTP response arrived (server down, CORS
     // blocked, timeout); its own messages ("Failed to fetch") say nothing useful.
@@ -156,7 +183,16 @@ async function request(url, options = {}) {
     throw error
   }
 
-  if (response.status === 401 && !_retried && shouldAttemptRefresh(url) && getRefreshToken()) {
+  // A cached CSRF token goes stale when the CSRF cookie rotates (e.g. after
+  // signing in); fetch a fresh one and retry once.
+  if (response.status === 403 && unsafe && !_csrfRetried) {
+    const text = await response.clone().text()
+    if (text.includes('CSRF')) {
+      return request(url, { ...options, _csrfRetried: true })
+    }
+  }
+
+  if (response.status === 401 && !_retried && shouldAttemptRefresh(url) && hasSession()) {
     try {
       await refreshAccessToken()
       return request(url, { ...options, _retried: true })
@@ -200,9 +236,10 @@ function jsonBody(data) {
 
 const api = {
   auth: {
+    // The tokens are httpOnly cookies; this only says whether a session exists.
     getTokens: () => ({
-      accessToken: getAccessToken(),
-      refreshToken: getRefreshToken(),
+      accessToken: hasSession() ? 'cookie' : null,
+      refreshToken: hasSession() ? 'cookie' : null,
     }),
     setTokens,
     clearTokens,
@@ -257,14 +294,12 @@ const api = {
       }),
     getMe: async () => request(`${API_BASE_URL}/auth/staff/me/`),
     logout: async () => {
-      const refresh = getRefreshToken()
       try {
-        if (refresh) {
-          await request(`${API_BASE_URL}/auth/staff/logout/`, {
-            method: 'POST',
-            ...jsonBody({ refresh }),
-          })
-        }
+        // The server blacklists the refresh cookie and clears both cookies.
+        await request(`${API_BASE_URL}/auth/staff/logout/`, {
+          method: 'POST',
+          ...jsonBody({}),
+        })
       } catch (error) {
         // Keep logout local even if the server call fails.
       }
@@ -322,6 +357,12 @@ const api = {
       return data
     },
     patientMe: async () => request(`${API_BASE_URL}/auth/patient/me/`),
+    // POST /api/auth/google/ with the ID token from Google Identity Services.
+    googleLogin: async (credential) =>
+      request(`${API_BASE_URL}/auth/google/`, {
+        method: 'POST',
+        ...jsonBody({ credential }),
+      }),
     applySession: (data) => {
       setTokens({ access: data?.access, refresh: data?.refresh })
       return data
