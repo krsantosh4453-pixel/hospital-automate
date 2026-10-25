@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
+import { CalendarDays, ChevronRight, FileText, FlaskConical, History, Pill, ReceiptIndianRupee, Ticket } from "lucide-react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
-import { CalendarDaysIcon, CreditCardIcon, FlaskConicalIcon, HospitalIcon, PillIcon, TriangleAlertIcon } from "lucide-react"
+import { Alert, Card, CardHeader, EmptyState, SkeletonRows, StatTile, StatusBadge } from "../../components/ui"
+
+const list = (data) => (Array.isArray(data) ? data : data?.results || [])
+const CURRENT_RX = ["Confirmed", "Pending"]
 
 function PatientDashboard() {
   const { patient } = useAuth()
@@ -15,154 +20,125 @@ function PatientDashboard() {
 
     const fetchData = async () => {
       setLoading(true)
-      try {
-        const [apptsData] = await Promise.all([
-          api.appointments.list().catch(() => ({ results: [] })),
-        ])
+      // The server returns only this patient's own records.
+      const [appts, rx, bills] = await Promise.allSettled([
+        api.appointments.list(),
+        api.clinical.prescriptions.list({ patientId: patient.id }),
+        api.billing.invoices.list(),
+      ])
+      const mine = (r) => (r.status === "fulfilled" ? list(r.value) : [])
+      const patientAppointments = mine(appts).filter((a) => String(a.patient) === String(patient.id))
+      const prescriptions = mine(rx)
+      const invoices = mine(bills).filter((b) => b.patient === undefined || String(b.patient) === String(patient.id))
 
-        const allAppointments = apptsData?.results || apptsData || []
-        const patientAppointments = allAppointments.filter(
-          (a) => String(a.patient) === String(patient.id)
-        )
-
-        setAppointments(patientAppointments.slice(0, 5))
-        setStats({
-          upcomingAppointments: patientAppointments.filter(a => a.status === "Scheduled" || a.status === "Confirmed").length,
-          pastAppointments: patientAppointments.filter(a => a.status === "Completed").length,
-          pendingPrescriptions: 0,
-          unpaidBills: 0,
-        })
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
+      setAppointments(
+        patientAppointments
+          .filter((a) => a.status === "Scheduled" || a.status === "Confirmed")
+          .sort((a, b) => `${a.appointment_date} ${a.appointment_time}`.localeCompare(`${b.appointment_date} ${b.appointment_time}`))
+          .slice(0, 5),
+      )
+      setStats({
+        upcomingAppointments: appts.status === "fulfilled" ? patientAppointments.filter((a) => a.status === "Scheduled" || a.status === "Confirmed").length : null,
+        pastAppointments: appts.status === "fulfilled" ? patientAppointments.filter((a) => a.status === "Completed").length : null,
+        currentPrescriptions: rx.status === "fulfilled" ? prescriptions.filter((p) => CURRENT_RX.includes(p.status)).length : null,
+        unpaidBills: bills.status === "fulfilled" ? invoices.filter((b) => b.status === "Unpaid" || b.status === "Partial").length : null,
+      })
+      const failed = [appts, rx, bills].find((r) => r.status === "rejected")
+      setError(failed ? failed.reason?.message || "Some information could not be loaded." : null)
+      setLoading(false)
     }
 
     fetchData()
   }, [patient?.id])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    )
-  }
-
   const formatDate = (dateStr) => {
     if (!dateStr) return "—"
-    return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    return new Date(dateStr).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })
   }
+
+  const firstName = (patient?.name || "").split(" ")[0]
+
+  const links = [
+    { to: "/patient/appointments", icon: CalendarDays, title: "Appointments", text: "Upcoming and past visits" },
+    { to: "/patient/queue", icon: Ticket, title: "Queue / token", text: "Your place in today's queue" },
+    { to: "/patient/prescriptions", icon: Pill, title: "Prescriptions", text: "Medicines your doctor prescribed" },
+    { to: "/patient/lab-results", icon: FlaskConical, title: "Lab reports", text: "Results released by the lab" },
+    { to: "/patient/bills", icon: ReceiptIndianRupee, title: "Bills", text: "Invoices and payments" },
+    { to: "/patient/documents", icon: FileText, title: "Medical records", text: "Documents shared with you" },
+  ]
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Welcome back, {patient?.name || "Patient"}!</h1>
-        <p className="text-gray-500 mt-1">Here&apos;s an overview of your health information.</p>
+      <header>
+        <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">{firstName ? `Hello, ${firstName}` : "Welcome"}</h1>
+        <p className="mt-1 text-sm text-ink-500">Your appointments, medicines, reports and bills in one place.</p>
+      </header>
+
+      {error && <Alert tone="warning">{error}</Alert>}
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatTile icon={CalendarDays} label="Upcoming appointments" value={loading ? null : stats?.upcomingAppointments} />
+        <StatTile icon={History} tone="neutral" label="Past visits" value={loading ? null : stats?.pastAppointments} />
+        <StatTile icon={Pill} tone="accent" label="Current prescriptions" value={loading ? null : stats?.currentPrescriptions} />
+        <StatTile icon={ReceiptIndianRupee} tone={stats?.unpaidBills ? "warning" : "success"} label="Bills with balance due" value={loading ? null : stats?.unpaidBills} />
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
-          <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Upcoming Appointments" value={stats?.upcomingAppointments || 0} icon={<CalendarDaysIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />} color="bg-blue-100" />
-        <StatCard title="Past Visits" value={stats?.pastAppointments || 0} icon={<HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />} color="bg-green-100" />
-        <StatCard title="Active Prescriptions" value={stats?.pendingPrescriptions || 0} icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />} color="bg-purple-100" />
-        <StatCard title="Unpaid Bills" value={stats?.unpaidBills || 0} icon={<CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />} color="bg-orange-100" />
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-800">Upcoming Appointments</h2>
-          <a href="/patient/appointments" className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All →</a>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {appointments.length > 0 ? (
-            appointments.map((appt) => (
-              <div key={appt.id} className="p-5 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-xl"><CalendarDaysIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
-                  <div>
-                    <p className="font-medium text-gray-800">{appt.doctor_name || "Doctor"}</p>
-                    <p className="text-sm text-gray-500">{formatDate(appt.appointment_date)} at {appt.appointment_time}</p>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <Card>
+          <CardHeader
+            title="Upcoming appointments"
+            actions={<Link to="/patient/appointments" className="text-[13px] font-medium text-brand-700 hover:underline">View all</Link>}
+          />
+          {loading ? (
+            <SkeletonRows rows={3} />
+          ) : appointments.length > 0 ? (
+            <ul className="divide-y divide-ink-100">
+              {appointments.map((appt) => (
+                <li key={appt.id} className="flex items-center gap-4 px-5 py-4">
+                  <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-brand-50 text-brand-800">
+                    <span className="text-[10px] font-semibold uppercase leading-none">{appt.appointment_date ? new Date(appt.appointment_date).toLocaleDateString("en-GB", { month: "short" }) : ""}</span>
+                    <span className="text-base font-semibold leading-tight tabular-nums">{appt.appointment_date ? new Date(appt.appointment_date).getDate() : "—"}</span>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-ink-900">{appt.doctor_name || "Doctor"}</p>
+                    <p className="text-[13px] text-ink-500 tabular-nums">
+                      {formatDate(appt.appointment_date)}
+                      {appt.appointment_time ? ` · ${String(appt.appointment_time).slice(0, 5)}` : ""}
+                    </p>
                   </div>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  appt.status === "Scheduled" ? "bg-blue-100 text-blue-700" :
-                  appt.status === "Confirmed" ? "bg-green-100 text-green-700" :
-                  appt.status === "Completed" ? "bg-gray-100 text-gray-700" :
-                  "bg-red-100 text-red-700"
-                }`}>
-                  {appt.status}
-                </span>
-              </div>
-            ))
+                  <StatusBadge status={appt.status} />
+                </li>
+              ))}
+            </ul>
           ) : (
-            <div className="p-8 text-center text-gray-500">
-              <p className="text-lg mb-2">No upcoming appointments</p>
-              <a href="/patient/appointments" className="text-blue-600 hover:text-blue-700 font-medium">Book an appointment →</a>
-            </div>
+            <EmptyState
+              compact
+              icon={CalendarDays}
+              title="No upcoming appointments"
+              action={<Link to="/patient/appointments" className="text-sm font-medium text-brand-700 hover:underline">See your appointments</Link>}
+            />
           )}
-        </div>
-      </div>
+        </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <QuickActionCard
-          icon={<CalendarDaysIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
-          title="Book Appointment"
-          description="Schedule a new appointment with your doctor"
-          href="/patient/appointments"
-        />
-        <QuickActionCard
-          icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
-          title="View Prescriptions"
-          description="Check your current and past prescriptions"
-          href="/patient/prescriptions"
-        />
-        <QuickActionCard
-          icon={<FlaskConicalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
-          title="Lab Results"
-          description="View your laboratory test results"
-          href="/patient/lab-results"
-        />
-        <QuickActionCard
-          icon={<CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
-          title="Pay Bills"
-          description="View and pay your medical bills online"
-          href="/patient/bills"
-        />
+        <Card>
+          <CardHeader title="Your records" />
+          <ul className="divide-y divide-ink-100">
+            {links.map(({ to, icon: Icon, title, text }) => (
+              <li key={to}>
+                <Link to={to} className="group flex items-center gap-3 px-5 py-3 hover:bg-ink-50">
+                  <Icon size={18} className="text-brand-600" aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-ink-900">{title}</span>
+                    <span className="block truncate text-xs text-ink-500">{text}</span>
+                  </span>
+                  <ChevronRight size={16} className="text-ink-300 group-hover:text-ink-500" aria-hidden="true" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
       </div>
     </div>
-  )
-}
-
-function StatCard({ title, value, icon, color }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-500">{title}</p>
-          <h3 className="text-3xl font-bold text-gray-800 mt-1">{value}</h3>
-        </div>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${color}`}>{icon}</div>
-      </div>
-    </div>
-  )
-}
-
-function QuickActionCard({ icon, title, description, href }) {
-  return (
-    <a href={href} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:border-blue-200 hover:shadow-md transition flex items-center gap-4">
-      <div className="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center text-2xl">{icon}</div>
-      <div>
-        <h3 className="font-semibold text-gray-800">{title}</h3>
-        <p className="text-sm text-gray-500 mt-1">{description}</p>
-      </div>
-    </a>
   )
 }
 

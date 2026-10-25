@@ -6,10 +6,10 @@ import {
   getSelectedLoginRole,
   saveSelectedLoginRole,
 } from "../utils/roleRouting.js"
-import { HospitalIcon } from "lucide-react"
+import { BrandMark } from "../components/Sidebar.jsx"
+import { Alert } from "../components/ui"
 
-const inputClass =
-  "w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+const inputClass = "hms-input w-full"
 
 function Register() {
   const navigate = useNavigate()
@@ -148,74 +148,62 @@ function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg text-white text-3xl font-bold">
-            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mt-4">
-            Hospital Management System
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">Create Account</p>
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-[28rem]">
+        <div className="mb-8">
+          <BrandMark inverted={false} />
+          <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">Create an account</h1>
+          <p className="mt-1 text-sm text-ink-500">Patients can sign in once their email is verified. Staff accounts wait for an administrator&apos;s approval.</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+        <div className="rounded-2xl border border-line bg-white/95 p-6 shadow-xl shadow-ink-900/5 backdrop-blur-sm sm:p-8">
           <div className="mb-6">
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-center mb-3">
-              Select Role
+            <p id="register-role-label" className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
+              Account type
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-labelledby="register-role-label">
               {LOGIN_ROLES.map((item) => (
                 <button
                   key={item}
                   type="button"
                   onClick={() => setRole(item)}
-                  className={`py-2 px-2 text-[11px] font-semibold rounded-xl border transition cursor-pointer ${
-                    role === item
-                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                      : "bg-gray-50 text-gray-700 border-gray-200 hover:border-blue-300"
-                  }`}
+                  role="radio"
+                  aria-checked={role === item}
+                  className={`h-9 rounded-lg border px-2 text-xs font-semibold transition-colors ${role === item ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-700 hover:border-brand-300"}`}
                 >
                   {item}
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-gray-400 mt-3 text-center">
-              {role} Registration
-            </p>
           </div>
 
           {role === "Admin" && (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs">
+            <Alert tone="warning" className="mb-4">
               Admin accounts cannot be created from the role selector alone.
               An invitation code from an existing administrator is required.
-            </div>
+            </Alert>
           )}
 
           {["Doctor", "Nurse", "Compounder", "Receptionist"].includes(role) && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-xs">
+            <Alert tone="info" className="mb-4">
               {role} registrations stay pending until a hospital administrator
               activates the staff profile. Selecting {role} here does not grant
               {` ${role} `} access by itself.
-            </div>
+            </Alert>
           )}
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
-              {error}
-            </div>
+            <Alert tone="danger" className="mb-4">{error}</Alert>
           )}
           {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-              {success}
-            </div>
+            <Alert tone="success" className="mb-4">{success}</Alert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Full Name</label>
+              <label htmlFor="reg-field-1" className="hms-label">Full Name</label>
               <input
+                id="reg-field-1"
                 className={inputClass}
                 value={form.full_name}
                 onChange={(e) => setField("full_name", e.target.value)}
@@ -223,14 +211,16 @@ function Register() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Mobile Number</label>
+              <label htmlFor="reg-field-phone" className="hms-label">Mobile Number</label>
               <div className="flex">
-                <span className="flex items-center px-3.5 border border-r-0 border-gray-300 rounded-l-xl bg-gray-50 text-gray-600 text-sm">
+                <span className="flex items-center rounded-l-lg border border-r-0 border-line-strong bg-ink-50 px-3 text-sm text-ink-600">
                   +91
                 </span>
                 <input
+                  id="reg-field-phone"
                   type="tel"
-                  className="hms-input w-full rounded-r-xl"
+                  inputMode="numeric"
+                  className="hms-input w-full rounded-l-none"
                   value={form.phone}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "")
@@ -242,8 +232,9 @@ function Register() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Email</label>
+              <label htmlFor="reg-field-2" className="hms-label">Email</label>
               <input
+                id="reg-field-2"
                 type="email"
                 className={inputClass}
                 value={form.email}
@@ -255,8 +246,9 @@ function Register() {
             {role === "Patient" && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Date of Birth</label>
+                  <label htmlFor="reg-field-3" className="hms-label">Date of Birth</label>
                   <input
+                    id="reg-field-3"
                     type="date"
                     className={inputClass}
                     value={form.date_of_birth}
@@ -264,8 +256,9 @@ function Register() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Gender</label>
+                  <label htmlFor="reg-field-4" className="hms-label">Gender</label>
                   <select
+                    id="reg-field-4"
                     className={inputClass}
                     value={form.gender}
                     onChange={(e) => setField("gender", e.target.value)}
@@ -276,8 +269,9 @@ function Register() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Address</label>
+                  <label htmlFor="reg-field-5" className="hms-label">Address</label>
                   <input
+                    id="reg-field-5"
                     className={inputClass}
                     value={form.address}
                     onChange={(e) => setField("address", e.target.value)}
@@ -289,26 +283,27 @@ function Register() {
             {role === "Doctor" && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Medical Registration / License Number
-                  </label>
+                  <label htmlFor="reg-field-6" className="hms-label">Medical Registration / License Number</label>
                   <input
+                    id="reg-field-6"
                     className={inputClass}
                     value={form.license_number}
                     onChange={(e) => setField("license_number", e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Specialization</label>
+                  <label htmlFor="reg-field-7" className="hms-label">Specialization</label>
                   <input
+                    id="reg-field-7"
                     className={inputClass}
                     value={form.specialization}
                     onChange={(e) => setField("specialization", e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Experience</label>
+                  <label htmlFor="reg-field-8" className="hms-label">Experience</label>
                   <input
+                    id="reg-field-8"
                     className={inputClass}
                     value={form.experience}
                     onChange={(e) => setField("experience", e.target.value)}
@@ -321,18 +316,18 @@ function Register() {
             {role === "Nurse" && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Nursing Registration / ID
-                  </label>
+                  <label htmlFor="reg-field-9" className="hms-label">Nursing Registration / ID</label>
                   <input
+                    id="reg-field-9"
                     className={inputClass}
                     value={form.nursing_registration}
                     onChange={(e) => setField("nursing_registration", e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Department / Ward</label>
+                  <label htmlFor="reg-field-10" className="hms-label">Department / Ward</label>
                   <input
+                    id="reg-field-10"
                     className={inputClass}
                     value={form.department}
                     onChange={(e) => setField("department", e.target.value)}
@@ -344,18 +339,18 @@ function Register() {
             {(role === "Compounder" || role === "Receptionist") && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Employee / Staff ID
-                  </label>
+                  <label htmlFor="reg-field-11" className="hms-label">Employee / Staff ID</label>
                   <input
+                    id="reg-field-11"
                     className={inputClass}
                     value={form.employee_id}
                     onChange={(e) => setField("employee_id", e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Department</label>
+                  <label htmlFor="reg-field-12" className="hms-label">Department</label>
                   <input
+                    id="reg-field-12"
                     className={inputClass}
                     value={form.department}
                     onChange={(e) => setField("department", e.target.value)}
@@ -366,10 +361,9 @@ function Register() {
 
             {role === "Admin" && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Admin Invitation Code
-                </label>
+                <label htmlFor="reg-field-13" className="hms-label">Admin Invitation Code</label>
                 <input
+                  id="reg-field-13"
                   className={inputClass}
                   value={form.invite_code}
                   onChange={(e) => setField("invite_code", e.target.value)}
@@ -379,8 +373,9 @@ function Register() {
             )}
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Password</label>
+              <label htmlFor="reg-field-14" className="hms-label">Password</label>
               <input
+                id="reg-field-14"
                 type="password"
                 className={inputClass}
                 value={form.password}
@@ -390,8 +385,9 @@ function Register() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Confirm Password</label>
+              <label htmlFor="reg-field-15" className="hms-label">Confirm Password</label>
               <input
+                id="reg-field-15"
                 type="password"
                 className={inputClass}
                 value={form.confirm_password}
@@ -404,23 +400,24 @@ function Register() {
             <button
               type="submit"
               disabled={loading || Boolean(pendingEmail)}
-              className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? "Creating account..." : "Create Account"}
             </button>
           </form>
 
           {pendingEmail && (
-            <form onSubmit={handleVerifyEmail} className="mt-6 space-y-4 border-t border-gray-100 pt-6">
+            <form onSubmit={handleVerifyEmail} className="mt-6 space-y-4 border-t border-line pt-6">
               <div>
-                <h2 className="text-sm font-bold text-gray-800">Verify email</h2>
+                <h2 className="text-sm font-semibold text-ink-900">Verify email</h2>
                 <p className="text-xs text-gray-500 mt-1">
                   {otpMessage || `Enter the code sent for ${pendingEmail}.`}
                 </p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">Email OTP</label>
+                <label htmlFor="reg-field-16" className="hms-label">Email OTP</label>
                 <input
+                  id="reg-field-16"
                   className={inputClass}
                   inputMode="numeric"
                   value={otp}
@@ -432,7 +429,7 @@ function Register() {
               <button
                 type="submit"
                 disabled={loading || verified}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {verified ? "Email verified" : "Verify OTP"}
               </button>
@@ -441,14 +438,14 @@ function Register() {
                   type="button"
                   onClick={handleResendEmail}
                   disabled={loading || verified}
-                  className="text-blue-600 hover:text-blue-700 cursor-pointer disabled:opacity-50"
+                  className="rounded text-[13px] font-medium text-brand-700 hover:underline disabled:opacity-50"
                 >
                   Resend email OTP
                 </button>
                 {verified && (
                   <Link
                     to={`/patient-login?role=Patient&email=${encodeURIComponent(pendingEmail)}`}
-                    className="font-semibold text-blue-600 hover:text-blue-700"
+                    className="rounded text-[13px] font-medium text-brand-700 hover:underline disabled:opacity-50"
                   >
                     Sign in
                   </Link>
@@ -457,13 +454,13 @@ function Register() {
             </form>
           )}
 
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">Already have an account?</p>
+          <div className="mt-6 text-center text-[13px] text-ink-500">
+            <p>Already have an account?</p>
             <Link
               to={`/patient-login?role=${encodeURIComponent(role)}`}
-              className="inline-block mt-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+              className="mt-1 inline-block font-medium text-brand-700 hover:underline"
             >
-              Login
+              Sign in
             </Link>
           </div>
         </div>

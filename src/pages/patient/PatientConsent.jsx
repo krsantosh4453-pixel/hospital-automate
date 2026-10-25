@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import { useHospitals } from "../../assets/context/HospitalsContext.jsx"
 import api from "../../services/api.js"
-import { CircleCheckIcon, ClipboardListIcon, PenLineIcon, TriangleAlertIcon, XIcon } from "lucide-react"
-import { useConfirm } from "../../components/ui"
+import { CircleCheckIcon, ClipboardListIcon, PenLineIcon, XIcon } from "lucide-react"
+import { Alert, Card, SkeletonRows, useConfirm } from "../../components/ui"
 
 const SCOPE_LABELS = {
   visits: "Visit history",
@@ -164,28 +164,16 @@ function PatientConsent() {
 
   return (
     <>{confirmDialog}<div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Consent Forms</h1>
-        <p className="text-gray-500 mt-1">Review and sign consent forms, and control who can see your records</p>
-      </div>
+      <header>
+        <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">Consent and sharing</h1>
+        <p className="mt-1 text-sm text-ink-500">Review and sign consent forms, and control who can see your records.</p>
+      </header>
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-center justify-between" role="alert">
-          <span><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700" aria-label="Dismiss"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
-        </div>
-      )}
-      {notice && !error && (
-        <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm flex items-center justify-between" role="status">
-          <span><CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {notice}</span>
-          <button onClick={() => setNotice("")} className="text-green-600 hover:text-green-800" aria-label="Dismiss"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
-        </div>
-      )}
+      {error && <Alert tone="danger" onDismiss={() => setError(null)}>{error}</Alert>}
+      {notice && !error && <Alert tone="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        <Card><SkeletonRows rows={3} /></Card>
       ) : consentForms.length > 0 ? (
         <div className="space-y-4">
           {consentForms.map((form) => {
@@ -193,11 +181,11 @@ function PatientConsent() {
             const isSigned = Boolean(record)
 
             return (
-              <div key={form.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div key={form.id} className="overflow-hidden rounded-2xl border border-line bg-white">
                 <div className="p-5 border-b border-gray-100">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                      <h3 className="font-semibold text-gray-800 text-lg">{form.name}</h3>
+                      <h3 className="text-base font-semibold text-ink-900">{form.name}</h3>
                       <p className="text-sm text-gray-500 mt-1">{form.description}</p>
                       {form.version && <p className="text-xs text-gray-400 mt-1">Version {form.version}{form.required ? " • Required" : ""}</p>}
                     </div>
@@ -248,7 +236,7 @@ function PatientConsent() {
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+        <div className="rounded-2xl border border-line bg-white p-12 text-center">
           <div className="text-4xl mb-3"><ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h3 className="font-bold text-gray-800">No consent forms available</h3>
           <p className="text-sm text-gray-500 mt-1">You don&apos;t have any pending consent forms at the moment.</p>
@@ -257,9 +245,9 @@ function PatientConsent() {
 
       {/* Record sharing */}
       {!loading && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-line bg-white">
           <div className="p-5 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-800 text-lg">Share My Records</h2>
+            <h2 className="text-base font-semibold text-ink-900">Share My Records</h2>
             <p className="text-sm text-gray-500 mt-1">
               Let another hospital see selected records from this hospital until a date you choose.
               Every time they open your records it is logged here.
@@ -369,7 +357,7 @@ function PatientConsent() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="consent-sign-title">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-              <h2 id="consent-sign-title" className="text-lg font-bold text-gray-800">Sign Consent Form: {selectedForm.name}</h2>
+              <h2 id="consent-sign-title" className="text-base font-semibold text-ink-900">Sign Consent Form: {selectedForm.name}</h2>
               <button onClick={() => setShowSignModal(false)} className="text-gray-400 hover:text-gray-700 text-xl font-semibold" aria-label="Close"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
             </div>
             <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">

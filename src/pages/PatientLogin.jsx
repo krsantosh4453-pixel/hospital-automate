@@ -9,8 +9,10 @@ import {
   getSelectedLoginRole,
   saveSelectedLoginRole,
 } from "../utils/roleRouting.js"
-import { HospitalIcon, MailIcon, SmartphoneIcon, TicketIcon } from "lucide-react"
+import { MailIcon, SmartphoneIcon, TicketIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
+import { BrandMark } from "../components/Sidebar.jsx"
+import { Alert } from "../components/ui"
 
 function PatientLogin() {
   const toast = useToast()
@@ -322,37 +324,28 @@ function PatientLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-[26rem]">
 
-        {/* Logo / Brand */}
-        <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg text-white text-3xl font-bold">
-            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mt-4">
-            Hospital Management System
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Hospital Portal Login
-          </p>
+        <div className="mb-8">
+          <BrandMark inverted={false} />
+          <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">Sign in</h1>
+          <p className="mt-1 text-sm text-ink-500">Patients see their own appointments, prescriptions, reports and bills.</p>
         </div>
 
         <div className="mb-6">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-center mb-3">
-            Select Role
+          <p id="login-role-label" className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
+            I am a
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-labelledby="login-role-label">
             {LOGIN_ROLES.map((role) => (
               <button
                 key={role}
                 type="button"
                 onClick={() => setSelectedRole(role)}
-                className={`py-2 px-2 text-[11px] font-semibold rounded-xl border transition cursor-pointer ${
-                  selectedRole === role
-                    ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-blue-300"
-                }`}
+                role="radio"
+                aria-checked={selectedRole === role}
+                className={`h-9 rounded-lg border px-2 text-xs font-semibold transition-colors ${selectedRole === role ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-700 hover:border-brand-300"}`}
               >
                 {role}
               </button>
@@ -361,21 +354,19 @@ function PatientLogin() {
         </div>
 
         {/* Main Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+        <div className="rounded-2xl border border-line bg-white/95 p-6 shadow-xl shadow-ink-900/5 backdrop-blur-sm sm:p-8">
 
           {/* Mode Switcher Tabs */}
-          <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
+          <div className="mb-6 flex rounded-lg bg-ink-100 p-0.5" role="tablist" aria-label="Sign-in method">
             <button
               type="button"
               onClick={() => {
                 setLoginMode("mobile")
                 setStep("mobile")
               }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                loginMode === "mobile"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              role="tab"
+              aria-selected={loginMode === "mobile"}
+              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors ${loginMode === "mobile" ? "bg-white text-brand-700 shadow-sm" : "text-ink-600 hover:text-ink-900"}`}
             >
               <SmartphoneIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Mobile OTP
             </button>
@@ -385,11 +376,9 @@ function PatientLogin() {
                 setLoginMode("token")
                 setTokenError("")
               }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                loginMode === "token"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              role="tab"
+              aria-selected={loginMode === "token"}
+              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors ${loginMode === "token" ? "bg-white text-brand-700 shadow-sm" : "text-ink-600 hover:text-ink-900"}`}
             >
               <TicketIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Token / ID
             </button>
@@ -399,11 +388,9 @@ function PatientLogin() {
                 setLoginMode("email")
                 setEmailError("")
               }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                loginMode === "email"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              role="tab"
+              aria-selected={loginMode === "email"}
+              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors ${loginMode === "email" ? "bg-white text-brand-700 shadow-sm" : "text-ink-600 hover:text-ink-900"}`}
             >
               <MailIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Email
             </button>
@@ -417,35 +404,30 @@ function PatientLogin() {
               {step === "mobile" ? (
                 <>
                   <div className="mb-5">
-                    <h2 className="text-lg font-bold text-gray-800">
+                    <h2 className="text-lg font-semibold text-ink-900">
                       Login with Mobile
                     </h2>
-                    <p className="text-gray-500 text-xs mt-0.5">
+                    <p className="mt-0.5 text-[13px] text-ink-500">
                       We&apos;ll send a 6-digit verification code
                     </p>
                   </div>
 
                   {otpError && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                      {otpError}
-                    </div>
+                    <Alert tone="danger" className="mb-4">{otpError}</Alert>
                   )}
                   {otpNotice && (
-                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
-                      {otpNotice}
-                    </div>
+                    <Alert tone="warning" className="mb-4">{otpNotice}</Alert>
                   )}
 
                   <form onSubmit={handleSendOTP} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                        Mobile Number
-                      </label>
+                      <label htmlFor="pl-field-1" className="hms-label">Mobile Number</label>
                       <div className="flex">
-                        <span className="flex items-center px-3.5 border border-r-0 border-gray-300 rounded-l-xl bg-gray-50 text-gray-600 text-sm">
+                        <span className="flex items-center rounded-l-lg border border-r-0 border-line-strong bg-ink-50 px-3 text-sm text-ink-600">
                           +91
                         </span>
                         <input
+                          id="pl-field-1"
                           type="tel"
                           value={mobile}
                           onChange={(e) => {
@@ -453,7 +435,7 @@ function PatientLogin() {
                             if (val.length <= 10) setMobile(val)
                           }}
                           placeholder="Enter 10-digit number"
-                          className="hms-input w-full rounded-r-xl"
+                          className="hms-input w-full rounded-l-none"
                           required
                         />
                       </div>
@@ -461,7 +443,7 @@ function PatientLogin() {
 
                     <button
                       type="submit"
-                      className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={otpLoading}
                     >
                       {otpLoading ? "Sending..." : "Send OTP"}
@@ -474,7 +456,7 @@ function PatientLogin() {
                         setLoginMode("email")
                         setEmailStep("otp")
                       }}
-                      className="w-full mt-3 border border-blue-600 text-blue-600 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-50 transition cursor-pointer"
+                      className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Verify using Email
                     </button>
@@ -483,10 +465,10 @@ function PatientLogin() {
               ) : (
                 <>
                   <div className="mb-5">
-                    <h2 className="text-lg font-bold text-gray-800">
+                    <h2 className="text-lg font-semibold text-ink-900">
                       Verify OTP
                     </h2>
-                    <p className="text-gray-500 text-xs mt-0.5">
+                    <p className="mt-0.5 text-[13px] text-ink-500">
                       {otpNotice || (
                         <>
                           Enter 6-digit OTP sent to <span className="font-semibold text-gray-800">+91 {mobile}</span>
@@ -496,17 +478,14 @@ function PatientLogin() {
                   </div>
 
                   {otpError && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                      {otpError}
-                    </div>
+                    <Alert tone="danger" className="mb-4">{otpError}</Alert>
                   )}
 
                   <form onSubmit={handleVerifyOTP} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                        6-Digit OTP Code
-                      </label>
+                      <label htmlFor="pl-field-2" className="hms-label">6-Digit OTP Code</label>
                       <input
+                        id="pl-field-2"
                         type="text"
                         inputMode="numeric"
                         maxLength={6}
@@ -523,7 +502,7 @@ function PatientLogin() {
 
                     <button
                       type="submit"
-                      className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={otpLoading}
                     >
                       {otpLoading ? "Verifying..." : "Verify & Continue"}
@@ -537,16 +516,16 @@ function PatientLogin() {
                         setStep("mobile")
                         setOtp("")
                       }}
-                      className="text-blue-600 hover:text-blue-700 cursor-pointer"
+                      className="rounded text-[13px] font-medium text-brand-700 hover:underline"
                     >
-                      ← Change Mobile
+                      Change number
                     </button>
                     <button
                       type="button"
                       onClick={handleSendOTP}
-                      className="text-gray-500 hover:text-gray-700 cursor-pointer"
+                      className="rounded text-[13px] font-medium text-ink-600 hover:text-ink-900"
                     >
-                      Resend OTP
+                      Resend code
                     </button>
                   </div>
                   <button
@@ -555,7 +534,7 @@ function PatientLogin() {
                       setLoginMode("email")
                       setEmailStep("otp")
                     }}
-                    className="w-full mt-3 border border-blue-600 text-blue-600 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-50 transition cursor-pointer"
+                    className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Verify using Email
                   </button>
@@ -567,30 +546,27 @@ function PatientLogin() {
           {loginMode === "email" && (
             <div>
               <div className="mb-5">
-                <h2 className="text-lg font-bold text-gray-800">
+                <h2 className="text-lg font-semibold text-ink-900">
                   {emailStep === "otp" ? "Verify using Email" : "Login with Email"}
                 </h2>
-                <p className="text-gray-500 text-xs mt-0.5">
+                <p className="mt-0.5 text-[13px] text-ink-500">
                   {emailStep === "otp"
                     ? "We will send a verification code to your registered email."
                     : "Use the email and password from your patient account."}
                 </p>
               </div>
               {emailError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                  {emailError}
-                </div>
+                <Alert tone="danger" className="mb-4">{emailError}</Alert>
               )}
               {emailNotice && (
-                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
-                  {emailNotice}
-                </div>
+                <Alert tone="warning" className="mb-4">{emailNotice}</Alert>
               )}
               {emailStep === "credentials" ? (
                 <form onSubmit={handleEmailLogin} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Email</label>
+                    <label htmlFor="pl-field-3" className="hms-label">Email</label>
                     <input
+                      id="pl-field-3"
                       type="email"
                       value={emailAddress}
                       onChange={(e) => setEmailAddress(e.target.value)}
@@ -599,8 +575,9 @@ function PatientLogin() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Password</label>
+                    <label htmlFor="pl-field-4" className="hms-label">Password</label>
                     <input
+                      id="pl-field-4"
                       type="password"
                       value={emailPassword}
                       onChange={(e) => setEmailPassword(e.target.value)}
@@ -611,14 +588,14 @@ function PatientLogin() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Sign In
                   </button>
                   <button
                     type="button"
                     onClick={() => setEmailStep("otp")}
-                    className="w-full text-xs text-blue-600 hover:text-blue-700 cursor-pointer"
+                    className="rounded text-[13px] font-medium text-brand-700 hover:underline"
                   >
                     Email not verified? Send email OTP
                   </button>
@@ -626,8 +603,9 @@ function PatientLogin() {
               ) : (
                 <form onSubmit={handleVerifyEmailOtp} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Email</label>
+                    <label htmlFor="pl-field-5" className="hms-label">Email</label>
                     <input
+                      id="pl-field-5"
                       type="email"
                       value={emailAddress}
                       onChange={(e) => setEmailAddress(e.target.value)}
@@ -639,13 +617,14 @@ function PatientLogin() {
                     type="button"
                     onClick={handleSendEmailOtp}
                     disabled={otpLoading}
-                    className="w-full border border-blue-600 text-blue-600 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-50 transition cursor-pointer disabled:opacity-50"
+                    className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {otpLoading ? "Sending..." : "Send Email OTP"}
                   </button>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">OTP</label>
+                    <label htmlFor="pl-field-6" className="hms-label">OTP</label>
                     <input
+                      id="pl-field-6"
                       inputMode="numeric"
                       value={emailOtp}
                       onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -656,14 +635,14 @@ function PatientLogin() {
                   <button
                     type="submit"
                     disabled={otpLoading}
-                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Verify OTP
                   </button>
                   <button
                     type="button"
                     onClick={() => setEmailStep("credentials")}
-                    className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer"
+                    className="rounded text-[13px] font-medium text-brand-700 hover:underline"
                   >
                     Back to email login
                   </button>
@@ -678,20 +657,19 @@ function PatientLogin() {
           {loginMode === "token" && (
             <div>
               <div className="mb-5">
-                <h2 className="text-lg font-bold text-gray-800">
+                <h2 className="text-lg font-semibold text-ink-900">
                   Login with Token / ID
                 </h2>
-                <p className="text-gray-500 text-xs mt-0.5">
+                <p className="mt-0.5 text-[13px] text-ink-500">
                   Enter your token number or hospital patient ID
                 </p>
               </div>
 
               <form onSubmit={handleTokenLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Token Number / Patient ID
-                  </label>
+                  <label htmlFor="pl-field-7" className="hms-label">Token Number / Patient ID</label>
                   <input
+                    id="pl-field-7"
                     type="text"
                     value={tokenInput}
                     onChange={(e) => {
@@ -711,10 +689,9 @@ function PatientLogin() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Password
-                  </label>
+                  <label htmlFor="pl-field-8" className="hms-label">Password</label>
                   <input
+                    id="pl-field-8"
                     type="password"
                     value={tokenPassword}
                     onChange={(e) => setTokenPassword(e.target.value)}
@@ -727,7 +704,7 @@ function PatientLogin() {
 
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition cursor-pointer shadow-sm"
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Lookup & Login
                 </button>
@@ -739,11 +716,11 @@ function PatientLogin() {
           {/* DIVIDER: OR CONTINUE WITH GOOGLE */}
           {/* ==================================================== */}
           <div className="flex items-center my-6">
-            <div className="flex-1 border-t border-gray-200" />
-            <span className="px-3 text-xs text-gray-400 uppercase tracking-wider font-semibold">
+            <div className="flex-1 border-t border-line" />
+            <span className="px-3 text-xs font-medium text-ink-400">
               OR
             </span>
-            <div className="flex-1 border-t border-gray-200" />
+            <div className="flex-1 border-t border-line" />
           </div>
 
           {/* ==================================================== */}
@@ -755,7 +732,7 @@ function PatientLogin() {
               type="button"
               onClick={handleGoogleLogin}
               disabled={googleLoading}
-              className="w-full border border-gray-300 bg-white text-gray-700 py-2.5 px-4 rounded-xl font-semibold text-sm hover:bg-gray-50 transition flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer shadow-xs"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50 h-11"
             >
               {/* Google 4-color SVG Icon */}
               <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
@@ -785,20 +762,15 @@ function PatientLogin() {
             <div ref={googleBtnRef} className="flex justify-center" />
 
             {googleStatus && (
-              <p className="text-center text-xs text-blue-600 font-medium animate-pulse">
+              <p className="text-center text-xs font-medium text-brand-700" role="status">
                 {googleStatus}
               </p>
             )}
           </div>
 
-          {/* Footer note */}
-          <p className="text-center text-[11px] text-gray-400 mt-6 leading-relaxed">
-            By continuing, you agree to our Terms of Service & Privacy Policy.
-          </p>
-
           {selectedRole !== "Patient" && (
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <h3 className="text-sm font-bold text-gray-800 mb-1">
+            <div className="mt-6 border-t border-line pt-6">
+              <h3 className="mb-1 text-sm font-semibold text-ink-900">
                 Staff username / password
               </h3>
               <p className="text-[11px] text-gray-500 mb-4">
@@ -806,9 +778,7 @@ function PatientLogin() {
                 Google still identify a patient session and never grant {selectedRole} access by themselves.
               </p>
               {staffError && (
-                <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                  {staffError}
-                </div>
+                <Alert tone="danger" className="mb-4">{staffError}</Alert>
               )}
               <form onSubmit={handleStaffPasswordLogin} className="space-y-3">
                 <input
@@ -816,6 +786,7 @@ function PatientLogin() {
                   value={staffUsername}
                   onChange={(e) => setStaffUsername(e.target.value)}
                   placeholder="Username or email"
+                  aria-label="Staff username or email"
                   className="hms-input w-full"
                   autoComplete="username"
                   required
@@ -825,6 +796,7 @@ function PatientLogin() {
                   value={staffPassword}
                   onChange={(e) => setStaffPassword(e.target.value)}
                   placeholder="Password"
+                  aria-label="Staff password"
                   className="hms-input w-full"
                   autoComplete="current-password"
                   required
@@ -832,7 +804,7 @@ function PatientLogin() {
                 <button
                   type="submit"
                   disabled={staffLoading}
-                  className="w-full bg-slate-800 text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-slate-900 transition cursor-pointer disabled:opacity-50"
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {staffLoading ? "Signing in..." : `Sign in as ${selectedRole}`}
                 </button>
@@ -840,16 +812,14 @@ function PatientLogin() {
             </div>
           )}
 
-          <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+          <div className="mt-6 border-t border-line pt-6 text-center">
             <p className="text-xs text-gray-500">New to the Hospital Management System?</p>
             <Link
               to={`/register?role=${encodeURIComponent(selectedRole)}`}
-              className="inline-block mt-3 w-full bg-white border border-blue-600 text-blue-600 py-3 rounded-xl font-semibold text-sm hover:bg-blue-50 transition"
+              className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Create Account
             </Link>
-            <p className="text-xs text-gray-500 mt-5">Already have an account?</p>
-            <p className="text-sm font-semibold text-gray-800 mt-1">Login</p>
           </div>
 
         </div>

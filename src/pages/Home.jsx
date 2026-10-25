@@ -317,7 +317,7 @@ function Home() {
         </Alert>
       )}
 
-      <section aria-label="Today at a glance" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Today at a glance" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {loading && !dashboardStats ? (
           Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-[88px] rounded-2xl" />)
         ) : (

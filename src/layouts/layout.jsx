@@ -18,7 +18,7 @@ function Layout() {
   }, [location.pathname, t])
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen" style={{ "--sidebar-w": isSidebarOpen ? "16rem" : "72px" }}>
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[80] focus:rounded-lg focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
-import { FileTextIcon, TriangleAlertIcon, UploadIcon, XIcon } from "lucide-react"
-import { useConfirm } from "../../components/ui"
+import { Eye, FileText, Trash2, Upload } from "lucide-react"
+import { Alert, Badge, Button, Card, EmptyState, Field, Input, Modal, Select, SkeletonRows, TableWrap, useConfirm } from "../../components/ui"
 
 function PatientDocuments() {
   const [confirm, confirmDialog] = useConfirm()
@@ -62,7 +62,7 @@ function PatientDocuments() {
   }
 
   const handleDelete = async (docId) => {
-    if (!(await confirm("Are you sure you want to delete this document?"))) return
+    if (!(await confirm({ title: "Delete document?", message: "This removes the document from your record.", confirmLabel: "Delete", destructive: true }))) return
 
     try {
       await api.patients.documents.delete(docId)
@@ -84,142 +84,119 @@ function PatientDocuments() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
-  const getFileIcon = (fileName) => {
-    const ext = fileName?.split('.').pop()?.toLowerCase()
-    if (['pdf'].includes(ext)) return ""
-    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return ""
-    if (['doc', 'docx'].includes(ext)) return ""
-    if (['xls', 'xlsx'].includes(ext)) return ""
-    return ""
+  const handleView = async (doc) => {
+    // Opened through the authenticated download API (files are not public).
+    const win = window.open("", "_blank")
+    try {
+      const blob = await api.patients.documents.download(doc.id)
+      const url = URL.createObjectURL(blob)
+      if (win) win.location.href = url
+      else window.location.assign(url)
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch (err) {
+      if (win) win.close()
+      setError(err.message)
+    }
+  }
+
+  const closeUpload = () => {
+    setShowUpload(false)
+    setUploadForm({ title: "", folder: "", file: null })
   }
 
   return (
     <>{confirmDialog}<div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Documents</h1>
-          <p className="text-gray-500 mt-1">Manage your medical documents</p>
+          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">Medical records</h1>
+          <p className="mt-1 text-sm text-ink-500">Documents you or the hospital have added to your record.</p>
         </div>
-        <button
-          onClick={() => setShowUpload(true)}
-          className="px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 flex items-center gap-2"
-        >
-          <span><UploadIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span> Upload Document
-        </button>
-      </div>
+        <Button icon={Upload} onClick={() => setShowUpload(true)}>Upload document</Button>
+      </header>
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-center justify-between">
-          <span><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
-        </div>
-      )}
-
-      {showUpload && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-800">Upload Document</h2>
-              <button onClick={() => setShowUpload(false)} className="text-gray-400 hover:text-gray-700 text-xl font-semibold"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
-            </div>
-            <form onSubmit={handleUpload} className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">File</label>
-                <input type="file" onChange={handleFileChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                <input
-                  type="text"
-                  value={uploadForm.title}
-                  onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Document title"
-                  className="hms-input w-full"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select
-                  value={uploadForm.folder}
-                  onChange={(e) => setUploadForm(prev => ({ ...prev, folder: e.target.value }))}
-                  className="hms-input w-full"
-                >
-                  <option value="">Select category</option>
-                  <option value="Prescriptions">Prescriptions</option>
-                  <option value="Lab Reports">Lab Reports</option>
-                  <option value="Discharge Summaries">Discharge Summaries</option>
-                  <option value="Imaging">Imaging (X-ray, MRI, CT)</option>
-                  <option value="Insurance">Insurance Documents</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowUpload(false)} className="flex-1 px-5 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
-                <button type="submit" disabled={uploading} className="flex-1 px-5 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50">{uploading ? "Uploading..." : "Upload"}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {error && <Alert tone="danger" onDismiss={() => setError(null)}>{error}</Alert>}
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      ) : documents.length > 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+        <Card><SkeletonRows rows={3} /></Card>
+      ) : documents.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={FileText}
+            title="No documents yet"
+            description="Upload reports or prescriptions from other clinics so your doctors can see them."
+            action={<Button icon={Upload} onClick={() => setShowUpload(true)}>Upload document</Button>}
+          />
+        </Card>
+      ) : (
+        <Card className="overflow-hidden">
+          <TableWrap>
+            <table className="hms-table">
+              <thead>
                 <tr>
-                  <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">Document</th>
-                  <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">Category</th>
-                  <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">Uploaded</th>
-                  <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">Size</th>
-                  <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                  <th scope="col">Document</th>
+                  <th scope="col">Category</th>
+                  <th scope="col">Added</th>
+                  <th scope="col" className="num">Size</th>
+                  <th scope="col"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {documents.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-gray-50">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{getFileIcon(doc.file)}</span>
-                        <div>
-                          <p className="font-medium text-gray-800">{doc.title}</p>
-                        </div>
-                      </div>
+                  <tr key={doc.id}>
+                    <td>
+                      <span className="flex items-center gap-3">
+                        <FileText size={18} className="shrink-0 text-ink-400" aria-hidden="true" />
+                        <span className="font-medium text-ink-900">{doc.title}</span>
+                      </span>
                     </td>
-                    <td className="px-5 py-4">
-                      <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">{doc.folder || "Uncategorized"}</span>
-                    </td>
-                    <td className="px-5 py-4 text-gray-700">{formatDate(doc.uploaded_at)}</td>
-                    <td className="px-5 py-4 text-gray-700">{formatSize(doc.file_size)}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex gap-2">
-                        {doc.file && (
-                          <a href={doc.file} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-                            View
-                          </a>
-                        )}
-                        <button onClick={() => handleDelete(doc.id)} className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">Delete</button>
+                    <td><Badge tone="neutral">{doc.folder || "Uncategorized"}</Badge></td>
+                    <td className="whitespace-nowrap tabular-nums text-ink-600">{formatDate(doc.uploaded_at)}</td>
+                    <td className="num text-ink-600">{formatSize(doc.file_size)}</td>
+                    <td>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="sm" variant="subtle" icon={Eye} onClick={() => handleView(doc)}>View</Button>
+                        <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => handleDelete(doc.id)} aria-label={`Delete ${doc.title}`} title="Delete" />
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-          <div className="text-4xl mb-3"><FileTextIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
-          <h3 className="font-bold text-gray-800">No documents uploaded</h3>
-          <p className="text-sm text-gray-500 mt-1">Upload your medical documents for easy access.</p>
-          <button onClick={() => setShowUpload(true)} className="mt-4 px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700">Upload First Document</button>
-        </div>
+          </TableWrap>
+        </Card>
       )}
+
+      <Modal
+        open={showUpload}
+        onClose={closeUpload}
+        title="Upload document"
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeUpload} disabled={uploading}>Cancel</Button>
+            <Button type="submit" form="doc-upload" loading={uploading}>Upload</Button>
+          </>
+        }
+      >
+        <form id="doc-upload" onSubmit={handleUpload} className="space-y-4">
+          <Field label="File" required hint="PDF, image or office document.">
+            <input type="file" onChange={handleFileChange} className="block w-full text-sm text-ink-700 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100" />
+          </Field>
+          <Field label="Title" required>
+            <Input value={uploadForm.title} onChange={(e) => setUploadForm((prev) => ({ ...prev, title: e.target.value }))} />
+          </Field>
+          <Field label="Category">
+            <Select value={uploadForm.folder} onChange={(e) => setUploadForm((prev) => ({ ...prev, folder: e.target.value }))}>
+              <option value="">Select category</option>
+              <option value="Prescriptions">Prescriptions</option>
+              <option value="Lab Reports">Lab reports</option>
+              <option value="Discharge Summaries">Discharge summaries</option>
+              <option value="Imaging">Imaging (X-ray, MRI, CT)</option>
+              <option value="Insurance">Insurance documents</option>
+              <option value="Other">Other</option>
+            </Select>
+          </Field>
+        </form>
+      </Modal>
     </div></>
   )
 }

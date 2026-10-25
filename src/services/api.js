@@ -1975,6 +1975,17 @@ api.procurement = {
 }
 
 api.patients.documents = {
+  // GET /api/documents/{id}/download/ — authenticated and audited; files are
+  // not served from /media/. Returns a Blob.
+  download: async (docId) => {
+    const response = await fetch(`${API_BASE_URL}/documents/${docId}/download/`, { headers: buildHeaders({}) })
+    if (!response.ok) {
+      const error = new Error(`Download failed (${response.status})`)
+      error.status = response.status
+      throw error
+    }
+    return response.blob()
+  },
   list: async (patientId) =>
     request(`${API_BASE_URL}/patients/${patientId}/documents/`),
   upload: async (patientId, file, title, folder) => {

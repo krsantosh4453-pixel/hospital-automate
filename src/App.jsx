@@ -25,6 +25,7 @@ import PatientLogin from "./pages/PatientLogin.jsx"
 import Register from "./pages/Register.jsx"
 import HospitalSelection from "./pages/HospitalSelection.jsx"
 import { ProtectedRoute } from "./components/ProtectedRoute.jsx"
+import AppBackground from "./components/AppBackground.jsx"
 
 import { AuthProvider } from "./assets/context/AuthContext.jsx"
 import { PatientProvider } from "./assets/context/PatientContext.jsx"
@@ -70,6 +71,7 @@ function App() {
               <RoleProvider>
                 <RoleAuthBridge>
                 <SidebarProvider>
+                  <AppBackground />
                   <BrowserRouter>
                     <Routes>
                       <Route path="/staff-login" element={<StaffLogin />} />

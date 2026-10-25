@@ -2,7 +2,8 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useHospitals } from "../assets/context/HospitalsContext.jsx"
-import { CarIcon, CheckIcon, HospitalIcon, MapIcon, MapPinIcon, PhoneIcon, RulerIcon, SearchIcon } from "lucide-react"
+import { CarIcon, CheckIcon, HospitalIcon, LocateFixed, MapIcon, PhoneIcon, SearchIcon } from "lucide-react"
+import { Alert, Badge, Button, Card, EmptyState, PageHeader, SearchInput, Toolbar } from "../components/ui"
 import { useToast } from "../components/Toast.jsx"
 
 function HospitalSelection() {
@@ -166,45 +167,23 @@ function HospitalSelection() {
     navigate("/appointments")
   }
 
+  // Coordinates when the hospital has them, otherwise its name and address.
+  const mapQuery = (hospital) =>
+    hospital.latitude != null && hospital.longitude != null
+      ? `${hospital.latitude},${hospital.longitude}`
+      : encodeURIComponent([hospital.name, hospital.address, hospital.city].filter(Boolean).join(", "))
+
   // Open map
   const handleOpenMap = (hospital) => {
-
-    const mapUrl =
-      `https://www.google.com/maps/search/?api=1&query=${hospital.latitude},${hospital.longitude}`
-
-    window.open(
-      mapUrl,
-      "_blank",
-      "noopener,noreferrer"
-    )
+    window.open(`https://www.google.com/maps/search/?api=1&query=${mapQuery(hospital)}`, "_blank", "noopener,noreferrer")
   }
 
   // Get directions
-  const handleDirections = (
-    hospital
-  ) => {
-
-    const destination =
-      `${hospital.latitude},${hospital.longitude}`
-
-    let directionsUrl
-
-    if (userLocation) {
-
-      directionsUrl =
-        `https://www.google.com/maps/dir/?api=1&origin=${userLocation.latitude},${userLocation.longitude}&destination=${destination}`
-
-    } else {
-
-      directionsUrl =
-        `https://www.google.com/maps/dir/?api=1&destination=${destination}`
-    }
-
-    window.open(
-      directionsUrl,
-      "_blank",
-      "noopener,noreferrer"
-    )
+  const handleDirections = (hospital) => {
+    const directionsUrl = userLocation
+      ? `https://www.google.com/maps/dir/?api=1&origin=${userLocation.latitude},${userLocation.longitude}&destination=${mapQuery(hospital)}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${mapQuery(hospital)}`
+    window.open(directionsUrl, "_blank", "noopener,noreferrer")
   }
 
   // Call hospital
@@ -214,416 +193,92 @@ function HospitalSelection() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8">
+    <div className="min-h-screen pb-24">
+      <PageHeader
+        title="Choose a hospital"
+        description="Pick the hospital for your appointment. Share your location to sort by distance."
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Choose hospital" }]}
+      />
 
-      <div className="max-w-6xl mx-auto">
+      <Card className="mb-5">
+        <Toolbar
+          actions={
+            <Button variant="secondary" icon={LocateFixed} onClick={handleGetLocation} loading={locationLoading}>
+              {userLocation ? "Sorted by distance" : "Use my location"}
+            </Button>
+          }
+        >
+          <SearchInput value={search} onChange={setSearch} placeholder="Hospital name or address" label="Search hospitals" className="w-full sm:max-w-md" />
+        </Toolbar>
+        {locationError && <Alert tone="warning" className="m-4">{locationError}</Alert>}
+      </Card>
 
-        {/* Header */}
-        <div className="mb-8">
+      {hospitalsError && <Alert tone="danger" className="mb-5">{hospitalsError}</Alert>}
 
-          <p className="text-blue-600 font-semibold text-sm">
-            PATIENT PORTAL
-          </p>
-
-          <h1 className="text-3xl font-bold text-gray-800 mt-2">
-            Select Hospital
-          </h1>
-
-          <p className="text-gray-500 mt-2">
-            Find and select a nearby hospital for your appointment.
-          </p>
-
+      {hospitalsLoading ? (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-36 rounded-2xl" />)}
         </div>
-
-
-        {/* Location + Search */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
-
-          <div className="flex flex-col lg:flex-row gap-4">
-
-            {/* Search */}
-            <div className="flex-1">
-
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Search Hospital
-              </label>
-
-              <input
-                type="text"
-                value={search}
-                onChange={(e) =>
-                  setSearch(e.target.value)
-                }
-                placeholder="Search hospital or location..."
-                className="hms-input w-full"
-              />
-
-            </div>
-
-
-            {/* Location Button */}
-            <div className="flex items-end">
-
-              <button
-                onClick={handleGetLocation}
-                disabled={locationLoading}
-                className="w-full lg:w-auto px-5 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-60"
-              >
-                {locationLoading
-                  ? "Getting Location..."
-                  : <><MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" Use My Location"}</>}
-              </button>
-
-            </div>
-
-          </div>
-
-
-          {/* Location status */}
-          {userLocation && (
-
-            <div className="mt-4 bg-green-50 border border-green-100 rounded-xl p-4">
-
-              <p className="text-green-700 font-medium">
-                <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Your location detected
-              </p>
-
-              <p className="text-xs text-green-600 mt-1">
-                Hospitals are now sorted by distance.
-              </p>
-
-            </div>
-
-          )}
-
-
-          {locationError && (
-
-            <div className="mt-4 bg-orange-50 border border-orange-100 rounded-xl p-4">
-
-              <p className="text-orange-700 text-sm">
-                {locationError}
-              </p>
-
-            </div>
-
-          )}
-
-        </div>
-
-
-        {/* Selected Hospital */}
-        {selectedHospital && (
-
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-6">
-
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
-              <div>
-
-                <p className="text-xs font-semibold text-blue-600 uppercase">
-                  Selected Hospital
-                </p>
-
-                <h2 className="text-xl font-bold text-gray-800 mt-1">
-                  {selectedHospital.name}
-                </h2>
-
-                <p className="text-sm text-gray-600 mt-1">
-                  <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.address}
-                </p>
-
-              </div>
-
-              <button
-                onClick={() =>
-                  handleContinue()
-                }
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700"
-              >
-                Continue →
-              </button>
-
-            </div>
-
-          </div>
-
-        )}
-
-
-        {/* Hospital List */}
-        <div>
-
-          <div className="flex items-center justify-between mb-4">
-
-            <div>
-
-              <h2 className="text-xl font-bold text-gray-800">
-                {userLocation
-                  ? "Nearby Hospitals"
-                  : "Available Hospitals"}
-              </h2>
-
-              <p className="text-sm text-gray-500 mt-1">
-                {filteredHospitals.length} hospital(s) found
-              </p>
-
-            </div>
-
-          </div>
-
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-            {filteredHospitals.map(
-              (hospital) => {
-
-                const isSelected =
-                  selectedHospital?.id ===
-                  hospital.id
-
-                return (
-
-                  <div
-                    key={hospital.id}
-                    className={`bg-white rounded-2xl border-2 p-5 shadow-sm transition ${isSelected
-                        ? "border-blue-600"
-                        : "border-gray-100"
-                      }`}
+      ) : filteredHospitals.length === 0 ? (
+        <Card>
+          <EmptyState icon={SearchIcon} title="No hospitals found" description={search ? "Try another name or location." : "No active hospitals are listed yet."} />
+        </Card>
+      ) : (
+        <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2" role="radiogroup" aria-label="Hospitals">
+          {filteredHospitals.map((hospital) => {
+            const isSelected = selectedHospital?.id === hospital.id
+            return (
+              <li key={hospital.id}>
+                <div className={`flex h-full flex-col rounded-2xl border bg-white transition-colors ${isSelected ? "border-brand-500 ring-2 ring-brand-500/20" : "border-line hover:border-line-strong"}`}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => handleSelectHospital(hospital)}
+                    className="flex flex-1 items-start gap-4 rounded-t-2xl p-5 text-left"
                   >
-
-                    {/* Hospital top */}
-                    <div className="flex gap-4">
-
-                      <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">
-                        <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-                      </div>
-
-
-                      <div className="flex-1">
-
-                        <div className="flex justify-between gap-3">
-
-                          <div>
-
-                            <h3 className="font-bold text-lg text-gray-800">
-                              {hospital.name}
-                            </h3>
-
-                            <p className="text-sm text-gray-500 mt-1">
-                              <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {hospital.address}
-                            </p>
-
-                          </div>
-
-
-                          {isSelected && (
-
-                            <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0">
-                              <CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-                            </div>
-
-                          )}
-
-                        </div>
-
-
-                        {/* Distance */}
+                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${isSelected ? "bg-brand-600 text-white" : "bg-brand-50 text-brand-700"}`}>
+                      {isSelected ? <CheckIcon size={20} aria-hidden="true" /> : <HospitalIcon size={20} aria-hidden="true" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold text-ink-900">{hospital.name}</span>
+                      {hospital.address && <span className="mt-0.5 block text-[13px] text-ink-600">{hospital.address}</span>}
+                      <span className="mt-2 flex flex-wrap gap-1.5">
+                        {hospital.city && <Badge tone="neutral">{hospital.city}</Badge>}
+                        {hospital.type && <Badge tone="neutral">{hospital.type}</Badge>}
                         {hospital.distance !== null && (
-
-                          <div className="mt-3">
-
-                            <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                              <RulerIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}
-                              {hospital.distance < 1
-                                ? `${Math.round(
-                                  hospital.distance *
-                                  1000
-                                )} m away`
-                                : `${hospital.distance.toFixed(
-                                  1
-                                )} km away`}
-                            </span>
-
-                          </div>
-
+                          <Badge tone="success">
+                            {hospital.distance < 1 ? `${Math.round(hospital.distance * 1000)} m away` : `${hospital.distance.toFixed(1)} km away`}
+                          </Badge>
                         )}
-
-                      </div>
-
-                    </div>
-
-
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mt-5">
-
-                      {hospital.type && (
-                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                          {hospital.type}
-                        </span>
-                      )}
-
-                      {hospital.registered && (
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-                          <CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Registered
-                        </span>
-                      )}
-
-                      {hospital.city && (
-                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                          <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {hospital.city}
-                        </span>
-                      )}
-
-                    </div>
-
-
-                    {/* Hospital information */}
-                    <div className="grid grid-cols-2 gap-3 mt-5">
-
-                      <div className="bg-gray-50 rounded-xl p-3">
-
-                        <p className="text-xs text-gray-500">
-                          Address
-                        </p>
-
-                        <p className="text-sm font-medium text-gray-700 mt-1">
-                          {hospital.address}
-                        </p>
-
-                      </div>
-
-                      <div className="bg-gray-50 rounded-xl p-3">
-
-                        <p className="text-xs text-gray-500">
-                          Contact
-                        </p>
-
-                        <p className="text-sm font-medium text-gray-700 mt-1">
-                          +91 {hospital.phone}
-                        </p>
-
-                      </div>
-
-                    </div>
-
-
-                    {/* Actions */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-5">
-
-                      <button
-                        onClick={() =>
-                          handleSelectHospital(
-                            hospital
-                          )
-                        }
-                        className={`px-3 py-2 rounded-lg text-sm font-semibold ${isSelected
-                            ? "bg-blue-600 text-white"
-                            : "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                          }`}
-                      >
-                        {isSelected
-                          ? <><CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" Selected"}</>
-                          : "Select"}
-                      </button>
-
-
-                      <button
-                        onClick={() =>
-                          handleOpenMap(
-                            hospital
-                          )
-                        }
-                        className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200"
-                      >
-                        <MapIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Map
-                      </button>
-
-
-                      <button
-                        onClick={() =>
-                          handleDirections(
-                            hospital
-                          )
-                        }
-                        className="px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-100"
-                      >
-                        <CarIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Directions
-                      </button>
-
-
-                      <button
-                        onClick={() =>
-                          handleCall(
-                            hospital.phone
-                          )
-                        }
-                        className="px-3 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-semibold hover:bg-purple-100"
-                      >
-                        <PhoneIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Call
-                      </button>
-
-                    </div>
-
+                      </span>
+                    </span>
+                  </button>
+                  <div className="flex flex-wrap items-center gap-1 border-t border-line px-3 py-2">
+                    {hospital.phone && (
+                      <span className="mr-auto pl-2 text-[13px] text-ink-600 tabular-nums">{hospital.phone}</span>
+                    )}
+                    <Button size="sm" variant="ghost" icon={MapIcon} onClick={() => handleOpenMap(hospital)}>Map</Button>
+                    <Button size="sm" variant="ghost" icon={CarIcon} onClick={() => handleDirections(hospital)}>Directions</Button>
+                    {hospital.phone && <Button size="sm" variant="ghost" icon={PhoneIcon} onClick={() => handleCall(hospital.phone)}>Call</Button>}
                   </div>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
 
-                )
-              }
-            )}
-
+      {selectedHospital && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 px-4 py-3 shadow-lg backdrop-blur lg:pl-[calc(var(--sidebar-w,16rem)+2rem)]">
+          <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3">
+            <p className="min-w-0 truncate text-sm text-ink-700">
+              Selected: <span className="font-semibold text-ink-900">{selectedHospital.name}</span>
+            </p>
+            <Button onClick={handleContinue}>Continue to appointment</Button>
           </div>
-
-
-          {/* No result */}
-          {hospitalsError && (
-            <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm" role="alert">
-              {hospitalsError}
-            </div>
-          )}
-          {hospitalsLoading && (
-            <p className="text-sm text-gray-500" role="status">Loading hospitals…</p>
-          )}
-          {!hospitalsLoading && filteredHospitals.length === 0 && (
-
-            <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-
-              <div className="text-4xl mb-3">
-                <SearchIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-              </div>
-
-              <h3 className="font-bold text-gray-800">
-                No hospitals found
-              </h3>
-
-              <p className="text-sm text-gray-500 mt-1">
-                Try another hospital name or location.
-              </p>
-
-            </div>
-
-          )}
-
         </div>
-
-
-        {/* Bottom Continue */}
-        <div className="flex justify-end mt-8">
-
-          <button
-            onClick={handleContinue}
-            disabled={!selectedHospital}
-            className={`px-7 py-3 rounded-xl font-semibold ${selectedHospital
-                ? "bg-blue-600 text-white hover:bg-blue-700"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed"
-              }`}
-          >
-            Continue to Appointment →
-          </button>
-
-        </div>
-
-      </div>
-
+      )}
     </div>
   )
 }
