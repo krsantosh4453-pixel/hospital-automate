@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
+import { BellIcon, CircleCheckIcon, TicketIcon, TriangleAlertIcon } from "lucide-react"
 
 function PatientQueue() {
   const { patient } = useAuth()
@@ -63,7 +64,7 @@ function PatientQueue() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">⚠️ {error}</div>
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}</div>
       )}
 
       {loading ? (
@@ -76,7 +77,7 @@ function PatientQueue() {
             <div key={token.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center text-3xl">🎫</div>
+                  <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center text-3xl"><TicketIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
                   <div>
                     <p className="text-sm text-gray-500">Token Number</p>
                     <h2 className="text-3xl font-bold text-gray-800">#{token.token_number}</h2>
@@ -122,14 +123,14 @@ function PatientQueue() {
               {token.status === "Called" && (
                 <div className="mt-4 p-4 bg-purple-50 rounded-xl">
                   <p className="text-sm text-purple-700 font-medium">
-                    🔔 Your token has been called! Please proceed to the consultation area.
+                    <BellIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Your token has been called! Please proceed to the consultation area.
                   </p>
                 </div>
               )}
               {token.status === "Ready" && (
                 <div className="mt-4 p-4 bg-teal-50 rounded-xl">
                   <p className="text-sm text-teal-700 font-medium">
-                    ✅ You are ready. The doctor will see you shortly.
+                    <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> You are ready. The doctor will see you shortly.
                   </p>
                 </div>
               )}
@@ -138,7 +139,7 @@ function PatientQueue() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-          <div className="text-4xl mb-3">🎫</div>
+          <div className="text-4xl mb-3"><TicketIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h3 className="font-bold text-gray-800">No active queue tokens</h3>
           <p className="text-sm text-gray-500 mt-1">You don&apos;t have any pending consultations at the moment.</p>
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
+import { FileTextIcon, TriangleAlertIcon, UploadIcon, XIcon } from "lucide-react"
 
 function PatientDocuments() {
   const { patient } = useAuth()
@@ -82,11 +83,11 @@ function PatientDocuments() {
 
   const getFileIcon = (fileName) => {
     const ext = fileName?.split('.').pop()?.toLowerCase()
-    if (['pdf'].includes(ext)) return '📄'
-    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return '🖼️'
-    if (['doc', 'docx'].includes(ext)) return '📝'
-    if (['xls', 'xlsx'].includes(ext)) return '📊'
-    return '📎'
+    if (['pdf'].includes(ext)) return ""
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return ""
+    if (['doc', 'docx'].includes(ext)) return ""
+    if (['xls', 'xlsx'].includes(ext)) return ""
+    return ""
   }
 
   return (
@@ -100,14 +101,14 @@ function PatientDocuments() {
           onClick={() => setShowUpload(true)}
           className="px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 flex items-center gap-2"
         >
-          <span>📤</span> Upload Document
+          <span><UploadIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span> Upload Document
         </button>
       </div>
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-center justify-between">
-          <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">✕</button>
+          <span><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
         </div>
       )}
 
@@ -116,7 +117,7 @@ function PatientDocuments() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-800">Upload Document</h2>
-              <button onClick={() => setShowUpload(false)} className="text-gray-400 hover:text-gray-700 text-xl font-semibold">✕</button>
+              <button onClick={() => setShowUpload(false)} className="text-gray-400 hover:text-gray-700 text-xl font-semibold"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
             </div>
             <form onSubmit={handleUpload} className="p-5 space-y-4">
               <div>
@@ -130,7 +131,7 @@ function PatientDocuments() {
                   value={uploadForm.title}
                   onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Document title"
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                   required
                 />
               </div>
@@ -139,7 +140,7 @@ function PatientDocuments() {
                 <select
                   value={uploadForm.folder}
                   onChange={(e) => setUploadForm(prev => ({ ...prev, folder: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 >
                   <option value="">Select category</option>
                   <option value="Prescriptions">Prescriptions</option>
@@ -210,7 +211,7 @@ function PatientDocuments() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-          <div className="text-4xl mb-3">📄</div>
+          <div className="text-4xl mb-3"><FileTextIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h3 className="font-bold text-gray-800">No documents uploaded</h3>
           <p className="text-sm text-gray-500 mt-1">Upload your medical documents for easy access.</p>
           <button onClick={() => setShowUpload(true)} className="mt-4 px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700">Upload First Document</button>

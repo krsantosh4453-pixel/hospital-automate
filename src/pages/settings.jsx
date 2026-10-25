@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { CheckIcon } from "lucide-react"
 
 function Settings() {
   const { selectedHospital } = usePatient()
@@ -107,7 +108,7 @@ function Settings() {
               name="hospitalName"
               value={settings.hospitalName}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="hms-input w-full"
               placeholder="Hospital name"
             />
           </div>
@@ -123,7 +124,7 @@ function Settings() {
               name="phone"
               value={settings.phone}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="hms-input w-full"
               placeholder="Hospital phone"
             />
           </div>
@@ -139,7 +140,7 @@ function Settings() {
               name="email"
               value={settings.email}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="hms-input w-full"
               placeholder="Hospital email"
             />
           </div>
@@ -154,7 +155,7 @@ function Settings() {
               name="appointmentDuration"
               value={settings.appointmentDuration}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="hms-input w-full"
             >
               <option value={10}>10 Minutes</option>
               <option value={15}>15 Minutes</option>
@@ -176,7 +177,7 @@ function Settings() {
               value={settings.address}
               onChange={handleChange}
               rows="3"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="hms-input w-full"
               placeholder="Hospital address"
             />
           </div>
@@ -252,7 +253,7 @@ function Settings() {
 
         {saved ? (
           <div className="text-green-600 font-medium">
-            ✓ Settings saved successfully
+            <CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Settings saved successfully
           </div>
         ) : (
           <div className="text-sm text-gray-500">

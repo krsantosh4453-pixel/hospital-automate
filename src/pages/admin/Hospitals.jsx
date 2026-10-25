@@ -297,7 +297,7 @@ function Hospitals() {
             onChange={(e) =>
               setSearch(e.target.value)
             }
-            className="border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+            className="hms-input"
           />
 
           <select
@@ -305,7 +305,7 @@ function Hospitals() {
             onChange={(e) =>
               setTypeFilter(e.target.value)
             }
-            className="border rounded-lg px-4 py-2.5"
+            className="hms-input"
           >
             <option value="All">
               All Types
@@ -325,7 +325,7 @@ function Hospitals() {
             onChange={(e) =>
               setStatusFilter(e.target.value)
             }
-            className="border rounded-lg px-4 py-2.5"
+            className="hms-input"
           >
             <option value="All">
               All Status
@@ -597,7 +597,7 @@ function Hospitals() {
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="Enter hospital name"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 />
 
               </div>
@@ -615,7 +615,7 @@ function Hospitals() {
                   value={formData.code}
                   onChange={handleChange}
                   placeholder="Example: CHB001"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 />
 
               </div>
@@ -633,7 +633,7 @@ function Hospitals() {
                   onChange={handleChange}
                   rows="3"
                   placeholder="Enter hospital address"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 />
 
               </div>
@@ -652,7 +652,7 @@ function Hospitals() {
                   onChange={handlePhoneChange}
                   maxLength="10"
                   placeholder="10 digit contact number"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 />
 
               </div>
@@ -670,7 +670,7 @@ function Hospitals() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="hospital@example.com"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 />
 
               </div>
@@ -686,7 +686,7 @@ function Hospitals() {
                   name="type"
                   value={formData.type}
                   onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
+                  className="hms-input w-full"
                 >
 
                   <option value="Private">
@@ -712,7 +712,7 @@ function Hospitals() {
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
+                  className="hms-input w-full"
                 >
 
                   <option value="Active">

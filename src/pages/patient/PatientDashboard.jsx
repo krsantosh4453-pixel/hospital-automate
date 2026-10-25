@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
+import { CalendarDaysIcon, CreditCardIcon, FlaskConicalIcon, HospitalIcon, PillIcon, TriangleAlertIcon } from "lucide-react"
 
 function PatientDashboard() {
   const { patient } = useAuth()
@@ -63,15 +64,15 @@ function PatientDashboard() {
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
-          ⚠️ {error}
+          <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Upcoming Appointments" value={stats?.upcomingAppointments || 0} icon="📅" color="bg-blue-100" />
-        <StatCard title="Past Visits" value={stats?.pastAppointments || 0} icon="🏥" color="bg-green-100" />
-        <StatCard title="Active Prescriptions" value={stats?.pendingPrescriptions || 0} icon="💊" color="bg-purple-100" />
-        <StatCard title="Unpaid Bills" value={stats?.unpaidBills || 0} icon="💳" color="bg-orange-100" />
+        <StatCard title="Upcoming Appointments" value={stats?.upcomingAppointments || 0} icon={<CalendarDaysIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />} color="bg-blue-100" />
+        <StatCard title="Past Visits" value={stats?.pastAppointments || 0} icon={<HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />} color="bg-green-100" />
+        <StatCard title="Active Prescriptions" value={stats?.pendingPrescriptions || 0} icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />} color="bg-purple-100" />
+        <StatCard title="Unpaid Bills" value={stats?.unpaidBills || 0} icon={<CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />} color="bg-orange-100" />
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -84,7 +85,7 @@ function PatientDashboard() {
             appointments.map((appt) => (
               <div key={appt.id} className="p-5 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-xl">📅</div>
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-xl"><CalendarDaysIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
                   <div>
                     <p className="font-medium text-gray-800">{appt.doctor_name || "Doctor"}</p>
                     <p className="text-sm text-gray-500">{formatDate(appt.appointment_date)} at {appt.appointment_time}</p>
@@ -111,25 +112,25 @@ function PatientDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <QuickActionCard
-          icon="📅"
+          icon={<CalendarDaysIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           title="Book Appointment"
           description="Schedule a new appointment with your doctor"
           href="/patient/appointments"
         />
         <QuickActionCard
-          icon="💊"
+          icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           title="View Prescriptions"
           description="Check your current and past prescriptions"
           href="/patient/prescriptions"
         />
         <QuickActionCard
-          icon="🧪"
+          icon={<FlaskConicalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           title="Lab Results"
           description="View your laboratory test results"
           href="/patient/lab-results"
         />
         <QuickActionCard
-          icon="💳"
+          icon={<CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           title="Pay Bills"
           description="View and pay your medical bills online"
           href="/patient/bills"

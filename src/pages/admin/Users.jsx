@@ -172,7 +172,7 @@ function Users() {
                         aria-label={`Role for ${applicant.name}`}
                         value={approveRoles[applicant.id] || applicant.requested_role}
                         onChange={(e) => setApproveRoles({ ...approveRoles, [applicant.id]: e.target.value })}
-                        className="border border-gray-300 rounded-lg px-3 py-2"
+                        className="hms-input"
                       >
                         {ROLES.map((role) => (
                           <option key={role}>{role}</option>
@@ -204,13 +204,13 @@ function Users() {
             placeholder="Search by name, username, email or employee ID"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2.5"
+            className="hms-input"
           />
           <select
             aria-label="Filter by role"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2.5"
+            className="hms-input"
           >
             <option value="All">All Roles</option>
             {ROLES.map((role) => (
@@ -221,7 +221,7 @@ function Users() {
             aria-label="Filter by status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2.5"
+            className="hms-input"
           >
             <option value="All">All Status</option>
             <option>Active</option>
@@ -269,7 +269,7 @@ function Users() {
                           value={member.membership?.role || ""}
                           disabled={busyId === member.id}
                           onChange={(e) => changeRole(member, e.target.value)}
-                          className="border border-gray-300 rounded-lg px-3 py-2"
+                          className="hms-input"
                         >
                           {ROLES.map((role) => (
                             <option key={role}>{role}</option>

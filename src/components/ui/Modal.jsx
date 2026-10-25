@@ -116,6 +116,8 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   destructive = false,
   loading = false,
+  confirmDisabled = false,
+  children,
 }) {
   return (
     <Modal
@@ -128,7 +130,7 @@ export function ConfirmDialog({
           <Button variant="secondary" onClick={onCancel} disabled={loading}>
             {cancelLabel}
           </Button>
-          <Button variant={destructive ? "danger" : "primary"} onClick={onConfirm} loading={loading}>
+          <Button variant={destructive ? "danger" : "primary"} onClick={onConfirm} loading={loading} disabled={confirmDisabled}>
             {confirmLabel}
           </Button>
         </>
@@ -140,7 +142,10 @@ export function ConfirmDialog({
             <TriangleAlert size={18} aria-hidden="true" />
           </span>
         )}
-        <div className="text-sm leading-6 text-ink-700">{message}</div>
+        <div className="min-w-0 flex-1 text-sm leading-6 text-ink-700">
+          {message}
+          {children}
+        </div>
       </div>
     </Modal>
   )

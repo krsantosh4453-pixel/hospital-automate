@@ -1,6 +1,26 @@
 import { useEffect, useMemo, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
+import { CalendarClock, ClipboardList, HeartPulse, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Trash2, UserRound } from "lucide-react"
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  CardHeader,
+  ConfirmDialog,
+  EmptyState,
+  Field,
+  Input,
+  PageHeader,
+  SearchInput,
+  Select,
+  SkeletonRows,
+  StatusBadge,
+  TableWrap,
+  Tabs,
+  Textarea,
+} from "../components/ui"
 
 // =========================================================
 // DOCTOR CONSULTATION
@@ -245,6 +265,9 @@ function Consultation() {
   const [savingOrder, setSavingOrder] = useState(false)
 
   const [savingVisit, setSavingVisit] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [visitSearch, setVisitSearch] = useState("")
 
   const selectedVisit = useMemo(
     () =>
@@ -563,11 +586,10 @@ function Consultation() {
     })
   }
 
-  const handleDeleteVitals = async (vital) => {
-    if (!window.confirm("Delete this vital sign record?")) {
-      return
-    }
+  const handleDeleteVitals = (vital) =>
+    setPendingDelete({ title: "Delete these vital signs?", run: () => handleDeleteVitalsNow(vital) })
 
+  const handleDeleteVitalsNow = async (vital) => {
     try {
       await api.clinical.vitals.delete(vital.apiId)
 
@@ -678,11 +700,10 @@ function Consultation() {
     })
   }
 
-  const handleDeleteDiagnosis = async (diagnosis) => {
-    if (!window.confirm("Delete this diagnosis?")) {
-      return
-    }
+  const handleDeleteDiagnosis = (diagnosis) =>
+    setPendingDelete({ title: "Delete this diagnosis?", run: () => handleDeleteDiagnosisNow(diagnosis) })
 
+  const handleDeleteDiagnosisNow = async (diagnosis) => {
     try {
       await api.clinical.diagnoses.delete(diagnosis.apiId)
 
@@ -772,11 +793,10 @@ function Consultation() {
     setNoteForm({ note: note.note })
   }
 
-  const handleDeleteNote = async (note) => {
-    if (!window.confirm("Delete this clinical note?")) {
-      return
-    }
+  const handleDeleteNote = (note) =>
+    setPendingDelete({ title: "Delete this clinical note?", run: () => handleDeleteNoteNow(note) })
 
+  const handleDeleteNoteNow = async (note) => {
     try {
       await api.clinical.notes.delete(note.apiId)
 
@@ -880,11 +900,10 @@ function Consultation() {
     })
   }
 
-  const handleDeleteOrder = async (order) => {
-    if (!window.confirm("Delete this service order?")) {
-      return
-    }
+  const handleDeleteOrder = (order) =>
+    setPendingDelete({ title: "Delete this service order?", run: () => handleDeleteOrderNow(order) })
 
+  const handleDeleteOrderNow = async (order) => {
     try {
       await api.clinical.serviceOrders.delete(order.apiId)
 
@@ -946,833 +965,416 @@ function Consultation() {
   // RENDER
   // =========================================================
 
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    await pendingDelete.run()
+    setDeleting(false)
+    setPendingDelete(null)
+  }
+
   const tabs = [
-    { id: "vitals", label: "Vitals", icon: "❤️", count: vitals.length },
-    {
-      id: "diagnoses",
-      label: "Diagnoses",
-      icon: "🩺",
-      count: diagnoses.length,
-    },
-    { id: "notes", label: "Notes", icon: "📝", count: notes.length },
-    {
-      id: "orders",
-      label: "Service Orders",
-      icon: "📋",
-      count: orders.length,
-    },
+    { id: "vitals", label: "Vitals", icon: HeartPulse, count: vitals.length },
+    { id: "diagnoses", label: "Diagnoses", icon: Stethoscope, count: diagnoses.length },
+    { id: "notes", label: "Notes", icon: NotebookPen, count: notes.length },
+    { id: "orders", label: "Service orders", icon: ClipboardList, count: orders.length },
   ]
 
+  const visibleVisits = visits.filter((visit) =>
+    `${visit.patientName} ${visit.apiId} ${visit.doctorName}`.toLowerCase().includes(visitSearch.toLowerCase()),
+  )
+
+  const setVital = (field) => (event) => setVitalForm({ ...vitalForm, [field]: event.target.value })
+
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-slate-50 min-h-screen">
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">
-            Doctor Consultation
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Record vitals, diagnoses, clinical notes and service orders
-            against a patient visit.
-          </p>
-        </div>
+    <div className="space-y-5">
+      <PageHeader
+        title="Consultation"
+        description="Record vitals, diagnoses, clinical notes and service orders against a patient visit."
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Consultation" }]}
+        actions={
+          <Button variant="secondary" icon={RefreshCw} onClick={refresh} disabled={!selectedHospital}>
+            Refresh
+          </Button>
+        }
+      />
 
-        <div className="flex items-center gap-3">
-          <span className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm text-slate-600">
-            🏥{" "}
-            <strong className="text-slate-800">
-              {selectedHospital ? selectedHospital.name : "No hospital"}
-            </strong>
-          </span>
-
-          <button
-            type="button"
-            onClick={refresh}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition cursor-pointer"
-          >
-            ⟳ Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* =====================================================
-          BANNERS
-      ===================================================== */}
-      {successMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
-          ✅ {successMessage}
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start justify-between gap-3">
-          <span>⚠️ {errorMessage}</span>
-          <button
-            type="button"
-            onClick={() => setErrorMessage("")}
-            className="text-red-500 hover:text-red-700 font-bold cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
+      {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}
+      {errorMessage && <Alert tone="danger" onDismiss={() => setErrorMessage("")}>{errorMessage}</Alert>}
       {visitsError && (
-        <div className="p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-sm flex items-center justify-between gap-3">
-          <span>⚠️ {visitsError}</span>
-          <button
-            type="button"
-            onClick={refresh}
-            className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium cursor-pointer"
-          >
-            Retry
-          </button>
-        </div>
+        <Alert tone="warning" action={<Button size="sm" variant="secondary" onClick={refresh}>Retry</Button>}>
+          {visitsError}
+        </Alert>
       )}
 
-      {!selectedHospital && (
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 text-center text-slate-500">
-          Select a hospital from the navbar to start a consultation.
-        </div>
-      )}
-
-      {/* =====================================================
-          VISIT SELECTION
-      ===================================================== */}
-      {selectedHospital && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-end gap-4">
-            <div className="flex-1">
-              <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
-                Select Visit
-              </label>
-              <select
-                value={selectedVisitId}
-                onChange={(event) =>
-                  setSelectedVisitId(event.target.value)
-                }
-                disabled={loadingVisits}
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-slate-100"
-              >
-                <option value="">
-                  {loadingVisits
-                    ? "Loading visits…"
-                    : visits.length
-                      ? "-- Choose a visit --"
-                      : "No visits available"}
-                </option>
-                {visits.map((visit) => (
-                  <option
-                    key={visit.apiId}
-                    value={visit.apiId}
-                  >
-                    #{visit.apiId} · {visit.patientName} ·{" "}
-                    {visit.visitType} · {visit.visitDay}
-                  </option>
-                ))}
-              </select>
+      {!selectedHospital ? (
+        <Card>
+          <EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header to start a consultation." />
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[20rem_minmax(0,1fr)]">
+          {/* Visit list */}
+          <Card className="flex max-h-[calc(100vh-10rem)] flex-col overflow-hidden xl:sticky xl:top-20">
+            <CardHeader title="Visits" description={loadingVisits ? "Loading…" : `${visits.length} at this hospital`} />
+            <div className="border-b border-line p-3">
+              <SearchInput value={visitSearch} onChange={setVisitSearch} placeholder="Patient or visit #" label="Search visits" />
             </div>
-
-            <div className="md:w-64">
-              <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
-                Visit Status
-              </label>
-              <select
-                value={selectedVisit?.status || ""}
-                onChange={(event) =>
-                  handleVisitStatusChange(event.target.value)
-                }
-                disabled={!selectedVisit || savingVisit}
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-slate-100"
-              >
-                {selectedVisit ? (
-                  VISIT_STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">—</option>
-                )}
-              </select>
+            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+              {loadingVisits && visits.length === 0 ? (
+                <SkeletonRows rows={4} />
+              ) : visibleVisits.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon={CalendarClock}
+                  title={visits.length ? "No visit matches" : "No visits yet"}
+                  description={visits.length ? undefined : "A visit is created when a patient is issued a queue token."}
+                />
+              ) : (
+                <ul className="divide-y divide-ink-100" role="listbox" aria-label="Visits">
+                  {visibleVisits.map((visit) => {
+                    const active = String(visit.apiId) === String(selectedVisitId)
+                    return (
+                      <li key={visit.apiId} role="option" aria-selected={active}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVisitId(String(visit.apiId))}
+                          className={`flex w-full items-start gap-3 px-4 py-3 text-left ${active ? "bg-brand-50" : "hover:bg-ink-50"}`}
+                        >
+                          <Avatar name={visit.patientName} size="sm" tone={active ? "brand" : "neutral"} />
+                          <span className="min-w-0 flex-1">
+                            <span className={`block truncate text-sm font-medium ${active ? "text-brand-900" : "text-ink-900"}`}>{visit.patientName}</span>
+                            <span className="block truncate text-xs text-ink-500 tabular-nums">
+                              #{visit.apiId} · {visit.visitType} · {visit.visitDay}
+                            </span>
+                          </span>
+                          <StatusBadge status={visit.status} />
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </div>
-          </div>
+          </Card>
 
-          {selectedVisit && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-              <Info label="Patient" value={selectedVisit.patientName} />
-              <Info label="Doctor" value={selectedVisit.doctorName} />
-              <Info label="Visit Type" value={selectedVisit.visitType} />
-              <Info
-                label="Visit Date"
-                value={formatDateTime(selectedVisit.visitDate)}
-              />
-              {selectedVisit.chiefComplaint && (
-                <div className="sm:col-span-2 lg:col-span-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Chief Complaint
-                  </p>
-                  <p className="text-sm text-slate-700 mt-1">
+          {/* Selected visit */}
+          {!selectedVisit ? (
+            <Card>
+              <EmptyState icon={UserRound} title="Select a visit" description="Choose a patient visit from the list to open the consultation." />
+            </Card>
+          ) : (
+            <div className="min-w-0 space-y-5">
+              <Card className="sticky top-16 z-10 shadow-sm">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar name={selectedVisit.patientName} size="lg" />
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold text-ink-900">{selectedVisit.patientName}</p>
+                      <p className="text-[13px] text-ink-500 tabular-nums">
+                        Visit #{selectedVisit.apiId} · {selectedVisit.visitType} · {formatDateTime(selectedVisit.visitDate)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-[13px]">
+                    <p className="text-ink-500">Doctor</p>
+                    <p className="font-medium text-ink-900">{selectedVisit.doctorName}</p>
+                  </div>
+                  <div className="ml-auto w-full sm:w-52">
+                    <label htmlFor="visit-status" className="sr-only">Visit status</label>
+                    <Select
+                      id="visit-status"
+                      value={selectedVisit.status}
+                      onChange={(event) => handleVisitStatusChange(event.target.value)}
+                      disabled={savingVisit}
+                    >
+                      {VISIT_STATUSES.map((status) => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+                {selectedVisit.chiefComplaint && (
+                  <p className="border-t border-line px-5 py-3 text-sm text-ink-700">
+                    <span className="font-medium text-ink-500">Chief complaint: </span>
                     {selectedVisit.chiefComplaint}
                   </p>
+                )}
+              </Card>
+
+              {clinicalError && (
+                <Alert tone="warning" action={<Button size="sm" variant="secondary" onClick={refresh}>Retry</Button>}>
+                  {clinicalError}
+                </Alert>
+              )}
+
+              <Tabs tabs={tabs} value={activeTab} onChange={setActiveTab} label="Clinical records" />
+
+              {loadingClinical && <SkeletonRows rows={3} />}
+
+              {!loadingClinical && activeTab === "vitals" && (
+                <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
+                  <Card as="form" onSubmit={handleSaveVitals}>
+                    <CardHeader title={editingVital ? "Edit vital signs" : "Record vital signs"} />
+                    <div className="space-y-4 px-5 py-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Systolic BP (mmHg)"><Input type="number" inputMode="numeric" value={vitalForm.systolicBp} onChange={setVital("systolicBp")} /></Field>
+                        <Field label="Diastolic BP (mmHg)"><Input type="number" inputMode="numeric" value={vitalForm.diastolicBp} onChange={setVital("diastolicBp")} /></Field>
+                        <Field label="Pulse (bpm)"><Input type="number" inputMode="numeric" value={vitalForm.heartRate} onChange={setVital("heartRate")} /></Field>
+                        <Field label="SpO₂ (%)"><Input type="number" inputMode="numeric" value={vitalForm.spo2} onChange={setVital("spo2")} /></Field>
+                        <Field label="Temperature (°C)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.temperature} onChange={setVital("temperature")} /></Field>
+                        <Field label="Resp. rate (/min)"><Input type="number" inputMode="numeric" value={vitalForm.respiratoryRate} onChange={setVital("respiratoryRate")} /></Field>
+                        <Field label="Weight (kg)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.weight} onChange={setVital("weight")} /></Field>
+                        <Field label="Height (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.height} onChange={setVital("height")} /></Field>
+                        <Field label="Blood sugar (mg/dL)" className="col-span-2"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.bloodSugar} onChange={setVital("bloodSugar")} /></Field>
+                      </div>
+                      <Field label="Comments"><Textarea value={vitalForm.comments} onChange={setVital("comments")} /></Field>
+                      <FormButtons
+                        saving={savingVitals}
+                        editing={Boolean(editingVital)}
+                        createLabel="Save vitals"
+                        onCancel={() => {
+                          setVitalForm(emptyVitalForm)
+                          setEditingVital(null)
+                          setErrorMessage("")
+                        }}
+                      />
+                    </div>
+                  </Card>
+
+                  <Card className="overflow-hidden">
+                    <CardHeader title="Vital history" />
+                    {vitals.length === 0 ? (
+                      <EmptyState compact icon={HeartPulse} title="No vitals recorded for this visit yet" />
+                    ) : (
+                      <TableWrap>
+                        <table className="hms-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">Recorded</th>
+                              <th scope="col">BP</th>
+                              <th scope="col" className="num">Pulse</th>
+                              <th scope="col" className="num">Temp</th>
+                              <th scope="col" className="num">SpO₂</th>
+                              <th scope="col" className="num">Resp</th>
+                              <th scope="col" className="num">Weight</th>
+                              <th scope="col"><span className="sr-only">Actions</span></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {vitals.map((vital) => (
+                              <tr key={vital.apiId}>
+                                <td className="whitespace-nowrap text-ink-600 tabular-nums">{formatDateTime(vital.recordedAt)}</td>
+                                <td className="whitespace-nowrap font-medium tabular-nums">
+                                  {vital.systolicBp || vital.diastolicBp ? `${vital.systolicBp ?? "—"}/${vital.diastolicBp ?? "—"}` : "—"}
+                                </td>
+                                <td className="num">{show(vital.heartRate)}</td>
+                                <td className="num">{show(vital.temperature, "°C")}</td>
+                                <td className="num">{show(vital.spo2, "%")}</td>
+                                <td className="num">{show(vital.respiratoryRate)}</td>
+                                <td className="num">{show(vital.weight, " kg")}</td>
+                                <td><RowActions label="vital signs" onEdit={() => handleEditVitals(vital)} onDelete={() => handleDeleteVitals(vital)} /></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </TableWrap>
+                    )}
+                  </Card>
+                </div>
+              )}
+
+              {!loadingClinical && activeTab === "diagnoses" && (
+                <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
+                  <Card as="form" onSubmit={handleSaveDiagnosis}>
+                    <CardHeader title={editingDiagnosis ? "Edit diagnosis" : "Add diagnosis"} />
+                    <div className="space-y-4 px-5 py-4">
+                      <Field label="Diagnosis" required>
+                        <Input value={diagnosisForm.name} onChange={(e) => setDiagnosisForm({ ...diagnosisForm, name: e.target.value })} />
+                      </Field>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="ICD-10 code" hint="e.g. A09.9">
+                          <Input value={diagnosisForm.icd10Code} onChange={(e) => setDiagnosisForm({ ...diagnosisForm, icd10Code: e.target.value })} />
+                        </Field>
+                        <Field label="Type">
+                          <Select value={diagnosisForm.diagnosisType} onChange={(e) => setDiagnosisForm({ ...diagnosisForm, diagnosisType: e.target.value })}>
+                            {DIAGNOSIS_TYPES.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </Select>
+                        </Field>
+                      </div>
+                      <Field label="Remarks">
+                        <Textarea value={diagnosisForm.remarks} onChange={(e) => setDiagnosisForm({ ...diagnosisForm, remarks: e.target.value })} />
+                      </Field>
+                      <FormButtons
+                        saving={savingDiagnosis}
+                        editing={Boolean(editingDiagnosis)}
+                        createLabel="Add diagnosis"
+                        onCancel={() => {
+                          setDiagnosisForm(emptyDiagnosisForm)
+                          setEditingDiagnosis(null)
+                          setErrorMessage("")
+                        }}
+                      />
+                    </div>
+                  </Card>
+
+                  <Card className="overflow-hidden">
+                    <CardHeader title="Diagnoses" />
+                    {diagnoses.length === 0 ? (
+                      <EmptyState compact icon={Stethoscope} title="No diagnoses recorded for this visit" />
+                    ) : (
+                      <TableWrap>
+                        <table className="hms-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">Diagnosis</th>
+                              <th scope="col">ICD-10</th>
+                              <th scope="col">Type</th>
+                              <th scope="col">Remarks</th>
+                              <th scope="col"><span className="sr-only">Actions</span></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {diagnoses.map((diagnosis) => (
+                              <tr key={diagnosis.apiId}>
+                                <td className="font-medium text-ink-900">{diagnosis.name}</td>
+                                <td className="font-mono text-[13px] text-ink-600">{diagnosis.icd10Code || "—"}</td>
+                                <td><span className="inline-flex rounded-md bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-700">{diagnosis.diagnosisType}</span></td>
+                                <td className="max-w-xs truncate text-ink-600">{diagnosis.remarks || "—"}</td>
+                                <td><RowActions label="diagnosis" onEdit={() => handleEditDiagnosis(diagnosis)} onDelete={() => handleDeleteDiagnosis(diagnosis)} /></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </TableWrap>
+                    )}
+                  </Card>
+                </div>
+              )}
+
+              {!loadingClinical && activeTab === "notes" && (
+                <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
+                  <Card as="form" onSubmit={handleSaveNote}>
+                    <CardHeader title={editingNote ? "Edit note" : "Add clinical note"} />
+                    <div className="space-y-4 px-5 py-4">
+                      <Field label="Note" required hint={`Attributed to ${selectedVisit?.doctorName || "Unassigned"}.`}>
+                        <Textarea rows={8} value={noteForm.note} onChange={(e) => setNoteForm({ note: e.target.value })} />
+                      </Field>
+                      <FormButtons
+                        saving={savingNote}
+                        editing={Boolean(editingNote)}
+                        createLabel="Add note"
+                        onCancel={() => {
+                          setNoteForm(emptyNoteForm)
+                          setEditingNote(null)
+                          setErrorMessage("")
+                        }}
+                      />
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <CardHeader title="Clinical notes" description="Newest first" />
+                    {notes.length === 0 ? (
+                      <EmptyState compact icon={NotebookPen} title="No clinical notes for this visit yet" />
+                    ) : (
+                      <ol className="divide-y divide-ink-100">
+                        {notes.map((note) => (
+                          <li key={note.apiId} className="px-5 py-4">
+                            <div className="mb-1.5 flex items-center justify-between gap-3">
+                              <time className="text-xs font-medium text-ink-500 tabular-nums">{formatDateTime(note.createdAt)}</time>
+                              <RowActions label="note" onEdit={() => handleEditNote(note)} onDelete={() => handleDeleteNote(note)} />
+                            </div>
+                            <p className="whitespace-pre-wrap text-sm leading-6 text-ink-800">{note.note}</p>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </Card>
+                </div>
+              )}
+
+              {!loadingClinical && activeTab === "orders" && (
+                <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
+                  <Card as="form" onSubmit={handleSaveOrder}>
+                    <CardHeader title={editingOrder ? "Edit service order" : "Add service order"} />
+                    <div className="space-y-4 px-5 py-4">
+                      <Field label="Service" required>
+                        <Input value={orderForm.serviceName} onChange={(e) => setOrderForm({ ...orderForm, serviceName: e.target.value })} placeholder="e.g. CBC blood test" />
+                      </Field>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Quantity">
+                          <Input type="number" min="1" inputMode="numeric" value={orderForm.quantity} onChange={(e) => setOrderForm({ ...orderForm, quantity: e.target.value })} />
+                        </Field>
+                        <Field label="Status">
+                          <Select value={orderForm.status} onChange={(e) => setOrderForm({ ...orderForm, status: e.target.value })}>
+                            {ORDER_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </Select>
+                        </Field>
+                      </div>
+                      <Field label="Remarks">
+                        <Textarea value={orderForm.remarks} onChange={(e) => setOrderForm({ ...orderForm, remarks: e.target.value })} />
+                      </Field>
+                      <FormButtons
+                        saving={savingOrder}
+                        editing={Boolean(editingOrder)}
+                        createLabel="Add order"
+                        onCancel={() => {
+                          setOrderForm(emptyOrderForm)
+                          setEditingOrder(null)
+                          setErrorMessage("")
+                        }}
+                      />
+                    </div>
+                  </Card>
+
+                  <Card className="overflow-hidden">
+                    <CardHeader title="Service orders" />
+                    {orders.length === 0 ? (
+                      <EmptyState compact icon={ClipboardList} title="No service orders for this visit" />
+                    ) : (
+                      <TableWrap>
+                        <table className="hms-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">Service</th>
+                              <th scope="col" className="num">Qty</th>
+                              <th scope="col">Status</th>
+                              <th scope="col">Remarks</th>
+                              <th scope="col"><span className="sr-only">Actions</span></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {orders.map((order) => (
+                              <tr key={order.apiId}>
+                                <td className="font-medium text-ink-900">{order.serviceName}</td>
+                                <td className="num">{order.quantity}</td>
+                                <td><StatusBadge status={order.status} /></td>
+                                <td className="max-w-xs truncate text-ink-600">{order.remarks || "—"}</td>
+                                <td><RowActions label="order" onEdit={() => handleEditOrder(order)} onDelete={() => handleDeleteOrder(order)} /></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </TableWrap>
+                    )}
+                  </Card>
                 </div>
               )}
             </div>
           )}
-
-          {!loadingVisits && visits.length === 0 && !visitsError && (
-            <p className="text-sm text-slate-500">
-              No visits found for this hospital. Visits are created when a
-              patient is issued a queue token.
-            </p>
-          )}
         </div>
       )}
 
-      {/* =====================================================
-          CLINICAL TABS
-      ===================================================== */}
-      {selectedHospital && selectedVisitId && (
-        <>
-          {clinicalError && (
-            <div className="p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 text-sm flex items-center justify-between gap-3">
-              <span>⚠️ {clinicalError}</span>
-              <button
-                type="button"
-                onClick={refresh}
-                className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium cursor-pointer"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer border ${activeTab === tab.id
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-                  }`}
-              >
-                {tab.icon} {tab.label}
-                <span
-                  className={`ml-2 text-xs px-2 py-0.5 rounded-full ${activeTab === tab.id
-                      ? "bg-blue-500 text-white"
-                      : "bg-slate-100 text-slate-500"
-                    }`}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {loadingClinical && (
-            <p className="text-sm text-slate-500">
-              Loading clinical records…
-            </p>
-          )}
-
-          {/* ---------------------------------------------
-              VITALS
-          --------------------------------------------- */}
-          {activeTab === "vitals" && (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <form
-                onSubmit={handleSaveVitals}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 xl:col-span-1"
-              >
-                <h2 className="font-semibold text-slate-800">
-                  {editingVital ? "Edit Vitals" : "Record Vitals"}
-                </h2>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label="Weight (kg)"
-                    value={vitalForm.weight}
-                    onChange={(value) =>
-                      setVitalForm({ ...vitalForm, weight: value })
-                    }
-                    type="number"
-                    step="0.01"
-                  />
-                  <Input
-                    label="Height (cm)"
-                    value={vitalForm.height}
-                    onChange={(value) =>
-                      setVitalForm({ ...vitalForm, height: value })
-                    }
-                    type="number"
-                    step="0.01"
-                  />
-                  <Input
-                    label="Systolic BP"
-                    value={vitalForm.systolicBp}
-                    onChange={(value) =>
-                      setVitalForm({ ...vitalForm, systolicBp: value })
-                    }
-                    type="number"
-                  />
-                  <Input
-                    label="Diastolic BP"
-                    value={vitalForm.diastolicBp}
-                    onChange={(value) =>
-                      setVitalForm({
-                        ...vitalForm,
-                        diastolicBp: value,
-                      })
-                    }
-                    type="number"
-                  />
-                  <Input
-                    label="Temperature (°C)"
-                    value={vitalForm.temperature}
-                    onChange={(value) =>
-                      setVitalForm({
-                        ...vitalForm,
-                        temperature: value,
-                      })
-                    }
-                    type="number"
-                    step="0.01"
-                  />
-                  <Input
-                    label="Pulse (bpm)"
-                    value={vitalForm.heartRate}
-                    onChange={(value) =>
-                      setVitalForm({ ...vitalForm, heartRate: value })
-                    }
-                    type="number"
-                  />
-                  <Input
-                    label="Resp. Rate"
-                    value={vitalForm.respiratoryRate}
-                    onChange={(value) =>
-                      setVitalForm({
-                        ...vitalForm,
-                        respiratoryRate: value,
-                      })
-                    }
-                    type="number"
-                  />
-                  <Input
-                    label="SpO2 (%)"
-                    value={vitalForm.spo2}
-                    onChange={(value) =>
-                      setVitalForm({ ...vitalForm, spo2: value })
-                    }
-                    type="number"
-                  />
-                  <Input
-                    label="Blood Sugar"
-                    value={vitalForm.bloodSugar}
-                    onChange={(value) =>
-                      setVitalForm({
-                        ...vitalForm,
-                        bloodSugar: value,
-                      })
-                    }
-                    type="number"
-                    step="0.01"
-                  />
-                </div>
-
-                <TextArea
-                  label="Comments"
-                  value={vitalForm.comments}
-                  onChange={(value) =>
-                    setVitalForm({ ...vitalForm, comments: value })
-                  }
-                />
-
-                <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    disabled={savingVitals}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-medium transition cursor-pointer"
-                  >
-                    {savingVitals
-                      ? "Saving…"
-                      : editingVital
-                        ? "Update Vitals"
-                        : "Save Vitals"}
-                  </button>
-
-                  {editingVital && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVitalForm(emptyVitalForm)
-                        setEditingVital(null)
-                        setErrorMessage("")
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              </form>
-
-              <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100">
-                  <h2 className="font-semibold text-slate-800">
-                    Vital History
-                  </h2>
-                </div>
-
-                {vitals.length === 0 ? (
-                  <EmptyState text="No vitals recorded for this visit yet." />
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-                        <tr>
-                          <th className="px-4 py-3 text-left">Recorded</th>
-                          <th className="px-4 py-3 text-left">BP</th>
-                          <th className="px-4 py-3 text-left">Pulse</th>
-                          <th className="px-4 py-3 text-left">Temp</th>
-                          <th className="px-4 py-3 text-left">SpO2</th>
-                          <th className="px-4 py-3 text-left">Resp</th>
-                          <th className="px-4 py-3 text-left">Weight</th>
-                          <th className="px-4 py-3 text-right">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {vitals.map((vital) => (
-                          <tr key={vital.apiId}>
-                            <td className="px-4 py-3 text-slate-500">
-                              {formatDateTime(vital.recordedAt)}
-                            </td>
-                            <td className="px-4 py-3 text-slate-700">
-                              {vital.systolicBp || vital.diastolicBp
-                                ? `${vital.systolicBp ?? "—"}/${vital.diastolicBp ?? "—"
-                                }`
-                                : "—"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {show(vital.heartRate)}
-                            </td>
-                            <td className="px-4 py-3">
-                              {show(vital.temperature, "°C")}
-                            </td>
-                            <td className="px-4 py-3">
-                              {show(vital.spo2, "%")}
-                            </td>
-                            <td className="px-4 py-3">
-                              {show(vital.respiratoryRate)}
-                            </td>
-                            <td className="px-4 py-3">
-                              {show(vital.weight, " kg")}
-                            </td>
-                            <td className="px-4 py-3 text-right whitespace-nowrap">
-                              <RowActions
-                                onEdit={() => handleEditVitals(vital)}
-                                onDelete={() =>
-                                  handleDeleteVitals(vital)
-                                }
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ---------------------------------------------
-              DIAGNOSES
-          --------------------------------------------- */}
-          {activeTab === "diagnoses" && (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <form
-                onSubmit={handleSaveDiagnosis}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 xl:col-span-1"
-              >
-                <h2 className="font-semibold text-slate-800">
-                  {editingDiagnosis
-                    ? "Edit Diagnosis"
-                    : "Add Diagnosis"}
-                </h2>
-
-                <Input
-                  label="Diagnosis Name *"
-                  value={diagnosisForm.name}
-                  onChange={(value) =>
-                    setDiagnosisForm({
-                      ...diagnosisForm,
-                      name: value,
-                    })
-                  }
-                />
-
-                <Input
-                  label="ICD-10 Code"
-                  value={diagnosisForm.icd10Code}
-                  onChange={(value) =>
-                    setDiagnosisForm({
-                      ...diagnosisForm,
-                      icd10Code: value,
-                    })
-                  }
-                  placeholder="e.g. A09.9"
-                />
-
-                <Select
-                  label="Type"
-                  value={diagnosisForm.diagnosisType}
-                  onChange={(value) =>
-                    setDiagnosisForm({
-                      ...diagnosisForm,
-                      diagnosisType: value,
-                    })
-                  }
-                  options={DIAGNOSIS_TYPES}
-                />
-
-                <TextArea
-                  label="Remarks"
-                  value={diagnosisForm.remarks}
-                  onChange={(value) =>
-                    setDiagnosisForm({
-                      ...diagnosisForm,
-                      remarks: value,
-                    })
-                  }
-                />
-
-                <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    disabled={savingDiagnosis}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-medium transition cursor-pointer"
-                  >
-                    {savingDiagnosis
-                      ? "Saving…"
-                      : editingDiagnosis
-                        ? "Update Diagnosis"
-                        : "Add Diagnosis"}
-                  </button>
-
-                  {editingDiagnosis && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDiagnosisForm(emptyDiagnosisForm)
-                        setEditingDiagnosis(null)
-                        setErrorMessage("")
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              </form>
-
-              <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100">
-                  <h2 className="font-semibold text-slate-800">
-                    Diagnoses
-                  </h2>
-                </div>
-
-                {diagnoses.length === 0 ? (
-                  <EmptyState text="No diagnoses recorded for this visit." />
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-                        <tr>
-                          <th className="px-4 py-3 text-left">
-                            Diagnosis
-                          </th>
-                          <th className="px-4 py-3 text-left">ICD-10</th>
-                          <th className="px-4 py-3 text-left">Type</th>
-                          <th className="px-4 py-3 text-left">Remarks</th>
-                          <th className="px-4 py-3 text-right">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {diagnoses.map((diagnosis) => (
-                          <tr key={diagnosis.apiId}>
-                            <td className="px-4 py-3 font-medium text-slate-700">
-                              {diagnosis.name}
-                            </td>
-                            <td className="px-4 py-3 text-slate-500">
-                              {diagnosis.icd10Code || "—"}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-600">
-                                {diagnosis.diagnosisType}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-slate-500 max-w-xs truncate">
-                              {diagnosis.remarks || "—"}
-                            </td>
-                            <td className="px-4 py-3 text-right whitespace-nowrap">
-                              <RowActions
-                                onEdit={() =>
-                                  handleEditDiagnosis(diagnosis)
-                                }
-                                onDelete={() =>
-                                  handleDeleteDiagnosis(diagnosis)
-                                }
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ---------------------------------------------
-              CLINICAL NOTES
-          --------------------------------------------- */}
-          {activeTab === "notes" && (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <form
-                onSubmit={handleSaveNote}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 xl:col-span-1"
-              >
-                <h2 className="font-semibold text-slate-800">
-                  {editingNote ? "Edit Note" : "Add Clinical Note"}
-                </h2>
-
-                <TextArea
-                  label="Note *"
-                  rows={8}
-                  value={noteForm.note}
-                  onChange={(value) =>
-                    setNoteForm({ note: value })
-                  }
-                />
-
-                <p className="text-xs text-slate-400">
-                  Notes are attributed to{" "}
-                  <strong>{selectedVisit?.doctorName || "Unassigned"}</strong>.
-                </p>
-
-                <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    disabled={savingNote}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-medium transition cursor-pointer"
-                  >
-                    {savingNote
-                      ? "Saving…"
-                      : editingNote
-                        ? "Update Note"
-                        : "Add Note"}
-                  </button>
-
-                  {editingNote && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNoteForm(emptyNoteForm)
-                        setEditingNote(null)
-                        setErrorMessage("")
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              </form>
-
-              <div className="xl:col-span-2 space-y-4">
-                {notes.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-                    <EmptyState text="No clinical notes for this visit yet." />
-                  </div>
-                ) : (
-                  notes.map((note) => (
-                    <div
-                      key={note.apiId}
-                      className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5"
-                    >
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <span className="text-xs text-slate-400">
-                          {formatDateTime(note.createdAt)}
-                        </span>
-                        <RowActions
-                          onEdit={() => handleEditNote(note)}
-                          onDelete={() => handleDeleteNote(note)}
-                        />
-                      </div>
-                      <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                        {note.note}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ---------------------------------------------
-              SERVICE ORDERS
-          --------------------------------------------- */}
-          {activeTab === "orders" && (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <form
-                onSubmit={handleSaveOrder}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 xl:col-span-1"
-              >
-                <h2 className="font-semibold text-slate-800">
-                  {editingOrder
-                    ? "Edit Service Order"
-                    : "Add Service Order"}
-                </h2>
-
-                <Input
-                  label="Service Name *"
-                  value={orderForm.serviceName}
-                  onChange={(value) =>
-                    setOrderForm({
-                      ...orderForm,
-                      serviceName: value,
-                    })
-                  }
-                  placeholder="e.g. CBC Blood Test"
-                />
-
-                <Input
-                  label="Quantity"
-                  type="number"
-                  value={orderForm.quantity}
-                  onChange={(value) =>
-                    setOrderForm({
-                      ...orderForm,
-                      quantity: value,
-                    })
-                  }
-                />
-
-                <Select
-                  label="Status"
-                  value={orderForm.status}
-                  onChange={(value) =>
-                    setOrderForm({ ...orderForm, status: value })
-                  }
-                  options={ORDER_STATUSES}
-                />
-
-                <TextArea
-                  label="Remarks"
-                  value={orderForm.remarks}
-                  onChange={(value) =>
-                    setOrderForm({ ...orderForm, remarks: value })
-                  }
-                />
-
-                <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    disabled={savingOrder}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-medium transition cursor-pointer"
-                  >
-                    {savingOrder
-                      ? "Saving…"
-                      : editingOrder
-                        ? "Update Order"
-                        : "Add Order"}
-                  </button>
-
-                  {editingOrder && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOrderForm(emptyOrderForm)
-                        setEditingOrder(null)
-                        setErrorMessage("")
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              </form>
-
-              <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100">
-                  <h2 className="font-semibold text-slate-800">
-                    Service Orders
-                  </h2>
-                </div>
-
-                {orders.length === 0 ? (
-                  <EmptyState text="No service orders for this visit." />
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-                        <tr>
-                          <th className="px-4 py-3 text-left">Service</th>
-                          <th className="px-4 py-3 text-left">Qty</th>
-                          <th className="px-4 py-3 text-left">Status</th>
-                          <th className="px-4 py-3 text-left">Remarks</th>
-                          <th className="px-4 py-3 text-right">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {orders.map((order) => (
-                          <tr key={order.apiId}>
-                            <td className="px-4 py-3 font-medium text-slate-700">
-                              {order.serviceName}
-                            </td>
-                            <td className="px-4 py-3">{order.quantity}</td>
-                            <td className="px-4 py-3">
-                              <span
-                                className={`px-2 py-1 rounded-full text-xs ${orderStatusClass(
-                                  order.status
-                                )}`}
-                              >
-                                {order.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-slate-500 max-w-xs truncate">
-                              {order.remarks || "—"}
-                            </td>
-                            <td className="px-4 py-3 text-right whitespace-nowrap">
-                              <RowActions
-                                onEdit={() => handleEditOrder(order)}
-                                onDelete={() => handleDeleteOrder(order)}
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+        loading={deleting}
+        destructive
+        title={pendingDelete?.title || "Delete record?"}
+        confirmLabel="Delete"
+        message="This removes the record from the patient's visit. It cannot be undone."
+      />
     </div>
   )
 }
@@ -1781,110 +1383,27 @@ function Consultation() {
 // Small presentational helpers (local to this page)
 // ---------------------------------------------------------
 
-function orderStatusClass(status) {
-  if (status === "Completed") {
-    return "bg-emerald-50 text-emerald-600"
-  }
-
-  if (status === "Cancelled") {
-    return "bg-red-50 text-red-600"
-  }
-
-  return "bg-amber-50 text-amber-600"
-}
-
-function Info({ label, value }) {
+function FormButtons({ saving, editing, createLabel, onCancel }) {
   return (
-    <div>
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-        {label}
-      </p>
-      <p className="text-sm text-slate-700 mt-1">{value || "—"}</p>
+    <div className="flex gap-2 pt-1">
+      <Button type="submit" loading={saving} className="flex-1 justify-center">
+        {editing ? "Save changes" : createLabel}
+      </Button>
+      {editing && (
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+      )}
     </div>
   )
 }
 
-function Input({ label, value, onChange, type = "text", step, placeholder }) {
+function RowActions({ label, onEdit, onDelete }) {
   return (
-    <div>
-      <label className="block text-xs font-semibold text-slate-500 mb-1">
-        {label}
-      </label>
-      <input
-        type={type}
-        step={step}
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-      />
+    <div className="flex items-center justify-end gap-0.5">
+      <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={onEdit} aria-label={`Edit ${label}`} title="Edit" />
+      <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={onDelete} aria-label={`Delete ${label}`} title="Delete" />
     </div>
-  )
-}
-
-function Select({ label, value, onChange, options }) {
-  return (
-    <div>
-      <label className="block text-xs font-semibold text-slate-500 mb-1">
-        {label}
-      </label>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
-function TextArea({ label, value, onChange, rows = 3 }) {
-  return (
-    <div>
-      <label className="block text-xs font-semibold text-slate-500 mb-1">
-        {label}
-      </label>
-      <textarea
-        rows={rows}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-      />
-    </div>
-  )
-}
-
-function RowActions({ onEdit, onDelete }) {
-  return (
-    <div className="inline-flex gap-2">
-      <button
-        type="button"
-        onClick={onEdit}
-        className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-medium cursor-pointer"
-      >
-        Edit
-      </button>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-medium cursor-pointer"
-      >
-        Delete
-      </button>
-    </div>
-  )
-}
-
-function EmptyState({ text }) {
-  return (
-    <p className="px-5 py-10 text-center text-sm text-slate-400">
-      {text}
-    </p>
   )
 }
 

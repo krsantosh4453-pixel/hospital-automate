@@ -237,8 +237,9 @@
     border-radius: var(--radius-2xl);
   }
 
+  /* Width is left to the caller (w-full, flex-1, …) so existing layouts keep their sizing. */
   .hms-input {
-    width: 100%;
+    min-width: 0;
     min-height: 2.5rem;
     border-radius: var(--radius-lg);
     border: 1px solid var(--color-line-strong);

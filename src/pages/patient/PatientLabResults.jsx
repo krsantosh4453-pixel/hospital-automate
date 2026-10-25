@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
+import { FlaskConicalIcon, TriangleAlertIcon } from "lucide-react"
 
 function PatientLabResults() {
   const { patient } = useAuth()
@@ -65,7 +66,7 @@ function PatientLabResults() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">⚠️ {error}</div>
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}</div>
       )}
 
       {loading ? (
@@ -124,7 +125,7 @@ function PatientLabResults() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-          <div className="text-4xl mb-3">🧪</div>
+          <div className="text-4xl mb-3"><FlaskConicalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h3 className="font-bold text-gray-800">No lab results found</h3>
           <p className="text-sm text-gray-500 mt-1">You don&apos;t have any lab tests matching this filter.</p>
         </div>

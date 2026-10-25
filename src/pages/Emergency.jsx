@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api"
+import { AmbulanceIcon, HourglassIcon, TriangleAlertIcon } from "lucide-react"
 
 function Emergency() {
   const { selectedHospital } = usePatient()
@@ -323,7 +324,7 @@ function Emergency() {
     return (
       <div className="p-6">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-          <div className="text-5xl mb-4">🚑</div>
+          <div className="text-5xl mb-4"><AmbulanceIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h1 className="text-2xl font-bold text-gray-800">Emergency / ER</h1>
           <p className="text-gray-500 mt-2">Please select a hospital to continue.</p>
         </div>
@@ -335,7 +336,7 @@ function Emergency() {
     return (
       <div className="p-6">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-          <div className="text-5xl mb-4">⏳</div>
+          <div className="text-5xl mb-4"><HourglassIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h1 className="text-2xl font-bold text-gray-800">Loading...</h1>
           <p className="text-gray-500 mt-2">Fetching emergency data...</p>
         </div>
@@ -347,7 +348,7 @@ function Emergency() {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-          <div className="text-5xl mb-4">⚠️</div>
+          <div className="text-5xl mb-4"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h1 className="text-2xl font-bold text-red-800">Error</h1>
           <p className="text-red-600 mt-2">{error}</p>
           <button onClick={fetchData} className="mt-4 px-5 py-2.5 rounded-xl bg-red-600 text-white font-medium">Retry</button>
@@ -533,14 +534,14 @@ function Emergency() {
             <form onSubmit={handleRegistration} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
-                <select name="patient" value={registrationForm.patient} onChange={e => setRegistrationForm({...registrationForm, patient: e.target.value})} required className="w-full border border-gray-300 rounded-xl px-4 py-3">
+                <select name="patient" value={registrationForm.patient} onChange={e => setRegistrationForm({...registrationForm, patient: e.target.value})} required className="hms-input w-full">
                   <option value="">Select Patient</option>
                   {patients.map(p => <option key={p.id} value={p.name}>{p.name} ({p.age} yrs, {p.gender})</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Triage Level *</label>
-                <select name="triage_level" value={registrationForm.triage_level} onChange={e => setRegistrationForm({...registrationForm, triage_level: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3">
+                <select name="triage_level" value={registrationForm.triage_level} onChange={e => setRegistrationForm({...registrationForm, triage_level: e.target.value})} className="hms-input w-full">
                   <option value="Critical">Critical - Immediate</option>
                   <option value="Emergency">Emergency - &lt; 15 min</option>
                   <option value="Urgent">Urgent - &lt; 30 min</option>
@@ -550,14 +551,14 @@ function Emergency() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Attending Doctor</label>
-                <select name="attending_doctor" value={registrationForm.attending_doctor} onChange={e => setRegistrationForm({...registrationForm, attending_doctor: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3">
+                <select name="attending_doctor" value={registrationForm.attending_doctor} onChange={e => setRegistrationForm({...registrationForm, attending_doctor: e.target.value})} className="hms-input w-full">
                   <option value="">Select Doctor</option>
                   {doctors.map(d => <option key={d.id} value={d.name}>{d.name} - {d.specialization}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
-                <textarea name="remarks" value={registrationForm.remarks} onChange={e => setRegistrationForm({...registrationForm, remarks: e.target.value})} rows={2} className="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Additional notes..." />
+                <textarea name="remarks" value={registrationForm.remarks} onChange={e => setRegistrationForm({...registrationForm, remarks: e.target.value})} rows={2} className="hms-input w-full" placeholder="Additional notes..." />
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={resetForms} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
@@ -579,21 +580,21 @@ function Emergency() {
             <form onSubmit={handleCompleteTriage} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Chief Complaint *</label>
-                <textarea name="chief_complaint" value={triageForm.chief_complaint} onChange={e => setTriageForm({...triageForm, chief_complaint: e.target.value})} rows={3} required className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                <textarea name="chief_complaint" value={triageForm.chief_complaint} onChange={e => setTriageForm({...triageForm, chief_complaint: e.target.value})} rows={3} required className="hms-input w-full" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Pain Score (0-10)</label>
-                  <input type="number" name="pain_score" value={triageForm.pain_score} onChange={e => setTriageForm({...triageForm, pain_score: e.target.value})} min="0" max="10" className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="number" name="pain_score" value={triageForm.pain_score} onChange={e => setTriageForm({...triageForm, pain_score: e.target.value})} min="0" max="10" className="hms-input w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Glasgow Coma Scale</label>
-                  <input type="number" name="glasgow_coma_scale" value={triageForm.glasgow_coma_scale} onChange={e => setTriageForm({...triageForm, glasgow_coma_scale: e.target.value})} min="3" max="15" className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="number" name="glasgow_coma_scale" value={triageForm.glasgow_coma_scale} onChange={e => setTriageForm({...triageForm, glasgow_coma_scale: e.target.value})} min="3" max="15" className="hms-input w-full" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Triage Level *</label>
-                <select name="triage_level" value={triageForm.triage_level} onChange={e => setTriageForm({...triageForm, triage_level: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3">
+                <select name="triage_level" value={triageForm.triage_level} onChange={e => setTriageForm({...triageForm, triage_level: e.target.value})} className="hms-input w-full">
                   <option value="Critical">Critical - Immediate</option>
                   <option value="Emergency">Emergency - &lt; 15 min</option>
                   <option value="Urgent">Urgent - &lt; 30 min</option>
@@ -603,7 +604,7 @@ function Emergency() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Triage Notes</label>
-                <textarea name="triage_notes" value={triageForm.triage_notes} onChange={e => setTriageForm({...triageForm, triage_notes: e.target.value})} rows={3} className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                <textarea name="triage_notes" value={triageForm.triage_notes} onChange={e => setTriageForm({...triageForm, triage_notes: e.target.value})} rows={3} className="hms-input w-full" />
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={resetForms} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
@@ -626,35 +627,35 @@ function Emergency() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Temperature (°C)</label>
-                  <input type="number" step="0.1" name="temperature" value={vitalsForm.temperature} onChange={e => setVitalsForm({...vitalsForm, temperature: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="number" step="0.1" name="temperature" value={vitalsForm.temperature} onChange={e => setVitalsForm({...vitalsForm, temperature: e.target.value})} className="hms-input w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">BP Systolic</label>
-                  <input type="number" name="systolic_bp" value={vitalsForm.systolic_bp} onChange={e => setVitalsForm({...vitalsForm, systolic_bp: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="number" name="systolic_bp" value={vitalsForm.systolic_bp} onChange={e => setVitalsForm({...vitalsForm, systolic_bp: e.target.value})} className="hms-input w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">BP Diastolic</label>
-                  <input type="number" name="diastolic_bp" value={vitalsForm.diastolic_bp} onChange={e => setVitalsForm({...vitalsForm, diastolic_bp: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="number" name="diastolic_bp" value={vitalsForm.diastolic_bp} onChange={e => setVitalsForm({...vitalsForm, diastolic_bp: e.target.value})} className="hms-input w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Heart Rate</label>
-                  <input type="number" name="heart_rate" value={vitalsForm.heart_rate} onChange={e => setVitalsForm({...vitalsForm, heart_rate: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="number" name="heart_rate" value={vitalsForm.heart_rate} onChange={e => setVitalsForm({...vitalsForm, heart_rate: e.target.value})} className="hms-input w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Resp. Rate</label>
-                  <input type="number" name="respiratory_rate" value={vitalsForm.respiratory_rate} onChange={e => setVitalsForm({...vitalsForm, respiratory_rate: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="number" name="respiratory_rate" value={vitalsForm.respiratory_rate} onChange={e => setVitalsForm({...vitalsForm, respiratory_rate: e.target.value})} className="hms-input w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">SpO₂ %</label>
-                  <input type="number" name="spo2" value={vitalsForm.spo2} onChange={e => setVitalsForm({...vitalsForm, spo2: e.target.value})} min="0" max="100" className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="number" name="spo2" value={vitalsForm.spo2} onChange={e => setVitalsForm({...vitalsForm, spo2: e.target.value})} min="0" max="100" className="hms-input w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Blood Sugar</label>
-                  <input type="number" step="0.1" name="blood_sugar" value={vitalsForm.blood_sugar} onChange={e => setVitalsForm({...vitalsForm, blood_sugar: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="number" step="0.1" name="blood_sugar" value={vitalsForm.blood_sugar} onChange={e => setVitalsForm({...vitalsForm, blood_sugar: e.target.value})} className="hms-input w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Recorded By (Nurse ID)</label>
-                  <input type="text" name="recorded_by" value={vitalsForm.recorded_by} onChange={e => setVitalsForm({...vitalsForm, recorded_by: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="text" name="recorded_by" value={vitalsForm.recorded_by} onChange={e => setVitalsForm({...vitalsForm, recorded_by: e.target.value})} className="hms-input w-full" />
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
@@ -677,7 +678,7 @@ function Emergency() {
             <form onSubmit={handleAddOrder} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Order Type *</label>
-                <select name="order_type" value={orderForm.order_type} onChange={e => setOrderForm({...orderForm, order_type: e.target.value})} required className="w-full border border-gray-300 rounded-xl px-4 py-3">
+                <select name="order_type" value={orderForm.order_type} onChange={e => setOrderForm({...orderForm, order_type: e.target.value})} required className="hms-input w-full">
                   <option value="Lab">Lab Investigation</option>
                   <option value="Imaging">Imaging</option>
                   <option value="Medication">Medication</option>
@@ -687,11 +688,11 @@ function Emergency() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                <textarea name="description" value={orderForm.description} onChange={e => setOrderForm({...orderForm, description: e.target.value})} rows={3} required className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                <textarea name="description" value={orderForm.description} onChange={e => setOrderForm({...orderForm, description: e.target.value})} rows={3} required className="hms-input w-full" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ordered By (Doctor ID)</label>
-                <input type="text" name="ordered_by" value={orderForm.ordered_by} onChange={e => setOrderForm({...orderForm, ordered_by: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                <input type="text" name="ordered_by" value={orderForm.ordered_by} onChange={e => setOrderForm({...orderForm, ordered_by: e.target.value})} className="hms-input w-full" />
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setShowOrderForm(false)} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
@@ -713,16 +714,16 @@ function Emergency() {
             <form onSubmit={handleAddMedication} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Medication Name *</label>
-                <input type="text" name="name" value={medicationForm.name} onChange={e => setMedicationForm({...medicationForm, name: e.target.value})} required className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                <input type="text" name="name" value={medicationForm.name} onChange={e => setMedicationForm({...medicationForm, name: e.target.value})} required className="hms-input w-full" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Dose *</label>
-                  <input type="text" name="dose" value={medicationForm.dose} onChange={e => setMedicationForm({...medicationForm, dose: e.target.value})} required className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                  <input type="text" name="dose" value={medicationForm.dose} onChange={e => setMedicationForm({...medicationForm, dose: e.target.value})} required className="hms-input w-full" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Route *</label>
-                  <select name="route" value={medicationForm.route} onChange={e => setMedicationForm({...medicationForm, route: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3">
+                  <select name="route" value={medicationForm.route} onChange={e => setMedicationForm({...medicationForm, route: e.target.value})} className="hms-input w-full">
                     <option value="IV">IV</option>
                     <option value="IM">IM</option>
                     <option value="PO">PO</option>
@@ -734,16 +735,16 @@ function Emergency() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Frequency *</label>
-                  <input type="text" name="frequency" value={medicationForm.frequency} onChange={e => setMedicationForm({...medicationForm, frequency: e.target.value})} required className="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="e.g., Q8H, BID" />
+                  <input type="text" name="frequency" value={medicationForm.frequency} onChange={e => setMedicationForm({...medicationForm, frequency: e.target.value})} required className="hms-input w-full" placeholder="e.g., Q8H, BID" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
-                  <input type="text" name="duration" value={medicationForm.duration} onChange={e => setMedicationForm({...medicationForm, duration: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="e.g., 5 days" />
+                  <input type="text" name="duration" value={medicationForm.duration} onChange={e => setMedicationForm({...medicationForm, duration: e.target.value})} className="hms-input w-full" placeholder="e.g., 5 days" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Prescribed By (Doctor ID)</label>
-                <input type="text" name="prescribed_by" value={medicationForm.prescribed_by} onChange={e => setMedicationForm({...medicationForm, prescribed_by: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+                <input type="text" name="prescribed_by" value={medicationForm.prescribed_by} onChange={e => setMedicationForm({...medicationForm, prescribed_by: e.target.value})} className="hms-input w-full" />
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setShowMedicationForm(false)} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>

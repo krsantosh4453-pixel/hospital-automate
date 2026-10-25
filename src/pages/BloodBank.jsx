@@ -210,7 +210,7 @@ const BloodBank = () => {
                   type="text"
                   value={requestForm.patientId}
                   onChange={(e) => setRequestForm({...requestForm, patientId: e.target.value})}
-                  className="w-full border rounded p-2"
+                  className="hms-input w-full"
                   required
                 />
               </div>
@@ -219,7 +219,7 @@ const BloodBank = () => {
                 <select
                   value={requestForm.bloodGroup}
                   onChange={(e) => setRequestForm({...requestForm, bloodGroup: e.target.value})}
-                  className="w-full border rounded p-2"
+                  className="hms-input w-full"
                   required
                 >
                   <option value="">Select</option>
@@ -238,7 +238,7 @@ const BloodBank = () => {
                 <select
                   value={requestForm.component}
                   onChange={(e) => setRequestForm({...requestForm, component: e.target.value})}
-                  className="w-full border rounded p-2"
+                  className="hms-input w-full"
                 >
                   <option value="Whole Blood">Whole Blood</option>
                   <option value="Packed Red Cells">Packed Red Cells</option>
@@ -254,7 +254,7 @@ const BloodBank = () => {
                     min="1"
                     value={requestForm.units}
                     onChange={(e) => setRequestForm({...requestForm, units: parseInt(e.target.value) || 1})}
-                    className="w-full border rounded p-2"
+                    className="hms-input w-full"
                     required
                   />
                 </div>
@@ -263,7 +263,7 @@ const BloodBank = () => {
                   <select
                     value={requestForm.urgency}
                     onChange={(e) => setRequestForm({...requestForm, urgency: e.target.value})}
-                    className="w-full border rounded p-2"
+                    className="hms-input w-full"
                   >
                     <option value="Routine">Routine</option>
                     <option value="Urgent">Urgent</option>
@@ -276,7 +276,7 @@ const BloodBank = () => {
                 <textarea
                   value={requestForm.reason}
                   onChange={(e) => setRequestForm({...requestForm, reason: e.target.value})}
-                  className="w-full border rounded p-2"
+                  className="hms-input w-full"
                   rows={2}
                 />
               </div>

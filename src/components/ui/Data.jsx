@@ -45,7 +45,7 @@ export function SearchInput({ value, onChange, placeholder = "Search…", classN
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={label}
-        className="hms-input pl-9 pr-8 [&::-webkit-search-cancel-button]:hidden"
+        className="hms-input w-full pl-9 pr-8 [&::-webkit-search-cancel-button]:hidden"
         {...rest}
       />
       {value && (

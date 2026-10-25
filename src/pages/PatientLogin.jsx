@@ -9,6 +9,7 @@ import {
   getSelectedLoginRole,
   saveSelectedLoginRole,
 } from "../utils/roleRouting.js"
+import { HospitalIcon, MailIcon, SmartphoneIcon, TicketIcon } from "lucide-react"
 
 function PatientLogin() {
   const navigate = useNavigate()
@@ -324,7 +325,7 @@ function PatientLogin() {
         {/* Logo / Brand */}
         <div className="text-center mb-8">
           <div className="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg text-white text-3xl font-bold">
-            🏥
+            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mt-4">
             Hospital Management System
@@ -373,7 +374,7 @@ function PatientLogin() {
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              📱 Mobile OTP
+              <SmartphoneIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Mobile OTP
             </button>
             <button
               type="button"
@@ -387,7 +388,7 @@ function PatientLogin() {
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              🎫 Token / ID
+              <TicketIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Token / ID
             </button>
             <button
               type="button"
@@ -401,7 +402,7 @@ function PatientLogin() {
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              ✉️ Email
+              <MailIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Email
             </button>
           </div>
 
@@ -449,7 +450,7 @@ function PatientLogin() {
                             if (val.length <= 10) setMobile(val)
                           }}
                           placeholder="Enter 10-digit number"
-                          className="w-full border border-gray-300 rounded-r-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                          className="hms-input w-full rounded-r-xl"
                           required
                         />
                       </div>
@@ -512,7 +513,7 @@ function PatientLogin() {
                           if (val.length <= 6) setOtp(val)
                         }}
                         placeholder="• • • • • •"
-                        className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-center text-xl tracking-[0.5em] font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                        className="hms-input w-full text-center text-xl tracking-[0.5em] font-bold"
                         required
                       />
                     </div>
@@ -590,7 +591,7 @@ function PatientLogin() {
                       type="email"
                       value={emailAddress}
                       onChange={(e) => setEmailAddress(e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      className="hms-input w-full"
                       required
                     />
                   </div>
@@ -600,7 +601,7 @@ function PatientLogin() {
                       type="password"
                       value={emailPassword}
                       onChange={(e) => setEmailPassword(e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      className="hms-input w-full"
                       autoComplete="current-password"
                       required
                     />
@@ -627,7 +628,7 @@ function PatientLogin() {
                       type="email"
                       value={emailAddress}
                       onChange={(e) => setEmailAddress(e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      className="hms-input w-full"
                       required
                     />
                   </div>
@@ -645,7 +646,7 @@ function PatientLogin() {
                       inputMode="numeric"
                       value={emailOtp}
                       onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      className="hms-input w-full"
                       required
                     />
                   </div>
@@ -695,7 +696,7 @@ function PatientLogin() {
                       if (tokenError) setTokenError("")
                     }}
                     placeholder="e.g. T-001 or PAT-001 or 1"
-                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    className="hms-input w-full font-medium"
                     required
                   />
                   {tokenError && (
@@ -715,7 +716,7 @@ function PatientLogin() {
                     value={tokenPassword}
                     onChange={(e) => setTokenPassword(e.target.value)}
                     placeholder="Account password"
-                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                    className="hms-input w-full"
                     autoComplete="current-password"
                     required
                   />
@@ -812,7 +813,7 @@ function PatientLogin() {
                   value={staffUsername}
                   onChange={(e) => setStaffUsername(e.target.value)}
                   placeholder="Username or email"
-                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                   autoComplete="username"
                   required
                 />
@@ -821,7 +822,7 @@ function PatientLogin() {
                   value={staffPassword}
                   onChange={(e) => setStaffPassword(e.target.value)}
                   placeholder="Password"
-                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                   autoComplete="current-password"
                   required
                 />

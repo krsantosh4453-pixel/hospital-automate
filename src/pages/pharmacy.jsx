@@ -3,6 +3,7 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
 import { LoadingSpinner } from "../components/LoadingSpinner.jsx"
+import { AlarmClockIcon, CheckIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, SearchIcon, TrendingDownIcon, TriangleAlertIcon } from "lucide-react"
 
 // Convert "MM/YYYY" (UI) to "YYYY-MM-01" (API DateField). Returns null if invalid.
 const toApiDate = (value) => {
@@ -1003,7 +1004,7 @@ function Pharmacy() {
 
             className="px-5 py-3 border border-gray-300 rounded-xl font-medium hover:bg-gray-50"
           >
-            🧾 Sales History
+            <ReceiptIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Sales History
           </button>
 
 
@@ -1034,7 +1035,7 @@ function Pharmacy() {
 
             className="px-5 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700"
           >
-            💊 Issue Medicine
+            <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Issue Medicine
           </button>
 
 
@@ -1091,7 +1092,7 @@ function Pharmacy() {
           <div className="flex items-center gap-4">
 
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-              🏥
+              <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
             </div>
 
             <div>
@@ -1105,7 +1106,7 @@ function Pharmacy() {
               </h2>
 
               <p className="text-sm text-gray-500">
-                📍 {selectedHospital.address}
+                <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.address}
               </p>
 
             </div>
@@ -1117,7 +1118,7 @@ function Pharmacy() {
           <div>
 
             <p className="font-semibold text-orange-600">
-              ⚠️ No hospital selected
+              <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> No hospital selected
             </p>
 
             <p className="text-sm text-gray-500 mt-1">
@@ -1136,7 +1137,7 @@ function Pharmacy() {
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
 
           <p className="text-sm">
-            ⚠️ {loadError}
+            <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {loadError}
           </p>
 
           <button
@@ -1156,7 +1157,7 @@ function Pharmacy() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
 
           <div className="text-5xl mb-4">
-            💊
+            <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
           </div>
 
           <h2 className="text-xl font-bold text-gray-800">
@@ -1211,7 +1212,7 @@ function Pharmacy() {
 
                 placeholder="RX-2026-001"
 
-                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input flex-1"
 
               />
 
@@ -1225,7 +1226,7 @@ function Pharmacy() {
                 className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
 
               >
-                🔎 Search Prescription
+                <SearchIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Search Prescription
               </button>
 
             </div>
@@ -1465,7 +1466,7 @@ function Pharmacy() {
 
                       <div className="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 text-sm">
 
-                        ⚠️ This prescription has multiple medicines. Automatic one-click dispensing is not supported yet — please use the Issue Medicine section for each medicine.
+                        <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> This prescription has multiple medicines. Automatic one-click dispensing is not supported yet — please use the Issue Medicine section for each medicine.
 
                       </div>
 
@@ -1486,7 +1487,7 @@ function Pharmacy() {
                         className="mt-6 w-full md:w-auto px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700"
 
                       >
-                        ✓ Dispense Prescription
+                        <CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Dispense Prescription
                       </button>
 
                     )}
@@ -1571,7 +1572,7 @@ function Pharmacy() {
             <div className="mb-6 space-y-3">
               {expiredMedicines.length > 0 && (
                 <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4 flex items-start gap-3">
-                  <span className="text-2xl">⚠️</span>
+                  <span className="text-2xl"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
                   <div>
                     <p className="font-semibold">Expired Medicines in Stock</p>
                     <p className="text-sm mt-1">
@@ -1590,7 +1591,7 @@ function Pharmacy() {
               )}
               {expiringSoonMedicines.length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-start gap-3">
-                  <span className="text-2xl">⏰</span>
+                  <span className="text-2xl"><AlarmClockIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
                   <div>
                     <p className="font-semibold">Expiring Soon (within 30 days)</p>
                     <p className="text-sm mt-1">
@@ -1609,7 +1610,7 @@ function Pharmacy() {
               )}
               {lowStockMedicines.length > 0 && (
                 <div className="bg-orange-50 border border-orange-200 text-orange-800 rounded-xl p-4 flex items-start gap-3">
-                  <span className="text-2xl">📉</span>
+                  <span className="text-2xl"><TrendingDownIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
                   <div>
                     <p className="font-semibold">Low Stock Alert</p>
                     <p className="text-sm mt-1">
@@ -1654,7 +1655,7 @@ function Pharmacy() {
 
                 placeholder="Search medicine, category or batch..."
 
-                className="border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input"
 
               />
 
@@ -1671,7 +1672,7 @@ function Pharmacy() {
                   )
                 }
 
-                className="border border-gray-300 rounded-xl px-4 py-3"
+                className="hms-input"
 
               >
 
@@ -1710,7 +1711,7 @@ function Pharmacy() {
                   )
                 }
 
-                className="border border-gray-300 rounded-xl px-4 py-3"
+                className="hms-input"
 
               >
 
@@ -1759,7 +1760,7 @@ function Pharmacy() {
               <div className="p-12 text-center">
 
                 <div className="text-4xl mb-3">
-                  💊
+                  <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                 </div>
 
                 <h3 className="font-bold text-gray-800">
@@ -2095,7 +2096,7 @@ function Pharmacy() {
 
                     placeholder="Medicine Name"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2114,7 +2115,7 @@ function Pharmacy() {
 
                     required
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   >
 
@@ -2159,7 +2160,7 @@ function Pharmacy() {
 
                     placeholder="Batch Number"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2184,7 +2185,7 @@ function Pharmacy() {
 
                     placeholder="Stock Quantity"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2234,7 +2235,7 @@ function Pharmacy() {
 
                     required
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2261,7 +2262,7 @@ function Pharmacy() {
 
                     placeholder="Price"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2570,7 +2571,7 @@ function Pharmacy() {
 
                     required
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   >
 
@@ -2631,7 +2632,7 @@ function Pharmacy() {
 
                     placeholder="Patient Name"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2656,7 +2657,7 @@ function Pharmacy() {
 
                     placeholder="Quantity"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2751,7 +2752,7 @@ function Pharmacy() {
                   <div className="p-12 text-center text-gray-500">
 
                     <div className="text-4xl mb-3">
-                      🧾
+                      <ReceiptIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                     </div>
 
                     No medicine sales yet.

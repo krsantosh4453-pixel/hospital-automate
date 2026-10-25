@@ -104,7 +104,7 @@ function QuickJump({ open, onClose, groups, t }) {
             placeholder="Type a module name…"
             aria-label="Search pages"
             aria-controls="quick-jump-list"
-            className="hms-input pl-9"
+            className="hms-input w-full pl-9"
           />
         </div>
         <ul id="quick-jump-list" role="listbox" className="mt-3 max-h-[50vh] space-y-0.5 overflow-y-auto">
@@ -221,7 +221,7 @@ function HospitalSwitcher({ hospitals, selectedHospital, onSelect, t }) {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by name or city"
                 aria-label="Search hospitals"
-                className="hms-input h-9 min-h-0 pl-8 text-[13px]"
+                className="hms-input h-9 min-h-0 w-full pl-8 text-[13px]"
               />
             </div>
             <button

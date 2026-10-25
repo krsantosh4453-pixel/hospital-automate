@@ -63,6 +63,7 @@ function Patients() {
   const [viewPatient, setViewPatient] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState("")
 
   // Maps a Django Patient record into the shape this UI already uses.
   const mapFromApi = (record) => ({
@@ -336,6 +337,7 @@ function Patients() {
     setPatients((prev) => prev.filter((item) => String(item.id) !== String(patient.id)))
     setDeleting(false)
     setPendingDelete(null)
+    setDeleteConfirmText("")
     setViewPatient(null)
   }
 
@@ -586,19 +588,42 @@ function Patients() {
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}
-        onCancel={() => setPendingDelete(null)}
+        onCancel={() => {
+          setPendingDelete(null)
+          setDeleteConfirmText("")
+        }}
         onConfirm={confirmDelete}
         loading={deleting}
         destructive
-        title="Delete patient?"
-        confirmLabel="Delete patient"
+        title="Permanently delete patient?"
+        confirmLabel="Delete patient and records"
+        confirmDisabled={
+          pendingDelete?.source === "api" &&
+          deleteConfirmText.trim().toLowerCase() !== String(pendingDelete?.name || "").trim().toLowerCase()
+        }
         message={
           <>
-            <strong className="font-semibold text-ink-900">{pendingDelete?.name}</strong> ({pendingDelete && formatPatientId(pendingDelete)}) will be
-            removed from this hospital. This cannot be undone.
+            Deleting <strong className="font-semibold text-ink-900">{pendingDelete?.name}</strong> (
+            {pendingDelete && formatPatientId(pendingDelete)}) also permanently deletes their visits, clinical notes, prescriptions, medication
+            records, lab tests, admissions, invoices and consent records. This cannot be undone. Use it only for a registration made in error.
           </>
         }
-      />
+      >
+        {pendingDelete?.source === "api" && (
+          <div className="mt-4">
+            <label htmlFor="confirm-patient-name" className="hms-label">
+              Type the patient&apos;s name to confirm
+            </label>
+            <input
+              id="confirm-patient-name"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              autoComplete="off"
+              className="hms-input w-full"
+            />
+          </div>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }

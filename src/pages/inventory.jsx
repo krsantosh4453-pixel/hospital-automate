@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import { LoadingSpinner } from "../components/LoadingSpinner.jsx"
+import { ClipboardListIcon, HospitalIcon, MapPinIcon, PackageIcon, TriangleAlertIcon } from "lucide-react"
 
 function Inventory() {
   const { selectedHospital } = usePatient()
@@ -132,7 +133,7 @@ function Inventory() {
           <h1 className="text-3xl font-bold text-gray-800 mt-1">Inventory</h1>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-          <div className="text-5xl mb-4">🏥</div>
+          <div className="text-5xl mb-4"><HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h2 className="text-xl font-bold text-gray-800">Select a Hospital</h2>
           <p className="text-gray-500 mt-2">
             Select a hospital from the header to view its inventory.
@@ -394,7 +395,7 @@ function Inventory() {
             onClick={() => setShowHistory(true)}
             className="px-5 py-3 border border-gray-300 rounded-xl font-medium hover:bg-gray-50"
           >
-            📋 Stock History
+            <ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Stock History
           </button>
           <button
             onClick={() => {
@@ -419,18 +420,18 @@ function Inventory() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">🏥</div>
+          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl"><HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <div>
             <p className="text-xs text-gray-500">Current Hospital</p>
             <h2 className="font-bold text-gray-800">{selectedHospital.name}</h2>
-            <p className="text-sm text-gray-500">📍 {selectedHospital.address}</p>
+            <p className="text-sm text-gray-500"><MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.address}</p>
           </div>
         </div>
       </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
-          <p className="text-sm">⚠️ {error}</p>
+          <p className="text-sm"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}</p>
           <button onClick={fetchAllData} className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700">
             Retry
           </button>
@@ -463,12 +464,12 @@ function Inventory() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search item, ID or supplier..."
-            className="border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+            className="hms-input"
           />
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="border border-gray-300 rounded-xl px-4 py-3"
+            className="hms-input"
           >
             {categories.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>
@@ -477,7 +478,7 @@ function Inventory() {
           <select
             value={stockFilter}
             onChange={(e) => setStockFilter(e.target.value)}
-            className="border border-gray-300 rounded-xl px-4 py-3"
+            className="hms-input"
           >
             <option>All Stock</option>
             <option>In Stock</option>
@@ -524,7 +525,7 @@ function Inventory() {
                 {filteredItems.length === 0 ? (
                   <tr>
                     <td colSpan="9" className="text-center py-12 text-gray-500">
-                      <div className="text-4xl mb-3">📦</div>
+                      <div className="text-4xl mb-3"><PackageIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
                       <p className="font-semibold">No inventory items found</p>
                       <p className="text-sm mt-1">No matching items in {selectedHospital.name}.</p>
                     </td>
@@ -589,24 +590,24 @@ function Inventory() {
               <button onClick={resetForm} className="text-2xl text-gray-500">×</button>
             </div>
             <form onSubmit={selectedItem ? handleUpdate : handleSubmit} className="p-6 space-y-4">
-              <input type="text" name="name" value={formData.name} onChange={handleChange} required placeholder="Item Name" className="w-full border border-gray-300 rounded-xl px-4 py-3" />
-              <select name="category" value={formData.category} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3">
+              <input type="text" name="name" value={formData.name} onChange={handleChange} required placeholder="Item Name" className="hms-input w-full" />
+              <select name="category" value={formData.category} onChange={handleChange} required className="hms-input w-full">
                 <option value="">Select Category</option>
                 <option>Medical Supplies</option>
                 <option>Surgical</option>
                 <option>Equipment</option>
                 <option>General</option>
               </select>
-              <select name="unit" value={formData.unit} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3">
+              <select name="unit" value={formData.unit} onChange={handleChange} required className="hms-input w-full">
                 <option value="">Select Unit</option>
                 <option>Piece</option>
                 <option>Box</option>
                 <option>Pack</option>
                 <option>Bottle</option>
               </select>
-              <input type="number" name="quantity" min="0" value={formData.quantity} onChange={handleChange} required placeholder="Current Quantity" className="w-full border border-gray-300 rounded-xl px-4 py-3" />
-              <input type="number" name="minStock" min="0" value={formData.minStock} onChange={handleChange} required placeholder="Minimum Stock Level" className="w-full border border-gray-300 rounded-xl px-4 py-3" />
-              <input type="text" name="supplier" value={formData.supplier} onChange={handleChange} required placeholder="Supplier Name" className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+              <input type="number" name="quantity" min="0" value={formData.quantity} onChange={handleChange} required placeholder="Current Quantity" className="hms-input w-full" />
+              <input type="number" name="minStock" min="0" value={formData.minStock} onChange={handleChange} required placeholder="Minimum Stock Level" className="hms-input w-full" />
+              <input type="text" name="supplier" value={formData.supplier} onChange={handleChange} required placeholder="Supplier Name" className="hms-input w-full" />
               <input type="month" value={formData.expiry ? formData.expiry.split("/").reverse().join("-") : ""} onChange={(e) => {
                 if (!e.target.value) {
                   setFormData({ ...formData, expiry: "" })
@@ -614,7 +615,7 @@ function Inventory() {
                 }
                 const [year, month] = e.target.value.split("-")
                 setFormData({ ...formData, expiry: `${month}/${year}` })
-              }} required className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+              }} required className="hms-input w-full" />
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={resetForm} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
                 <button type="submit" className="px-5 py-3 bg-blue-600 text-white rounded-xl">{selectedItem ? "Save Changes" : "Add Item"}</button>
@@ -642,12 +643,12 @@ function Inventory() {
                   <span className="font-bold">{selectedItem.quantity} {selectedItem.unit}</span>
                 </div>
               </div>
-              <select name="type" value={stockData.type} onChange={handleStockChange} className="w-full border border-gray-300 rounded-xl px-4 py-3">
+              <select name="type" value={stockData.type} onChange={handleStockChange} className="hms-input w-full">
                 <option>Add Stock</option>
                 <option>Remove Stock</option>
               </select>
-              <input type="number" name="quantity" min="1" value={stockData.quantity} onChange={handleStockChange} required placeholder="Enter quantity" className="w-full border border-gray-300 rounded-xl px-4 py-3" />
-              <input type="text" name="reason" value={stockData.reason} onChange={handleStockChange} placeholder="Purchase, damaged, adjustment..." className="w-full border border-gray-300 rounded-xl px-4 py-3" />
+              <input type="number" name="quantity" min="1" value={stockData.quantity} onChange={handleStockChange} required placeholder="Enter quantity" className="hms-input w-full" />
+              <input type="text" name="reason" value={stockData.reason} onChange={handleStockChange} placeholder="Purchase, damaged, adjustment..." className="hms-input w-full" />
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={resetStock} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
                 <button type="submit" disabled={stockLoading} className="px-5 py-3 bg-purple-600 text-white rounded-xl disabled:opacity-50">
@@ -698,7 +699,7 @@ function Inventory() {
             <div className="p-6">
               {stockTransactions.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
-                  <div className="text-4xl mb-3">📋</div>
+                  <div className="text-4xl mb-3"><ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
                   <p className="font-semibold">No stock transactions found</p>
                 </div>
               ) : (

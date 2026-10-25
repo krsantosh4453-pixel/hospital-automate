@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import api from "../services/api.js"
+import { CircleCheckIcon, CircleXIcon, HospitalIcon, MicIcon, NotebookPenIcon, RefreshCwIcon, SparklesIcon, SquareIcon, TriangleAlertIcon, XIcon } from "lucide-react"
 
 const DIAGNOSIS_TYPES = [
   "Provisional",
@@ -577,7 +578,7 @@ function AIScribe() {
             <select
               value={sectionReviews.length > 0 ? sectionReviews[sectionReviews.length - 1].action : "viewed"}
               onChange={(e) => handleReviewAction(e.target.value, sectionKey, value, displayValue, "")}
-              className="text-xs border border-slate-300 rounded px-2 py-1 bg-white"
+              className="hms-input"
             >
               <option value="viewed">Viewed</option>
               <option value="accepted_section">Accept</option>
@@ -597,10 +598,10 @@ function AIScribe() {
   }
 
   const tabs = [
-    { id: "recording", label: "Recording", icon: "🎙️" },
-    { id: "transcript", label: "Transcript", icon: "📝" },
-    { id: "draft", label: "AI Draft", icon: "🤖" },
-    { id: "review", label: "Review", icon: "✅" },
+    { id: "recording", label: "Recording", icon: <MicIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+    { id: "transcript", label: "Transcript", icon: <NotebookPenIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+    { id: "draft", label: "AI Draft", icon: <SparklesIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+    { id: "review", label: "Review", icon: <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
   ]
 
   return (
@@ -614,21 +615,21 @@ function AIScribe() {
         </div>
         <div className="flex items-center gap-3">
           <span className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm text-slate-600">
-            🏥 <strong className="text-slate-800">{selectedHospital?.name || "No hospital"}</strong>
+            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> <strong className="text-slate-800">{selectedHospital?.name || "No hospital"}</strong>
           </span>
         </div>
       </div>
 
       {successMessage && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
-          ✅ {successMessage}
+          <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {successMessage}
         </div>
       )}
 
       {errorMessage && (
         <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start justify-between gap-3">
-          <span>⚠️ {errorMessage}</span>
-          <button onClick={() => setErrorMessage("")} className="text-red-500 hover:text-red-700 font-bold cursor-pointer">✕</button>
+          <span><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {errorMessage}</span>
+          <button onClick={() => setErrorMessage("")} className="text-red-500 hover:text-red-700 font-bold cursor-pointer"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
         </div>
       )}
 
@@ -649,7 +650,7 @@ function AIScribe() {
                 value={selectedVisitId}
                 onChange={(e) => setSelectedVisitId(e.target.value)}
                 disabled={loadingVisits}
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-slate-100"
+                className="hms-input w-full disabled:bg-slate-100"
               >
                 <option value="">
                   {loadingVisits ? "Loading visits…" : visits.length ? "-- Choose a visit --" : "No visits available"}
@@ -708,14 +709,14 @@ function AIScribe() {
                         disabled={loadingSession}
                         className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-lg font-medium transition cursor-pointer disabled:bg-red-300"
                       >
-                        🎙️ Start Recording
+                        <MicIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Start Recording
                       </button>
                     ) : (
                       <button
                         onClick={handleStopRecording}
                         className="px-6 py-3 rounded-xl bg-slate-600 hover:bg-slate-700 text-white text-lg font-medium transition cursor-pointer"
                       >
-                        ⏹️ Stop Recording
+                        <SquareIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Stop Recording
                       </button>
                     )}
                   </div>
@@ -793,7 +794,7 @@ function AIScribe() {
                       disabled={loadingDrafts}
                       className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition cursor-pointer disabled:bg-slate-100"
                     >
-                      🔄 Regenerate
+                      <RefreshCwIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Regenerate
                     </button>
                     {selectedDraft.status === "generated" && (
                       <button
@@ -850,13 +851,13 @@ function AIScribe() {
                         onClick={handleApproveDraft}
                         className="flex-1 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium cursor-pointer"
                       >
-                        ✅ Approve & Create Clinical Note
+                        <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Approve & Create Clinical Note
                       </button>
                       <button
                         onClick={handleRejectDraft}
                         className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium cursor-pointer"
                       >
-                        ❌ Reject
+                        <CircleXIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Reject
                       </button>
                     </div>
                   )}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
+import { CreditCardIcon, HospitalIcon, MapPinIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react"
 
 function Billing() {
 
@@ -1005,7 +1006,7 @@ function Billing() {
             <div className="flex items-center gap-4">
 
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-                🏥
+                <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
               </div>
 
 
@@ -1020,7 +1021,7 @@ function Billing() {
                 </h2>
 
                 <p className="text-sm text-gray-500">
-                  📍 {selectedHospital.address}
+                  <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.address}
                 </p>
 
               </div>
@@ -1032,7 +1033,7 @@ function Billing() {
             <div>
 
               <p className="font-semibold text-orange-600">
-                ⚠️ No hospital selected
+                <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> No hospital selected
               </p>
 
               <p className="text-sm text-gray-500 mt-1">
@@ -1055,7 +1056,7 @@ function Billing() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
 
             <div className="text-5xl mb-4">
-              💳
+              <CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
             </div>
 
             <h2 className="text-xl font-bold text-gray-800">
@@ -1156,7 +1157,7 @@ function Billing() {
 
                   placeholder="Search patient, patient ID or invoice..."
 
-                  className="border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input"
 
                 />
 
@@ -1173,7 +1174,7 @@ function Billing() {
                     )
                   }
 
-                  className="border border-gray-300 rounded-xl px-4 py-3"
+                  className="hms-input"
 
                 >
 
@@ -1279,7 +1280,7 @@ function Billing() {
                         >
 
                           <div className="text-4xl mb-3">
-                            💳
+                            <CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                           </div>
 
                           No bills found for this hospital.
@@ -1576,7 +1577,7 @@ function Billing() {
 
                     placeholder="Rahul Kumar"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1607,7 +1608,7 @@ function Billing() {
 
                     placeholder="P001"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1646,7 +1647,7 @@ function Billing() {
 
                     placeholder="Doctor Consultation ₹"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1669,7 +1670,7 @@ function Billing() {
 
                     placeholder="Laboratory Charges ₹"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1692,7 +1693,7 @@ function Billing() {
 
                     placeholder="Pharmacy / Medicines ₹"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1715,7 +1716,7 @@ function Billing() {
 
                     placeholder="Other Charges ₹"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1750,7 +1751,7 @@ function Billing() {
 
                   placeholder="₹ 0"
 
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                  className="hms-input w-full"
 
                 />
 
@@ -1786,7 +1787,7 @@ function Billing() {
 
                     placeholder="₹ 0"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1811,7 +1812,7 @@ function Billing() {
                       handleChange
                     }
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   >
 
@@ -1913,7 +1914,7 @@ function Billing() {
                     <div className="flex items-center gap-3">
 
                       <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-                        🏥
+                        <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                       </div>
 
                       <div>
@@ -2254,7 +2255,7 @@ function Billing() {
                   className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
 
                 >
-                  🖨️ Print Bill
+                  <PrinterIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Print Bill
                 </button>
 
               </div>

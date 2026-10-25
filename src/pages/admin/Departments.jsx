@@ -159,13 +159,13 @@ function Departments() {
             placeholder="Search by name, code or head"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2.5"
+            className="hms-input"
           />
           <select
             aria-label="Filter by status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2.5"
+            className="hms-input"
           >
             <option value="All">All Status</option>
             <option>Active</option>
@@ -229,15 +229,15 @@ function Departments() {
             )}
             <label className="block text-sm font-medium text-gray-700">
               Department Name
-              <input name="name" value={formData.name} onChange={handleChange} required className="mt-1 w-full border border-gray-300 rounded-lg px-4 py-2.5" />
+              <input name="name" value={formData.name} onChange={handleChange} required className="hms-input mt-1 w-full" />
             </label>
             <label className="block text-sm font-medium text-gray-700">
               Code
-              <input name="code" value={formData.code} onChange={handleChange} maxLength={20} className="mt-1 w-full border border-gray-300 rounded-lg px-4 py-2.5" />
+              <input name="code" value={formData.code} onChange={handleChange} maxLength={20} className="hms-input mt-1 w-full" />
             </label>
             <label className="block text-sm font-medium text-gray-700">
               Head of Department
-              <select name="head" value={formData.head} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-lg px-4 py-2.5">
+              <select name="head" value={formData.head} onChange={handleChange} className="hms-input mt-1 w-full">
                 <option value="">Not assigned</option>
                 {doctors.map((doctor) => (
                   <option key={doctor.id} value={doctor.id}>{doctor.name}</option>
@@ -246,11 +246,11 @@ function Departments() {
             </label>
             <label className="block text-sm font-medium text-gray-700">
               Description
-              <textarea name="description" value={formData.description} onChange={handleChange} rows={2} className="mt-1 w-full border border-gray-300 rounded-lg px-4 py-2.5" />
+              <textarea name="description" value={formData.description} onChange={handleChange} rows={2} className="hms-input mt-1 w-full" />
             </label>
             <label className="block text-sm font-medium text-gray-700">
               Status
-              <select name="status" value={formData.status} onChange={handleChange} className="mt-1 w-full border border-gray-300 rounded-lg px-4 py-2.5">
+              <select name="status" value={formData.status} onChange={handleChange} className="hms-input mt-1 w-full">
                 <option>Active</option>
                 <option>Inactive</option>
               </select>

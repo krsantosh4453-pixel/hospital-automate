@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
+import { PillIcon, TriangleAlertIcon } from "lucide-react"
 
 function PatientPrescriptions() {
   const { patient } = useAuth()
@@ -66,7 +67,7 @@ function PatientPrescriptions() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">⚠️ {error}</div>
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}</div>
       )}
 
       {loading ? (
@@ -80,7 +81,7 @@ function PatientPrescriptions() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">💊</span>
+                    <span className="text-2xl"><PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
                     <div>
                       <h3 className="font-semibold text-gray-800 text-lg">{rx.medicine_name || "Medication"}</h3>
                       <p className="text-sm text-gray-500">Prescribed by {rx.doctor_name || "Doctor"} on {formatDate(rx.prescribed_date)}</p>
@@ -117,7 +118,7 @@ function PatientPrescriptions() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-          <div className="text-4xl mb-3">💊</div>
+          <div className="text-4xl mb-3"><PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h3 className="font-bold text-gray-800">No prescriptions found</h3>
           <p className="text-sm text-gray-500 mt-1">You don&apos;t have any prescriptions matching this filter.</p>
         </div>

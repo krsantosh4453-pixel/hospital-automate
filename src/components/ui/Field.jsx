@@ -48,19 +48,19 @@ export function Field({ label, hint, error, required = false, className = "", ch
 }
 
 export function Input({ className = "", ...props }) {
-  return <input className={`hms-input ${className}`} {...props} />
+  return <input className={`hms-input w-full ${className}`} {...props} />
 }
 
 export function Select({ className = "", children, ...props }) {
   return (
-    <select className={`hms-input pr-8 ${className}`} {...props}>
+    <select className={`hms-input w-full pr-8 ${className}`} {...props}>
       {children}
     </select>
   )
 }
 
 export function Textarea({ className = "", rows = 3, ...props }) {
-  return <textarea rows={rows} className={`hms-input min-h-[5rem] ${className}`} {...props} />
+  return <textarea rows={rows} className={`hms-input w-full min-h-[5rem] ${className}`} {...props} />
 }
 
 /** Titled group of fields inside a long form. */

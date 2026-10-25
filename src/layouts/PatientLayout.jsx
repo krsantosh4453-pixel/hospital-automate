@@ -4,16 +4,17 @@ import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { useHospitals } from "../assets/context/HospitalsContext.jsx"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { BellIcon, CalendarDaysIcon, CreditCardIcon, DoorOpenIcon, FileTextIcon, FlaskConicalIcon, HospitalIcon, HouseIcon, MenuIcon, PillIcon, TicketIcon, XIcon } from "lucide-react"
 
 const patientRoutes = [
-  { path: "/patient", label: "Home", icon: "🏠" },
-  { path: "/patient/appointments", label: "My Appointments", icon: "📅" },
-  { path: "/patient/queue", label: "My Queue / Token", icon: "🎫" },
-  { path: "/patient/documents", label: "My Medical Records", icon: "📄" },
-  { path: "/patient/prescriptions", label: "My Prescriptions", icon: "💊" },
-  { path: "/patient/lab-results", label: "My Lab Reports", icon: "🧪" },
-  { path: "/patient/bills", label: "My Bills", icon: "💳" },
-  { path: "/patient/consent", label: "Notifications / Consent", icon: "🔔" },
+  { path: "/patient", label: "Home", icon: <HouseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+  { path: "/patient/appointments", label: "My Appointments", icon: <CalendarDaysIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+  { path: "/patient/queue", label: "My Queue / Token", icon: <TicketIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+  { path: "/patient/documents", label: "My Medical Records", icon: <FileTextIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+  { path: "/patient/prescriptions", label: "My Prescriptions", icon: <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+  { path: "/patient/lab-results", label: "My Lab Reports", icon: <FlaskConicalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+  { path: "/patient/bills", label: "My Bills", icon: <CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+  { path: "/patient/consent", label: "Notifications / Consent", icon: <BellIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
 ]
 
 export default function PatientLayout() {
@@ -44,7 +45,7 @@ export default function PatientLayout() {
       }`}>
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">🏥</div>
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl"><HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
             <div>
               <h2 className="font-bold text-gray-800">{language === "hi" ? "मरीज़ पोर्टल" : "Patient Portal"}</h2>
               <p className="text-xs text-gray-500">{patient?.name || "Patient"}</p>
@@ -53,7 +54,7 @@ export default function PatientLayout() {
                   aria-label={t("Select Hospital")}
                   value={selectedHospital?.id || ""}
                   onChange={(e) => selectHospital(myHospitals.find((h) => String(h.id) === e.target.value))}
-                  className="mt-2 w-full border border-gray-200 rounded-lg px-2 py-1 text-xs"
+                  className="hms-input mt-2 w-full"
                 >
                   {myHospitals.map((hospital) => (
                     <option key={hospital.id} value={hospital.id}>{hospital.name}</option>
@@ -86,7 +87,7 @@ export default function PatientLayout() {
             onClick={closeSidebar}
             className="lg:hidden p-2 text-gray-500 hover:text-gray-700"
           >
-            ✕
+            <XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
           </button>
         </div>
 
@@ -116,7 +117,7 @@ export default function PatientLayout() {
             onClick={logout}
             className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl text-sm font-medium transition"
           >
-            <span className="text-lg">🚪</span>
+            <span className="text-lg"><DoorOpenIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
             <span>Logout</span>
           </button>
         </div>
@@ -137,7 +138,7 @@ export default function PatientLayout() {
         onClick={() => setSidebarOpen(true)}
         aria-label="Open navigation menu"
       >
-        ☰
+        <MenuIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
       </button>
 
       {/* Main Content */}

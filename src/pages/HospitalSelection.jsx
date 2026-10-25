@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useHospitals } from "../assets/context/HospitalsContext.jsx"
+import { CarIcon, CheckIcon, HospitalIcon, MapIcon, MapPinIcon, PhoneIcon, RulerIcon, SearchIcon } from "lucide-react"
 
 function HospitalSelection() {
   const navigate = useNavigate()
@@ -251,7 +252,7 @@ function HospitalSelection() {
                   setSearch(e.target.value)
                 }
                 placeholder="Search hospital or location..."
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
               />
 
             </div>
@@ -267,7 +268,7 @@ function HospitalSelection() {
               >
                 {locationLoading
                   ? "Getting Location..."
-                  : "📍 Use My Location"}
+                  : <><MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" Use My Location"}</>}
               </button>
 
             </div>
@@ -281,7 +282,7 @@ function HospitalSelection() {
             <div className="mt-4 bg-green-50 border border-green-100 rounded-xl p-4">
 
               <p className="text-green-700 font-medium">
-                📍 Your location detected
+                <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Your location detected
               </p>
 
               <p className="text-xs text-green-600 mt-1">
@@ -326,7 +327,7 @@ function HospitalSelection() {
                 </h2>
 
                 <p className="text-sm text-gray-600 mt-1">
-                  📍 {selectedHospital.address}
+                  <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.address}
                 </p>
 
               </div>
@@ -392,7 +393,7 @@ function HospitalSelection() {
                     <div className="flex gap-4">
 
                       <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">
-                        🏥
+                        <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                       </div>
 
 
@@ -407,7 +408,7 @@ function HospitalSelection() {
                             </h3>
 
                             <p className="text-sm text-gray-500 mt-1">
-                              📍 {hospital.address}
+                              <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {hospital.address}
                             </p>
 
                           </div>
@@ -416,7 +417,7 @@ function HospitalSelection() {
                           {isSelected && (
 
                             <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0">
-                              ✓
+                              <CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                             </div>
 
                           )}
@@ -430,7 +431,7 @@ function HospitalSelection() {
                           <div className="mt-3">
 
                             <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-                              📏{" "}
+                              <RulerIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}
                               {hospital.distance < 1
                                 ? `${Math.round(
                                   hospital.distance *
@@ -461,13 +462,13 @@ function HospitalSelection() {
 
                       {hospital.registered && (
                         <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-                          ✓ Registered
+                          <CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Registered
                         </span>
                       )}
 
                       {hospital.city && (
                         <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                          📍 {hospital.city}
+                          <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {hospital.city}
                         </span>
                       )}
 
@@ -519,7 +520,7 @@ function HospitalSelection() {
                           }`}
                       >
                         {isSelected
-                          ? "✓ Selected"
+                          ? <><CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" Selected"}</>
                           : "Select"}
                       </button>
 
@@ -532,7 +533,7 @@ function HospitalSelection() {
                         }
                         className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200"
                       >
-                        🗺️ Map
+                        <MapIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Map
                       </button>
 
 
@@ -544,7 +545,7 @@ function HospitalSelection() {
                         }
                         className="px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-100"
                       >
-                        🚗 Directions
+                        <CarIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Directions
                       </button>
 
 
@@ -556,7 +557,7 @@ function HospitalSelection() {
                         }
                         className="px-3 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-semibold hover:bg-purple-100"
                       >
-                        📞 Call
+                        <PhoneIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Call
                       </button>
 
                     </div>
@@ -584,7 +585,7 @@ function HospitalSelection() {
             <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
 
               <div className="text-4xl mb-3">
-                🔍
+                <SearchIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
               </div>
 
               <h3 className="font-bold text-gray-800">

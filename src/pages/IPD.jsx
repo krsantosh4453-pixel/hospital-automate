@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api"
+import { HospitalIcon, HourglassIcon, TriangleAlertIcon } from "lucide-react"
 
 function IPD() {
   const { selectedHospital } = usePatient()
@@ -200,7 +201,7 @@ function IPD() {
     return (
       <div className="p-6">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-          <div className="text-5xl mb-4">🏥</div>
+          <div className="text-5xl mb-4"><HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h1 className="text-2xl font-bold text-gray-800">IPD Management</h1>
           <p className="text-gray-500 mt-2">Please select a hospital to continue.</p>
         </div>
@@ -212,7 +213,7 @@ function IPD() {
     return (
       <div className="p-6">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-          <div className="text-5xl mb-4">⏳</div>
+          <div className="text-5xl mb-4"><HourglassIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h1 className="text-2xl font-bold text-gray-800">Loading...</h1>
           <p className="text-gray-500 mt-2">Fetching IPD data...</p>
         </div>
@@ -224,7 +225,7 @@ function IPD() {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-          <div className="text-5xl mb-4">⚠️</div>
+          <div className="text-5xl mb-4"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h1 className="text-2xl font-bold text-red-800">Error</h1>
           <p className="text-red-600 mt-2">{error}</p>
           <button onClick={fetchData} className="mt-4 px-5 py-2.5 rounded-xl bg-red-600 text-white font-medium">
@@ -429,21 +430,21 @@ function IPD() {
             <form onSubmit={handleAdmissionSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
-                <select name="patient" value={admissionForm.patient} onChange={e => setAdmissionForm({...admissionForm, patient: e.target.value})} required className="w-full border border-gray-300 rounded-xl px-4 py-3">
+                <select name="patient" value={admissionForm.patient} onChange={e => setAdmissionForm({...admissionForm, patient: e.target.value})} required className="hms-input w-full">
                   <option value="">Select Patient</option>
                   {patients.map(p => <option key={p.id} value={p.name}>{p.name} ({p.age} yrs)</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Admitting Doctor</label>
-                <select name="admitting_doctor" value={admissionForm.admitting_doctor} onChange={e => setAdmissionForm({...admissionForm, admitting_doctor: e.target.value})} className="w-full border border-gray-300 rounded-xl px-4 py-3">
+                <select name="admitting_doctor" value={admissionForm.admitting_doctor} onChange={e => setAdmissionForm({...admissionForm, admitting_doctor: e.target.value})} className="hms-input w-full">
                   <option value="">Select Doctor</option>
                   {doctors.map(d => <option key={d.id} value={d.name}>{d.name} - {d.specialization}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Admission</label>
-                <textarea name="reason" value={admissionForm.reason} onChange={e => setAdmissionForm({...admissionForm, reason: e.target.value})} rows={3} className="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Enter reason..." />
+                <textarea name="reason" value={admissionForm.reason} onChange={e => setAdmissionForm({...admissionForm, reason: e.target.value})} rows={3} className="hms-input w-full" placeholder="Enter reason..." />
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={resetForms} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
@@ -466,7 +467,7 @@ function IPD() {
               <p className="text-gray-600">Allocating bed for <strong>{selectedAdmission?.patient_name}</strong></p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Available Bed *</label>
-                <select name="bed_id" value={bedAllocationForm.bed_id} onChange={e => setBedAllocationForm({...bedAllocationForm, bed_id: e.target.value})} required className="w-full border border-gray-300 rounded-xl px-4 py-3">
+                <select name="bed_id" value={bedAllocationForm.bed_id} onChange={e => setBedAllocationForm({...bedAllocationForm, bed_id: e.target.value})} required className="hms-input w-full">
                   <option value="">Select Bed</option>
                   {availableBeds.map(bed => <option key={bed.id} value={bed.id}>{bed.ward} - {bed.room} - {bed.bed_number} ({bed.room_type})</option>)}
                 </select>
@@ -493,11 +494,11 @@ function IPD() {
               <p className="text-gray-600">Initiating discharge for <strong>{selectedAdmission?.patient_name}</strong></p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Instructions</label>
-                <textarea name="instructions" value={dischargeForm.instructions} onChange={e => setDischargeForm({...dischargeForm, instructions: e.target.value})} rows={3} className="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Discharge instructions..." />
+                <textarea name="instructions" value={dischargeForm.instructions} onChange={e => setDischargeForm({...dischargeForm, instructions: e.target.value})} rows={3} className="hms-input w-full" placeholder="Discharge instructions..." />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Pending Tasks</label>
-                <textarea name="pending_tasks" value={dischargeForm.pending_tasks} onChange={e => setDischargeForm({...dischargeForm, pending_tasks: e.target.value})} rows={3} className="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Pending tasks before discharge..." />
+                <textarea name="pending_tasks" value={dischargeForm.pending_tasks} onChange={e => setDischargeForm({...dischargeForm, pending_tasks: e.target.value})} rows={3} className="hms-input w-full" placeholder="Pending tasks before discharge..." />
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={resetForms} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
@@ -519,11 +520,11 @@ function IPD() {
             <form onSubmit={handleDischargeSummarySubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Summary *</label>
-                <textarea name="summary" value={dischargeForm.summary} onChange={e => setDischargeForm({...dischargeForm, summary: e.target.value})} rows={4} required className="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Clinical summary..." />
+                <textarea name="summary" value={dischargeForm.summary} onChange={e => setDischargeForm({...dischargeForm, summary: e.target.value})} rows={4} required className="hms-input w-full" placeholder="Clinical summary..." />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Authorized Doctor</label>
-                <select name="authorized_doctor" value={dischargeForm.authorized_doctor} onChange={e => setDischargeForm({...dischargeForm, authorized_doctor: e.target.value})} required className="w-full border border-gray-300 rounded-xl px-4 py-3">
+                <select name="authorized_doctor" value={dischargeForm.authorized_doctor} onChange={e => setDischargeForm({...dischargeForm, authorized_doctor: e.target.value})} required className="hms-input w-full">
                   <option value="">Select Doctor</option>
                   {doctors.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
                 </select>

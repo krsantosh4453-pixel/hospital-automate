@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
+import { FlaskConicalIcon, HospitalIcon, MapPinIcon, TriangleAlertIcon } from "lucide-react"
 
 function Laboratory() {
 
@@ -465,7 +466,7 @@ function Laboratory() {
           <div className="flex items-center gap-4">
 
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-              🏥
+              <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
             </div>
 
             <div>
@@ -479,7 +480,7 @@ function Laboratory() {
               </h2>
 
               <p className="text-sm text-gray-500">
-                📍 {selectedHospital.address}
+                <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.address}
               </p>
 
             </div>
@@ -491,7 +492,7 @@ function Laboratory() {
           <div>
 
             <p className="font-semibold text-orange-600">
-              ⚠️ No hospital selected
+              <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> No hospital selected
             </p>
 
             <p className="text-sm text-gray-500 mt-1">
@@ -514,7 +515,7 @@ function Laboratory() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
 
           <div className="text-5xl mb-4">
-            🧪
+            <FlaskConicalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
           </div>
 
           <h2 className="text-xl font-bold text-gray-800">
@@ -609,7 +610,7 @@ function Laboratory() {
                   )
                 }
                 placeholder="Search patient, test or ID..."
-                className="border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input"
               />
 
 
@@ -620,7 +621,7 @@ function Laboratory() {
                     e.target.value
                   )
                 }
-                className="border border-gray-300 rounded-xl px-4 py-3"
+                className="hms-input"
               >
 
                 <option>
@@ -649,7 +650,7 @@ function Laboratory() {
                     e.target.value
                   )
                 }
-                className="border border-gray-300 rounded-xl px-4 py-3"
+                className="hms-input"
               >
 
                 <option>
@@ -958,7 +959,7 @@ function Laboratory() {
                         handleChange
                       }
                       required
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                      className="hms-input w-full"
                     >
 
                       <option value="">
@@ -993,7 +994,7 @@ function Laboratory() {
                         handleChange
                       }
                       required
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                      className="hms-input w-full"
                     >
 
                       <option value="">
@@ -1045,7 +1046,7 @@ function Laboratory() {
                       onChange={
                         handleChange
                       }
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                      className="hms-input w-full"
                     >
 
                       <option value="">
@@ -1082,7 +1083,7 @@ function Laboratory() {
                       onChange={
                         handleChange
                       }
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                      className="hms-input w-full"
                     >
 
                       <option>

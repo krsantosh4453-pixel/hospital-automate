@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { CheckIcon, HospitalIcon } from "lucide-react"
 
 function AdminDashboard() {
   const [activities] = useState([
@@ -171,7 +172,7 @@ function AdminDashboard() {
           </div>
 
           <div className="text-5xl">
-            🏥
+            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
           </div>
 
         </div>
@@ -284,7 +285,7 @@ function AdminDashboard() {
               >
 
                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  ✓
+                  <CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                 </div>
 
                 <div className="flex-1">

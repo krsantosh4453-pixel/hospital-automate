@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
+import { CreditCardIcon, ReceiptIcon, TriangleAlertIcon } from "lucide-react"
 
 function PatientBills() {
   const { patient } = useAuth()
@@ -62,7 +63,7 @@ function PatientBills() {
         </div>
         {totalUnpaid > 0 && (
           <div className="bg-orange-50 border border-orange-200 text-orange-700 rounded-xl px-4 py-3 text-sm font-medium">
-            ⚠️ Total Outstanding: {formatCurrency(totalUnpaid)}
+            <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Total Outstanding: {formatCurrency(totalUnpaid)}
           </div>
         )}
       </div>
@@ -84,7 +85,7 @@ function PatientBills() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">⚠️ {error}</div>
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}</div>
       )}
 
       {loading ? (
@@ -98,7 +99,7 @@ function PatientBills() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">🧾</span>
+                    <span className="text-2xl"><ReceiptIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
                     <div>
                       <h3 className="font-semibold text-gray-800 text-lg">Invoice {bill.invoice_number || bill.id}</h3>
                       <p className="text-sm text-gray-500">Generated on {formatDate(bill.invoice_date || bill.created_at)}</p>
@@ -136,7 +137,7 @@ function PatientBills() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-          <div className="text-4xl mb-3">💳</div>
+          <div className="text-4xl mb-3"><CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h3 className="font-bold text-gray-800">No bills found</h3>
           <p className="text-sm text-gray-500 mt-1">You don&apos;t have any bills matching this filter.</p>
         </div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import { useHospitals } from "../../assets/context/HospitalsContext.jsx"
 import api from "../../services/api.js"
+import { CircleCheckIcon, ClipboardListIcon, PenLineIcon, TriangleAlertIcon, XIcon } from "lucide-react"
 
 const SCOPE_LABELS = {
   visits: "Visit history",
@@ -167,14 +168,14 @@ function PatientConsent() {
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-center justify-between" role="alert">
-          <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700" aria-label="Dismiss">✕</button>
+          <span><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700" aria-label="Dismiss"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
         </div>
       )}
       {notice && !error && (
         <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm flex items-center justify-between" role="status">
-          <span>✅ {notice}</span>
-          <button onClick={() => setNotice("")} className="text-green-600 hover:text-green-800" aria-label="Dismiss">✕</button>
+          <span><CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {notice}</span>
+          <button onClick={() => setNotice("")} className="text-green-600 hover:text-green-800" aria-label="Dismiss"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
         </div>
       )}
 
@@ -201,7 +202,7 @@ function PatientConsent() {
                       {isSigned ? (
                         <>
                           <span className="px-4 py-2 bg-green-100 text-green-700 rounded-xl text-sm font-medium flex items-center gap-2">
-                            ✅ Signed on {formatDate(record.signed_at)}
+                            <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Signed on {formatDate(record.signed_at)}
                           </span>
                           <button
                             onClick={() => handleRevokeConsent(record)}
@@ -213,7 +214,7 @@ function PatientConsent() {
                       ) : (
                         <>
                           <span className="px-4 py-2 bg-red-100 text-red-700 rounded-xl text-sm font-medium">
-                            📋 Not Signed
+                            <ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Not Signed
                           </span>
                           <button
                             onClick={() => handleSign(form)}
@@ -231,7 +232,7 @@ function PatientConsent() {
                 {isSigned && (
                   <div className="p-5 bg-green-50 border-t border-green-100">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">✍️</div>
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600"><PenLineIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
                       <div>
                         <p className="font-medium text-green-800">Signed by {record.signed_by_proxy ? `proxy (${record.proxy_relationship})` : "Patient"}</p>
                         <p className="text-sm text-green-600">{record.signed_name}</p>
@@ -245,7 +246,7 @@ function PatientConsent() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-          <div className="text-4xl mb-3">📋</div>
+          <div className="text-4xl mb-3"><ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
           <h3 className="font-bold text-gray-800">No consent forms available</h3>
           <p className="text-sm text-gray-500 mt-1">You don&apos;t have any pending consent forms at the moment.</p>
         </div>
@@ -269,7 +270,7 @@ function PatientConsent() {
                 id="share-hospital"
                 value={shareForm.recipient_hospital}
                 onChange={(e) => setShareForm({ ...shareForm, recipient_hospital: e.target.value })}
-                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
                 required
               >
                 <option value="">Select a hospital</option>
@@ -287,7 +288,7 @@ function PatientConsent() {
                 max={inDays(365)}
                 value={shareForm.expires_on}
                 onChange={(e) => setShareForm({ ...shareForm, expires_on: e.target.value })}
-                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
                 required
               />
             </div>
@@ -311,7 +312,7 @@ function PatientConsent() {
                 value={shareForm.purpose}
                 onChange={(e) => setShareForm({ ...shareForm, purpose: e.target.value })}
                 placeholder="e.g. Second opinion with cardiologist"
-                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
                 required
               />
             </div>
@@ -366,7 +367,7 @@ function PatientConsent() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
               <h2 id="consent-sign-title" className="text-lg font-bold text-gray-800">Sign Consent Form: {selectedForm.name}</h2>
-              <button onClick={() => setShowSignModal(false)} className="text-gray-400 hover:text-gray-700 text-xl font-semibold" aria-label="Close">✕</button>
+              <button onClick={() => setShowSignModal(false)} className="text-gray-400 hover:text-gray-700 text-xl font-semibold" aria-label="Close"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
             </div>
             <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
               <div className="prose prose-sm max-w-none text-gray-700 border border-gray-200 rounded-xl p-4 bg-gray-50">
@@ -382,7 +383,7 @@ function PatientConsent() {
                   value={signature}
                   onChange={(e) => setSignature(e.target.value)}
                   placeholder="Enter your full name"
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                   required
                 />
                 <label className="flex items-start gap-2 text-xs text-gray-600 mt-3">

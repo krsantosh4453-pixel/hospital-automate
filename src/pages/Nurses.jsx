@@ -3,6 +3,7 @@ import { useMemo, useState, useEffect } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import api from "../services/api.js"
+import { ChartColumnIcon, ClipboardListIcon, DropletIcon, HeartPulseIcon, HospitalIcon, HouseIcon, NotebookPenIcon, PillIcon, StethoscopeIcon, UserIcon, UserRoundIcon, UsersIcon, WalletIcon } from "lucide-react"
 
 function Nurses() {
   const { selectedHospital } = usePatient()
@@ -762,62 +763,62 @@ function Nurses() {
     {
       id: "home",
       label: "Home",
-      icon: "🏠",
+      icon: <HouseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "profile",
       label: "My Profile",
-      icon: "👤",
+      icon: <UserIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "patients",
       label: "Patients",
-      icon: "🧑‍🤝‍🧑",
+      icon: <UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "assessment",
       label: "Assessment",
-      icon: "🩺",
+      icon: <StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "vitals",
       label: "Vitals",
-      icon: "❤️",
+      icon: <HeartPulseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "notes",
       label: "Notes",
-      icon: "📝",
+      icon: <NotebookPenIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "orders",
       label: "Orders",
-      icon: "📋",
+      icon: <ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "mar",
       label: "MAR",
-      icon: "💊",
+      icon: <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "blood",
       label: "Blood",
-      icon: "🩸",
+      icon: <DropletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "discharge",
       label: "Discharge",
-      icon: "🏥",
+      icon: <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "billing",
       label: "Billing",
-      icon: "💰",
+      icon: <WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "reports",
       label: "Reports",
-      icon: "📊",
+      icon: <ChartColumnIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
   ]
 
@@ -832,7 +833,7 @@ function Nurses() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
 
           <div className="text-5xl mb-4">
-            🏥
+            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
           </div>
 
           <h1 className="text-2xl font-bold text-gray-800">
@@ -915,7 +916,7 @@ function Nurses() {
         </p>
 
         <p className="font-semibold text-blue-700 mt-1">
-          🏥 {selectedHospital.name}
+          <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.name}
         </p>
 
       </div>
@@ -966,7 +967,7 @@ function Nurses() {
               value={
                 hospitalPatients.length
               }
-              icon="🧑‍🤝‍🧑"
+              icon={<UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Hospital patients"
             />
 
@@ -975,7 +976,7 @@ function Nurses() {
               value={
                 hospitalVitals.length
               }
-              icon="❤️"
+              icon={<HeartPulseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Today's records"
             />
 
@@ -988,7 +989,7 @@ function Nurses() {
                     "Pending"
                 ).length
               }
-              icon="📋"
+              icon={<ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Orders waiting"
             />
 
@@ -1000,7 +1001,7 @@ function Nurses() {
                     item.status === "Due" || item.status === "Delayed"
                 ).length
               }
-              icon="💊"
+              icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Medicine doses"
             />
 
@@ -1125,7 +1126,7 @@ function Nurses() {
           <div className="flex flex-col md:flex-row gap-6">
 
             <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center text-5xl">
-              👩‍⚕️
+              <UserRoundIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
             </div>
 
             <div className="flex-1">
@@ -1314,7 +1315,7 @@ function Nurses() {
                 )
               }
               placeholder="Search patient..."
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="hms-input w-full"
             />
 
           </div>
@@ -2222,43 +2223,43 @@ function Nurses() {
           <ReportCard
             title="Patients"
             value={reports.patients}
-            icon="🧑‍🤝‍🧑"
+            icon={<UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="Vitals"
             value={reports.vitals}
-            icon="❤️"
+            icon={<HeartPulseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="Assessments"
             value={reports.assessments}
-            icon="🩺"
+            icon={<StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="Orders"
             value={reports.orders}
-            icon="📋"
+            icon={<ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="MAR Records"
             value={reports.mar}
-            icon="💊"
+            icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="Blood Records"
             value={reports.blood}
-            icon="🩸"
+            icon={<DropletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="Billing Records"
             value={reports.billing}
-            icon="💰"
+            icon={<WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
         </div>
@@ -2611,7 +2612,7 @@ function Nurses() {
                   })
                 }
                 placeholder="Enter nursing note..."
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
               />
 
             </div>
@@ -2693,7 +2694,7 @@ function Nurses() {
                   })
                 }
                 placeholder="Enter patient assessment..."
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
               />
 
             </div>
@@ -2827,7 +2828,7 @@ function Input({
         onChange={onChange}
         placeholder={placeholder}
         required={required}
-        className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+        className="hms-input w-full"
       />
 
     </div>
@@ -2856,7 +2857,7 @@ function Select({
       <select
         value={value}
         onChange={onChange}
-        className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+        className="hms-input w-full"
         required
       >
 

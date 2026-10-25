@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useRole, ALL_MODULES } from "../../assets/context/RoleContext.jsx"
+import { CrownIcon, HospitalIcon, StethoscopeIcon, UserCogIcon, UserIcon, UserRoundIcon } from "lucide-react"
 
 function Permissions() {
   const modules = ALL_MODULES
@@ -78,12 +79,12 @@ function Permissions() {
   const { activeRoleName, switchRole } = useRole()
 
   const roleIcons = {
-    Admin: "👑",
-    Doctor: "👨‍⚕️",
-    Nurse: "👩‍⚕️",
-    Compounder: "🧑‍💼",
-    Reception: "🏥",
-    Patient: "👤",
+    Admin: <CrownIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+    Doctor: <StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+    Nurse: <UserRoundIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+    Compounder: <UserCogIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+    Reception: <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+    Patient: <UserIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
   }
 
   return (
@@ -108,7 +109,7 @@ function Permissions() {
         <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow-xs border border-gray-200">
           <span className="text-xs text-gray-500 font-medium">Your Current Role:</span>
           <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-            {roleIcons[activeRoleName] || "👤"} {activeRoleName}
+            {roleIcons[activeRoleName] || <UserIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />} {activeRoleName}
           </span>
         </div>
       </div>
@@ -135,7 +136,7 @@ function Permissions() {
                       : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200"
                   }`}
                 >
-                  <span className="text-sm">{roleIcons[role.name] || "👤"}</span>
+                  <span className="text-sm">{roleIcons[role.name] || <UserIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}</span>
                   <span className="font-semibold">{role.name}</span>
                   {isCurrent && (
                     <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full font-bold">

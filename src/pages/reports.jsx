@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import api from "../services/api.js"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { CalendarDaysIcon, FlaskConicalIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, StethoscopeIcon, UsersIcon, WalletIcon } from "lucide-react"
 
 
 function Reports() {
@@ -98,7 +99,7 @@ function Reports() {
         <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-12 text-center">
 
           <div className="text-5xl mb-4">
-            🏥
+            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
           </div>
 
           <h2 className="text-xl font-bold text-gray-800">
@@ -224,7 +225,7 @@ function Reports() {
             )
           }
 
-          className="border border-gray-300 rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+          className="hms-input"
 
         >
 
@@ -258,7 +259,7 @@ function Reports() {
         <div className="flex items-center gap-4">
 
           <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-            🏥
+            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
           </div>
 
           <div>
@@ -272,7 +273,7 @@ function Reports() {
             </h2>
 
             <p className="text-sm text-gray-500">
-              📍 {selectedHospital.address}
+              <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.address}
             </p>
 
           </div>
@@ -311,7 +312,7 @@ function Reports() {
               patientsTotal
             }
             subtitle="Registered patients"
-            icon="👥"
+            icon={<UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-blue-100"
           />
 
@@ -322,7 +323,7 @@ function Reports() {
               doctorsTotal
             }
             subtitle="Active doctors"
-            icon="👨‍⚕️"
+            icon={<StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-green-100"
           />
 
@@ -333,7 +334,7 @@ function Reports() {
               appointmentsTotal
             }
             subtitle="Appointments"
-            icon="📅"
+            icon={<CalendarDaysIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-orange-100"
           />
 
@@ -344,7 +345,7 @@ function Reports() {
               prescriptionTotal
             }
             subtitle="Doctor prescriptions"
-            icon="🧾"
+            icon={<ReceiptIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-purple-100"
           />
 
@@ -371,7 +372,7 @@ function Reports() {
             title="Total Revenue"
             value={`₹${totalRevenue.toLocaleString("en-IN")}`}
             subtitle="Overall revenue"
-            icon="💰"
+            icon={<WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-green-100"
           />
 
@@ -380,7 +381,7 @@ function Reports() {
             title="Pharmacy"
             value={`₹${pharmacyRevenue.toLocaleString("en-IN")}`}
             subtitle="Medicine sales"
-            icon="💊"
+            icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-purple-100"
           />
 
@@ -389,7 +390,7 @@ function Reports() {
             title="Laboratory"
             value={laboratoryRevenue === null ? "Not tracked" : `₹${laboratoryRevenue.toLocaleString("en-IN")}`}
             subtitle="Laboratory revenue"
-            icon="🧪"
+            icon={<FlaskConicalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-blue-100"
           />
 
@@ -400,7 +401,7 @@ function Reports() {
               billsTotal
             }
             subtitle={`${paidBills} paid • ${pendingBills} pending`}
-            icon="🧾"
+            icon={<ReceiptIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-orange-100"
           />
 

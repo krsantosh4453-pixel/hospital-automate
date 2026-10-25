@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
+import { ChartColumnIcon, ClipboardListIcon, DropletIcon, HeartPulseIcon, HospitalIcon, HouseIcon, NotebookPenIcon, PillIcon, StethoscopeIcon, UserIcon, UsersIcon, WalletIcon } from "lucide-react"
 
 function Compounder() {
   const { selectedHospital } = usePatient()
@@ -659,62 +660,62 @@ function Compounder() {
     {
       id: "home",
       label: "Home",
-      icon: "🏠",
+      icon: <HouseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "profile",
       label: "My Profile",
-      icon: "👤",
+      icon: <UserIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "patients",
       label: "Patients",
-      icon: "🧑‍🤝‍🧑",
+      icon: <UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "assessment",
       label: "Assessment",
-      icon: "🩺",
+      icon: <StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "vitals",
       label: "Vitals",
-      icon: "❤️",
+      icon: <HeartPulseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "notes",
       label: "Notes",
-      icon: "📝",
+      icon: <NotebookPenIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "orders",
       label: "Orders",
-      icon: "📋",
+      icon: <ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "mar",
       label: "Medicine / MAR",
-      icon: "💊",
+      icon: <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "blood",
       label: "Blood",
-      icon: "🩸",
+      icon: <DropletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "discharge",
       label: "Discharge",
-      icon: "🏥",
+      icon: <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "billing",
       label: "Billing",
-      icon: "💰",
+      icon: <WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
     {
       id: "reports",
       label: "Reports",
-      icon: "📊",
+      icon: <ChartColumnIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
     },
   ]
 
@@ -729,7 +730,7 @@ function Compounder() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
 
           <div className="text-5xl mb-4">
-            🏥
+            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
           </div>
 
           <h1 className="text-2xl font-bold text-gray-800">
@@ -815,7 +816,7 @@ function Compounder() {
         </p>
 
         <p className="font-semibold text-blue-700 mt-1">
-          🏥 {selectedHospital.name}
+          <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.name}
         </p>
 
       </div>
@@ -863,7 +864,7 @@ function Compounder() {
               value={
                 hospitalPatients.length
               }
-              icon="🧑‍🤝‍🧑"
+              icon={<UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Hospital patients"
             />
 
@@ -872,7 +873,7 @@ function Compounder() {
               value={
                 hospitalMedicines.length
               }
-              icon="💊"
+              icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Medicine records"
             />
 
@@ -885,7 +886,7 @@ function Compounder() {
                     "Pending"
                 ).length
               }
-              icon="📋"
+              icon={<ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Orders waiting"
             />
 
@@ -894,7 +895,7 @@ function Compounder() {
               value={
                 hospitalBlood.length
               }
-              icon="🩸"
+              icon={<DropletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Blood records"
             />
 
@@ -1018,7 +1019,7 @@ function Compounder() {
           <div className="flex flex-col md:flex-row gap-6">
 
             <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center text-5xl">
-              💊
+              <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
             </div>
 
             <div className="flex-1">
@@ -1213,7 +1214,7 @@ function Compounder() {
               )
             }
             placeholder="Search patient..."
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 mb-5 outline-none focus:ring-2 focus:ring-blue-500"
+            className="hms-input w-full mb-5"
           />
 
           <div className="overflow-x-auto">
@@ -1991,7 +1992,7 @@ function Compounder() {
             value={
               hospitalPatients.length
             }
-            icon="🧑‍🤝‍🧑"
+            icon={<UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -1999,7 +2000,7 @@ function Compounder() {
             value={
               hospitalVitals.length
             }
-            icon="❤️"
+            icon={<HeartPulseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2007,7 +2008,7 @@ function Compounder() {
             value={
               hospitalAssessments.length
             }
-            icon="🩺"
+            icon={<StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2015,7 +2016,7 @@ function Compounder() {
             value={
               hospitalNotes.length
             }
-            icon="📝"
+            icon={<NotebookPenIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2023,7 +2024,7 @@ function Compounder() {
             value={
               hospitalOrders.length
             }
-            icon="📋"
+            icon={<ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2031,7 +2032,7 @@ function Compounder() {
             value={
               hospitalMedicines.length
             }
-            icon="💊"
+            icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2039,7 +2040,7 @@ function Compounder() {
             value={
               hospitalBlood.length
             }
-            icon="🩸"
+            icon={<DropletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2047,7 +2048,7 @@ function Compounder() {
             value={
               hospitalBilling.length
             }
-            icon="💰"
+            icon={<WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
         </div>
@@ -2417,7 +2418,7 @@ function Compounder() {
                   })
                 }
                 placeholder="Enter note..."
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
               />
 
             </div>
@@ -2499,7 +2500,7 @@ function Compounder() {
                   })
                 }
                 placeholder="Enter assessment..."
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
               />
 
             </div>
@@ -2633,7 +2634,7 @@ function Input({
         onChange={onChange}
         placeholder={placeholder}
         required={required}
-        className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+        className="hms-input w-full"
       />
 
     </div>
@@ -2662,7 +2663,7 @@ function Select({
       <select
         value={value}
         onChange={onChange}
-        className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+        className="hms-input w-full"
         required
       >
 
