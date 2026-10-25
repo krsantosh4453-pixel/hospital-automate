@@ -2,8 +2,13 @@ import { useMemo, useState, useEffect } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import { ChartColumnIcon, ClipboardListIcon, DropletIcon, HeartPulseIcon, HospitalIcon, HouseIcon, NotebookPenIcon, PillIcon, StethoscopeIcon, UserIcon, UsersIcon, WalletIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
+import { useConfirm } from "../components/ui"
 
 function Compounder() {
+  const toast = useToast()
+  const [confirm, confirmDialog] = useConfirm()
+
   const { selectedHospital } = usePatient()
 
   // =====================================================
@@ -256,7 +261,7 @@ function Compounder() {
 
   const saveProfile = () => {
     setEditingProfile(false)
-    alert("Profile updated successfully.")
+    toast.success("Profile updated successfully.")
   }
 
   // =====================================================
@@ -282,21 +287,21 @@ function Compounder() {
     e.preventDefault()
 
     if (!isAdmin) {
-      alert(
+      toast.warning(
         "Only Admin can add a compounder."
       )
       return
     }
 
     if (!selectedHospital) {
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
       return
     }
 
     if (!newCompounder.name.trim()) {
-      alert(
+      toast.warning(
         "Please enter compounder name."
       )
       return
@@ -344,9 +349,9 @@ function Compounder() {
   // REMOVE COMPOUNDER - ADMIN ONLY
   // =====================================================
 
-  const removeCompounder = (compounder) => {
+  const removeCompounder = async (compounder) => {
     if (!isAdmin) {
-      alert(
+      toast.warning(
         "Only Admin can remove a compounder."
       )
       return
@@ -357,16 +362,16 @@ function Compounder() {
       compounder.hospitalId !==
       selectedHospital.id
     ) {
-      alert(
+      toast.warning(
         "You can only remove compounders from the selected hospital."
       )
       return
     }
 
     const confirmed =
-      window.confirm(
+      (await confirm(
         `Remove ${compounder.name}?`
-      )
+      ))
 
     if (!confirmed) return
 
@@ -401,7 +406,7 @@ function Compounder() {
     if (!selectedHospital) return
 
     if (!vitalForm.patientId) {
-      alert("Please select patient.")
+      toast.warning("Please select patient.")
       return
     }
 
@@ -468,7 +473,7 @@ function Compounder() {
       !noteForm.patientId ||
       !noteForm.text.trim()
     ) {
-      alert(
+      toast.warning(
         "Please select patient and enter note."
       )
       return
@@ -522,7 +527,7 @@ function Compounder() {
       !assessmentForm.patientId ||
       !assessmentForm.assessment.trim()
     ) {
-      alert(
+      toast.warning(
         "Please select patient and enter assessment."
       )
       return
@@ -566,7 +571,7 @@ function Compounder() {
       medicine.hospitalId !==
       selectedHospital.id
     ) {
-      alert(
+      toast.info(
         "Invalid hospital access."
       )
       return
@@ -597,7 +602,7 @@ function Compounder() {
       item.hospitalId !==
       selectedHospital.id
     ) {
-      alert(
+      toast.info(
         "Invalid hospital access."
       )
       return
@@ -619,13 +624,13 @@ function Compounder() {
   // DISCHARGE
   // =====================================================
 
-  const dischargePatient = (patient) => {
+  const dischargePatient = async (patient) => {
     if (!selectedHospital) return
 
     const confirmed =
-      window.confirm(
+      (await confirm(
         `Start discharge process for ${patient.name}?`
-      )
+      ))
 
     if (!confirmed) return
 
@@ -647,7 +652,7 @@ function Compounder() {
       ...prev,
     ])
 
-    alert(
+    toast.success(
       "Discharge request created."
     )
   }
@@ -725,7 +730,7 @@ function Compounder() {
 
   if (!selectedHospital) {
     return (
-      <div className="p-6">
+      <>{confirmDialog}<div className="p-6">
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
 
@@ -743,7 +748,7 @@ function Compounder() {
 
         </div>
 
-      </div>
+      </div></>
     )
   }
 
@@ -752,7 +757,7 @@ function Compounder() {
   // =====================================================
 
   return (
-    <div className="p-6">
+    <>{confirmDialog}<div className="p-6">
 
       {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
@@ -2518,7 +2523,7 @@ function Compounder() {
 
       )}
 
-    </div>
+    </div></>
   )
 }
 

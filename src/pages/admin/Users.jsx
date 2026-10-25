@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import api from "../../services/api.js"
+import { useConfirm } from "../../components/ui"
 
 // Roles a hospital membership can hold (users.models.StaffRole).
 const ROLES = [
@@ -21,6 +22,8 @@ const ROLES = [
 // register themselves (Create Account) and are approved here; the backend
 // only lets this hospital's Admin or Hospital Manager make these changes.
 function Users() {
+  const [confirm, confirmDialog] = useConfirm()
+
   const { selectedHospital } = usePatient()
   const [staff, setStaff] = useState([])
   const [pending, setPending] = useState([])
@@ -72,9 +75,9 @@ function Users() {
   const changeRole = (member, role) =>
     run(member.id, () => api.users.updateMembership(member.id, { role }), `${member.name} is now ${role}.`)
 
-  const toggleActive = (member) => {
+  const toggleActive = async (member) => {
     const active = !member.membership?.is_active
-    if (!active && !window.confirm(`Remove ${member.name}'s access to this hospital?`)) return
+    if (!active && !(await confirm(`Remove ${member.name}'s access to this hospital?`))) return
     run(
       member.id,
       () => api.users.updateMembership(member.id, { is_active: active }),
@@ -106,7 +109,7 @@ function Users() {
   const activeCount = staff.filter((member) => member.membership?.is_active).length
 
   return (
-    <div className="p-6">
+    <>{confirmDialog}<div className="p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Users</h1>
@@ -300,7 +303,7 @@ function Users() {
           </div>
         )}
       </div>
-    </div>
+    </div></>
   )
 }
 

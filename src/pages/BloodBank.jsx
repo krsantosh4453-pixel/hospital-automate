@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { usePatient } from '../assets/context/PatientContext.jsx';
 import api from '../services/api';
+import { useConfirm } from "../components/ui"
 
 const BloodBank = () => {
+  const [confirm, confirmDialog] = useConfirm()
+
   const { selectedHospital } = usePatient();
   const [inventory, setInventory] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -85,7 +88,7 @@ const BloodBank = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this request?")) return;
+    if (!(await confirm("Delete this request?"))) return;
     if (!selectedHospital) return;
     try {
       await api.delete(`/bloodbank/requests/${id}/?hospital=${selectedHospital.id}`);
@@ -109,7 +112,7 @@ const BloodBank = () => {
   };
 
   return (
-    <div className="p-6">
+    <>{confirmDialog}<div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Blood Bank</h1>
         <button
@@ -288,7 +291,7 @@ const BloodBank = () => {
           </div>
         </div>
       )}
-    </div>
+    </div></>
   );
 };
 

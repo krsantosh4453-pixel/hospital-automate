@@ -2,8 +2,14 @@ import { useState, useEffect } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import { FlaskConicalIcon, HospitalIcon, MapPinIcon, TriangleAlertIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
+import { useConfirm, usePrompt } from "../components/ui"
 
 function Laboratory() {
+  const toast = useToast()
+  const [confirm, confirmDialog] = useConfirm()
+  const [promptText, promptDialog] = usePrompt()
+
 
   const { selectedHospital } = usePatient()
 
@@ -238,7 +244,7 @@ function Laboratory() {
     e.preventDefault()
 
     if (!selectedHospital) {
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
       return
@@ -255,7 +261,7 @@ function Laboratory() {
       resetForm()
       await loadTests()
     } catch (err) {
-      alert(`Lab order was not created: ${err.message}`)
+      toast.error(`Lab order was not created: ${err.message}`)
     }
   }
 
@@ -319,7 +325,7 @@ function Laboratory() {
       resetForm()
       await loadTests()
     } catch (err) {
-      alert(`Lab order was not updated: ${err.message}`)
+      toast.error(`Lab order was not updated: ${err.message}`)
     }
   }
 
@@ -330,9 +336,9 @@ function Laboratory() {
   const handleDelete = async (id) => {
     const test = tests.find((t) => t.id === id)
     const confirmed =
-      window.confirm(
+      (await confirm(
         "Cancel this laboratory order? It stays in the record as cancelled."
-      )
+      ))
 
     if (!confirmed || !test) {
       return
@@ -342,7 +348,7 @@ function Laboratory() {
       await api.laboratory.tests.cancel(test.apiId)
       await loadTests()
     } catch (err) {
-      alert(`Order was not cancelled: ${err.message}`)
+      toast.error(`Order was not cancelled: ${err.message}`)
     }
   }
 
@@ -357,7 +363,7 @@ function Laboratory() {
     const [label, method, needsResult] = step
     let payload = {}
     if (needsResult) {
-      const resultText = window.prompt(`Result for ${test.test} (${test.patient}):`)
+      const resultText = (await promptText(`Result for ${test.test} (${test.patient}):`))
       if (!resultText || !resultText.trim()) return
       payload = { result_text: resultText.trim() }
     }
@@ -366,7 +372,7 @@ function Laboratory() {
       await api.laboratory.tests[method](test.apiId, payload)
       await loadTests()
     } catch (err) {
-      alert(`${label} failed: ${err.message}`)
+      toast.error(`${label} failed: ${err.message}`)
     } finally {
       setBusyId(null)
     }
@@ -400,7 +406,7 @@ function Laboratory() {
 
   return (
 
-    <div>
+    <>{confirmDialog}{promptDialog}<div>
 
 
       {/* =========================
@@ -427,7 +433,7 @@ function Laboratory() {
 
             if (!selectedHospital) {
 
-              alert(
+              toast.warning(
                 "Please select a hospital first."
               )
 
@@ -1317,7 +1323,7 @@ function Laboratory() {
 
       )}
 
-    </div>
+    </div></>
   )
 }
 

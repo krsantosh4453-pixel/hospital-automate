@@ -3,6 +3,7 @@ import { useAuth } from "../../assets/context/AuthContext.jsx"
 import { useHospitals } from "../../assets/context/HospitalsContext.jsx"
 import api from "../../services/api.js"
 import { CircleCheckIcon, ClipboardListIcon, PenLineIcon, TriangleAlertIcon, XIcon } from "lucide-react"
+import { useConfirm } from "../../components/ui"
 
 const SCOPE_LABELS = {
   visits: "Visit history",
@@ -22,6 +23,8 @@ const inDays = (days) => {
 }
 
 function PatientConsent() {
+  const [confirm, confirmDialog] = useConfirm()
+
   const { patient } = useAuth()
   const { hospitals } = useHospitals()
   const [consentForms, setConsentForms] = useState([])
@@ -104,7 +107,7 @@ function PatientConsent() {
   }
 
   const handleRevokeConsent = async (record) => {
-    if (!window.confirm(`Withdraw your consent for "${record.form_name}"?`)) return
+    if (!(await confirm(`Withdraw your consent for "${record.form_name}"?`))) return
     setError(null)
     try {
       await api.consent.records.revoke(record.id)
@@ -148,7 +151,7 @@ function PatientConsent() {
   }
 
   const handleRevokeShare = async (share) => {
-    if (!window.confirm(`Stop sharing with ${share.recipient_hospital_name}? They will lose access immediately.`)) return
+    if (!(await confirm(`Stop sharing with ${share.recipient_hospital_name}? They will lose access immediately.`))) return
     setError(null)
     try {
       await api.consent.shares.revoke(share.id)
@@ -160,7 +163,7 @@ function PatientConsent() {
   }
 
   return (
-    <div className="space-y-6">
+    <>{confirmDialog}<div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Consent Forms</h1>
         <p className="text-gray-500 mt-1">Review and sign consent forms, and control who can see your records</p>
@@ -399,7 +402,7 @@ function PatientConsent() {
           </div>
         </div>
       )}
-    </div>
+    </div></>
   )
 }
 

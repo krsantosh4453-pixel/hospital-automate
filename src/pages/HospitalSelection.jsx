@@ -3,8 +3,11 @@ import { useNavigate } from "react-router-dom"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useHospitals } from "../assets/context/HospitalsContext.jsx"
 import { CarIcon, CheckIcon, HospitalIcon, MapIcon, MapPinIcon, PhoneIcon, RulerIcon, SearchIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
 
 function HospitalSelection() {
+  const toast = useToast()
+
   const navigate = useNavigate()
   const { selectHospital } = usePatient()
 
@@ -154,7 +157,7 @@ function HospitalSelection() {
   const handleContinue = () => {
 
     if (!selectedHospital) {
-      alert("Please select a hospital.")
+      toast.warning("Please select a hospital.")
       return
     }
 

@@ -1,7 +1,10 @@
 import { useState } from "react"
 import { useHospitals } from "../../assets/context/HospitalsContext.jsx"
+import { useConfirm } from "../../components/ui"
 
 function Hospitals() {
+  const [confirm, confirmDialog] = useConfirm()
+
   const {
     hospitals,
     addHospital,
@@ -127,9 +130,9 @@ function Hospitals() {
   }
 
   const handleDeleteHospital = async (id) => {
-    const confirmDelete = window.confirm(
+    const confirmDelete = (await confirm(
       "Are you sure you want to delete this hospital?"
-    )
+    ))
 
     if (!confirmDelete) return
 
@@ -203,7 +206,7 @@ function Hospitals() {
     ).length
 
   return (
-    <div className="p-6">
+    <>{confirmDialog}<div className="p-6">
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
@@ -760,7 +763,7 @@ function Hospitals() {
 
       )}
 
-    </div>
+    </div></>
   )
 }
 

@@ -4,6 +4,8 @@ import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
 import { LoadingSpinner } from "../components/LoadingSpinner.jsx"
 import { AlarmClockIcon, CheckIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, SearchIcon, TrendingDownIcon, TriangleAlertIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
+import { useConfirm } from "../components/ui"
 
 // Convert "MM/YYYY" (UI) to "YYYY-MM-01" (API DateField). Returns null if invalid.
 const toApiDate = (value) => {
@@ -35,6 +37,9 @@ const parseExpiry = (value) => {
 }
 
 function Pharmacy() {
+  const toast = useToast()
+  const [confirm, confirmDialog] = useConfirm()
+
   const {
     loadMedicines,
     createMedicine,
@@ -351,7 +356,7 @@ function Pharmacy() {
 
     if (!selectedHospital) {
 
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
 
@@ -394,7 +399,7 @@ function Pharmacy() {
 
     } catch (error) {
 
-      alert(
+      toast.error(
         error?.message ||
         "Unable to add medicine."
       )
@@ -496,7 +501,7 @@ function Pharmacy() {
 
     } catch (error) {
 
-      alert(
+      toast.error(
         error?.message ||
         "Unable to update medicine."
       )
@@ -514,9 +519,9 @@ function Pharmacy() {
   ) => {
 
     const confirmed =
-      window.confirm(
+      (await confirm(
         "Are you sure you want to delete this medicine?"
-      )
+      ))
 
 
     if (!confirmed) {
@@ -532,7 +537,7 @@ function Pharmacy() {
 
     } catch (error) {
 
-      alert(
+      toast.error(
         error?.message ||
         "Unable to delete medicine."
       )
@@ -599,7 +604,7 @@ function Pharmacy() {
 
     if (!selectedHospital) {
 
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
 
@@ -617,7 +622,7 @@ function Pharmacy() {
 
     if (!medicine) {
 
-      alert(
+      toast.warning(
         "Please select a medicine."
       )
 
@@ -629,7 +634,7 @@ function Pharmacy() {
       !issueData.patient.trim()
     ) {
 
-      alert(
+      toast.warning(
         "Please enter the patient name."
       )
 
@@ -645,7 +650,7 @@ function Pharmacy() {
 
     if (quantity <= 0) {
 
-      alert(
+      toast.warning(
         "Quantity must be greater than 0."
       )
 
@@ -658,7 +663,7 @@ function Pharmacy() {
       medicine.stock
     ) {
 
-      alert(
+      toast.warning(
         `Only ${medicine.stock} units are available.`
       )
 
@@ -687,7 +692,7 @@ function Pharmacy() {
       await reloadPharmacyData()
 
 
-      alert(
+      toast.success(
         `${quantity} ${medicine.name} issued successfully.`
       )
 
@@ -699,7 +704,7 @@ function Pharmacy() {
       await reloadPharmacyData()
 
 
-      alert(
+      toast.error(
         error?.message ||
         "Unable to issue medicine."
       )
@@ -716,7 +721,7 @@ function Pharmacy() {
 
     if (!selectedHospital) {
 
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
 
@@ -728,7 +733,7 @@ function Pharmacy() {
       !prescriptionId.trim()
     ) {
 
-      alert(
+      toast.warning(
         "Please enter Prescription ID."
       )
 
@@ -759,7 +764,7 @@ function Pharmacy() {
         null
       )
 
-      alert(
+      toast.error(
         "Prescription not found for this hospital."
       )
 
@@ -792,7 +797,7 @@ function Pharmacy() {
       "Dispensed"
     ) {
 
-      alert(
+      toast.info(
         "This prescription has already been dispensed."
       )
 
@@ -808,7 +813,7 @@ function Pharmacy() {
       prescribedMedicines.length === 0
     ) {
 
-      alert(
+      toast.info(
         "This prescription has no medicines to dispense."
       )
 
@@ -823,7 +828,7 @@ function Pharmacy() {
       prescribedMedicines.length > 1
     ) {
 
-      alert(
+      toast.error(
         "This prescription contains multiple medicines. Automatic dispensing is not supported yet — please issue each medicine from the Issue Medicine section."
       )
 
@@ -848,7 +853,7 @@ function Pharmacy() {
 
     if (!inventoryMedicine) {
 
-      alert(
+      toast.error(
         `${prescriptionMedicine.name} is not available in ${selectedHospital.name} pharmacy stock.`
       )
 
@@ -869,7 +874,7 @@ function Pharmacy() {
       quantity
     ) {
 
-      alert(
+      toast.info(
         `Insufficient stock for ${prescriptionMedicine.name}. Available: ${inventoryMedicine.stock}`
       )
 
@@ -916,7 +921,7 @@ function Pharmacy() {
       })
 
 
-      alert(
+      toast.success(
         `Prescription ${foundPrescription.id} dispensed successfully.`
       )
 
@@ -925,7 +930,7 @@ function Pharmacy() {
       await reloadPharmacyData()
 
 
-      alert(
+      toast.error(
         error?.message ||
         "Unable to dispense prescription."
       )
@@ -957,7 +962,7 @@ function Pharmacy() {
 
   return (
 
-    <div>
+    <>{confirmDialog}<div>
 
 
       {/* =========================
@@ -991,7 +996,7 @@ function Pharmacy() {
 
               if (!selectedHospital) {
 
-                alert(
+                toast.warning(
                   "Please select a hospital first."
                 )
 
@@ -1014,7 +1019,7 @@ function Pharmacy() {
 
               if (!selectedHospital) {
 
-                alert(
+                toast.warning(
                   "Please select a hospital first."
                 )
 
@@ -1045,7 +1050,7 @@ function Pharmacy() {
 
               if (!selectedHospital) {
 
-                alert(
+                toast.warning(
                   "Please select a hospital first."
                 )
 
@@ -2923,7 +2928,7 @@ function Pharmacy() {
 
       )}
 
-    </div>
+    </div></>
   )
 }
 

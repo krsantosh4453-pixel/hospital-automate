@@ -2,8 +2,13 @@ import { useEffect, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import { CreditCardIcon, HospitalIcon, MapPinIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
+import { useConfirm } from "../components/ui"
 
 function Billing() {
+  const toast = useToast()
+  const [confirm, confirmDialog] = useConfirm()
+
 
   const { selectedHospital } = usePatient()
 
@@ -369,7 +374,7 @@ function Billing() {
 
     if (!selectedHospital) {
 
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
 
@@ -385,7 +390,7 @@ function Billing() {
       services.length === 0
     ) {
 
-      alert(
+      toast.warning(
         "Please enter at least one service amount."
       )
 
@@ -423,7 +428,7 @@ function Billing() {
 
     if (paid > total) {
 
-      alert(
+      toast.error(
         "Paid amount cannot be greater than total amount."
       )
 
@@ -440,7 +445,7 @@ function Billing() {
     )
 
     if (!patient) {
-      alert("Patient not found in this hospital. Please check the name/ID.")
+      toast.error("Patient not found in this hospital. Please check the name/ID.")
       return
     }
 
@@ -496,9 +501,9 @@ function Billing() {
       setBills(mappedBills)
 
       resetForm()
-      alert("Invoice created successfully!")
+      toast.success("Invoice created successfully!")
     } catch (error) {
-      alert(error.message || "Failed to create invoice")
+      toast.error(error.message || "Failed to create invoice")
     }
   }
 
@@ -612,7 +617,7 @@ function Billing() {
       services.length === 0
     ) {
 
-      alert(
+      toast.warning(
         "Please enter at least one service amount."
       )
 
@@ -650,7 +655,7 @@ function Billing() {
 
     if (paid > total) {
 
-      alert(
+      toast.error(
         "Paid amount cannot be greater than total amount."
       )
 
@@ -659,7 +664,7 @@ function Billing() {
 
 
     if (!selectedBill?.apiInvoice?.id) {
-      alert("Cannot update: missing server record ID")
+      toast.error("Cannot update: missing server record ID")
       return
     }
 
@@ -668,7 +673,7 @@ function Billing() {
     const alreadyPaid = Number(selectedBill.apiInvoice.total_paid || 0)
     const additional = Math.round((Number(paid) - alreadyPaid) * 100) / 100
     if (additional < 0) {
-      alert(`₹${alreadyPaid} has already been received. To return money, record a refund instead of lowering the paid amount.`)
+      toast.info(`₹${alreadyPaid} has already been received. To return money, record a refund instead of lowering the paid amount.`)
       return
     }
     const hasPayments = alreadyPaid > 0 || (selectedBill.apiInvoice.payments || []).length > 0
@@ -721,9 +726,9 @@ function Billing() {
       setBills(mappedBills)
 
       resetForm()
-      alert("Invoice updated successfully!")
+      toast.success("Invoice updated successfully!")
     } catch (error) {
-      alert(error.message || "Failed to update invoice")
+      toast.error(error.message || "Failed to update invoice")
     }
   }
 
@@ -737,9 +742,9 @@ function Billing() {
   ) => {
 
     const confirmed =
-      window.confirm(
+      (await confirm(
         "Are you sure you want to delete this bill?"
-      )
+      ))
 
 
     if (!confirmed) {
@@ -748,7 +753,7 @@ function Billing() {
 
     const bill = bills.find(b => b.id === id)
     if (!bill?.apiInvoice?.id) {
-      alert("Cannot delete: missing server record ID")
+      toast.error("Cannot delete: missing server record ID")
       return
     }
 
@@ -781,9 +786,9 @@ function Billing() {
       })
       setBills(mappedBills)
 
-      alert("Invoice deleted successfully!")
+      toast.success("Invoice deleted successfully!")
     } catch (error) {
-      alert(error.message || "Failed to delete invoice")
+      toast.error(error.message || "Failed to delete invoice")
     }
   }
 
@@ -906,7 +911,7 @@ function Billing() {
 
   return (
 
-    <div>
+    <>{confirmDialog}<div>
 
 
       {/* =========================
@@ -945,7 +950,7 @@ function Billing() {
                 !selectedHospital
               ) {
 
-                alert(
+                toast.warning(
                   "Please select a hospital first."
                 )
 
@@ -2267,7 +2272,7 @@ function Billing() {
 
         )}
 
-    </div>
+    </div></>
   )
 }
 

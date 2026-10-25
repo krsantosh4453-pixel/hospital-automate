@@ -10,8 +10,11 @@ import {
   saveSelectedLoginRole,
 } from "../utils/roleRouting.js"
 import { HospitalIcon, MailIcon, SmartphoneIcon, TicketIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
 
 function PatientLogin() {
+  const toast = useToast()
+
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { patientLogin, staffLogin, adoptExternalSession } = useAuth()
@@ -109,7 +112,7 @@ function PatientLogin() {
   // Handle Google OAuth Response
   const handleGoogleResponse = async (response) => {
     if (!response || !response.credential) {
-      alert("No credential received from Google.")
+      toast.warning("No credential received from Google.")
       return
     }
 
@@ -155,7 +158,7 @@ function PatientLogin() {
       }, 500)
     } catch (error) {
       console.error("Google login error:", error)
-      alert(`Google Login Error: ${error.message || "Could not connect to server."}`)
+      toast.error(`Google Login Error: ${error.message || "Could not connect to server."}`)
     } finally {
       setGoogleLoading(false)
       setGoogleStatus("")
@@ -165,7 +168,7 @@ function PatientLogin() {
   // Trigger Google Login popup
   const handleGoogleLogin = () => {
     if (!window.google?.accounts?.id) {
-      alert("Google Services are loading. Please try again in 2 seconds.")
+      toast.warning("Google Services are loading. Please try again in 2 seconds.")
       return
     }
 

@@ -1,9 +1,64 @@
 import { useState, useEffect, useCallback } from "react"
+import { Activity, Ambulance, ClipboardPlus, HeartPulse, LogOut, Pill, Plus, RefreshCw, Send, Stethoscope } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api"
-import { AmbulanceIcon, HourglassIcon, TriangleAlertIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  Modal,
+  PageHeader,
+  Select,
+  SkeletonRows,
+  StatTile,
+  StatusBadge,
+  TableWrap,
+  Tabs,
+  Textarea,
+} from "../components/ui"
+
+const list = (data) => (Array.isArray(data) ? data : data?.results || [])
+
+// Triage levels in priority order, with their target times.
+const TRIAGE = [
+  { level: "Critical", target: "Immediate", tone: "danger" },
+  { level: "Emergency", target: "< 15 min", tone: "danger" },
+  { level: "Urgent", target: "< 30 min", tone: "warning" },
+  { level: "Semi-Urgent", target: "< 60 min", tone: "brand" },
+  { level: "Non-Urgent", target: "< 120 min", tone: "success" },
+]
+const triageRank = (level) => {
+  const i = TRIAGE.findIndex((t) => t.level === level)
+  return i === -1 ? TRIAGE.length : i
+}
+const DONE = ["Discharged", "Admitted", "Referred", "Expired", "Left Against Advice"]
+const IN_CARE = ["Under Consultation", "Investigations", "Treatment", "Observation"]
+
+const toInt = (v) => (v === "" || v === undefined ? null : parseInt(v, 10))
+const toFloat = (v) => (v === "" || v === undefined ? null : parseFloat(v))
+
+const EMPTY = {
+  registration: { patient: "", triage_level: "Non-Urgent", remarks: "", attending_doctor: "" },
+  triage: { chief_complaint: "", pain_score: "", glasgow_coma_scale: "", triage_notes: "", triage_level: "Non-Urgent", triaged_by: "" },
+  vitals: { temperature: "", systolic_bp: "", diastolic_bp: "", heart_rate: "", respiratory_rate: "", spo2: "", blood_sugar: "", recorded_by: "" },
+  order: { order_type: "Lab", description: "", ordered_by: "" },
+  medication: { name: "", dose: "", route: "IV", frequency: "", duration: "", prescribed_by: "" },
+  discharge: { discharge_diagnosis: "", follow_up_instructions: "" },
+  refer: { referred_to: "", discharge_diagnosis: "" },
+}
+
+function TriageBadge({ level }) {
+  const t = TRIAGE.find((x) => x.level === level)
+  return <Badge tone={t?.tone || "neutral"} dot>{level || "—"}</Badge>
+}
 
 function Emergency() {
+  const toast = useToast()
   const { selectedHospital } = usePatient()
 
   const [visits, setVisits] = useState([])
@@ -11,65 +66,24 @@ function Emergency() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState("active")
   const [dashboardStats, setDashboardStats] = useState({})
-
-  const [showRegistrationForm, setShowRegistrationForm] = useState(false)
-  const [showTriageForm, setShowTriageForm] = useState(false)
-  const [showVitalsForm, setShowVitalsForm] = useState(false)
-  const [showOrderForm, setShowOrderForm] = useState(false)
-  const [showMedicationForm, setShowMedicationForm] = useState(false)
-
-  const [selectedVisit, setSelectedVisit] = useState(null)
-  const [visitVitals, setVisitVitals] = useState([])
-  const [visitOrders, setVisitOrders] = useState([])
-  const [visitMedications, setVisitMedications] = useState([])
-
-  const [registrationForm, setRegistrationForm] = useState({
-    patient: "",
-    triage_level: "Non-Urgent",
-    remarks: "",
-    attending_doctor: "",
-  })
-  const [triageForm, setTriageForm] = useState({
-    chief_complaint: "",
-    pain_score: "",
-    glasgow_coma_scale: "",
-    triage_notes: "",
-    triage_level: "Non-Urgent",
-  })
-  const [vitalsForm, setVitalsForm] = useState({
-    temperature: "",
-    systolic_bp: "",
-    diastolic_bp: "",
-    heart_rate: "",
-    respiratory_rate: "",
-    spo2: "",
-    blood_sugar: "",
-  })
-  const [orderForm, setOrderForm] = useState({
-    order_type: "Lab",
-    description: "",
-  })
-  const [medicationForm, setMedicationForm] = useState({
-    name: "",
-    dose: "",
-    route: "IV",
-    frequency: "",
-    duration: "",
-  })
-
   const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [nurses, setNurses] = useState([])
+
+  const [dialog, setDialog] = useState(null)
+  const [selectedVisit, setSelectedVisit] = useState(null)
+  const [forms, setForms] = useState(EMPTY)
+  const [saving, setSaving] = useState(false)
+
+  const setForm = (name) => (field) => (e) => setForms((prev) => ({ ...prev, [name]: { ...prev[name], [field]: e.target.value } }))
 
   const fetchData = useCallback(async () => {
     if (!selectedHospital) {
       setLoading(false)
       return
     }
-
     setLoading(true)
     setError(null)
-
     try {
       const [visitsRes, patientsRes, doctorsRes, nursesRes, dashboardRes] = await Promise.all([
         api.emergency.visits.list(selectedHospital.id),
@@ -78,11 +92,10 @@ function Emergency() {
         api.nurses.nurses.list(selectedHospital.id),
         api.emergency.visits.dashboard(selectedHospital.id),
       ])
-
-      setVisits(visitsRes.results || visitsRes)
-      setPatients(patientsRes.results || patientsRes)
-      setDoctors(doctorsRes.results || doctorsRes)
-      setNurses(nursesRes.results || nursesRes)
+      setVisits(list(visitsRes))
+      setPatients(list(patientsRes))
+      setDoctors(list(doctorsRes))
+      setNurses(list(nursesRes))
       setDashboardStats(dashboardRes || {})
     } catch (err) {
       setError(err.message || "Failed to load emergency data")
@@ -95,665 +108,416 @@ function Emergency() {
     fetchData()
   }, [fetchData])
 
-  const fetchVisitDetails = async (visitId) => {
-    try {
-      const [visitRes, vitalsRes, ordersRes, medicationsRes] = await Promise.all([
-        api.emergency.visits.get(visitId),
-        api.emergency.vitals.list(selectedHospital.id, visitId),
-        api.emergency.orders.list(selectedHospital.id, visitId),
-        api.emergency.medications.list(selectedHospital.id, visitId),
-      ])
-      setSelectedVisit(visitRes)
-      setVisitVitals(vitalsRes.results || vitalsRes)
-      setVisitOrders(ordersRes.results || ordersRes)
-      setVisitMedications(medicationsRes.results || medicationsRes)
-    } catch (err) {
-      console.error("Failed to fetch visit details:", err)
-    }
-  }
-
-  const resetForms = () => {
-    setRegistrationForm({ patient: "", triage_level: "Non-Urgent", remarks: "", attending_doctor: "" })
-    setTriageForm({ chief_complaint: "", pain_score: "", glasgow_coma_scale: "", triage_notes: "", triage_level: "Non-Urgent" })
-    setVitalsForm({ temperature: "", systolic_bp: "", diastolic_bp: "", heart_rate: "", respiratory_rate: "", spo2: "", blood_sugar: "" })
-    setOrderForm({ order_type: "Lab", description: "" })
-    setMedicationForm({ name: "", dose: "", route: "IV", frequency: "", duration: "" })
-    setSelectedVisit(null)
-    setVisitVitals([])
-    setVisitOrders([])
-    setVisitMedications([])
-    setShowRegistrationForm(false)
-    setShowTriageForm(false)
-    setShowVitalsForm(false)
-    setShowOrderForm(false)
-    setShowMedicationForm(false)
-  }
-
-  const handleRegistration = async (e) => {
-    e.preventDefault()
-    if (!selectedHospital) return alert("Please select a hospital first.")
-
-    const patientId = patients.find(p => p.name === registrationForm.patient)?.id
-    const doctorId = doctors.find(d => d.name === registrationForm.attending_doctor)?.id
-
-    try {
-      await api.emergency.visits.create({
-        patient: patientId,
-        hospital: selectedHospital.id,
-        triage_level: registrationForm.triage_level,
-        remarks: registrationForm.remarks,
-        attending_doctor: doctorId,
-      })
-      alert("Emergency visit registered")
-      fetchData()
-      resetForms()
-    } catch (err) {
-      alert(err.message || "Failed to register visit")
-    }
-  }
-
-  const handleStartTriage = async (visit) => {
+  const open = (name, visit = null, preset = {}) => {
     setSelectedVisit(visit)
-    setTriageForm(prev => ({ ...prev, triage_level: visit.triage_level }))
-    setShowTriageForm(true)
+    setForms((prev) => ({ ...prev, [name]: { ...EMPTY[name], ...preset } }))
+    setDialog(name)
+  }
+  const close = () => {
+    setDialog(null)
+    setSelectedVisit(null)
   }
 
-  const handleCompleteTriage = async (e) => {
+  const submit = (fn, okMessage) => async (e) => {
     e.preventDefault()
-    if (!selectedVisit) return
-
+    setSaving(true)
     try {
-      await api.emergency.visits.completeTriage(selectedVisit.id, {
-        chief_complaint: triageForm.chief_complaint,
-        pain_score: triageForm.pain_score ? parseInt(triageForm.pain_score) : null,
-        glasgow_coma_scale: triageForm.glasgow_coma_scale ? parseInt(triageForm.glasgow_coma_scale) : null,
-        triage_notes: triageForm.triage_notes,
-        triage_level: triageForm.triage_level,
-        triaged_by: triageForm.triaged_by,
-      })
-      alert("Triage completed")
+      await fn()
+      toast.success(okMessage)
+      close()
       fetchData()
-      resetForms()
     } catch (err) {
-      alert(err.message || "Failed to complete triage")
+      toast.error(err.message || "Not saved")
+    } finally {
+      setSaving(false)
     }
   }
+
+  const f = forms
+
+  const handleRegistration = submit(
+    () =>
+      api.emergency.visits.create({
+        // Ids, not names: two patients can share a name.
+        patient: toInt(f.registration.patient),
+        hospital: selectedHospital.id,
+        triage_level: f.registration.triage_level,
+        remarks: f.registration.remarks,
+        attending_doctor: toInt(f.registration.attending_doctor),
+      }),
+    "Emergency visit registered",
+  )
+
+  const handleCompleteTriage = submit(async () => {
+    // A registered visit must enter triage before it can be completed.
+    if (selectedVisit.status === "Registered") await api.emergency.visits.startTriage(selectedVisit.id)
+    await api.emergency.visits.completeTriage(selectedVisit.id, {
+      chief_complaint: f.triage.chief_complaint,
+      pain_score: toInt(f.triage.pain_score),
+      glasgow_coma_scale: toInt(f.triage.glasgow_coma_scale),
+      triage_notes: f.triage.triage_notes,
+      triage_level: f.triage.triage_level,
+      triaged_by: toInt(f.triage.triaged_by),
+    })
+  }, "Triage completed")
 
   const handleStartConsultation = async (visit) => {
     try {
       await api.emergency.visits.startConsultation(visit.id, { doctor_id: visit.attending_doctor })
+      toast.success(`Consultation started for ${visit.patient_name}`)
       fetchData()
     } catch (err) {
-      alert(err.message || "Failed to start consultation")
+      toast.error(err.message || "Failed to start consultation")
     }
   }
 
-  const handleAddVitals = async (e) => {
-    e.preventDefault()
-    if (!selectedVisit) return
+  const handleAddVitals = submit(
+    () =>
+      api.emergency.visits.addVitals(selectedVisit.id, {
+        temperature: toFloat(f.vitals.temperature),
+        systolic_bp: toInt(f.vitals.systolic_bp),
+        diastolic_bp: toInt(f.vitals.diastolic_bp),
+        heart_rate: toInt(f.vitals.heart_rate),
+        respiratory_rate: toInt(f.vitals.respiratory_rate),
+        spo2: toInt(f.vitals.spo2),
+        blood_sugar: toFloat(f.vitals.blood_sugar),
+        recorded_by: toInt(f.vitals.recorded_by),
+      }),
+    "Vitals recorded",
+  )
 
-    try {
-      await api.emergency.visits.addVitals(selectedVisit.id, {
-        temperature: vitalsForm.temperature ? parseFloat(vitalsForm.temperature) : null,
-        systolic_bp: vitalsForm.systolic_bp ? parseInt(vitalsForm.systolic_bp) : null,
-        diastolic_bp: vitalsForm.diastolic_bp ? parseInt(vitalsForm.diastolic_bp) : null,
-        heart_rate: vitalsForm.heart_rate ? parseInt(vitalsForm.heart_rate) : null,
-        respiratory_rate: vitalsForm.respiratory_rate ? parseInt(vitalsForm.respiratory_rate) : null,
-        spo2: vitalsForm.spo2 ? parseInt(vitalsForm.spo2) : null,
-        blood_sugar: vitalsForm.blood_sugar ? parseFloat(vitalsForm.blood_sugar) : null,
-        recorded_by: vitalsForm.recorded_by,
-      })
-      alert("Vitals recorded")
-      fetchVisitDetails(selectedVisit.id)
-      setShowVitalsForm(false)
-    } catch (err) {
-      alert(err.message || "Failed to record vitals")
-    }
-  }
+  const handleAddOrder = submit(
+    () =>
+      api.emergency.visits.addOrder(selectedVisit.id, {
+        order_type: f.order.order_type,
+        description: f.order.description,
+        ordered_by: toInt(f.order.ordered_by),
+      }),
+    "Order added",
+  )
 
-  const handleAddOrder = async (e) => {
-    e.preventDefault()
-    if (!selectedVisit) return
+  const handleAddMedication = submit(
+    () =>
+      api.emergency.visits.addMedication(selectedVisit.id, {
+        name: f.medication.name,
+        dose: f.medication.dose,
+        route: f.medication.route,
+        frequency: f.medication.frequency,
+        duration: f.medication.duration,
+        prescribed_by: toInt(f.medication.prescribed_by),
+      }),
+    "Medication prescribed",
+  )
 
-    try {
-      await api.emergency.visits.addOrder(selectedVisit.id, {
-        order_type: orderForm.order_type,
-        description: orderForm.description,
-        ordered_by: orderForm.ordered_by,
-      })
-      alert("Order added")
-      fetchVisitDetails(selectedVisit.id)
-      setShowOrderForm(false)
-    } catch (err) {
-      alert(err.message || "Failed to add order")
-    }
-  }
+  const handleDischarge = submit(
+    () => api.emergency.visits.discharge(selectedVisit.id, { discharge_diagnosis: f.discharge.discharge_diagnosis, follow_up_instructions: f.discharge.follow_up_instructions || "" }),
+    "Patient discharged",
+  )
 
-  const handleAddMedication = async (e) => {
-    e.preventDefault()
-    if (!selectedVisit) return
+  const handleRefer = submit(
+    () => api.emergency.visits.refer(selectedVisit.id, { referred_to: f.refer.referred_to, discharge_diagnosis: f.refer.discharge_diagnosis || "" }),
+    "Patient referred",
+  )
 
-    try {
-      await api.emergency.visits.addMedication(selectedVisit.id, {
-        name: medicationForm.name,
-        dose: medicationForm.dose,
-        route: medicationForm.route,
-        frequency: medicationForm.frequency,
-        duration: medicationForm.duration,
-        prescribed_by: medicationForm.prescribed_by,
-      })
-      alert("Medication prescribed")
-      fetchVisitDetails(selectedVisit.id)
-      setShowMedicationForm(false)
-    } catch (err) {
-      alert(err.message || "Failed to prescribe medication")
-    }
-  }
+  const doctorOptions = (
+    <>
+      <option value="">Not specified</option>
+      {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}{d.specialization ? ` — ${d.specialization}` : ""}</option>)}
+    </>
+  )
+  const nurseOptions = (
+    <>
+      <option value="">Not specified</option>
+      {nurses.map((n) => <option key={n.id} value={n.id}>{n.name}{n.department ? ` — ${n.department}` : ""}</option>)}
+    </>
+  )
+  const triageOptions = TRIAGE.map((t) => <option key={t.level} value={t.level}>{t.level} ({t.target})</option>)
 
-  const handleAdmitToIpd = async (visit) => {
-    // This would need bed selection - simplified for now
-    alert("IPD Admission requires bed selection. Use IPD module for bed allocation.")
-  }
-
-  const handleDischarge = async (visit) => {
-    const diagnosis = prompt("Discharge Diagnosis:")
-    if (diagnosis === null) return
-
-    const followup = prompt("Follow-up Instructions:")
-
-    try {
-      await api.emergency.visits.discharge(visit.id, {
-        discharge_diagnosis: diagnosis,
-        follow_up_instructions: followup || "",
-      })
-      alert("Patient discharged")
-      fetchData()
-    } catch (err) {
-      alert(err.message || "Failed to discharge")
-    }
-  }
-
-  const handleRefer = async (visit) => {
-    const facility = prompt("Referred to facility:")
-    if (facility === null) return
-
-    const diagnosis = prompt("Discharge Diagnosis:")
-
-    try {
-      await api.emergency.visits.refer(visit.id, {
-        referred_to: facility,
-        discharge_diagnosis: diagnosis || "",
-      })
-      alert("Patient referred")
-      fetchData()
-    } catch (err) {
-      alert(err.message || "Failed to refer")
-    }
-  }
-
-  const getStatusColor = (status) => {
-    const colors = {
-      "Registered": "bg-gray-100 text-gray-700",
-      "Triage": "bg-purple-100 text-purple-700",
-      "Waiting": "bg-yellow-100 text-yellow-700",
-      "Under Consultation": "bg-blue-100 text-blue-700",
-      "Investigations": "bg-indigo-100 text-indigo-700",
-      "Treatment": "bg-green-100 text-green-700",
-      "Observation": "bg-orange-100 text-orange-700",
-      "Admitted": "bg-teal-100 text-teal-700",
-      "Discharged": "bg-gray-100 text-gray-700",
-      "Referred": "bg-pink-100 text-pink-700",
-      "Left Against Advice": "bg-red-100 text-red-700",
-      "Expired": "bg-black text-white",
-    }
-    return colors[status] || "bg-gray-100 text-gray-700"
-  }
-
-  const getTriageColor = (level) => {
-    const colors = {
-      "Critical": "bg-red-100 text-red-700",
-      "Emergency": "bg-orange-100 text-orange-700",
-      "Urgent": "bg-yellow-100 text-yellow-700",
-      "Semi-Urgent": "bg-blue-100 text-blue-700",
-      "Non-Urgent": "bg-green-100 text-green-700",
-    }
-    return colors[level] || "bg-gray-100 text-gray-700"
-  }
+  const header = (
+    <PageHeader
+      title="Emergency"
+      description={selectedHospital ? `ER board for ${selectedHospital.name}, sorted by triage priority.` : undefined}
+      breadcrumbs={[{ label: "Home", to: "/" }, { label: "Emergency" }]}
+      actions={
+        selectedHospital && (
+          <>
+            <Button variant="secondary" icon={RefreshCw} onClick={fetchData} disabled={loading}>Refresh</Button>
+            <Button variant="danger" icon={Plus} onClick={() => open("registration")}>New ER visit</Button>
+          </>
+        )
+      }
+    />
+  )
 
   if (!selectedHospital) {
     return (
-      <div className="p-6">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-          <div className="text-5xl mb-4"><AmbulanceIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
-          <h1 className="text-2xl font-bold text-gray-800">Emergency / ER</h1>
-          <p className="text-gray-500 mt-2">Please select a hospital to continue.</p>
-        </div>
+      <div className="space-y-5">
+        {header}
+        <Card><EmptyState icon={Ambulance} title="Select a hospital" description="Choose a hospital in the header to open its ER board." /></Card>
       </div>
     )
   }
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-          <div className="text-5xl mb-4"><HourglassIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
-          <h1 className="text-2xl font-bold text-gray-800">Loading...</h1>
-          <p className="text-gray-500 mt-2">Fetching emergency data...</p>
-        </div>
-      </div>
-    )
-  }
+  const activeVisits = visits.filter((v) => !DONE.includes(v.status)).sort((a, b) => triageRank(a.triage_level) - triageRank(b.triage_level) || new Date(a.arrival_time) - new Date(b.arrival_time))
+  const completedVisits = visits.filter((v) => DONE.includes(v.status))
+  const triaged = visits.filter((v) => v.triage)
+  const counts = dashboardStats.triage_counts || {}
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-          <div className="text-5xl mb-4"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
-          <h1 className="text-2xl font-bold text-red-800">Error</h1>
-          <p className="text-red-600 mt-2">{error}</p>
-          <button onClick={fetchData} className="mt-4 px-5 py-2.5 rounded-xl bg-red-600 text-white font-medium">Retry</button>
-        </div>
-      </div>
-    )
-  }
-
-  const activeVisits = visits.filter(v => !["Discharged", "Admitted", "Referred", "Expired", "Left Against Advice"].includes(v.status))
-  const completedVisits = visits.filter(v => ["Discharged", "Admitted", "Referred", "Expired", "Left Against Advice"].includes(v.status))
+  const visitTitle = selectedVisit ? `${selectedVisit.visit_number || `Visit #${selectedVisit.id}`} · ${selectedVisit.patient_name}` : ""
+  const footer = (form, label) => (
+    <>
+      <Button variant="secondary" onClick={close}>Cancel</Button>
+      <Button type="submit" form={form} loading={saving}>{label}</Button>
+    </>
+  )
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Emergency / ER</h1>
-          <p className="text-gray-500 mt-1">Manage emergency visits, triage, and patient flow</p>
-        </div>
-        <button onClick={() => { resetForms(); setShowRegistrationForm(true); }} className="bg-red-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-red-700 transition">
-          + New Emergency Visit
-        </button>
-      </div>
+    <div className="space-y-5">
+      {header}
 
-      {/* Dashboard Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <p className="text-sm text-gray-500">Active Patients</p>
-          <h2 className="text-3xl font-bold text-red-600 mt-1">{activeVisits.length}</h2>
-        </div>
-        {Object.entries(dashboardStats.triage_counts || {}).slice(0, 4).map(([level, count]) => (
-          <div key={level} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <p className="text-sm text-gray-500">{level}</p>
-            <h2 className="text-3xl font-bold text-blue-600 mt-1">{count}</h2>
+      {error ? (
+        <Card><ErrorState title="Emergency data could not be loaded" message={error} onRetry={fetchData} /></Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            <StatTile icon={Activity} tone="danger" label="Active patients" value={loading ? null : activeVisits.length} />
+            {TRIAGE.map((t) => (
+              <div key={t.level} className="rounded-2xl border border-line bg-white p-4">
+                <TriageBadge level={t.level} />
+                <p className="mt-2 text-2xl font-semibold text-ink-900 tabular-nums">{loading ? "—" : counts[t.level] ?? 0}</p>
+                <p className="text-xs text-ink-500">Target {t.target}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
-        <div className="flex gap-4 overflow-x-auto">
-          {["active", "completed", "triage"].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${activeTab === tab ? "bg-red-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
+          <Tabs
+            value={activeTab}
+            onChange={setActiveTab}
+            label="ER sections"
+            tabs={[
+              { id: "active", label: "Active", count: activeVisits.length },
+              { id: "completed", label: "Completed", count: completedVisits.length },
+              { id: "triage", label: "Triage log", count: triaged.length },
+            ]}
+          />
 
-      {activeTab === "active" && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Visit #</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Patient</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Triage</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Arrival</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Doctor</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeVisits.length === 0 ? (
-                  <tr><td colSpan="7" className="text-center py-12 text-gray-500">No active emergency visits</td></tr>
-                ) : (
-                  activeVisits.map(visit => (
-                    <tr key={visit.id} className="border-t hover:bg-gray-50">
-                      <td className="px-6 py-4 font-semibold text-red-600">{visit.visit_number}</td>
-                      <td className="px-6 py-4">
-                        <p className="font-semibold text-gray-800">{visit.patient_name}</p>
-                        <p className="text-xs text-gray-500">{visit.patient?.age} yrs • {visit.patient?.gender}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTriageColor(visit.triage_level)}`}>{visit.triage_level}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(visit.status)}`}>{visit.status}</span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{new Date(visit.arrival_time).toLocaleTimeString()}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{visit.attending_doctor_name || "-"}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-1 flex-wrap">
-                          {visit.status === "Registered" && <button onClick={() => handleStartTriage(visit)} className="px-2 py-1 text-xs bg-purple-50 text-purple-700 rounded">Triage</button>}
-                          {visit.status === "Triage" && <button onClick={() => handleCompleteTriage} disabled className="px-2 py-1 text-xs bg-yellow-50 text-yellow-700 rounded">Complete Triage</button>}
-                          {visit.status === "Waiting" && <button onClick={() => handleStartConsultation(visit)} className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded">Consult</button>}
-                          {(["Under Consultation", "Investigations", "Treatment", "Observation"].includes(visit.status)) && (
-                            <>
-                              <button onClick={() => { fetchVisitDetails(visit.id); setShowVitalsForm(true); }} className="px-2 py-1 text-xs bg-green-50 text-green-700 rounded">Vitals</button>
-                              <button onClick={() => { fetchVisitDetails(visit.id); setShowOrderForm(true); }} className="px-2 py-1 text-xs bg-indigo-50 text-indigo-700 rounded">Orders</button>
-                              <button onClick={() => { fetchVisitDetails(visit.id); setShowMedicationForm(true); }} className="px-2 py-1 text-xs bg-pink-50 text-pink-700 rounded">Meds</button>
-                            </>
-                          )}
-                          {["Under Consultation", "Investigations", "Treatment", "Observation"].includes(visit.status) && (
-                            <button onClick={() => handleDischarge(visit)} className="px-2 py-1 text-xs bg-gray-50 text-gray-700 rounded">Discharge</button>
-                          )}
-                          {["Under Consultation", "Investigations", "Treatment", "Observation"].includes(visit.status) && (
-                            <button onClick={() => handleRefer(visit)} className="px-2 py-1 text-xs bg-pink-50 text-pink-700 rounded">Refer</button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          {loading ? (
+            <Card><SkeletonRows rows={5} /></Card>
+          ) : activeTab === "active" ? (
+            <Card className="overflow-hidden">
+              {activeVisits.length === 0 ? (
+                <EmptyState icon={Ambulance} title="No active emergency visits" />
+              ) : (
+                <TableWrap>
+                  <table className="hms-table">
+                    <caption className="sr-only">Active emergency visits, highest triage priority first</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Triage</th>
+                        <th scope="col">Patient</th>
+                        <th scope="col">Arrived</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Doctor</th>
+                        <th scope="col"><span className="sr-only">Actions</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeVisits.map((visit) => (
+                        <tr key={visit.id} className={triageRank(visit.triage_level) <= 1 ? "[&>td:first-child]:border-l-4 [&>td:first-child]:border-l-red-500" : ""}>
+                          <td><TriageBadge level={visit.triage_level} /></td>
+                          <td>
+                            <span className="block font-medium text-ink-900">{visit.patient_name}</span>
+                            <span className="block text-xs text-ink-500 tabular-nums">
+                              {visit.visit_number}
+                              {visit.patient?.age ? ` · ${visit.patient.age} y` : ""}
+                              {visit.patient?.gender ? ` · ${visit.patient.gender}` : ""}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap tabular-nums text-ink-600">{new Date(visit.arrival_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</td>
+                          <td><StatusBadge status={visit.status} /></td>
+                          <td className="whitespace-nowrap">{visit.attending_doctor_name || <span className="text-ink-400">—</span>}</td>
+                          <td>
+                            <div className="flex flex-wrap justify-end gap-1.5">
+                              {(visit.status === "Registered" || visit.status === "Triage") && (
+                                <Button size="sm" variant="subtle" icon={ClipboardPlus} onClick={() => open("triage", visit, { triage_level: visit.triage_level })}>Triage</Button>
+                              )}
+                              {visit.status === "Waiting" && (
+                                <Button size="sm" variant="subtle" icon={Stethoscope} onClick={() => handleStartConsultation(visit)}>Start consult</Button>
+                              )}
+                              {IN_CARE.includes(visit.status) && (
+                                <>
+                                  <Button size="sm" variant="ghost" icon={HeartPulse} onClick={() => open("vitals", visit)}>Vitals</Button>
+                                  <Button size="sm" variant="ghost" icon={ClipboardPlus} onClick={() => open("order", visit)}>Order</Button>
+                                  <Button size="sm" variant="ghost" icon={Pill} onClick={() => open("medication", visit)}>Medicine</Button>
+                                  <Button size="sm" variant="secondary" icon={Send} onClick={() => open("refer", visit)}>Refer</Button>
+                                  <Button size="sm" variant="secondary" icon={LogOut} onClick={() => open("discharge", visit)}>Discharge</Button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </TableWrap>
+              )}
+            </Card>
+          ) : activeTab === "completed" ? (
+            <Card className="overflow-hidden">
+              {completedVisits.length === 0 ? (
+                <EmptyState icon={Ambulance} title="No completed visits yet" />
+              ) : (
+                <TableWrap>
+                  <table className="hms-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Visit</th>
+                        <th scope="col">Patient</th>
+                        <th scope="col">Outcome</th>
+                        <th scope="col">Disposition</th>
+                        <th scope="col">Arrived</th>
+                        <th scope="col">Left</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {completedVisits.map((visit) => (
+                        <tr key={visit.id}>
+                          <td className="tabular-nums">{visit.visit_number}</td>
+                          <td className="font-medium text-ink-900">{visit.patient_name}</td>
+                          <td><StatusBadge status={visit.status} /></td>
+                          <td className="text-ink-600">{visit.disposition || "—"}</td>
+                          <td className="whitespace-nowrap tabular-nums text-ink-600">{new Date(visit.arrival_time).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</td>
+                          <td className="whitespace-nowrap tabular-nums text-ink-600">{visit.discharge_time ? new Date(visit.discharge_time).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </TableWrap>
+              )}
+            </Card>
+          ) : (
+            <Card className="overflow-hidden">
+              {triaged.length === 0 ? (
+                <EmptyState icon={ClipboardPlus} title="No triage records yet" />
+              ) : (
+                <TableWrap>
+                  <table className="hms-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Visit</th>
+                        <th scope="col">Patient</th>
+                        <th scope="col">Level</th>
+                        <th scope="col">Chief complaint</th>
+                        <th scope="col">Triaged</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {triaged.map((visit) => (
+                        <tr key={visit.id}>
+                          <td className="tabular-nums">{visit.visit_number}</td>
+                          <td className="font-medium text-ink-900">{visit.patient_name}</td>
+                          <td><TriageBadge level={visit.triage_level} /></td>
+                          <td className="max-w-sm text-ink-700">{visit.triage?.chief_complaint || "—"}</td>
+                          <td className="whitespace-nowrap tabular-nums text-ink-600">{visit.triage_time ? new Date(visit.triage_time).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </TableWrap>
+              )}
+            </Card>
+          )}
+        </>
       )}
 
-      {activeTab === "completed" && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Visit #</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Patient</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Final Status</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Disposition</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Arrival</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Discharge</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completedVisits.map(visit => (
-                  <tr key={visit.id} className="border-t hover:bg-gray-50">
-                    <td className="px-6 py-4 font-semibold text-red-600">{visit.visit_number}</td>
-                    <td className="px-6 py-4">{visit.patient_name}</td>
-                    <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(visit.status)}`}>{visit.status}</span></td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{visit.disposition || "-"}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{new Date(visit.arrival_time).toLocaleString()}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{visit.discharge_time ? new Date(visit.discharge_time).toLocaleString() : "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <Modal open={dialog === "registration"} onClose={close} title="New emergency visit" footer={footer("er-reg", "Register visit")}>
+        <form id="er-reg" onSubmit={handleRegistration} className="space-y-4">
+          <Field label="Patient" required>
+            <Select value={f.registration.patient} onChange={setForm("registration")("patient")}>
+              <option value="">Select patient</option>
+              {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.age ? ` (${p.age} y` : ""}{p.gender ? `, ${p.gender})` : p.age ? ")" : ""}{p.phone ? ` · ${p.phone}` : ""}</option>)}
+            </Select>
+          </Field>
+          <Field label="Initial triage level" required>
+            <Select value={f.registration.triage_level} onChange={setForm("registration")("triage_level")}>{triageOptions}</Select>
+          </Field>
+          <Field label="Attending doctor">
+            <Select value={f.registration.attending_doctor} onChange={setForm("registration")("attending_doctor")}>{doctorOptions}</Select>
+          </Field>
+          <Field label="Remarks"><Textarea rows={2} value={f.registration.remarks} onChange={setForm("registration")("remarks")} /></Field>
+        </form>
+      </Modal>
 
-      {activeTab === "triage" && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Visit #</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Patient</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Triage Level</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Chief Complaint</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Triage Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visits.filter(v => v.triage).map(visit => (
-                  <tr key={visit.id} className="border-t hover:bg-gray-50">
-                    <td className="px-6 py-4 font-semibold text-red-600">{visit.visit_number}</td>
-                    <td className="px-6 py-4">{visit.patient_name}</td>
-                    <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-medium ${getTriageColor(visit.triage_level)}`}>{visit.triage_level}</span></td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{visit.triage?.chief_complaint || "-"}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{visit.triage_time ? new Date(visit.triage_time).toLocaleString() : "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <Modal open={dialog === "triage"} onClose={close} title="Triage" description={visitTitle} footer={footer("er-triage", "Complete triage")}>
+        <form id="er-triage" onSubmit={handleCompleteTriage} className="space-y-4">
+          <Field label="Chief complaint" required><Textarea value={f.triage.chief_complaint} onChange={setForm("triage")("chief_complaint")} /></Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Pain score" hint="0–10"><Input type="number" min="0" max="10" inputMode="numeric" value={f.triage.pain_score} onChange={setForm("triage")("pain_score")} /></Field>
+            <Field label="Glasgow Coma Scale" hint="3–15"><Input type="number" min="3" max="15" inputMode="numeric" value={f.triage.glasgow_coma_scale} onChange={setForm("triage")("glasgow_coma_scale")} /></Field>
           </div>
-        </div>
-      )}
+          <Field label="Triage level" required><Select value={f.triage.triage_level} onChange={setForm("triage")("triage_level")}>{triageOptions}</Select></Field>
+          <Field label="Triaged by"><Select value={f.triage.triaged_by} onChange={setForm("triage")("triaged_by")}>{nurseOptions}</Select></Field>
+          <Field label="Triage notes"><Textarea value={f.triage.triage_notes} onChange={setForm("triage")("triage_notes")} /></Field>
+        </form>
+      </Modal>
 
-      {/* Registration Modal */}
-      {showRegistrationForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-800">New Emergency Visit</h2>
-              <button onClick={resetForms} className="text-2xl text-gray-500">×</button>
-            </div>
-            <form onSubmit={handleRegistration} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
-                <select name="patient" value={registrationForm.patient} onChange={e => setRegistrationForm({...registrationForm, patient: e.target.value})} required className="hms-input w-full">
-                  <option value="">Select Patient</option>
-                  {patients.map(p => <option key={p.id} value={p.name}>{p.name} ({p.age} yrs, {p.gender})</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Triage Level *</label>
-                <select name="triage_level" value={registrationForm.triage_level} onChange={e => setRegistrationForm({...registrationForm, triage_level: e.target.value})} className="hms-input w-full">
-                  <option value="Critical">Critical - Immediate</option>
-                  <option value="Emergency">Emergency - &lt; 15 min</option>
-                  <option value="Urgent">Urgent - &lt; 30 min</option>
-                  <option value="Semi-Urgent">Semi-Urgent - &lt; 60 min</option>
-                  <option value="Non-Urgent">Non-Urgent - &lt; 120 min</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Attending Doctor</label>
-                <select name="attending_doctor" value={registrationForm.attending_doctor} onChange={e => setRegistrationForm({...registrationForm, attending_doctor: e.target.value})} className="hms-input w-full">
-                  <option value="">Select Doctor</option>
-                  {doctors.map(d => <option key={d.id} value={d.name}>{d.name} - {d.specialization}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
-                <textarea name="remarks" value={registrationForm.remarks} onChange={e => setRegistrationForm({...registrationForm, remarks: e.target.value})} rows={2} className="hms-input w-full" placeholder="Additional notes..." />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={resetForms} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700">Register Visit</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal open={dialog === "vitals"} onClose={close} title="Record vitals" description={visitTitle} footer={footer("er-vitals", "Save vitals")}>
+        <form id="er-vitals" onSubmit={handleAddVitals} className="grid grid-cols-2 gap-4">
+          <Field label="Systolic BP (mmHg)"><Input type="number" inputMode="numeric" value={f.vitals.systolic_bp} onChange={setForm("vitals")("systolic_bp")} /></Field>
+          <Field label="Diastolic BP (mmHg)"><Input type="number" inputMode="numeric" value={f.vitals.diastolic_bp} onChange={setForm("vitals")("diastolic_bp")} /></Field>
+          <Field label="Heart rate (bpm)"><Input type="number" inputMode="numeric" value={f.vitals.heart_rate} onChange={setForm("vitals")("heart_rate")} /></Field>
+          <Field label="SpO₂ (%)"><Input type="number" min="0" max="100" inputMode="numeric" value={f.vitals.spo2} onChange={setForm("vitals")("spo2")} /></Field>
+          <Field label="Resp. rate (/min)"><Input type="number" inputMode="numeric" value={f.vitals.respiratory_rate} onChange={setForm("vitals")("respiratory_rate")} /></Field>
+          <Field label="Temperature (°C)"><Input type="number" step="0.1" inputMode="decimal" value={f.vitals.temperature} onChange={setForm("vitals")("temperature")} /></Field>
+          <Field label="Blood sugar (mg/dL)"><Input type="number" step="0.1" inputMode="decimal" value={f.vitals.blood_sugar} onChange={setForm("vitals")("blood_sugar")} /></Field>
+          <Field label="Recorded by"><Select value={f.vitals.recorded_by} onChange={setForm("vitals")("recorded_by")}>{nurseOptions}</Select></Field>
+        </form>
+      </Modal>
 
-      {/* Triage Modal */}
-      {showTriageForm && selectedVisit && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-800">Complete Triage - {selectedVisit.visit_number}</h2>
-              <button onClick={resetForms} className="text-2xl text-gray-500">×</button>
-            </div>
-            <form onSubmit={handleCompleteTriage} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Chief Complaint *</label>
-                <textarea name="chief_complaint" value={triageForm.chief_complaint} onChange={e => setTriageForm({...triageForm, chief_complaint: e.target.value})} rows={3} required className="hms-input w-full" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pain Score (0-10)</label>
-                  <input type="number" name="pain_score" value={triageForm.pain_score} onChange={e => setTriageForm({...triageForm, pain_score: e.target.value})} min="0" max="10" className="hms-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Glasgow Coma Scale</label>
-                  <input type="number" name="glasgow_coma_scale" value={triageForm.glasgow_coma_scale} onChange={e => setTriageForm({...triageForm, glasgow_coma_scale: e.target.value})} min="3" max="15" className="hms-input w-full" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Triage Level *</label>
-                <select name="triage_level" value={triageForm.triage_level} onChange={e => setTriageForm({...triageForm, triage_level: e.target.value})} className="hms-input w-full">
-                  <option value="Critical">Critical - Immediate</option>
-                  <option value="Emergency">Emergency - &lt; 15 min</option>
-                  <option value="Urgent">Urgent - &lt; 30 min</option>
-                  <option value="Semi-Urgent">Semi-Urgent - &lt; 60 min</option>
-                  <option value="Non-Urgent">Non-Urgent - &lt; 120 min</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Triage Notes</label>
-                <textarea name="triage_notes" value={triageForm.triage_notes} onChange={e => setTriageForm({...triageForm, triage_notes: e.target.value})} rows={3} className="hms-input w-full" />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={resetForms} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700">Complete Triage</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal open={dialog === "order"} onClose={close} title="Add order" description={visitTitle} footer={footer("er-order", "Add order")}>
+        <form id="er-order" onSubmit={handleAddOrder} className="space-y-4">
+          <Field label="Order type" required>
+            <Select value={f.order.order_type} onChange={setForm("order")("order_type")}>
+              <option value="Lab">Lab investigation</option>
+              <option value="Imaging">Imaging</option>
+              <option value="Medication">Medication</option>
+              <option value="Procedure">Procedure</option>
+              <option value="Consultation">Specialist consultation</option>
+            </Select>
+          </Field>
+          <Field label="Description" required><Textarea value={f.order.description} onChange={setForm("order")("description")} /></Field>
+          <Field label="Ordered by"><Select value={f.order.ordered_by} onChange={setForm("order")("ordered_by")}>{doctorOptions}</Select></Field>
+        </form>
+      </Modal>
 
-      {/* Vitals Modal */}
-      {showVitalsForm && selectedVisit && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-800">Record Vitals - {selectedVisit.visit_number}</h2>
-              <button onClick={() => setShowVitalsForm(false)} className="text-2xl text-gray-500">×</button>
-            </div>
-            <form onSubmit={handleAddVitals} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Temperature (°C)</label>
-                  <input type="number" step="0.1" name="temperature" value={vitalsForm.temperature} onChange={e => setVitalsForm({...vitalsForm, temperature: e.target.value})} className="hms-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">BP Systolic</label>
-                  <input type="number" name="systolic_bp" value={vitalsForm.systolic_bp} onChange={e => setVitalsForm({...vitalsForm, systolic_bp: e.target.value})} className="hms-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">BP Diastolic</label>
-                  <input type="number" name="diastolic_bp" value={vitalsForm.diastolic_bp} onChange={e => setVitalsForm({...vitalsForm, diastolic_bp: e.target.value})} className="hms-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Heart Rate</label>
-                  <input type="number" name="heart_rate" value={vitalsForm.heart_rate} onChange={e => setVitalsForm({...vitalsForm, heart_rate: e.target.value})} className="hms-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Resp. Rate</label>
-                  <input type="number" name="respiratory_rate" value={vitalsForm.respiratory_rate} onChange={e => setVitalsForm({...vitalsForm, respiratory_rate: e.target.value})} className="hms-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SpO₂ %</label>
-                  <input type="number" name="spo2" value={vitalsForm.spo2} onChange={e => setVitalsForm({...vitalsForm, spo2: e.target.value})} min="0" max="100" className="hms-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Blood Sugar</label>
-                  <input type="number" step="0.1" name="blood_sugar" value={vitalsForm.blood_sugar} onChange={e => setVitalsForm({...vitalsForm, blood_sugar: e.target.value})} className="hms-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Recorded By (Nurse ID)</label>
-                  <input type="text" name="recorded_by" value={vitalsForm.recorded_by} onChange={e => setVitalsForm({...vitalsForm, recorded_by: e.target.value})} className="hms-input w-full" />
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowVitalsForm(false)} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700">Save Vitals</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal open={dialog === "medication"} onClose={close} title="Prescribe medicine" description={visitTitle} footer={footer("er-med", "Prescribe")}>
+        <form id="er-med" onSubmit={handleAddMedication} className="grid grid-cols-2 gap-4">
+          <Field label="Medicine" required className="col-span-2"><Input value={f.medication.name} onChange={setForm("medication")("name")} /></Field>
+          <Field label="Dose" required><Input value={f.medication.dose} onChange={setForm("medication")("dose")} /></Field>
+          <Field label="Route" required>
+            <Select value={f.medication.route} onChange={setForm("medication")("route")}>
+              {["IV", "IM", "PO", "SC", "PR"].map((r) => <option key={r}>{r}</option>)}
+            </Select>
+          </Field>
+          <Field label="Frequency" required hint="e.g. Q8H, BID"><Input value={f.medication.frequency} onChange={setForm("medication")("frequency")} /></Field>
+          <Field label="Duration" hint="e.g. 5 days"><Input value={f.medication.duration} onChange={setForm("medication")("duration")} /></Field>
+          <Field label="Prescribed by" className="col-span-2"><Select value={f.medication.prescribed_by} onChange={setForm("medication")("prescribed_by")}>{doctorOptions}</Select></Field>
+        </form>
+      </Modal>
 
-      {/* Order Modal */}
-      {showOrderForm && selectedVisit && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-800">Add Order - {selectedVisit.visit_number}</h2>
-              <button onClick={() => setShowOrderForm(false)} className="text-2xl text-gray-500">×</button>
-            </div>
-            <form onSubmit={handleAddOrder} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Order Type *</label>
-                <select name="order_type" value={orderForm.order_type} onChange={e => setOrderForm({...orderForm, order_type: e.target.value})} required className="hms-input w-full">
-                  <option value="Lab">Lab Investigation</option>
-                  <option value="Imaging">Imaging</option>
-                  <option value="Medication">Medication</option>
-                  <option value="Procedure">Procedure</option>
-                  <option value="Consultation">Specialist Consultation</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                <textarea name="description" value={orderForm.description} onChange={e => setOrderForm({...orderForm, description: e.target.value})} rows={3} required className="hms-input w-full" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ordered By (Doctor ID)</label>
-                <input type="text" name="ordered_by" value={orderForm.ordered_by} onChange={e => setOrderForm({...orderForm, ordered_by: e.target.value})} className="hms-input w-full" />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowOrderForm(false)} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700">Add Order</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal open={dialog === "discharge"} onClose={close} title="Discharge from ER" description={visitTitle} footer={footer("er-discharge", "Discharge patient")}>
+        <form id="er-discharge" onSubmit={handleDischarge} className="space-y-4">
+          <Field label="Discharge diagnosis" required><Textarea value={f.discharge.discharge_diagnosis} onChange={setForm("discharge")("discharge_diagnosis")} /></Field>
+          <Field label="Follow-up instructions"><Textarea value={f.discharge.follow_up_instructions} onChange={setForm("discharge")("follow_up_instructions")} /></Field>
+        </form>
+      </Modal>
 
-      {/* Medication Modal */}
-      {showMedicationForm && selectedVisit && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-800">Prescribe Medication - {selectedVisit.visit_number}</h2>
-              <button onClick={() => setShowMedicationForm(false)} className="text-2xl text-gray-500">×</button>
-            </div>
-            <form onSubmit={handleAddMedication} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Medication Name *</label>
-                <input type="text" name="name" value={medicationForm.name} onChange={e => setMedicationForm({...medicationForm, name: e.target.value})} required className="hms-input w-full" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Dose *</label>
-                  <input type="text" name="dose" value={medicationForm.dose} onChange={e => setMedicationForm({...medicationForm, dose: e.target.value})} required className="hms-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Route *</label>
-                  <select name="route" value={medicationForm.route} onChange={e => setMedicationForm({...medicationForm, route: e.target.value})} className="hms-input w-full">
-                    <option value="IV">IV</option>
-                    <option value="IM">IM</option>
-                    <option value="PO">PO</option>
-                    <option value="SC">SC</option>
-                    <option value="PR">PR</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Frequency *</label>
-                  <input type="text" name="frequency" value={medicationForm.frequency} onChange={e => setMedicationForm({...medicationForm, frequency: e.target.value})} required className="hms-input w-full" placeholder="e.g., Q8H, BID" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
-                  <input type="text" name="duration" value={medicationForm.duration} onChange={e => setMedicationForm({...medicationForm, duration: e.target.value})} className="hms-input w-full" placeholder="e.g., 5 days" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prescribed By (Doctor ID)</label>
-                <input type="text" name="prescribed_by" value={medicationForm.prescribed_by} onChange={e => setMedicationForm({...medicationForm, prescribed_by: e.target.value})} className="hms-input w-full" />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowMedicationForm(false)} className="px-5 py-3 border border-gray-300 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-3 bg-pink-600 text-white rounded-xl hover:bg-pink-700">Prescribe</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal open={dialog === "refer"} onClose={close} title="Refer to another facility" description={visitTitle} footer={footer("er-refer", "Refer patient")}>
+        <form id="er-refer" onSubmit={handleRefer} className="space-y-4">
+          <Field label="Referred to (facility)" required><Input value={f.refer.referred_to} onChange={setForm("refer")("referred_to")} /></Field>
+          <Field label="Diagnosis at referral"><Textarea value={f.refer.discharge_diagnosis} onChange={setForm("refer")("discharge_diagnosis")} /></Field>
+        </form>
+      </Modal>
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import api from "../services/api.js"
 import { CircleCheckIcon, CircleXIcon, HospitalIcon, MicIcon, NotebookPenIcon, RefreshCwIcon, SparklesIcon, SquareIcon, TriangleAlertIcon, XIcon } from "lucide-react"
+import { useConfirm, usePrompt } from "../components/ui"
 
 const DIAGNOSIS_TYPES = [
   "Provisional",
@@ -128,6 +129,9 @@ const SECTION_ORDER = [
 ]
 
 function AIScribe() {
+  const [confirm, confirmDialog] = useConfirm()
+  const [promptText, promptDialog] = usePrompt()
+
   const { selectedHospital } = usePatient()
   const { t } = useLanguage()
 
@@ -357,9 +361,9 @@ function AIScribe() {
     // The backend refuses to record until the patient's consent is captured.
     if (
       !session.recording_consent_at &&
-      !window.confirm(
+      !(await confirm(
         "Has the patient agreed to this consultation being recorded for AI-assisted documentation?"
-      )
+      ))
     ) {
       return
     }
@@ -506,7 +510,7 @@ function AIScribe() {
   const handleApproveDraft = async () => {
     if (!selectedDraftId) return
 
-    if (!window.confirm("Approve this AI draft and create final clinical note? This action cannot be undone.")) {
+    if (!(await confirm("Approve this AI draft and create final clinical note? This action cannot be undone."))) {
       return
     }
 
@@ -527,7 +531,7 @@ function AIScribe() {
   const handleRejectDraft = async () => {
     if (!selectedDraftId) return
 
-    const notes = window.prompt("Enter rejection reason:")
+    const notes = (await promptText("Enter rejection reason:"))
     if (notes === null) return
 
     setLoadingDrafts(true)
@@ -605,7 +609,7 @@ function AIScribe() {
   ]
 
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-slate-50 min-h-screen">
+    <>{confirmDialog}{promptDialog}<div className="p-4 md:p-6 space-y-6 bg-slate-50 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">AI Medical Scribe</h1>
@@ -912,7 +916,7 @@ function AIScribe() {
           No visits found for this hospital.
         </div>
       )}
-    </div>
+    </div></>
   )
 }
 

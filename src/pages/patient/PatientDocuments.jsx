@@ -2,8 +2,11 @@ import { useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
 import { FileTextIcon, TriangleAlertIcon, UploadIcon, XIcon } from "lucide-react"
+import { useConfirm } from "../../components/ui"
 
 function PatientDocuments() {
+  const [confirm, confirmDialog] = useConfirm()
+
   const { patient } = useAuth()
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -59,7 +62,7 @@ function PatientDocuments() {
   }
 
   const handleDelete = async (docId) => {
-    if (!window.confirm("Are you sure you want to delete this document?")) return
+    if (!(await confirm("Are you sure you want to delete this document?"))) return
 
     try {
       await api.patients.documents.delete(docId)
@@ -91,7 +94,7 @@ function PatientDocuments() {
   }
 
   return (
-    <div className="space-y-6">
+    <>{confirmDialog}<div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Documents</h1>
@@ -217,7 +220,7 @@ function PatientDocuments() {
           <button onClick={() => setShowUpload(true)} className="mt-4 px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700">Upload First Document</button>
         </div>
       )}
-    </div>
+    </div></>
   )
 }
 

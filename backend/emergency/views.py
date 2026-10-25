@@ -7,6 +7,9 @@ from django.utils import timezone
 
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsDoctor, IsNurse
+from rest_framework.exceptions import ValidationError
+from doctors.models import Doctor
+from nurses.models import Nurse
 from .models import (
     EmergencyVisit,
     EmergencyTriage,
@@ -23,6 +26,24 @@ from .serializers import (
     EmergencyMedicationSerializer,
 )
 
+
+
+def _hospital_staff(model, value, hospital_id, field):
+    """Resolve a staff id from the request to a record of the visit's hospital.
+
+    The id used to be assigned straight to the ForeignKey (a 500 for any
+    value) and was never checked against the hospital.
+    """
+    if value in (None, ""):
+        return None
+    try:
+        pk = int(value)
+    except (TypeError, ValueError):
+        raise ValidationError({field: "Must be an id."})
+    obj = model.objects.filter(pk=pk, hospital_id=hospital_id).first()
+    if obj is None:
+        raise ValidationError({field: "Not found at this hospital."})
+    return obj
 
 class EmergencyVisitViewSet(HospitalScopedViewSet):
     queryset = EmergencyVisit.objects.select_related("hospital", "patient", "attending_doctor").prefetch_related(
@@ -86,7 +107,7 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
                 "pain_score": triage_data.get("pain_score"),
                 "glasgow_coma_scale": triage_data.get("glasgow_coma_scale"),
                 "triage_notes": triage_data.get("triage_notes", ""),
-                "triaged_by": triage_data.get("triaged_by"),
+                "triaged_by": _hospital_staff(Nurse, triage_data.get("triaged_by"), visit.hospital_id, "triaged_by"),
             }
         )
 
@@ -107,9 +128,9 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        doctor_id = request.data.get("doctor_id")
-        if doctor_id:
-            visit.attending_doctor_id = doctor_id
+        doctor = _hospital_staff(Doctor, request.data.get("doctor_id"), visit.hospital_id, "doctor_id")
+        if doctor:
+            visit.attending_doctor = doctor
 
         visit.status = "Under Consultation"
         visit.consultation_start_time = timezone.now()
@@ -131,7 +152,7 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
             respiratory_rate=request.data.get("respiratory_rate"),
             spo2=request.data.get("spo2"),
             blood_sugar=request.data.get("blood_sugar"),
-            recorded_by=request.data.get("recorded_by"),
+            recorded_by=_hospital_staff(Nurse, request.data.get("recorded_by"), visit.hospital_id, "recorded_by"),
         )
 
         return Response(EmergencyVitalsSerializer(vitals).data, status=status.HTTP_201_CREATED)
@@ -145,7 +166,7 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
             visit=visit,
             order_type=request.data.get("order_type"),
             description=request.data.get("description"),
-            ordered_by=request.data.get("ordered_by"),
+            ordered_by=_hospital_staff(Doctor, request.data.get("ordered_by"), visit.hospital_id, "ordered_by"),
         )
 
         if visit.status == "Under Consultation":
@@ -166,7 +187,7 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
             route=request.data.get("route"),
             frequency=request.data.get("frequency"),
             duration=request.data.get("duration", ""),
-            prescribed_by=request.data.get("prescribed_by"),
+            prescribed_by=_hospital_staff(Doctor, request.data.get("prescribed_by"), visit.hospital_id, "prescribed_by"),
         )
 
         return Response(EmergencyMedicationSerializer(medication).data, status=status.HTTP_201_CREATED)
@@ -186,7 +207,7 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
             )
 
         medication.administered = True
-        medication.administered_by = request.data.get("administered_by")
+        medication.administered_by = _hospital_staff(Nurse, request.data.get("administered_by"), visit.hospital_id, "administered_by")
         medication.administered_at = timezone.now()
         medication.save()
 

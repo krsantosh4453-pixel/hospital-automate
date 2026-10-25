@@ -23,12 +23,18 @@ def _patient_belongs_to_hospital(patient, hospital):
     if not (patient and hospital):
         return True
 
+    # Callers pass either a Hospital or a raw id from request data.
+    try:
+        hospital_id = int(getattr(hospital, "id", hospital))
+    except (TypeError, ValueError):
+        return False
+
     has_membership = patient.hospital_memberships.filter(
-        hospital=hospital,
+        hospital_id=hospital_id,
         is_active=True
     ).exists()
 
-    has_direct_link = getattr(patient, "hospital_id", None) == hospital.id
+    has_direct_link = getattr(patient, "hospital_id", None) == hospital_id
 
     return has_membership or has_direct_link
 

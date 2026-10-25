@@ -1372,6 +1372,17 @@ const api = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         }),
+      update: async (id, data) =>
+        request(`${API_BASE_URL}/ipd/discharge-summaries/${id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+      // POST /api/ipd/discharge-summaries/{id}/finalize/ — linked doctor only; locks the summary
+      finalize: async (id) =>
+        request(`${API_BASE_URL}/ipd/discharge-summaries/${id}/finalize/`, {
+          method: 'POST',
+        }),
     },
     dischargeNotes: {
       list: async (hospitalId) => {
@@ -1699,6 +1710,8 @@ api.emergency = {
       const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
       return request(`${API_BASE_URL}/emergency/emergency-visits/dashboard/${query}`)
     },
+    startTriage: async (id) =>
+      request(`${API_BASE_URL}/emergency/emergency-visits/${id}/start_triage/`, { method: "POST" }),
     completeTriage: async (id, data) =>
       request(`${API_BASE_URL}/emergency/emergency-visits/${id}/complete_triage/`, {
         method: "POST",

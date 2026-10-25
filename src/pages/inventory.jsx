@@ -3,8 +3,13 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import { LoadingSpinner } from "../components/LoadingSpinner.jsx"
 import { ClipboardListIcon, HospitalIcon, MapPinIcon, PackageIcon, TriangleAlertIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
+import { useConfirm } from "../components/ui"
 
 function Inventory() {
+  const toast = useToast()
+  const [confirm, confirmDialog] = useConfirm()
+
   const { selectedHospital } = usePatient()
 
   const [medicines, setMedicines] = useState([])
@@ -125,7 +130,7 @@ function Inventory() {
 
   if (!selectedHospital) {
     return (
-      <div>
+      <>{confirmDialog}<div>
         <div className="mb-6">
           <p className="text-blue-600 font-semibold text-sm">
             INVENTORY MANAGEMENT
@@ -139,7 +144,7 @@ function Inventory() {
             Select a hospital from the header to view its inventory.
           </p>
         </div>
-      </div>
+      </div></>
     )
   }
 
@@ -242,7 +247,7 @@ function Inventory() {
       setMedicines((prev) => [...prev, newMed])
       resetForm()
     } catch (err) {
-      alert(err.message || "Failed to add medicine")
+      toast.error(err.message || "Failed to add medicine")
     }
   }
 
@@ -297,12 +302,12 @@ function Inventory() {
       )
       resetForm()
     } catch (err) {
-      alert(err.message || "Failed to update medicine")
+      toast.error(err.message || "Failed to update medicine")
     }
   }
 
   const handleDelete = async (id) => {
-    const confirmed = window.confirm("Are you sure you want to delete this medicine?")
+    const confirmed = (await confirm("Are you sure you want to delete this medicine?"))
     if (!confirmed) return
 
     try {
@@ -312,7 +317,7 @@ function Inventory() {
       }
       setMedicines((prev) => prev.filter((item) => item.id !== id))
     } catch (err) {
-      alert(err.message || "Failed to delete medicine")
+      toast.error(err.message || "Failed to delete medicine")
     }
   }
 
@@ -343,7 +348,7 @@ function Inventory() {
 
     const quantity = Number(stockData.quantity)
     if (quantity <= 0) {
-      alert("Quantity must be greater than 0.")
+      toast.warning("Quantity must be greater than 0.")
       return
     }
 
@@ -352,7 +357,7 @@ function Inventory() {
       const adjustmentType = stockData.type === "Add Stock" ? "add" : "remove"
 
       if (adjustmentType === "remove" && quantity > selectedItem.quantity) {
-        alert(`Only ${selectedItem.quantity} ${selectedItem.unit} available.`)
+        toast.warning(`Only ${selectedItem.quantity} ${selectedItem.unit} available.`)
         return
       }
 
@@ -364,10 +369,10 @@ function Inventory() {
       })
 
       await fetchAllData()
-      alert(`${selectedItem.name} stock updated successfully.`)
+      toast.warning(`${selectedItem.name} stock updated successfully.`)
       resetStock()
     } catch (err) {
-      alert(err.message || "Failed to update stock")
+      toast.error(err.message || "Failed to update stock")
     } finally {
       setStockLoading(false)
     }
@@ -380,7 +385,7 @@ function Inventory() {
   }
 
   return (
-    <div>
+    <>{confirmDialog}<div>
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div>
           <p className="text-blue-600 font-semibold text-sm">INVENTORY MANAGEMENT</p>
@@ -736,7 +741,7 @@ function Inventory() {
           </div>
         </div>
       )}
-    </div>
+    </div></>
   )
 }
 
