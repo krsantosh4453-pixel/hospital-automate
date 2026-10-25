@@ -3,7 +3,8 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import { CreditCardIcon, HospitalIcon, MapPinIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
-import { useConfirm } from "../components/ui"
+import { Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
+import { Plus as PlusIcon } from "lucide-react"
 
 function Billing() {
   const toast = useToast()
@@ -918,162 +919,31 @@ function Billing() {
           Normal Billing Page
       ========================= */}
 
-      <div className="print:hidden">
+      <div className="space-y-6 print:hidden">
 
 
-        {/* Header */}
-
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-
-          <div>
-
-            <p className="text-blue-600 font-semibold text-sm">
-              FINANCE & BILLING
-            </p>
-
-            <h1 className="text-3xl font-bold text-gray-800 mt-1">
-              Billing
-            </h1>
-
-            <p className="text-gray-500 mt-1">
-              Manage invoices, payments and hospital charges
-            </p>
-
-          </div>
-
-
-          <button
-
-            onClick={() => {
-
-              if (
-                !selectedHospital
-              ) {
-
-                toast.warning(
-                  "Please select a hospital first."
-                )
-
-                return
-              }
-
-
-              setSelectedBill(
-                null
-              )
-
-
-              setFormData({
-
-                patient: "",
-
-                patientId: "",
-
-                consultation: "",
-
-                laboratory: "",
-
-                pharmacy: "",
-
-                other: "",
-
-                discount: "",
-
-                paid: "",
-
-                payment: "Cash",
-              })
-
-
-              setShowForm(
-                true
-              )
-            }}
-
-            className="bg-blue-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-blue-700"
-          >
-
-            + Create Bill
-
-          </button>
-
-        </div>
-
-
-        {/* =========================
-            Current Hospital
-        ========================= */}
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-
-          {selectedHospital ? (
-
-            <div className="flex items-center gap-4">
-
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-                <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-              </div>
-
-
-              <div>
-
-                <p className="text-xs text-gray-500">
-                  Current Hospital
-                </p>
-
-                <h2 className="font-bold text-gray-800">
-                  {selectedHospital.name}
-                </h2>
-
-                <p className="text-sm text-gray-500">
-                  <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.address}
-                </p>
-
-              </div>
-
-            </div>
-
-          ) : (
-
-            <div>
-
-              <p className="font-semibold text-orange-600">
-                <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> No hospital selected
-              </p>
-
-              <p className="text-sm text-gray-500 mt-1">
-                Select a hospital from the header first.
-              </p>
-
-            </div>
-
-          )}
-
-        </div>
-
-
-        {/* =========================
-            No Hospital Selected
-        ========================= */}
+        <PageHeader
+          title="Billing"
+          description={selectedHospital ? `Invoices, payments and refunds at ${selectedHospital.name}.` : "Select a hospital from the header to view billing."}
+          breadcrumbs={[{ label: "Home", to: "/" }, { label: "Billing" }]}
+          actions={
+            selectedHospital && (
+              <Button
+                icon={PlusIcon}
+                onClick={() => {
+                  setSelectedBill(null)
+                  setFormData({ patient: "", patientId: "", consultation: "", laboratory: "", pharmacy: "", other: "", discount: "", paid: "", payment: "Cash" })
+                  setShowForm(true)
+                }}
+              >
+                Create invoice
+              </Button>
+            )
+          }
+        />
 
         {!selectedHospital ? (
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-
-            <div className="text-5xl mb-4">
-              <CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-            </div>
-
-            <h2 className="text-xl font-bold text-gray-800">
-              Select a Hospital
-            </h2>
-
-            <p className="text-gray-500 mt-2">
-              Select a hospital from the header to view billing data.
-            </p>
-
-          </div>
-
+          <Card><EmptyState icon={CreditCardIcon} title="Select a hospital" description="Choose a hospital in the header to view its invoices." /></Card>
         ) : (
 
           <>

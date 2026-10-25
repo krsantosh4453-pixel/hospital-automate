@@ -754,7 +754,7 @@ function Nurses() {
     try {
       await api.ipd.admissions.initiateDischarge(patient.admissionId)
       await loadData()
-      toast.warning(
+      toast.success(
         "Discharge initiated. A doctor must finalize the discharge summary before discharge can be completed."
       )
     } catch (err) {

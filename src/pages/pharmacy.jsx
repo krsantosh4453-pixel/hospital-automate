@@ -5,7 +5,8 @@ import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
 import { LoadingSpinner } from "../components/LoadingSpinner.jsx"
 import { AlarmClockIcon, CheckIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, SearchIcon, TrendingDownIcon, TriangleAlertIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
-import { useConfirm } from "../components/ui"
+import { Alert, Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
+import { Plus as PlusIcon } from "lucide-react"
 
 // Convert "MM/YYYY" (UI) to "YYYY-MM-01" (API DateField). Returns null if invalid.
 const toApiDate = (value) => {
@@ -962,219 +963,48 @@ function Pharmacy() {
 
   return (
 
-    <>{confirmDialog}<div>
-
-
-      {/* =========================
-          HEADER
-      ========================= */}
-
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-
-        <div>
-
-          <p className="text-blue-600 font-semibold text-sm">
-            PHARMACY MANAGEMENT
-          </p>
-
-          <h1 className="text-3xl font-bold text-gray-800">
-            Pharmacy
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Manage medicines, stock, prescriptions and pharmacy sales
-          </p>
-
-        </div>
-
-
-        <div className="flex flex-wrap gap-3">
-
-          <button
-
-            onClick={() => {
-
-              if (!selectedHospital) {
-
-                toast.warning(
-                  "Please select a hospital first."
-                )
-
-                return
-              }
-
-              setShowSales(true)
-
-            }}
-
-            className="px-5 py-3 border border-gray-300 rounded-xl font-medium hover:bg-gray-50"
-          >
-            <ReceiptIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Sales History
-          </button>
-
-
-          <button
-
-            onClick={() => {
-
-              if (!selectedHospital) {
-
-                toast.warning(
-                  "Please select a hospital first."
-                )
-
-                return
-              }
-
-              setIssueData({
-
-                medicineId: "",
-                patient: "",
-                quantity: "",
-
-              })
-
-              setShowIssue(true)
-
-            }}
-
-            className="px-5 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700"
-          >
-            <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Issue Medicine
-          </button>
-
-
-          <button
-
-            onClick={() => {
-
-              if (!selectedHospital) {
-
-                toast.warning(
-                  "Please select a hospital first."
-                )
-
-                return
-              }
-
-              setSelectedMedicine(
-                null
-              )
-
-              setFormData({
-
-                name: "",
-                category: "",
-                batch: "",
-                stock: "",
-                expiry: "",
-                price: "",
-
-              })
-
-              setShowForm(true)
-
-            }}
-
-            className="px-5 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
-          >
-            + Add Medicine
-          </button>
-
-        </div>
-
-      </div>
-
-
-      {/* =========================
-          CURRENT HOSPITAL
-      ========================= */}
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-
-        {selectedHospital ? (
-
-          <div className="flex items-center gap-4">
-
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-              <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-            </div>
-
-            <div>
-
-              <p className="text-xs text-gray-500">
-                Current Hospital
-              </p>
-
-              <h2 className="font-bold text-gray-800">
-                {selectedHospital.name}
-              </h2>
-
-              <p className="text-sm text-gray-500">
-                <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.address}
-              </p>
-
-            </div>
-
-          </div>
-
-        ) : (
-
-          <div>
-
-            <p className="font-semibold text-orange-600">
-              <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> No hospital selected
-            </p>
-
-            <p className="text-sm text-gray-500 mt-1">
-              Select a hospital from the header first.
-            </p>
-
-          </div>
-
-        )}
-
-      </div>
-
+    <>{confirmDialog}<div className="space-y-6">
+      <PageHeader
+        title="Pharmacy"
+        description={selectedHospital ? `Medicines, dispensing and sales at ${selectedHospital.name}.` : "Select a hospital from the header to view pharmacy data."}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Pharmacy" }]}
+        actions={
+          selectedHospital && (
+            <>
+              <Button variant="secondary" icon={ReceiptIcon} onClick={() => setShowSales(true)}>Sales history</Button>
+              <Button
+                variant="secondary"
+                icon={PillIcon}
+                onClick={() => {
+                  setIssueData({ medicineId: "", patient: "", quantity: "" })
+                  setShowIssue(true)
+                }}
+              >
+                Issue medicine
+              </Button>
+              <Button
+                icon={PlusIcon}
+                onClick={() => {
+                  setSelectedMedicine(null)
+                  setFormData({ name: "", category: "", batch: "", stock: "", expiry: "", price: "" })
+                  setShowForm(true)
+                }}
+              >
+                Add medicine
+              </Button>
+            </>
+          )
+        }
+      />
 
       {loadError && (
-
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
-
-          <p className="text-sm">
-            <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {loadError}
-          </p>
-
-          <button
-            onClick={reloadPharmacyData}
-            className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700"
-          >
-            Retry
-          </button>
-
-        </div>
-
+        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={reloadPharmacyData}>Retry</Button>}>
+          {loadError}
+        </Alert>
       )}
 
-
       {!selectedHospital ? (
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-
-          <div className="text-5xl mb-4">
-            <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-          </div>
-
-          <h2 className="text-xl font-bold text-gray-800">
-            Select a Hospital
-          </h2>
-
-          <p className="text-gray-500 mt-2">
-            Select a hospital from the header to view pharmacy data.
-          </p>
-
-        </div>
-
+        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to view pharmacy data." /></Card>
       ) : (
 
         <>

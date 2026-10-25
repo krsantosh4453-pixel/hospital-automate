@@ -1,8 +1,10 @@
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, useId } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import { ChartColumnIcon, ClipboardListIcon, DropletIcon, HeartPulseIcon, HospitalIcon, HouseIcon, NotebookPenIcon, PillIcon, StethoscopeIcon, UserIcon, UsersIcon, WalletIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
+import { Alert, Button, Card, CardHeader, EmptyState, Modal as UiModal, PageHeader as UiPageHeader, Tabs } from "../components/ui"
+import { UserPlus as UserPlusIcon } from "lucide-react"
 import { useConfirm } from "../components/ui"
 
 function Compounder() {
@@ -571,7 +573,7 @@ function Compounder() {
       medicine.hospitalId !==
       selectedHospital.id
     ) {
-      toast.info(
+      toast.error(
         "Invalid hospital access."
       )
       return
@@ -602,7 +604,7 @@ function Compounder() {
       item.hospitalId !==
       selectedHospital.id
     ) {
-      toast.info(
+      toast.error(
         "Invalid hospital access."
       )
       return
@@ -665,62 +667,62 @@ function Compounder() {
     {
       id: "home",
       label: "Home",
-      icon: <HouseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: HouseIcon,
     },
     {
       id: "profile",
       label: "My Profile",
-      icon: <UserIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: UserIcon,
     },
     {
       id: "patients",
       label: "Patients",
-      icon: <UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: UsersIcon,
     },
     {
       id: "assessment",
       label: "Assessment",
-      icon: <StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: StethoscopeIcon,
     },
     {
       id: "vitals",
       label: "Vitals",
-      icon: <HeartPulseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: HeartPulseIcon,
     },
     {
       id: "notes",
       label: "Notes",
-      icon: <NotebookPenIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: NotebookPenIcon,
     },
     {
       id: "orders",
       label: "Orders",
-      icon: <ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: ClipboardListIcon,
     },
     {
       id: "mar",
       label: "Medicine / MAR",
-      icon: <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: PillIcon,
     },
     {
       id: "blood",
       label: "Blood",
-      icon: <DropletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: DropletIcon,
     },
     {
       id: "discharge",
       label: "Discharge",
-      icon: <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: HospitalIcon,
     },
     {
       id: "billing",
       label: "Billing",
-      icon: <WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: WalletIcon,
     },
     {
       id: "reports",
       label: "Reports",
-      icon: <ChartColumnIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+      icon: ChartColumnIcon,
     },
   ]
 
@@ -730,24 +732,9 @@ function Compounder() {
 
   if (!selectedHospital) {
     return (
-      <>{confirmDialog}<div className="p-6">
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-
-          <div className="text-5xl mb-4">
-            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-          </div>
-
-          <h1 className="text-2xl font-bold text-gray-800">
-            Compounder Portal
-          </h1>
-
-          <p className="text-gray-500 mt-2">
-            Please select a hospital to continue.
-          </p>
-
-        </div>
-
+      <>{confirmDialog}<div className="space-y-5">
+        <UiPageHeader title="Compounder" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Compounder" }]} />
+        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to open the compounder workspace." /></Card>
       </div></>
     )
   }
@@ -757,102 +744,20 @@ function Compounder() {
   // =====================================================
 
   return (
-    <>{confirmDialog}<div className="p-6">
+    <>{confirmDialog}<div className="space-y-5">
+      <UiPageHeader
+        title="Compounder"
+        description={`${selectedHospital.name} · signed in as ${profile.name}`}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Compounder" }]}
+        actions={isAdmin && <Button icon={UserPlusIcon} onClick={() => setShowAddCompounder(true)}>Add compounder</Button>}
+      />
 
-      {/* HEADER */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+      <Alert tone="warning" title="Most sections here are not saved">
+        The patient, vitals, notes, orders and medicine sections on this page are not connected to the hospital record yet. Record vitals and
+        notes on the Nursing page, dispense from Pharmacy, and view prescriptions on the Prescriptions page.
+      </Alert>
 
-        <div>
-
-          <h1 className="text-2xl font-bold text-gray-800">
-            Compounder Portal
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            {selectedHospital.name}
-          </p>
-
-          <p className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm max-w-2xl" role="note">
-            The patient, vitals, notes, orders and medicine sections on this page are not connected to
-            the hospital record yet and are not saved. Record vitals and notes on the Nurses page,
-            dispense from Pharmacy, and view prescriptions on the Prescription page.
-          </p>
-
-        </div>
-
-        <div className="flex items-center gap-3">
-
-          <div className="px-4 py-2 rounded-xl bg-blue-50 border border-blue-200">
-
-            <p className="text-xs text-gray-500">
-              Logged in as
-            </p>
-
-            <p className="font-semibold text-blue-700">
-              {profile.name}
-            </p>
-
-          </div>
-
-          {/* ADMIN ONLY */}
-          {isAdmin && (
-            <button
-              onClick={() =>
-                setShowAddCompounder(
-                  true
-                )
-              }
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-medium"
-            >
-              + Add Compounder
-            </button>
-          )}
-
-        </div>
-
-      </div>
-
-
-      {/* HOSPITAL */}
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
-
-        <p className="text-sm text-gray-500">
-          Selected Hospital
-        </p>
-
-        <p className="font-semibold text-blue-700 mt-1">
-          <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.name}
-        </p>
-
-      </div>
-
-
-      {/* TABS */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-3 mb-6 overflow-x-auto">
-
-        <div className="flex gap-2 min-w-max">
-
-          {tabs.map((tab) => (
-
-            <button
-              key={tab.id}
-              onClick={() =>
-                setActiveTab(tab.id)
-              }
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium ${activeTab === tab.id
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-                }`}
-            >
-              {tab.icon} {tab.label}
-            </button>
-
-          ))}
-
-        </div>
-
-      </div>
-
+      <Tabs tabs={tabs} value={activeTab} onChange={setActiveTab} label="Compounder sections" />
 
       {/* =================================================
           HOME
@@ -2529,283 +2434,80 @@ function Compounder() {
 
 
 // =======================================================
-// DASHBOARD CARD
+// PRESENTATIONAL HELPERS (shared HMS styling)
 // =======================================================
 
-function DashboardCard({
-  title,
-  value,
-  icon,
-  subtitle,
-}) {
+function DashboardCard({ title, value, icon, subtitle }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-
-      <div className="flex items-center justify-between">
-
-        <div>
-
-          <p className="text-sm text-gray-500">
-            {title}
-          </p>
-
-          <p className="text-3xl font-bold text-gray-800 mt-2">
-            {value}
-          </p>
-
-          <p className="text-xs text-gray-400 mt-1">
-            {subtitle}
-          </p>
-
-        </div>
-
-        <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl">
-          {icon}
-        </div>
-
+    <div className="flex items-start gap-3.5 rounded-2xl border border-line bg-white p-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-xl text-brand-700">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-ink-500">{title}</p>
+        <p className="mt-0.5 text-2xl font-semibold leading-8 tracking-tight text-ink-900 tabular-nums">{value}</p>
+        {subtitle && <p className="mt-0.5 text-xs text-ink-500">{subtitle}</p>}
       </div>
-
     </div>
   )
 }
 
-
-// =======================================================
-// SECTION CARD
-// =======================================================
-
-function SectionCard({
-  title,
-  subtitle,
-  action,
-  children,
-}) {
+function SectionCard({ title, subtitle, action, children }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-
-      <div className="p-6 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
-        <div>
-
-          <h2 className="text-lg font-semibold text-gray-800">
-            {title}
-          </h2>
-
-          {subtitle && (
-            <p className="text-sm text-gray-500 mt-1">
-              {subtitle}
-            </p>
-          )}
-
-        </div>
-
-        {action}
-
-      </div>
-
-      <div className="p-6">
-        {children}
-      </div>
-
-    </div>
+    <Card>
+      <CardHeader title={title} description={subtitle} actions={action} />
+      <div className="px-5 py-4">{children}</div>
+    </Card>
   )
 }
 
-
-// =======================================================
-// INPUT
-// =======================================================
-
-function Input({
-  label,
-  name,
-  value,
-  onChange,
-  type = "text",
-  placeholder = "",
-  required = false,
-}) {
+function Input({ label, name, value, onChange, type = "text", placeholder = "", required = false }) {
+  const id = useId()
   return (
     <div>
-
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={id} className="hms-label">
         {label}
+        {required && <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>}
       </label>
-
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
-        className="hms-input w-full"
-      />
-
+      <input id={id} type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} required={required} className="hms-input w-full" />
     </div>
   )
 }
 
-
-// =======================================================
-// SELECT
-// =======================================================
-
-function Select({
-  label,
-  value,
-  onChange,
-  options,
-  optionLabels,
-}) {
+function Select({ label, value, onChange, options, optionLabels }) {
+  const id = useId()
   return (
     <div>
-
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={id} className="hms-label">
         {label}
+        <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>
       </label>
-
-      <select
-        value={value}
-        onChange={onChange}
-        className="hms-input w-full"
-        required
-      >
-
-        <option value="">
-          Select {label}
-        </option>
-
-        {options.map(
-          (option, index) => (
-
-            <option
-              key={option}
-              value={option}
-            >
-              {optionLabels
-                ? optionLabels[index]
-                : option}
-            </option>
-
-          )
-        )}
-
+      <select id={id} value={value} onChange={onChange} className="hms-input w-full" required>
+        <option value="">Select {String(label).toLowerCase()}</option>
+        {options.map((option, index) => (
+          <option key={option} value={option}>{optionLabels ? optionLabels[index] : option}</option>
+        ))}
       </select>
-
     </div>
   )
 }
 
-
-// =======================================================
-// INFO
-// =======================================================
-
-function Info({
-  label,
-  value,
-}) {
+function Info({ label, value }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-4">
-
-      <p className="text-xs text-gray-500">
-        {label}
-      </p>
-
-      <p className="font-medium text-gray-800 mt-1">
-        {value || "-"}
-      </p>
-
+    <div className="rounded-xl bg-ink-50 px-4 py-3">
+      <p className="text-xs font-medium text-ink-500">{label}</p>
+      <p className="mt-0.5 font-medium text-ink-900">{value || "—"}</p>
     </div>
   )
 }
 
-
-// =======================================================
-// REPORT CARD
-// =======================================================
-
-function ReportCard({
-  title,
-  value,
-  icon,
-}) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-
-      <div className="flex items-center justify-between">
-
-        <div>
-
-          <p className="text-sm text-gray-500">
-            {title}
-          </p>
-
-          <p className="text-3xl font-bold text-gray-800 mt-2">
-            {value}
-          </p>
-
-        </div>
-
-        <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl">
-          {icon}
-        </div>
-
-      </div>
-
-    </div>
-  )
+function ReportCard({ title, value, icon }) {
+  return <DashboardCard title={title} value={value} icon={icon} />
 }
 
-
-// =======================================================
-// MODAL
-// =======================================================
-
-function Modal({
-  title,
-  subtitle,
-  onClose,
-  children,
-}) {
+function Modal({ title, subtitle, onClose, children }) {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-
-        <div className="flex items-center justify-between px-6 py-5 border-b">
-
-          <div>
-
-            <h2 className="text-xl font-semibold text-gray-800">
-              {title}
-            </h2>
-
-            {subtitle && (
-              <p className="text-sm text-gray-500 mt-1">
-                {subtitle}
-              </p>
-            )}
-
-          </div>
-
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 text-2xl"
-          >
-            ×
-          </button>
-
-        </div>
-
-        <div className="p-6">
-          {children}
-        </div>
-
-      </div>
-
-    </div>
+    <UiModal open onClose={onClose} title={title} description={subtitle}>
+      {children}
+    </UiModal>
   )
 }
 
