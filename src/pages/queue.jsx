@@ -24,10 +24,13 @@ const QUEUE_STATUSES = ["Waiting", "In Consultation", "Completed", "Skipped"]
 
 function Queue() {
   const { selectedHospital } = usePatient()
-  const { appointments: appointmentList, updateAppointment } = useAppointment()
+  const { updateAppointment } = useAppointment()
 
   // Live queue records from Django (encounters.QueueToken).
   const [queue, setQueue] = useState([])
+  // Booked appointments from Django, so any desk can issue their tokens
+  // (not only the browser that booked them).
+  const [serverAppointments, setServerAppointments] = useState([])
 
   const [departmentFilter, setDepartmentFilter] = useState("All Departments")
   const [statusFilter, setStatusFilter] = useState("All Status")
@@ -74,10 +77,22 @@ function Queue() {
       setLoading(true)
       setLoadError("")
       try {
-        const data = await api.queue.list(selectedHospital.id)
+        const [data, appointmentData] = await Promise.all([
+          api.queue.list(selectedHospital.id),
+          api.appointments.list(selectedHospital.id),
+        ])
         if (cancelled) return
         const records = Array.isArray(data) ? data : data?.results || []
         setQueue(records.map(mapQueueFromApi))
+        const appointments = Array.isArray(appointmentData) ? appointmentData : appointmentData?.results || []
+        setServerAppointments(
+          appointments.map((appointment) => ({
+            apiId: appointment.id,
+            hospitalId: appointment.hospital,
+            status: appointment.status,
+            patient: appointment.patient_name,
+          })),
+        )
         setOfflineMode(false)
       } catch (error) {
         if (cancelled) return
@@ -100,8 +115,8 @@ function Queue() {
   // =====================================
 
   // Appointments that are ready to be issued a queue token but do not have
-  // one yet (API-backed only, i.e. they carry a real backend id).
-  const issueableAppointments = (appointmentList || []).filter(
+  // one yet, as stored on the server for this hospital.
+  const issueableAppointments = serverAppointments.filter(
     (appointment) =>
       appointment.apiId &&
       String(appointment.hospitalId) === String(selectedHospital?.id) &&
@@ -138,44 +153,10 @@ function Queue() {
     }
   }
 
-  // =====================================
-  // APPOINTMENTS → QUEUE
-  // =====================================
-
-  const appointmentQueue = appointmentList
-    .filter((appointment) => appointment.status !== "Cancelled" && appointment.status !== "Completed")
-    .map((appointment) => {
-      let queueStatus = "Waiting"
-      if (appointment.status === "In Consultation") queueStatus = "In Consultation"
-      if (appointment.status === "Skipped") queueStatus = "Skipped"
-
-      return {
-        token: appointment.tokenNumber || appointment.id,
-        patient: appointment.patient || appointment.patientName || "Patient",
-        village: appointment.village || "",
-        contact: appointment.contact || "",
-        doctor: appointment.doctor || "",
-        department: appointment.department || appointment.reason || "General",
-        type: "Appointment",
-        waiting: queueStatus === "Waiting" ? "Waiting" : "Now",
-        status: queueStatus,
-        hospitalId: appointment.hospitalId,
-        appointmentId: appointment.id,
-      }
-    })
-
-  // Combine server queue + appointment queue
-  const allQueue = [
-    ...queue,
-    ...appointmentQueue.filter(
-      (appointmentItem) =>
-        !queue.some(
-          (queueItem) =>
-            String(queueItem.token) === String(appointmentItem.token) &&
-            String(queueItem.hospitalId) === String(appointmentItem.hospitalId),
-        ),
-    ),
-  ]
+  // The queue is the server's QueueTokens only. Appointments kept in this
+  // browser used to be merged in with made-up token numbers ("A001"), which
+  // other desks never saw; booked appointments now get real tokens above.
+  const allQueue = queue
 
   const hospitalQueue = selectedHospital
     ? allQueue.filter((item) => String(item.hospitalId) === String(selectedHospital.id))

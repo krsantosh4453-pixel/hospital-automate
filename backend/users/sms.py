@@ -2,6 +2,7 @@
 
 import logging
 import os
+import secrets
 
 from django.conf import settings
 from django.core.cache import cache
@@ -11,6 +12,10 @@ from users.twilio_verify import get_twilio_verify_service, TWILIO_VERIFY_NOT_CON
 logger = logging.getLogger(__name__)
 
 SMS_NOT_CONFIGURED = "Unable to send SMS OTP. SMS service is not configured."
+
+
+def _generate_code():
+    return f"{secrets.randbelow(1000000):06d}"
 
 
 class SMSResult:
@@ -32,13 +37,13 @@ class SMSService:
         """
         mode = getattr(settings, "PATIENT_OTP_DELIVERY", "sms")
         if mode == "cache":
-            # For testing: store a dummy OTP in cache
-            test_otp = otp or "123456"
+            # For testing: the test runner reads the code back from the cache
+            test_otp = otp or _generate_code()
             cache.set(f"patient-otp:{phone}", test_otp, timeout=300)
             return SMSResult(True, "cache", "Verification code stored for the test runner.")
         if mode == "console":
-            # For development: log to console
-            test_otp = otp or "123456"
+            # For development: log to console. Random, so a known code never unlocks an account.
+            test_otp = otp or _generate_code()
             cache.set(f"patient-otp:{phone}", test_otp, timeout=300)
             logger.warning(
                 "Patient OTP for %s (development console only, not sent by SMS): %s",

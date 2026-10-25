@@ -1,6 +1,6 @@
 # Security Audit
 
-Date: 2026-10-25. Scope: Django API, React client, nginx, Docker Compose and dependencies.
+Date: 2026-10-25 (updated the same evening by a second audit; see "Fixed in the second audit"). Scope: Django API, React client, nginx, Docker Compose and dependencies.
 
 `SECURITY_AUDIT_CHECKLIST.md` is the deployment checklist; this file records what was found, what was fixed and what remains open.
 
@@ -33,6 +33,22 @@ Date: 2026-10-25. Scope: Django API, React client, nginx, Docker Compose and dep
 | 23 | Medium | Vulnerable dependencies: gunicorn 21, cryptography 45, pytest 7, vite 8.2.0–8.2.2, source-map-js | Upgraded; `pip-audit` and `npm audit` clean | Audit runs |
 | 24 | Low | Patient-OTP, registration and password-reset routes had no rate-limit rules | Rules added to the rate-limit middleware | Review |
 
+## Fixed in the second audit (2026-10-25, evening)
+
+Each fix has a regression test that failed before the fix. Ids refer to `DEFECT_REGISTER.md`.
+
+| # | Severity | Finding | Fix | Test |
+|---|---|---|---|---|
+| 25 (D-01) | Critical | Deleting a patient in Hospital A cascaded into Hospital B's visits, prescriptions, labs and invoices | Delete refused (409) when the patient is registered at, or has records in, another hospital | `PatientDeleteTests` |
+| 26 (D-02) | High | List requests without an acting hospital used the union of roles across hospitals (a Receptionist in B listed B's vitals via a Doctor role in A) | Lists cover only hospitals where the view's permissions pass for the role held there | `RolePerHospitalTests` |
+| 27 (D-03) | High | Report templates readable and writable by any authenticated account, including patients; schedules movable to foreign hospitals; cross-hospital recipients; 500 on missing hospital | Templates: staff read, superuser write; hospital validated on create and update; recipients restricted to that hospital's staff | `test_reports_access` |
+| 28 (D-05) | High | A staff member with a linked patient record skipped password + OTP through the patient login routes, then acted as staff | Patient token routes refuse staff accounts | `test_auth` |
+| 29 (D-06) | High | Staff Google sign-in without password or OTP | Fixed by the owner before this audit; verified | `test_auth` |
+| 30 (D-04) | High | Notification providers recorded unsent SMS/WhatsApp/voice/email as delivered and logged message bodies (PHI) at INFO | Email really sent; unimplemented channels fail honestly; logs carry ids only | `ProviderHonestyTests` |
+| 31 (D-08) | Medium | Rate limits, DRF throttles, the audit IP and IP allow-lists trusted a client-supplied `X-Forwarded-For` | `TRUSTED_PROXY_COUNT` (1 behind nginx) and DRF `NUM_PROXIES`; one shared helper | `test_client_ip` |
+| 32 (D-09) | Medium | Django sent no CSP header in production (django-csp 4 ignores `CSP_*`) | `CONTENT_SECURITY_POLICY` with the intended directives | `test_settings_loading` |
+| 33 (D-11) | Medium | Patient and appointment rows left in `localStorage` after logout on shared PCs; timeouts saved duplicate records locally | Cleared on logout and session expiry, in storage and memory; timeouts no longer trigger local saves | `apiSession.test.js` |
+
 ## Verified controls
 
 - DRF default is `IsAuthenticated`.
@@ -41,6 +57,14 @@ Date: 2026-10-25. Scope: Django API, React client, nginx, Docker Compose and dep
 - No real secrets are tracked in git. `.env` is ignored; `.env.example` and `.env.production.example` contain placeholders only (checked). `backend/db.sqlite3` is no longer tracked, though it remains in git history.
 
 ## Open items (not fixed)
+
+Current list with ids and next actions: `DEFECT_REGISTER.md` ("Remaining"). It adds:
+
+- R-03: clinical hard deletes, and single-hospital patient delete by non-admin roles.
+- R-06: SMS/WhatsApp/Voice not implemented.
+- R-07: non-viewset endpoints not re-checked for the role-union pattern.
+- R-08: UHID uniqueness, unsalted email OTP hash.
+- R-09 to R-14: static storage, CI pinning, public API docs, code quality, offline cache, dev auth bypass.
 
 | Severity | Item | Why open / action |
 |---|---|---|

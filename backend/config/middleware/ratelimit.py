@@ -11,6 +11,8 @@ from django.http import JsonResponse
 from django.core.cache import cache
 from django.conf import settings
 
+from config.client_ip import client_ip
+
 logger = logging.getLogger(__name__)
 
 
@@ -142,11 +144,8 @@ class RateLimitMiddleware(MiddlewareMixin):
         return response
 
     def _get_client_ip(self, request):
-        """Extract client IP from request."""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            return x_forwarded_for.split(',')[0].strip()
-        return request.META.get('REMOTE_ADDR', 'unknown')
+        """Client IP; a spoofed X-Forwarded-For cannot rotate the limit key."""
+        return client_ip(request) or 'unknown'
 
     def _extract_phone(self, request):
         """Extract phone number from request body."""
@@ -196,7 +195,4 @@ class IPWhitelistMiddleware(MiddlewareMixin):
         return self.get_response(request)
 
     def _get_client_ip(self, request):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            return x_forwarded_for.split(',')[0].strip()
-        return request.META.get('REMOTE_ADDR', 'unknown')
+        return client_ip(request) or 'unknown'

@@ -1,5 +1,7 @@
 # Final Production-Readiness Report
 
+> **Superseded (2026-10-25, evening):** see `PRODUCTION_READINESS_AUDIT.md` and `DEFECT_REGISTER.md`. A second audit found and fixed further Critical and High defects that this report did not list.
+
 Date: 2026-10-25 · Branch `audit/production-readiness-2026-10-24` · Baseline `baseline-before-readiness-audit-2026-10-24` (e58280c)
 
 ## Verdict

@@ -20,6 +20,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from notifications.models import OTPVerification
 from patients.models import Patient
 from users.sms import SMSService, SMS_NOT_CONFIGURED
+from users.twilio_verify import get_twilio_verify_service
 
 logger = logging.getLogger(__name__)
 
@@ -118,13 +119,8 @@ def request_patient_otp(phone):
 
 
 def _sms_provider_configured():
-    sid = getattr(settings, "TWILIO_ACCOUNT_SID", "") or ""
-    token = getattr(settings, "TWILIO_AUTH_TOKEN", "") or ""
-    sender = getattr(settings, "TWILIO_PHONE_NUMBER", "") or ""
-    api_key = getattr(settings, "TWILIO_API_KEY", "") or ""
-    api_secret = getattr(settings, "TWILIO_API_SECRET", "") or ""
-    verify_sid = getattr(settings, "TWILIO_VERIFY_SERVICE_SID", "") or ""
-    return bool((sid and token and sender) or (sid and api_key and api_secret and verify_sid))
+    # SMS OTP is sent only through Twilio Verify, so ask the same client that sends it.
+    return get_twilio_verify_service().is_configured()
 
 
 def verify_patient_otp(phone, otp):

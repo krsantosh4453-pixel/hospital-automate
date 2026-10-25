@@ -243,7 +243,8 @@ function AIScribe() {
         // Try to find existing session for this visit
         const sessionsData = await api.aiScribe.consultationSessions.list(selectedHospital?.id)
         const sessions = readResults(sessionsData)
-        const existingSession = sessions.find(s => s.visit === selectedVisitId)
+        // The API returns a numeric visit id; the select holds a string.
+        const existingSession = sessions.find(s => String(s.visit) === String(selectedVisitId))
 
         if (existingSession) {
           setSession(existingSession)

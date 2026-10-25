@@ -183,24 +183,9 @@ class SMSProvider(NotificationProvider):
                 error="Provider not configured",
             )
 
-        # TODO: Implement actual SMS sending (Twilio, Plivo, etc.)
-        # Example:
-        # from twilio.rest import Client
-        # client = Client(account_sid, auth_token)
-        # message = client.messages.create(
-        #     body=payload.message,
-        #     from_=from_number,
-        #     to=payload.metadata.get("phone")
-        # )
-        # return NotificationResult(...)
-
-        logger.info(f"[SMS] Would send to patient {payload.patient_id}: {payload.message}")
-        return NotificationResult(
-            channel=self.channel,
-            success=True,
-            provider_message_id=f"sms-{datetime.now().timestamp()}",
-            sent_at=datetime.now(),
-        )
+        # Not implemented yet (Twilio Messaging, Plivo, ...): report the
+        # failure instead of recording a delivery that never happened.
+        return _not_implemented(self.channel, payload)
 
 
 class WhatsAppProvider(NotificationProvider):
@@ -227,14 +212,8 @@ class WhatsAppProvider(NotificationProvider):
                 error="Provider not configured",
             )
 
-        # TODO: Implement actual WhatsApp sending
-        logger.info(f"[WHATSAPP] Would send to patient {payload.patient_id}: {payload.message}")
-        return NotificationResult(
-            channel=self.channel,
-            success=True,
-            provider_message_id=f"whatsapp-{datetime.now().timestamp()}",
-            sent_at=datetime.now(),
-        )
+        # Not implemented yet: see _not_implemented.
+        return _not_implemented(self.channel, payload)
 
 
 class VoiceProvider(NotificationProvider):
@@ -262,14 +241,8 @@ class VoiceProvider(NotificationProvider):
                 error="Provider not configured",
             )
 
-        # TODO: Implement actual voice call
-        logger.info(f"[VOICE] Would call patient {payload.patient_id}: {payload.message}")
-        return NotificationResult(
-            channel=self.channel,
-            success=True,
-            provider_message_id=f"voice-{datetime.now().timestamp()}",
-            sent_at=datetime.now(),
-        )
+        # Not implemented yet: see _not_implemented.
+        return _not_implemented(self.channel, payload)
 
 
 class EmailProvider(NotificationProvider):
@@ -296,13 +269,24 @@ class EmailProvider(NotificationProvider):
                 error="Provider not configured",
             )
 
-        # TODO: Implement actual email sending
-        # from django.core.mail import send_mail
-        # send_mail(...)
-        logger.info(f"[EMAIL] Would email patient {payload.patient_id}: {payload.title} - {payload.message}")
-        return NotificationResult(
-            channel=self.channel,
-            success=True,
-            provider_message_id=f"email-{datetime.now().timestamp()}",
-            sent_at=datetime.now(),
-        )
+        from django.conf import settings
+        from django.core.mail import send_mail
+        from patients.models import Patient
+
+        patient = Patient.objects.select_related("user").filter(pk=payload.patient_id).first()
+        address = getattr(getattr(patient, "user", None), "email", "") if patient else ""
+        if not address:
+            return NotificationResult(channel=self.channel, success=False, error="Patient has no email address")
+        try:
+            send_mail(payload.title, payload.message, settings.DEFAULT_FROM_EMAIL, [address])
+        except Exception as e:
+            # Ids only: the message may contain clinical details.
+            logger.error("EmailProvider failed for patient %s: %s", payload.patient_id, type(e).__name__)
+            return NotificationResult(channel=self.channel, success=False, error="Email could not be sent")
+        return NotificationResult(channel=self.channel, success=True, sent_at=datetime.now())
+
+
+def _not_implemented(channel: NotificationChannel, payload: NotificationPayload) -> NotificationResult:
+    # Ids only: the message may contain clinical details.
+    logger.warning("%s delivery is not implemented; nothing sent to patient %s", channel.value, payload.patient_id)
+    return NotificationResult(channel=channel, success=False, error=f"{channel.value} sending is not implemented")

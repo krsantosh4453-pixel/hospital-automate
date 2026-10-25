@@ -427,7 +427,8 @@ function Appointments() {
       setSuccessMessage("Appointment booked.")
       resetForm()
     } catch (error) {
-      if (!error.isNetworkError) {
+      // A timeout is not "offline": the server may already have applied it.
+      if (!error.isNetworkError || error.isTimeout) {
         // The server (or the doctor check) refused: nothing was booked.
         setFormError(error.message)
         return
@@ -462,7 +463,8 @@ function Appointments() {
       await api.appointments.delete(appointment.apiId)
       setSuccessMessage("Appointment deleted.")
     } catch (error) {
-      if (!error.isNetworkError) {
+      // A timeout is not "offline": the server may already have applied it.
+      if (!error.isNetworkError || error.isTimeout) {
         setLoadError(`Not deleted on the server: ${error.message}`)
         setReloadToken((t) => t + 1)
         return
@@ -491,7 +493,8 @@ function Appointments() {
       await api.appointments.patch(appointment.apiId, { status: "Cancelled" })
       setSuccessMessage("Appointment cancelled.")
     } catch (error) {
-      if (!error.isNetworkError) {
+      // A timeout is not "offline": the server may already have applied it.
+      if (!error.isNetworkError || error.isTimeout) {
         setLoadError(`Not cancelled on the server: ${error.message}`)
         setReloadToken((t) => t + 1)
         return
@@ -597,7 +600,8 @@ function Appointments() {
       setSuccessMessage("Appointment updated.")
       resetForm()
     } catch (error) {
-      if (!error.isNetworkError) {
+      // A timeout is not "offline": the server may already have applied it.
+      if (!error.isNetworkError || error.isTimeout) {
         setFormError(error.message)
         return
       }

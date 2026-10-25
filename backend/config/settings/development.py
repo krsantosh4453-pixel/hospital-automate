@@ -57,15 +57,33 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
 ]
+# Vite moves to 5174, 5175, ... when 5173 is taken; accept any port, loopback hosts only.
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^http://(localhost|127\.0\.0\.1|\[::1\]):\d+$',
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
 
 
 # ============================================================
-# Email - Console Backend for Development
+# Email - Console unless SMTP credentials are configured
 # ============================================================
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# With EMAIL_HOST_USER and EMAIL_HOST_PASSWORD set, OTP emails are really sent
+# over SMTP; otherwise they are only printed to the runserver console.
+# EMAIL_BACKEND overrides the choice explicitly.
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() == 'true'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL') or EMAIL_HOST_USER or DEFAULT_FROM_EMAIL  # noqa: F405
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND') or (
+    'django.core.mail.backends.smtp.EmailBackend'
+    if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD
+    else 'django.core.mail.backends.console.EmailBackend'
+)
 
 
 # ============================================================

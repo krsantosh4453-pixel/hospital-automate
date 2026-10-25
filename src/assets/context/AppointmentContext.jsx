@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
 import { withoutDemoRows } from "../../utils/demoData.js"
 
 const AppointmentContext = createContext(null)
@@ -11,6 +11,14 @@ export function AppointmentProvider({ children }) {
       ? withoutDemoRows(JSON.parse(saved), "appointments")
       : []
   })
+
+  // Signing out (or an expired session) drops appointments held in memory;
+  // services/api.js clears the localStorage copy.
+  useEffect(() => {
+    const forgetAppointments = () => setAppointments([])
+    window.addEventListener("auth:logout", forgetAppointments)
+    return () => window.removeEventListener("auth:logout", forgetAppointments)
+  }, [])
 
 
   // =========================

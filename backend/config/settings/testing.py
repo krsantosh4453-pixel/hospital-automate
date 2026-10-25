@@ -31,6 +31,24 @@ DATABASES = {
     }
 }
 
+# Optional: run the suite on PostgreSQL (as CI does), e.g.
+# TEST_DATABASE_URL=postgres://hms_test:hms_test@localhost:5432/hms_test
+_test_db_url = os.environ.get('TEST_DATABASE_URL')
+if _test_db_url:
+    from urllib.parse import urlparse
+
+    _parsed = urlparse(_test_db_url)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': _parsed.path[1:],
+            'USER': _parsed.username,
+            'PASSWORD': _parsed.password,
+            'HOST': _parsed.hostname,
+            'PORT': _parsed.port or 5432,
+        }
+    }
+
 
 # ============================================================
 # CORS - Testing

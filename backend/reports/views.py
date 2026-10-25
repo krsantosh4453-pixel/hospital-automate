@@ -1,10 +1,10 @@
 from datetime import datetime
 from rest_framework import status, viewsets, serializers
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import SAFE_METHODS, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
-from users.permissions import get_user_hospital_ids
+from users.permissions import IsStaffUser, get_user_hospital_ids, is_active_staff, parse_hospital_id
 from reports.services import KPIService
 from reports.forecasting import ForecastingService
 from reports.models import ReportTemplate, SavedReport, ScheduledReport, KPISnapshot
@@ -611,10 +611,32 @@ class AnalyticsViewSet(viewsets.ViewSet):
         return Response(result)
 
 
+def _member_hospital_id(request, value):
+    """A hospital id from the request that the user is an active member of."""
+    hospital_id = parse_hospital_id(value)
+    if hospital_id is None:
+        raise serializers.ValidationError({"hospital": "Hospital is required."})
+    if hospital_id not in get_user_hospital_ids(request.user):
+        raise serializers.ValidationError({"hospital": "Access denied to this hospital"})
+    return hospital_id
+
+
+class IsTemplateEditor(BasePermission):
+    """
+    Templates have no hospital and are shared by all of them: hospital staff
+    read them, only the platform administrator (superuser) changes them.
+    """
+
+    def has_permission(self, request, view):
+        if request.user.is_superuser:
+            return True
+        return request.method in SAFE_METHODS and is_active_staff(request.user)
+
+
 class ReportTemplateViewSet(viewsets.ModelViewSet):
     """CRUD for report templates."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsTemplateEditor]
     serializer_class = ReportTemplateSerializer
     queryset = ReportTemplate.objects.all()
 
@@ -628,7 +650,7 @@ class ReportTemplateViewSet(viewsets.ModelViewSet):
 class SavedReportViewSet(viewsets.ModelViewSet):
     """CRUD for saved reports."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsStaffUser]
     serializer_class = SavedReportSerializer
 
     def get_queryset(self):
@@ -638,29 +660,35 @@ class SavedReportViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        hospital_id = int(self.request.data.get("hospital"))
-        user_hospitals = get_user_hospital_ids(self.request.user)
-        if hospital_id not in user_hospitals:
-            raise serializers.ValidationError("Access denied to this hospital")
+        hospital_id = _member_hospital_id(self.request, self.request.data.get("hospital"))
         serializer.save(created_by=self.request.user, hospital_id=hospital_id)
 
 
 class ScheduledReportViewSet(viewsets.ModelViewSet):
     """CRUD for scheduled reports."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsStaffUser]
     serializer_class = ScheduledReportSerializer
 
     def get_queryset(self):
         user_hospitals = get_user_hospital_ids(self.request.user)
         return ScheduledReport.objects.filter(hospital_id__in=user_hospitals)
 
+    def _check_recipients(self, hospital_id, recipients):
+        # One hospital's report must not be delivered to another hospital's staff.
+        if any(hospital_id not in get_user_hospital_ids(user) for user in recipients):
+            raise serializers.ValidationError({"recipients": "Recipients must be staff of this hospital."})
+
     def perform_create(self, serializer):
-        hospital_id = int(self.request.data.get("hospital"))
-        user_hospitals = get_user_hospital_ids(self.request.user)
-        if hospital_id not in user_hospitals:
-            raise serializers.ValidationError("Access denied to this hospital")
+        hospital_id = _member_hospital_id(self.request, self.request.data.get("hospital"))
+        self._check_recipients(hospital_id, serializer.validated_data.get("recipients", []))
         serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        hospital_id = _member_hospital_id(self.request, serializer.validated_data.get("hospital", instance.hospital))
+        self._check_recipients(hospital_id, serializer.validated_data.get("recipients", instance.recipients.all()))
+        serializer.save()
 
 
 class KPISnapshotViewSet(viewsets.ReadOnlyModelViewSet):

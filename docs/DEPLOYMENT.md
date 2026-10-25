@@ -50,6 +50,8 @@ Policy and integration variables:
 | `AI_SCRIBE_ENABLED` | True | Without a provider key the AI endpoints answer 503 "not configured"; mock providers are never used in production |
 | `FHIR_ENABLED`, `HL7_ENABLED`, `ABDM_ENABLED` | False | Their routes are not mounted; leave False |
 | `AUDIT_LOG_RETENTION_DAYS` | 0 (keep forever) | Choose according to your legal retention obligations |
+| `TRUSTED_PROXY_COUNT` | 1 | Proxies in front of Django that append to `X-Forwarded-For` (nginx). Rate limits, DRF throttles and the audit IP use the entry this many places from the right. Set 2 behind a load balancer + nginx, and never higher than the real number of proxies. |
+| `CSP_REPORT_ONLY` | False | True sends Django's Content-Security-Policy as report-only while you test it (`CSP_REPORT_URI` collects reports) |
 
 ## 3. TLS
 

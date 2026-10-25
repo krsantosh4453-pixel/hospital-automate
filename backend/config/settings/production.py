@@ -50,23 +50,30 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 X_FRAME_OPTIONS = 'DENY'
 
-# CSP (Content Security Policy) - using django-csp
-# Install django-csp: pip install django-csp
-# Add 'csp.middleware.CSPMiddleware' to MIDDLEWARE
-CSP_DEFAULT_SRC = ["'self'"]
-CSP_STYLE_SRC = ["'self'", "'unsafe-inline'"]  # unsafe-inline needed for some admin styles
-CSP_SCRIPT_SRC = ["'self'"]
-CSP_IMG_SRC = ["'self'", "data:", "https:"]
-CSP_FONT_SRC = ["'self'"]
-CSP_CONNECT_SRC = ["'self'"]
-CSP_FRAME_ANCESTORS = ["'none'"]
-CSP_FORM_ACTION = ["'self'"]
-CSP_BASE_URI = ["'self'"]
-CSP_OBJECT_SRC = ["'none'"]
-
+# CSP (Content Security Policy) for responses Django serves (API, admin),
+# via csp.middleware.CSPMiddleware in MIDDLEWARE. django-csp 4 reads only
+# CONTENT_SECURITY_POLICY; the old CSP_* names are silently ignored.
+# The SPA's own policy is set by nginx (nginx.conf.template).
+_CSP_DIRECTIVES = {
+    'default-src': ["'self'"],
+    'style-src': ["'self'", "'unsafe-inline'"],  # unsafe-inline needed for some admin styles
+    'script-src': ["'self'"],
+    'img-src': ["'self'", "data:", "https:"],
+    'font-src': ["'self'"],
+    'connect-src': ["'self'"],
+    'frame-ancestors': ["'none'"],
+    'form-action': ["'self'"],
+    'base-uri': ["'self'"],
+    'object-src': ["'none'"],
+}
 # Report CSP violations
-CSP_REPORT_URI = os.environ.get('CSP_REPORT_URI')
-CSP_REPORT_ONLY = False  # Set to True for testing
+if os.environ.get('CSP_REPORT_URI'):
+    _CSP_DIRECTIVES['report-uri'] = os.environ['CSP_REPORT_URI']
+# CSP_REPORT_ONLY=True sends the policy as report-only while testing it.
+if os.environ.get('CSP_REPORT_ONLY', 'False').lower() == 'true':
+    CONTENT_SECURITY_POLICY_REPORT_ONLY = {'DIRECTIVES': _CSP_DIRECTIVES}
+else:
+    CONTENT_SECURITY_POLICY = {'DIRECTIVES': _CSP_DIRECTIVES}
 
 
 # ============================================================
@@ -360,10 +367,11 @@ AI_SCRIBE_MODEL = os.environ.get('AI_SCRIBE_MODEL', 'gpt-4')
 AI_SCRIBE_MAX_TOKENS = int(os.environ.get('AI_SCRIBE_MAX_TOKENS', '4000'))
 AI_SCRIBE_TEMPERATURE = float(os.environ.get('AI_SCRIBE_TEMPERATURE', '0.1'))
 
-# AI Scribe is optional - if API key is not set, it falls back to development mode
+# AI Scribe is optional - without an API key it is switched off (mock
+# providers are never allowed in production, see above).
 if AI_SCRIBE_ENABLED and not AI_SCRIBE_API_KEY:
     import warnings
-    warnings.warn('AI_SCRIBE_API_KEY not set - AI Scribe will run in development mode (mock responses)')
+    warnings.warn('AI_SCRIBE_API_KEY not set - AI Scribe is disabled')
     AI_SCRIBE_ENABLED = False
 
 
@@ -502,6 +510,10 @@ BACKUP_ENCRYPTION_KEY = os.environ.get('BACKUP_ENCRYPTION_KEY')
 # ============================================================
 
 RATE_LIMIT_ENABLED = True
+
+# nginx sits in front of Django (docker-compose.prod.yml); see base.py.
+TRUSTED_PROXY_COUNT = int(os.environ.get('TRUSTED_PROXY_COUNT', '1'))
+REST_FRAMEWORK['NUM_PROXIES'] = TRUSTED_PROXY_COUNT
 
 # DRF Throttle rates (override base)
 REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {

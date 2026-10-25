@@ -12,10 +12,9 @@ _REDACT = {"password", "otp", "otp_code", "code", "token", "access", "refresh", 
 def _client_ip(request):
     if request is None:
         return None
-    meta = getattr(request, "META", {})
-    forwarded = meta.get("HTTP_X_FORWARDED_FOR")
-    ip = forwarded.split(",")[0].strip() if forwarded else meta.get("REMOTE_ADDR")
-    return ip or None
+    from config.client_ip import client_ip
+
+    return client_ip(request)
 
 
 def _resolve_hospital(obj, hospital):

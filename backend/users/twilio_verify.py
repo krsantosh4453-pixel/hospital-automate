@@ -10,7 +10,7 @@ from twilio.base.exceptions import TwilioException
 
 logger = logging.getLogger(__name__)
 
-TWILIO_VERIFY_NOT_CONFIGURED = "Twilio Verify is not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, and TWILIO_VERIFY_SERVICE_SID."
+TWILIO_VERIFY_NOT_CONFIGURED = "Twilio Verify is not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_VERIFY_SERVICE_SID, and either TWILIO_API_KEY + TWILIO_API_SECRET or TWILIO_AUTH_TOKEN."
 
 
 @dataclass
@@ -36,14 +36,20 @@ class TwilioVerifyService:
         api_key = getattr(settings, "TWILIO_API_KEY", None) or os.environ.get("TWILIO_API_KEY")
         api_secret = getattr(settings, "TWILIO_API_SECRET", None) or os.environ.get("TWILIO_API_SECRET")
         verify_service_sid = getattr(settings, "TWILIO_VERIFY_SERVICE_SID", None) or os.environ.get("TWILIO_VERIFY_SERVICE_SID")
+        auth_token = getattr(settings, "TWILIO_AUTH_TOKEN", None) or os.environ.get("TWILIO_AUTH_TOKEN")
 
-        if not (account_sid and api_key and api_secret and verify_service_sid):
+        # API key + secret is preferred; the account auth token works too.
+        has_api_key = bool(api_key and api_secret)
+        if not (account_sid and verify_service_sid and (has_api_key or auth_token)):
             logger.warning("Twilio Verify credentials not fully configured")
             self._initialized = True
             return
 
         try:
-            self._client = Client(api_key, api_secret, account_sid)
+            if has_api_key:
+                self._client = Client(api_key, api_secret, account_sid)
+            else:
+                self._client = Client(account_sid, auth_token)
             self._verify_service_sid = verify_service_sid
             self._initialized = True
         except Exception as e:

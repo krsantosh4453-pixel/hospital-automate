@@ -82,10 +82,9 @@ class IsHL7Authenticated(permissions.BasePermission):
         return False
 
     def _get_client_ip(self, request):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            return x_forwarded_for.split(',')[0].strip()
-        return request.META.get('REMOTE_ADDR', 'unknown')
+        from config.client_ip import client_ip
+
+        return client_ip(request) or 'unknown'
 
 
 def get_user_staff_profile(user):

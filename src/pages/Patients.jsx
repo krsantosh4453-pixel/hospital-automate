@@ -275,7 +275,8 @@ function Patients() {
     } catch (error) {
       // The server answered but refused (validation, permission): show why
       // and keep the form open. Nothing is saved anywhere.
-      if (!error.isNetworkError) {
+      // A timeout is not "offline": the server may already have applied it.
+      if (!error.isNetworkError || error.isTimeout) {
         setFormErrors((prev) => ({ ...prev, _server: error.message }))
         return
       }
@@ -321,7 +322,8 @@ function Patients() {
       setTotalRecords((n) => Math.max(n - 1, 0))
       setOfflineMode(false)
     } catch (error) {
-      if (!error.isNetworkError) {
+      // A timeout is not "offline": the server may already have applied it.
+      if (!error.isNetworkError || error.isTimeout) {
         // The server refused (e.g. permission): the patient still exists.
         setLoadError(`Not deleted: ${error.message}`)
         setDeleting(false)

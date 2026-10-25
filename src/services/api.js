@@ -21,6 +21,26 @@ function clearTokens() {
   localStorage.removeItem(REFRESH_TOKEN_KEY)
 }
 
+// Patient rows some pages keep in the browser (offline saves, the patient
+// portal). Hospital PCs are shared, so they never outlive the session.
+export const CACHED_PATIENT_DATA_KEYS = [
+  'hospitalAppointments',
+  'hospitalPatients',
+  'patientData',
+  'patientAppointment',
+  'hospitalPrescriptions',
+]
+
+export function clearCachedPatientData() {
+  for (const key of CACHED_PATIENT_DATA_KEYS) {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // Storage may be unavailable (private mode); nothing to clear.
+    }
+  }
+}
+
 // The hospital chosen in the hospital switcher. Sent on every request so the
 // backend scopes data and role checks to it (an explicit ?hospital= wins).
 function getSelectedHospitalId() {
@@ -108,22 +128,29 @@ function failAuthSession() {
   localStorage.removeItem('hospitals')
   localStorage.removeItem('patientLoggedIn')
   localStorage.removeItem('patient')
+  clearCachedPatientData()
   window.dispatchEvent(new Event('auth:logout'))
 }
 
 // Shared request helper with consistent error handling.
 async function request(url, options = {}) {
   let response
-  const { headers: extraHeaders, _retried = false, ...rest } = options
+  const { headers: extraHeaders, _retried = false, timeout = 8000, ...rest } = options
   const headers = buildHeaders(extraHeaders || {}, rest.body)
 
   try {
-    const timeoutSignal = rest.signal || AbortSignal.timeout(8000)
+    const timeoutSignal = rest.signal || AbortSignal.timeout(timeout)
     response = await fetch(url, { ...rest, headers, signal: timeoutSignal })
   } catch (networkError) {
+    // fetch() only rejects when no HTTP response arrived (server down, CORS
+    // blocked, timeout); its own messages ("Failed to fetch") say nothing useful.
+    const timedOut = networkError.name === 'TimeoutError'
     const error = new Error(
-      networkError.message || 'Network error. Is the Django server running?'
+      timedOut
+        ? 'The server took too long to respond. Check whether the action completed before retrying.'
+        : 'Cannot reach the server. Check that the Django backend is running and the API URL is correct.'
     )
+    error.isTimeout = timedOut
     // Lets pages tell "server unreachable" apart from "server said no".
     error.isNetworkError = true
     throw error
@@ -161,6 +188,9 @@ async function request(url, options = {}) {
   return response.json()
 }
 
+// Requests that wait on an email or SMS provider before the server answers.
+const DELIVERY_TIMEOUT_MS = 30000
+
 function jsonBody(data) {
   return {
     headers: { 'Content-Type': 'application/json' },
@@ -192,6 +222,7 @@ const api = {
     staffLoginStartOtp: async (username, password) =>
       request(`${API_BASE_URL}/auth/staff/login/otp/start/`, {
         method: 'POST',
+        timeout: DELIVERY_TIMEOUT_MS,
         ...jsonBody({ username, password }),
       }),
     // `challenge` is the signed token returned by staffLoginStartOtp.
@@ -211,6 +242,7 @@ const api = {
     staffOtpResend: async (challenge) =>
       request(`${API_BASE_URL}/auth/staff/login/otp/resend/`, {
         method: 'POST',
+        timeout: DELIVERY_TIMEOUT_MS,
         ...jsonBody({ challenge }),
       }),
     requestPasswordReset: async (username) =>
@@ -240,15 +272,18 @@ const api = {
       localStorage.removeItem('user')
       localStorage.removeItem('roles')
       localStorage.removeItem('hospitals')
+      clearCachedPatientData()
     },
     register: async (payload) =>
       request(`${API_BASE_URL}/auth/register/`, {
         method: 'POST',
+        timeout: DELIVERY_TIMEOUT_MS,
         ...jsonBody(payload),
       }),
     requestPatientOtp: async (phone) =>
       request(`${API_BASE_URL}/auth/patient/otp/request/`, {
         method: 'POST',
+        timeout: DELIVERY_TIMEOUT_MS,
         ...jsonBody({ phone }),
       }),
     verifyPatientOtp: async (phone, otp) => {
@@ -262,6 +297,7 @@ const api = {
     requestEmailOtp: async (email) =>
       request(`${API_BASE_URL}/auth/patient/email-otp/request/`, {
         method: 'POST',
+        timeout: DELIVERY_TIMEOUT_MS,
         ...jsonBody({ email }),
       }),
     verifyEmailOtp: async (email, otp) =>

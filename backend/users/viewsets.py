@@ -118,12 +118,29 @@ class HospitalScopedViewSet(viewsets.ModelViewSet):
         return hospital_id_of(obj, self.get_hospital_lookup(type(obj)))
 
     def get_acting_hospital_ids(self):
-        """Hospital ids this request may touch, narrowed by the acting hospital."""
+        """
+        Hospital ids this request may touch, narrowed by the acting hospital.
+        Without one, only hospitals where this view's permissions pass for the
+        role held there: a Doctor in A who is a Receptionist in B must not
+        list B's clinical rows just by leaving out the hospital.
+        """
         hospital_ids = get_user_hospital_ids(self.request.user)
         acting = get_request_hospital_id(self.request, self)
         if acting is not None:
             return [acting] if acting in hospital_ids else []
-        return hospital_ids
+        return [h for h in hospital_ids if self._permitted_in_hospital(h)]
+
+    def _permitted_in_hospital(self, hospital_id):
+        # Permission classes read the acting hospital through
+        # get_request_hospital_id, which caches it on the request; evaluate
+        # them as if this hospital had been sent, then restore the cache.
+        request = self.request
+        saved = getattr(request, "_hms_hospital_id", None)
+        request._hms_hospital_id = hospital_id
+        try:
+            return all(p.has_permission(request, self) for p in self.get_permissions())
+        finally:
+            request._hms_hospital_id = saved
 
     def _queryset_for_linked_patient(self, queryset, patient):
         model = queryset.model
@@ -277,6 +294,7 @@ class ReadOnlyHospitalScopedViewSet(viewsets.ReadOnlyModelViewSet):
     get_hospital_lookup = HospitalScopedViewSet.get_hospital_lookup
     get_object_hospital_id = HospitalScopedViewSet.get_object_hospital_id
     get_acting_hospital_ids = HospitalScopedViewSet.get_acting_hospital_ids
+    _permitted_in_hospital = HospitalScopedViewSet._permitted_in_hospital
 
     def get_queryset(self):
         queryset = self._base_queryset()

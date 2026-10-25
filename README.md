@@ -123,6 +123,7 @@ npm run dev
 | `npm run dev` | Start Vite dev server with HMR |
 | `npm run build` | Production build to `dist/` |
 | `npm run lint` | Run ESLint |
+| `npm test` | Run frontend unit tests (Vitest) |
 | `npm run preview` | Preview production build |
 
 ### Running with Docker Compose (Development)
@@ -254,14 +255,17 @@ hospital-automate/
 ```bash
 cd backend
 python manage.py check --settings=config.settings.testing
-python manage.py test --settings=config.settings.testing   # 217 tests
+python manage.py test --settings=config.settings.testing   # 254 tests, 1 skipped
+# Same suite on PostgreSQL (as CI does):
+# TEST_DATABASE_URL=postgres://user:pass@localhost:5432/dbname python manage.py test --settings=config.settings.testing
 
 cd ..
 npm run lint     # 0 errors expected
+npm test         # Vitest
 npm run build
 ```
 
-There is no frontend test runner. If the repo sits in an iCloud-synced folder, run Python with `PYTHONPYCACHEPREFIX=/tmp/hms-pycache` or move the project out of iCloud (see `docs/OPERATIONS_RUNBOOK.md`). For a reproducible environment install `backend/requirements-lock.txt`.
+No `.env` is needed to run the tests. Results and coverage gaps: `docs/TEST_EXECUTION_REPORT.md`. If the repo sits in an iCloud-synced folder, run Python with `PYTHONPYCACHEPREFIX=/tmp/hms-pycache` or move the project out of iCloud (see `docs/OPERATIONS_RUNBOOK.md`). For a reproducible environment install `backend/requirements-lock.txt`.
 
 ### Database Migrations
 

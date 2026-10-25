@@ -122,21 +122,17 @@ function PatientLogin() {
       setGoogleLoading(true)
       setGoogleStatus("Verifying with backend...")
 
-      // Try local Django server first, then fallback to relative path
+      // Same base URL as every other API call (the Vite proxy in development).
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "/api"
       let res
       try {
-        res = await fetch("http://127.0.0.1:8000/api/auth/google/", {
+        res = await fetch(`${apiBase}/auth/google/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ credential: response.credential }),
         })
-      } catch (networkErr) {
-        // Retry with localhost or relative url
-        res = await fetch("/api/auth/google/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ credential: response.credential }),
-        })
+      } catch {
+        throw new Error("Cannot reach the server. Check that the Django backend is running.")
       }
 
       const data = await res.json()

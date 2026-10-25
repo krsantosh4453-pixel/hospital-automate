@@ -227,6 +227,12 @@ REST_FRAMEWORK = {
     },
 }
 
+# Reverse proxies in front of Django that append to X-Forwarded-For (nginx in
+# production). 0 means "use REMOTE_ADDR": the header is client-controlled, so
+# trusting it without a proxy would let anyone pick their rate-limit key.
+TRUSTED_PROXY_COUNT = int(os.environ.get('TRUSTED_PROXY_COUNT', '0'))
+REST_FRAMEWORK['NUM_PROXIES'] = TRUSTED_PROXY_COUNT
+
 
 # ============================================================
 # Simple JWT Configuration
@@ -285,6 +291,8 @@ EMAIL_USE_TLS = False
 EMAIL_HOST_USER = ''
 EMAIL_HOST_PASSWORD = ''
 DEFAULT_FROM_EMAIL = 'Hospital Management System <noreply@hospital.local>'
+# Seconds before an unreachable SMTP server fails the send (Django's default waits forever).
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
 
 
 # ============================================================

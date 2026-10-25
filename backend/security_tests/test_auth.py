@@ -12,7 +12,8 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from hospital.models import Hospital
-from users.models import StaffHospitalMembership, StaffProfile, StaffRole
+from patients.models import Patient
+from users.models import GoogleAccount, StaffHospitalMembership, StaffProfile, StaffRole
 from users.twilio_verify import VerifyResult
 
 User = get_user_model()
@@ -97,6 +98,56 @@ class StaffAuthTests(TestCase):
     def test_password_only_login_refused_when_otp_required(self):
         resp = self.client.post("/api/auth/staff/login/", {"username": "auth_doc", "password": PASSWORD}, format="json")
         self.assertEqual(resp.status_code, 403)
+        self.assertNotIn("access", resp.json())
+
+    def google_login_as(self, email, sub="google-staff-sub"):
+        identity = {"sub": sub, "email": email, "email_verified": "true", "name": "Synthetic Staff"}
+        with mock.patch("users.views.verify_google_identity", return_value=identity):
+            return self.client.post("/api/auth/google/", {"credential": "signed"}, format="json")
+
+    @override_settings(STAFF_LOGIN_REQUIRE_OTP=True)
+    def test_google_login_refused_for_staff_email(self):
+        resp = self.google_login_as("AUTH_DOC@example.test")
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.assertNotIn("access", resp.json())
+        self.assertFalse(GoogleAccount.objects.filter(user=self.user).exists())
+
+    def test_google_login_refused_for_already_linked_staff(self):
+        GoogleAccount.objects.create(user=self.user, google_id="linked-sub", email="other@example.test")
+        resp = self.google_login_as("other@example.test", sub="linked-sub")
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.assertNotIn("access", resp.json())
+
+    def test_google_login_refused_for_pending_staff(self):
+        self.user.staff_profile.is_active_staff = False
+        self.user.staff_profile.save(update_fields=["is_active_staff"])
+        resp = self.google_login_as("auth_doc@example.test")
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.assertNotIn("access", resp.json())
+        self.assertFalse(Patient.objects.filter(user=self.user).exists())
+
+    def link_patient_record(self):
+        return Patient.objects.create(
+            user=self.user, name="Synthetic Dual", age=40, gender="Male", phone="9000000010",
+            email_verified=True,
+        )
+
+    @override_settings(STAFF_LOGIN_REQUIRE_OTP=True)
+    def test_patient_email_login_refused_for_staff_account(self):
+        self.link_patient_record()
+        resp = self.client.post(
+            "/api/auth/patient/login/", {"email": "auth_doc@example.test", "password": PASSWORD}, format="json"
+        )
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.assertNotIn("access", resp.json())
+
+    @override_settings(STAFF_LOGIN_REQUIRE_OTP=True)
+    def test_patient_identifier_login_refused_for_staff_account(self):
+        self.link_patient_record()
+        resp = self.client.post(
+            "/api/auth/patient/token/", {"identifier": "9000000010", "password": PASSWORD}, format="json"
+        )
+        self.assertEqual(resp.status_code, 403, resp.content)
         self.assertNotIn("access", resp.json())
 
     def test_bare_token_obtain_endpoint_removed(self):

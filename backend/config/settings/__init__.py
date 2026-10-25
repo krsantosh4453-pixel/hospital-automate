@@ -20,12 +20,17 @@ import os
 # Determine environment
 ENVIRONMENT = os.environ.get('DJANGO_ENV', 'development').lower()
 
-if ENVIRONMENT == 'production':
-    from .production import *  # noqa: F403,F401
-elif ENVIRONMENT == 'testing':
-    from .testing import *  # noqa: F403,F401
-else:
-    from .development import *  # noqa: F403,F401
+# Python runs this file before any submodule, so importing
+# config.settings.testing or config.settings.production would otherwise also
+# execute development.py and require its variables. Select an environment
+# only when this package itself is the settings module.
+if os.environ.get('DJANGO_SETTINGS_MODULE', 'config.settings') == 'config.settings':
+    if ENVIRONMENT == 'production':
+        from .production import *  # noqa: F403,F401
+    elif ENVIRONMENT == 'testing':
+        from .testing import *  # noqa: F403,F401
+    else:
+        from .development import *  # noqa: F403,F401
 
 # Export the environment for use in other modules
 __all__ = ['ENVIRONMENT']

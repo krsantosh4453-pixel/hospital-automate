@@ -5,6 +5,7 @@ from datetime import date
 
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -101,14 +102,26 @@ def google_login(request):
         google_account = GoogleAccount.objects.filter(google_id=google_id).first()
         if google_account:
             user = google_account.user
+        else:
+            user = User.objects.filter(email__iexact=email).first() if email else None
+            if user is None and email:
+                user = User.objects.filter(username__iexact=email).first()
+
+        # Google sign-in is for patients. Staff must pass the password and SMS
+        # OTP steps, so a staff account (active or pending) is never linked to a
+        # Google identity or issued tokens here.
+        if user is not None and StaffProfile.objects.filter(user=user).exists():
+            return Response(
+                {"error": "Staff accounts must sign in with username, password and the SMS code."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if google_account:
             google_account.email = email or google_account.email
             google_account.name = name or google_account.name
             google_account.picture = picture or google_account.picture
             google_account.save()
         else:
-            user = User.objects.filter(email__iexact=email).first() if email else None
-            if user is None and email:
-                user = User.objects.filter(username__iexact=email).first()
             if user is None:
                 user = User.objects.create_user(
                     username=_unique_username(email, ""),
@@ -125,13 +138,6 @@ def google_login(request):
                 name=name,
                 picture=picture,
             )
-
-        staff_data = _get_staff_data(user)
-        if staff_data:
-            return Response({
-                "status": "success",
-                **_auth_response(user),
-            })
 
         patient = link_google_patient(user, name, email)
         if google_account.patient_id != patient.id:
@@ -698,6 +704,17 @@ def register_account(request):
     first_name = name_parts[0][:150]
     last_name = name_parts[1][:150] if len(name_parts) > 1 else ""
 
+    try:
+        validate_password(
+            str(password),
+            user=User(username=email or phone, email=email, first_name=first_name, last_name=last_name),
+        )
+    except ValidationError as exc:
+        return Response(
+            {"error": " ".join(exc.messages)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     if requested_role == "Admin":
         expected = (getattr(settings, "ADMIN_INVITE_CODE", "") or "").strip()
         invite = str(data.get("invite_code") or data.get("admin_invite_code") or "").strip()
@@ -839,6 +856,18 @@ def register_account(request):
     )
 
 
+def _refuse_staff_on_patient_login(user):
+    # Tokens for a user with a staff profile act as staff across the API, so
+    # a staff member who also has a patient record must not skip the
+    # password + SMS OTP path by signing in here.
+    if user is not None and StaffProfile.objects.filter(user=user).exists():
+        return Response(
+            {"error": "Staff accounts must sign in with username, password and the SMS code."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return None
+
+
 def _otp_response(status_name, message, delivery=None):
     if status_name == "invalid":
         return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
@@ -873,6 +902,9 @@ def patient_otp_verify(request):
         if error == "Too many OTP requests. Please try again later.":
             code = status.HTTP_429_TOO_MANY_REQUESTS
         return Response({"error": error or "Invalid OTP."}, status=code)
+    refused = _refuse_staff_on_patient_login(patient.user)
+    if refused:
+        return refused
     return Response({
         "status": "success",
         **_auth_response(patient.user, patient),
@@ -918,6 +950,9 @@ def patient_email_login(request):
     )
     if patient is None:
         return Response({"error": error}, status=http_status)
+    refused = _refuse_staff_on_patient_login(patient.user)
+    if refused:
+        return refused
     return Response({
         "status": "success",
         **_auth_response(patient.user, patient),
@@ -936,6 +971,9 @@ def patient_token_login(request):
             {"error": "Invalid patient credentials."},
             status=status.HTTP_401_UNAUTHORIZED,
         )
+    refused = _refuse_staff_on_patient_login(patient.user)
+    if refused:
+        return refused
     return Response({
         "status": "success",
         **_auth_response(patient.user, patient),

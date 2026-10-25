@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
 import { withoutDemoRows } from "../../utils/demoData.js"
 
 const PatientContext = createContext()
@@ -72,6 +72,19 @@ export function PatientProvider({ children }) {
     return localStorage.getItem("patientToken") || null
 
   })
+
+
+  // Signing out (or an expired session) drops patient rows held in memory;
+  // services/api.js clears their localStorage copies.
+  useEffect(() => {
+    const forgetPatients = () => {
+      setPatients([])
+      setPatient(null)
+      setAppointment(null)
+    }
+    window.addEventListener("auth:logout", forgetPatients)
+    return () => window.removeEventListener("auth:logout", forgetPatients)
+  }, [])
 
 
   // =====================================================

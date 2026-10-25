@@ -241,14 +241,14 @@ class IsHospitalMember(permissions.BasePermission):
         if not request.user.is_authenticated:
             return False
 
-        hospital_id = self._get_hospital_id_from_request(request)
+        hospital_id = self._get_hospital_id_from_request(request, view)
         if hospital_id is None:
             return True
 
         user_hospitals = get_user_hospitals(request.user)
         return hospital_id in user_hospitals
 
-    def _get_hospital_id_from_request(self, request):
+    def _get_hospital_id_from_request(self, request, view):
         hospital_id = request.query_params.get("hospital")
         if hospital_id:
             try:

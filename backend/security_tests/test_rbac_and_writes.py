@@ -60,6 +60,25 @@ class RolePerHospitalTests(TwoHospitalCase):
         self.assertEqual(resp.status_code, 403)
         self.assertFalse(VitalSign.objects.filter(visit=self.visit_b).exists())
 
+    def _vital_ids(self, resp):
+        body = resp.json()
+        rows = body.get("results", body) if isinstance(body, dict) else body
+        return {row["id"] for row in rows}
+
+    def test_list_without_hospital_only_covers_hospitals_where_role_allows_it(self):
+        vital_a = VitalSign.objects.create(visit=self.visit_a, heart_rate=70)
+        vital_b = VitalSign.objects.create(visit=self.visit_b, heart_rate=80)
+        resp = self.client_for(self.user).get("/api/clinical/vitals/")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        ids = self._vital_ids(resp)
+        self.assertIn(vital_a.id, ids)
+        self.assertNotIn(vital_b.id, ids)
+
+    def test_detail_without_hospital_refuses_row_where_role_does_not_allow_it(self):
+        vital_b = VitalSign.objects.create(visit=self.visit_b, heart_rate=80)
+        resp = self.client_for(self.user).get(f"/api/clinical/vitals/{vital_b.id}/")
+        self.assertIn(resp.status_code, (403, 404))
+
     def test_doctor_role_does_not_follow_object_into_b(self):
         vital = VitalSign.objects.create(visit=self.visit_b, heart_rate=80)
         resp = self.client_for(self.user).patch(
@@ -198,3 +217,44 @@ class SharedPatientDocumentTests(TwoHospitalCase):
         )
         self.assertEqual(listed.status_code, 200)
         self.assertEqual(listed.json(), [])
+
+
+class PatientDeleteTests(TwoHospitalCase):
+    """
+    A patient is shared across hospitals and clinical rows cascade from
+    Patient, so one hospital must never delete another hospital's records.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.receptionist_a, _ = make_staff("del_recep", cls.hospital_a, role=StaffRole.RECEPTIONIST)
+        cls.admin_a, _ = make_staff("del_admin", cls.hospital_a, role=StaffRole.ADMIN)
+
+    def test_receptionist_cannot_delete_patient_shared_with_another_hospital(self):
+        resp = self.client_for(self.receptionist_a, self.hospital_a).delete(f"/api/patients/{self.patient.id}/")
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertTrue(Patient.objects.filter(pk=self.patient.pk).exists())
+        self.assertTrue(Visit.objects.filter(pk=self.visit_b.pk).exists())
+
+    def test_admin_cannot_delete_patient_registered_at_another_hospital(self):
+        resp = self.client_for(self.admin_a, self.hospital_a).delete(f"/api/patients/{self.patient.id}/")
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertTrue(Patient.objects.filter(pk=self.patient.pk).exists())
+        self.assertTrue(Visit.objects.filter(pk=self.visit_b.pk).exists())
+
+    def test_admin_cannot_delete_patient_with_records_at_another_hospital(self):
+        PatientHospital.objects.filter(patient=self.patient, hospital=self.hospital_b).delete()
+        resp = self.client_for(self.admin_a, self.hospital_a).delete(f"/api/patients/{self.patient.id}/")
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertTrue(Visit.objects.filter(pk=self.visit_b.pk).exists())
+
+    def test_admin_can_delete_patient_known_only_to_own_hospital(self):
+        local = Patient.objects.create(
+            name="Synthetic Local", age=40, gender="Female", phone="9000000077", hospital=self.hospital_a,
+        )
+        PatientHospital.objects.create(patient=local, hospital=self.hospital_a, uhid="A-77")
+        resp = self.client_for(self.admin_a, self.hospital_a).delete(f"/api/patients/{local.id}/")
+        self.assertEqual(resp.status_code, 204, resp.content)
+        self.assertFalse(Patient.objects.filter(pk=local.pk).exists())
+        self.assertTrue(AuditLog.objects.filter(action="patients.patient.delete").exists())

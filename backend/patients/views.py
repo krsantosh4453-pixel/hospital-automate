@@ -101,6 +101,35 @@ class PatientViewSet(HospitalScopedViewSet):
         document.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def destroy(self, request, *args, **kwargs):
+        patient = self.get_object()
+        own_hospital = self.get_object_hospital_id(patient)
+        if self._used_by_other_hospital(patient, own_hospital):
+            # Visits, prescriptions, lab results and invoices cascade from
+            # Patient, so deleting here would erase another hospital's records.
+            return Response(
+                {"error": "This patient is registered or has records at another hospital and cannot be deleted."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        self.perform_destroy(patient)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def _used_by_other_hospital(self, patient, own_hospital):
+        from users.viewsets import resolve_hospital_lookup
+
+        if patient.hospital_id not in (None, own_hospital):
+            return True
+        for relation in patient._meta.related_objects:
+            if not relation.one_to_many and not relation.one_to_one:
+                continue
+            lookup = resolve_hospital_lookup(relation.related_model)
+            if not lookup:
+                continue
+            rows = relation.related_model._default_manager.filter(**{relation.field.name: patient})
+            if rows.exclude(**{lookup: own_hospital}).exclude(**{f"{lookup}__isnull": True}).exists():
+                return True
+        return False
+
     def _document_scope(self, patient):
         """Documents of this patient that belong to the acting hospitals."""
         rows = patient.documents.all()

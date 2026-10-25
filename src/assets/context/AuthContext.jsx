@@ -195,6 +195,8 @@ export function AuthProvider({ children }) {
     clearDevelopmentAccess()
     api.auth.logout()
     clearSessionState()
+    // Lets other providers drop patient data they hold in memory.
+    window.dispatchEvent(new Event("auth:logout"))
   }
 
   const setPatientData = (patientData) => {
