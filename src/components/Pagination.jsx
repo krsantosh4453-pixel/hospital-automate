@@ -1,4 +1,8 @@
 import { useMemo } from "react"
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+
+const btn =
+  "inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-[13px] font-medium text-ink-700 hover:bg-ink-100 disabled:pointer-events-none disabled:text-ink-300"
 
 function Pagination({ currentPage, totalPages, totalRecords, onPageChange, showPageNumbers = true }) {
   const pageNumbers = useMemo(() => {
@@ -20,56 +24,40 @@ function Pagination({ currentPage, totalPages, totalRecords, onPageChange, showP
   if (totalPages <= 1) return null
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-gray-100 rounded-xl">
-      <div className="text-sm text-gray-600">
-        Showing page {currentPage} of {totalPages}
-        {totalRecords !== undefined && <span className="ml-2">({totalRecords} records)</span>}
-      </div>
+    <nav
+      aria-label="Pagination"
+      className="flex flex-col items-center justify-between gap-3 border-t border-line px-4 py-3 sm:flex-row"
+    >
+      <p className="text-[13px] text-ink-500">
+        Page <span className="font-medium text-ink-800 tabular-nums">{currentPage}</span> of{" "}
+        <span className="tabular-nums">{totalPages}</span>
+        {totalRecords !== undefined && <span className="ml-1 tabular-nums">· {totalRecords} records</span>}
+      </p>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => onPageChange(1)}
-          disabled={currentPage === 1}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          aria-label="First page"
-        >
-          ««
+      <div className="flex items-center gap-0.5">
+        <button type="button" onClick={() => onPageChange(1)} disabled={currentPage === 1} className={btn} aria-label="First page">
+          <ChevronsLeft size={16} aria-hidden="true" />
         </button>
-
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          aria-label="Previous page"
-        >
-          «
+        <button type="button" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className={btn} aria-label="Previous page">
+          <ChevronLeft size={16} aria-hidden="true" />
         </button>
 
         {showPageNumbers && (
           <>
             {pageNumbers[0] > 1 && (
               <>
-                <button
-                  onClick={() => onPageChange(1)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  1
-                </button>
-                {pageNumbers[0] > 2 && (
-                  <span className="px-2 text-gray-400">...</span>
-                )}
+                <button type="button" onClick={() => onPageChange(1)} className={btn}>1</button>
+                {pageNumbers[0] > 2 && <span className="px-1 text-ink-400">…</span>}
               </>
             )}
 
             {pageNumbers.map((page) => (
               <button
                 key={page}
+                type="button"
                 onClick={() => onPageChange(page)}
-                className={`px-3 py-1.5 text-sm rounded-lg ${
-                  page === currentPage
-                    ? "bg-blue-600 text-white"
-                    : "border border-gray-300 hover:bg-gray-50"
-                }`}
+                aria-current={page === currentPage ? "page" : undefined}
+                className={page === currentPage ? `${btn} bg-brand-600 text-white hover:bg-brand-700` : btn}
               >
                 {page}
               </button>
@@ -77,39 +65,21 @@ function Pagination({ currentPage, totalPages, totalRecords, onPageChange, showP
 
             {pageNumbers[pageNumbers.length - 1] < totalPages && (
               <>
-                {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && (
-                  <span className="px-2 text-gray-400">...</span>
-                )}
-                <button
-                  onClick={() => onPageChange(totalPages)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  {totalPages}
-                </button>
+                {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && <span className="px-1 text-ink-400">…</span>}
+                <button type="button" onClick={() => onPageChange(totalPages)} className={btn}>{totalPages}</button>
               </>
             )}
           </>
         )}
 
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          aria-label="Next page"
-        >
-          »
+        <button type="button" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className={btn} aria-label="Next page">
+          <ChevronRight size={16} aria-hidden="true" />
         </button>
-
-        <button
-          onClick={() => onPageChange(totalPages)}
-          disabled={currentPage === totalPages}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          aria-label="Last page"
-        >
-          »»
+        <button type="button" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages} className={btn} aria-label="Last page">
+          <ChevronsRight size={16} aria-hidden="true" />
         </button>
       </div>
-    </div>
+    </nav>
   )
 }
 

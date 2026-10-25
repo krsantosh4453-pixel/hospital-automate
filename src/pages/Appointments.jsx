@@ -1,8 +1,32 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
+import { Ban, CalendarDays, CalendarPlus, Clock, Eye, Hospital, Pencil, Phone, Stethoscope, Trash2 } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useAppointment } from "../assets/context/AppointmentContext.jsx"
 import api from "../services/api.js"
-
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  ConfirmDialog,
+  DescriptionList,
+  EmptyState,
+  Field,
+  FormSection,
+  Input,
+  Modal,
+  PageHeader,
+  SearchInput,
+  SegmentedControl,
+  Select,
+  SkeletonRows,
+  StatusBadge,
+  TableWrap,
+  Tabs,
+  Textarea,
+  Toolbar,
+} from "../components/ui"
 
 // =====================================================
 // Helpers — keep the existing (flat, display-oriented) UI
@@ -12,134 +36,61 @@ import api from "../services/api.js"
 const two = (value) => String(value).padStart(2, "0")
 
 // Statuses the UI already knows about.
-const APPOINTMENT_STATUSES = [
-  "Confirmed",
-  "Waiting",
-  "Completed",
-  "Cancelled",
-]
+const APPOINTMENT_STATUSES = ["Confirmed", "Waiting", "Completed", "Cancelled"]
 
 // Django stores status as free text (default "Scheduled").
 // Normalise it to a value the existing pills understand.
 const normaliseStatus = (status) => {
-  if (!status) {
-    return "Confirmed"
-  }
-
-  const match = APPOINTMENT_STATUSES.find(
-    (item) =>
-      item.toLowerCase() ===
-      String(status).toLowerCase()
-  )
-
+  if (!status) return "Confirmed"
+  const match = APPOINTMENT_STATUSES.find((item) => item.toLowerCase() === String(status).toLowerCase())
   return match || "Confirmed"
 }
 
 // "2026-09-01" -> "01 Sep 2026" (what the table renders).
 const formatDate = (value) => {
-  if (!value) {
-    return ""
-  }
-
-  const date = new Date(
-    `${String(value).slice(0, 10)}T00:00:00`
-  )
-
-  if (Number.isNaN(date.getTime())) {
-    return String(value)
-  }
-
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })
+  if (!value) return ""
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
 }
 
 // "01 Sep 2026" | "2026-09-01" -> "2026-09-01"
 // (the value an <input type="date"> needs).
 const toInputDate = (value) => {
-  if (!value) {
-    return ""
-  }
-
+  if (!value) return ""
   const iso = String(value).trim()
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-    return iso
-  }
-
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso
   const date = new Date(iso)
-
-  if (Number.isNaN(date.getTime())) {
-    return ""
-  }
-
-  return `${date.getFullYear()}-${two(
-    date.getMonth() + 1
-  )}-${two(date.getDate())}`
+  if (Number.isNaN(date.getTime())) return ""
+  return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`
 }
 
 // "10:30 AM" -> "10:30" (the value an <input type="time"> needs).
 const toInputTime = (value) => {
-  if (!value) {
-    return ""
-  }
-
+  if (!value) return ""
   const raw = String(value).trim()
-
-  if (/^\d{2}:\d{2}$/.test(raw)) {
-    return raw
-  }
-
-  const match = raw.match(
-    /^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i
-  )
-
-  if (!match) {
-    return ""
-  }
-
+  if (/^\d{2}:\d{2}$/.test(raw)) return raw
+  const match = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i)
+  if (!match) return ""
   let hours = Number(match[1])
   const minutes = match[2]
-  const period = match[3]
-    ? match[3].toUpperCase()
-    : null
-
-  if (period === "PM" && hours < 12) {
-    hours += 12
-  }
-
-  if (period === "AM" && hours === 12) {
-    hours = 0
-  }
-
+  const period = match[3] ? match[3].toUpperCase() : null
+  if (period === "PM" && hours < 12) hours += 12
+  if (period === "AM" && hours === 12) hours = 0
   return `${two(hours)}:${minutes}`
 }
 
 // "10:30" -> "10:30 AM" (what the table renders).
 const formatTime = (value) => {
-  if (!value) {
-    return ""
-  }
-
+  if (!value) return ""
   const raw = String(value).trim()
   const match = raw.match(/^(\d{1,2}):(\d{2})/)
-
-  if (!match) {
-    return raw
-  }
-
+  if (!match) return raw
   let hours = Number(match[1])
   const minutes = match[2]
   const period = hours >= 12 ? "PM" : "AM"
-
   hours = hours % 12
-
-  if (hours === 0) {
-    hours = 12
-  }
-
+  if (hours === 0) hours = 12
   return `${two(hours)}:${minutes} ${period}`
 }
 
@@ -164,9 +115,16 @@ const mapAppointmentFromApi = (record) => ({
   doctorId: record.doctor,
 })
 
+const EMPTY_FORM = { patient: "", village: "", contact: "", doctor: "", date: "", time: "", reason: "" }
+
+const todayIso = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`
+}
+
+const toList = (data) => (Array.isArray(data) ? data : data?.results || [])
 
 function Appointments() {
-
   const { selectedHospital } = usePatient()
 
   const {
@@ -178,23 +136,23 @@ function Appointments() {
     getHospitalAppointments,
   } = useAppointment()
 
-  // Offline / demo seed data — kept so the page still works
-  // (exactly as before) when the Django API is unreachable.
-  // No demo records: the page shows only data returned by the API.
-  const fallbackAppointments = []
-
-  const [appointments, setAppointments] = useState(
-    fallbackAppointments
-  )
+  const [appointments, setAppointments] = useState([])
 
   // API / UX states.
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState("")
+  const [formError, setFormError] = useState("")
   const [offlineMode, setOfflineMode] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
 
+  // Doctors registered at this hospital (the only valid choices).
+  const [doctors, setDoctors] = useState([])
+  const [doctorsLoaded, setDoctorsLoaded] = useState(false)
+
+  // Patient name suggestions while typing in the form.
+  const [patientSuggestions, setPatientSuggestions] = useState([])
 
   // =====================================================
   // OLD APPOINTMENTS + NEW CONTEXT APPOINTMENTS
@@ -202,112 +160,51 @@ function Appointments() {
 
   const allAppointments = [
     ...appointments,
-    ...savedAppointments.filter(
-      (saved) =>
-        !appointments.some(
-          (old) => String(old.id) === String(saved.id)
-        )
-    ),
+    ...savedAppointments.filter((saved) => !appointments.some((old) => String(old.id) === String(saved.id))),
   ]
 
   const [search, setSearch] = useState("")
   const [doctorFilter, setDoctorFilter] = useState("All Doctors")
   const [statusFilter, setStatusFilter] = useState("All Status")
+  const [dateFilter, setDateFilter] = useState("all")
 
   const [showForm, setShowForm] = useState(false)
   const [showView, setShowView] = useState(false)
-
   const [selectedAppointment, setSelectedAppointment] = useState(null)
-
-  const [formData, setFormData] = useState({
-    patient: "",
-    village: "",
-    contact: "",
-    doctor: "",
-    date: "",
-    time: "",
-    reason: "",
-  })
-
+  const [formData, setFormData] = useState(EMPTY_FORM)
+  const [confirm, setConfirm] = useState(null) // { type: "cancel" | "delete", appointment }
 
   // =========================
   // Load appointments from Django
   // =========================
 
   useEffect(() => {
-
     if (!selectedHospital) {
       setAppointments([])
       setLoadError("")
       setOfflineMode(false)
-      return
+      return undefined
     }
 
     let cancelled = false
 
     const loadAppointments = async () => {
-
       setLoading(true)
       setLoadError("")
 
       try {
-
-        const data =
-          await api.appointments.list(
-            selectedHospital.id
-          )
-
-        const results = Array.isArray(data)
-          ? data
-          : data?.results || []
-
-        if (cancelled) {
-          return
-        }
-
-        setAppointments(
-          results.map(mapAppointmentFromApi)
-        )
-
+        const data = await api.appointments.list(selectedHospital.id)
+        if (cancelled) return
+        setAppointments(toList(data).map(mapAppointmentFromApi))
         setOfflineMode(false)
-
       } catch (error) {
-
-        if (cancelled) {
-          return
-        }
-
-        // Fall back to localStorage / demo data so the
-        // existing behaviour keeps working.
-        const localAppointments =
-          getHospitalAppointments(
-            selectedHospital.id
-          )
-
-        const demoAppointments =
-          fallbackAppointments.filter(
-            (appointment) =>
-              String(appointment.hospitalId) ===
-              String(selectedHospital.id)
-          )
-
-        setAppointments(
-          localAppointments.length > 0
-            ? localAppointments
-            : demoAppointments
-        )
-
+        if (cancelled) return
+        // Fall back to locally saved appointments so the page keeps working.
+        setAppointments(getHospitalAppointments(selectedHospital.id))
         setOfflineMode(true)
-        setLoadError(
-          error.message ||
-          "Unable to reach the server. Showing locally saved appointments."
-        )
-
+        setLoadError(error.message || "Unable to reach the server. Showing locally saved appointments.")
       } finally {
-
-        if (!cancelled) {
-          setLoading(false)
-        }
+        if (!cancelled) setLoading(false)
       }
     }
 
@@ -316,148 +213,121 @@ function Appointments() {
     return () => {
       cancelled = true
     }
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedHospital, reloadToken])
 
+  // Load this hospital's doctors for the selector and filter.
+  useEffect(() => {
+    if (!selectedHospital) {
+      setDoctors([])
+      return undefined
+    }
+    let cancelled = false
+    setDoctorsLoaded(false)
+    api.doctors
+      .list(selectedHospital.id)
+      .then((data) => {
+        if (!cancelled) setDoctors(toList(data))
+      })
+      .catch(() => {
+        if (!cancelled) setDoctors([])
+      })
+      .finally(() => {
+        if (!cancelled) setDoctorsLoaded(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedHospital, reloadToken])
+
+  // Suggest existing patients while the name is being typed.
+  useEffect(() => {
+    const term = formData.patient.trim()
+    if (!showForm || !selectedHospital || term.length < 2) {
+      setPatientSuggestions([])
+      return undefined
+    }
+    const timer = setTimeout(() => {
+      api.patients
+        .list(selectedHospital.id, 1, term)
+        .then((data) => setPatientSuggestions(toList(data).slice(0, 8)))
+        .catch(() => setPatientSuggestions([]))
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [formData.patient, showForm, selectedHospital])
 
   // Auto-dismiss the success message.
   useEffect(() => {
-
-    if (!successMessage) {
-      return
-    }
-
-    const timer = setTimeout(
-      () => setSuccessMessage(""),
-      4000
-    )
-
+    if (!successMessage) return undefined
+    const timer = setTimeout(() => setSuccessMessage(""), 4000)
     return () => clearTimeout(timer)
-
   }, [successMessage])
-
 
   // =========================
   // Hospital Filter
   // =========================
 
   const hospitalAppointments = selectedHospital
-    ? allAppointments.filter(
-      (appointment) =>
-        String(appointment.hospitalId) ===
-        String(selectedHospital.id)
-    )
+    ? allAppointments.filter((appointment) => String(appointment.hospitalId) === String(selectedHospital.id))
     : []
 
-
-  // =========================
-  // Doctor options (from data)
-  // Falls back to the original fixed list so the UI is never empty.
-  // =========================
-
-  const doctorOptions = Array.from(
-    new Set(
-      hospitalAppointments
-        .map((appointment) => appointment.doctor)
-        .filter(Boolean)
-    )
-  ).sort()
-
-  const doctorChoices =
-    doctorOptions.length > 0
-      ? doctorOptions
-      : ["Dr. Sharma", "Dr. Verma", "Dr. Singh"]
-
+  // Doctor choices: the hospital's registered doctors, plus any name already on
+  // an appointment (so older rows can still be filtered and edited).
+  const doctorNames = new Set(doctors.map((d) => d.name).filter(Boolean))
+  hospitalAppointments.forEach((a) => a.doctor && doctorNames.add(a.doctor))
+  const doctorChoices = Array.from(doctorNames).sort()
 
   // =========================
   // Search + Filter
   // =========================
 
-  const filteredAppointments =
-    hospitalAppointments.filter((appointment) => {
+  const today = todayIso()
 
-      const patientName =
-        appointment.patient || ""
+  const baseFiltered = hospitalAppointments.filter((appointment) => {
+    const q = search.toLowerCase()
+    const matchesSearch =
+      (appointment.patient || "").toLowerCase().includes(q) ||
+      (appointment.id || "").toLowerCase().includes(q) ||
+      (appointment.contact || "").includes(search)
+    const matchesDoctor = doctorFilter === "All Doctors" || appointment.doctor === doctorFilter
+    const iso = toInputDate(appointment.date)
+    const matchesDate = dateFilter === "all" || (dateFilter === "today" ? iso === today : iso >= today)
+    return matchesSearch && matchesDoctor && matchesDate
+  })
 
-      const appointmentId =
-        appointment.id || ""
+  const statusCounts = APPOINTMENT_STATUSES.reduce(
+    (acc, s) => ({ ...acc, [s]: baseFiltered.filter((a) => a.status === s).length }),
+    {},
+  )
 
-      const matchesSearch =
-        patientName
-          .toLowerCase()
-          .includes(search.toLowerCase()) ||
-        appointmentId
-          .toLowerCase()
-          .includes(search.toLowerCase())
-
-      const matchesDoctor =
-        doctorFilter === "All Doctors" ||
-        appointment.doctor === doctorFilter
-
-      const matchesStatus =
-        statusFilter === "All Status" ||
-        appointment.status === statusFilter
-
-      return (
-        matchesSearch &&
-        matchesDoctor &&
-        matchesStatus
-      )
-    })
-
+  const filteredAppointments = baseFiltered
+    .filter((appointment) => statusFilter === "All Status" || appointment.status === statusFilter)
+    .sort((a, b) => `${toInputDate(a.date)} ${toInputTime(a.time)}`.localeCompare(`${toInputDate(b.date)} ${toInputTime(b.time)}`))
 
   // =========================
   // Form Change
   // =========================
 
   const handleChange = (e) => {
-
     const { name, value } = e.target
-
-    setFormData({
-      ...formData,
-      [name]: value,
-    })
+    setFormData({ ...formData, [name]: value })
   }
-
 
   // =========================
   // Resolve a patient name -> backend patient id
   // (find first, create if it does not exist)
   // =========================
 
-  const resolvePatientId = async (
-    name,
-    contact
-  ) => {
-
+  const resolvePatientId = async (name, contact) => {
     const trimmedName = (name || "").trim()
+    if (!trimmedName) throw new Error("Patient name is required.")
 
-    if (!trimmedName) {
-      throw new Error(
-        "Patient name is required."
-      )
-    }
-
-    const data = await api.patients.list(
-      selectedHospital.id
-    )
-
-    const results = Array.isArray(data)
-      ? data
-      : data?.results || []
-
-    const match = results.find(
-      (patient) =>
-        (patient.name || "")
-          .trim()
-          .toLowerCase() ===
-        trimmedName.toLowerCase()
-    )
-
-    if (match) {
-      return match.id
-    }
+    // Search the whole hospital, not just the first page.
+    const results = toList(await api.patients.list(selectedHospital.id, 1, trimmedName))
+    const digits = (contact || "").trim()
+    const sameName = results.filter((patient) => (patient.name || "").trim().toLowerCase() === trimmedName.toLowerCase())
+    const match = sameName.find((patient) => digits && String(patient.phone || "").endsWith(digits)) || sameName[0]
+    if (match) return match.id
 
     // Not found — create a minimal patient record so the
     // Appointment foreign key can be satisfied.
@@ -465,1498 +335,617 @@ function Appointments() {
       name: trimmedName,
       age: 0,
       gender: "Not specified",
-      phone: (contact || "").trim(),
+      phone: digits,
       condition: "Appointment booking",
       status: "Active",
       hospital: selectedHospital.id,
     })
-
     return created.id
   }
-
 
   // =========================
   // Resolve a doctor name -> backend doctor id
-  // (find first, create if it does not exist)
+  // Only doctors registered at this hospital can be booked; this screen
+  // never creates doctor records.
   // =========================
 
   const resolveDoctorId = async (name) => {
-
     const trimmedName = (name || "").trim()
+    if (!trimmedName) throw new Error("Doctor is required.")
 
-    if (!trimmedName) {
-      throw new Error("Doctor is required.")
+    const known = doctors.length ? doctors : toList(await api.doctors.list(selectedHospital.id))
+    const match = known.find((doctor) => (doctor.name || "").trim().toLowerCase() === trimmedName.toLowerCase())
+    if (!match) {
+      const error = new Error(`${trimmedName} is not a registered doctor at this hospital.`)
+      error.status = 400
+      throw error
     }
-
-    const data = await api.doctors.list(
-      selectedHospital.id
-    )
-
-    const results = Array.isArray(data)
-      ? data
-      : data?.results || []
-
-    const match = results.find(
-      (doctor) =>
-        (doctor.name || "")
-          .trim()
-          .toLowerCase() ===
-        trimmedName.toLowerCase()
-    )
-
-    if (match) {
-      return match.id
-    }
-
-    const created = await api.doctors.create({
-      name: trimmedName,
-      specialization: "General",
-      phone: "",
-      status: "Active",
-      hospital: selectedHospital.id,
-    })
-
-    return created.id
+    return match.id
   }
 
+  const validate = () => {
+    if (!selectedHospital) return "Please select a hospital first."
+    if (formData.contact.length !== 10) return "Please enter a valid 10 digit contact number."
+    return ""
+  }
 
   // =========================
   // Add Appointment
   // =========================
 
   const handleSubmit = async (e) => {
-
     e.preventDefault()
-
-    if (!selectedHospital) {
-
-      alert(
-        "Please select a hospital before booking an appointment."
-      )
-
+    const problem = validate()
+    if (problem) {
+      setFormError(problem)
       return
     }
-
-    if (formData.contact.length !== 10) {
-
-      alert(
-        "Please enter a valid 10 digit contact number."
-      )
-
-      return
-    }
+    setFormError("")
 
     // Local (offline) appointment — keeps the original client-side
     // id + token behaviour when the backend is unreachable.
     const localAppointment = {
-
-      id: `A${String(
-        allAppointments.length + 1
-      ).padStart(3, "0")}`,
-
+      id: `A${String(allAppointments.length + 1).padStart(3, "0")}`,
       patient: formData.patient,
-
       village: formData.village,
-
       contact: formData.contact,
-
       doctor: formData.doctor,
-
       date: formatDate(formData.date),
-
       time: formatTime(formData.time),
-
       reason: formData.reason,
-
       status: "Confirmed",
-
-      tokenNumber: `T-${String(
-        allAppointments.length + 1
-      ).padStart(3, "0")}`,
-
-      hospitalId:
-        selectedHospital.id,
+      tokenNumber: `T-${String(allAppointments.length + 1).padStart(3, "0")}`,
+      hospitalId: selectedHospital.id,
     }
 
     setSaving(true)
 
     try {
+      const patientId = await resolvePatientId(formData.patient, formData.contact)
+      const doctorId = await resolveDoctorId(formData.doctor)
 
-      const patientId = await resolvePatientId(
-        formData.patient,
-        formData.contact
-      )
-
-      const doctorId = await resolveDoctorId(
-        formData.doctor
-      )
-
-      const created =
-        await api.appointments.create({
-          hospital: selectedHospital.id,
-          patient: patientId,
-          doctor: doctorId,
-          appointment_date: formData.date,
-          appointment_time: formData.time,
-          reason: formData.reason,
-          status: "Confirmed",
-          village: formData.village,
-          contact: formData.contact,
-        })
+      const created = await api.appointments.create({
+        hospital: selectedHospital.id,
+        patient: patientId,
+        doctor: doctorId,
+        appointment_date: formData.date,
+        appointment_time: formData.time,
+        reason: formData.reason,
+        status: "Confirmed",
+        village: formData.village,
+        contact: formData.contact,
+      })
 
       const mapped = mapAppointmentFromApi(created)
 
       // Keep the API row + the local context copy in sync.
       // Same id => the de-duplicated merge shows a single row.
       setAppointments((prev) => [mapped, ...prev])
-
-      addAppointment({
-        ...mapped,
-        tokenNumber: localAppointment.tokenNumber,
-      })
+      addAppointment({ ...mapped, tokenNumber: localAppointment.tokenNumber })
 
       setOfflineMode(false)
-      setSuccessMessage("Appointment booked successfully.")
-
+      setSuccessMessage("Appointment booked.")
       resetForm()
-
     } catch (error) {
-
-      // Degrade to the original local behaviour.
+      if (!error.isNetworkError) {
+        // The server (or the doctor check) refused: nothing was booked.
+        setFormError(error.message)
+        return
+      }
+      // Server unreachable: degrade to the original local behaviour.
       setOfflineMode(true)
-
-      setAppointments((prev) => [
-        ...prev,
-        localAppointment,
-      ])
-
+      setAppointments((prev) => [...prev, localAppointment])
       addAppointment(localAppointment)
-
-      setSuccessMessage(
-        "Saved locally. The server could not be reached."
-      )
-
+      setSuccessMessage("Saved on this device only. The server could not be reached.")
       resetForm()
-
     } finally {
-
       setSaving(false)
     }
   }
-
 
   // =========================
   // Delete Appointment
   // =========================
 
   const handleDelete = async (appointment) => {
-
-    const confirmDelete =
-      window.confirm(
-        "Are you sure you want to delete this appointment?"
-      )
-
-    if (!confirmDelete) {
-      return
-    }
-
     // Remove locally first (original behaviour).
-    setAppointments((prev) =>
-      prev.filter(
-        (item) =>
-          String(item.id) !==
-          String(appointment.id)
-      )
-    )
-
+    setAppointments((prev) => prev.filter((item) => String(item.id) !== String(appointment.id)))
     deleteAppointment(appointment.id)
 
-    // Local-only rows (or offline mode) cannot be deleted
-    // from the server.
-    if (
-      appointment.apiId === undefined ||
-      offlineMode
-    ) {
-      setSuccessMessage(
-        "Appointment removed locally."
-      )
+    // Local-only rows (or offline mode) cannot be deleted from the server.
+    if (appointment.apiId === undefined || offlineMode) {
+      setSuccessMessage("Appointment removed from this device.")
       return
     }
 
     try {
-
-      await api.appointments.delete(
-        appointment.apiId
-      )
-
-      setSuccessMessage(
-        "Appointment deleted successfully."
-      )
-
+      await api.appointments.delete(appointment.apiId)
+      setSuccessMessage("Appointment deleted.")
     } catch (error) {
-
+      if (!error.isNetworkError) {
+        setLoadError(`Not deleted on the server: ${error.message}`)
+        setReloadToken((t) => t + 1)
+        return
+      }
       setOfflineMode(true)
-      setSuccessMessage(
-        "Removed locally. The server could not be reached."
-      )
+      setSuccessMessage("Removed on this device. The server could not be reached.")
     }
   }
-
 
   // =========================
   // Cancel Appointment
   // =========================
 
   const handleCancel = async (appointment) => {
-
     setAppointments((prev) =>
-      prev.map((item) =>
-        String(item.id) ===
-          String(appointment.id)
-          ? {
-            ...item,
-            status: "Cancelled",
-          }
-          : item
-      )
+      prev.map((item) => (String(item.id) === String(appointment.id) ? { ...item, status: "Cancelled" } : item)),
     )
-
-    // NEW CODE
     cancelAppointment(appointment.id)
 
-    if (
-      appointment.apiId === undefined ||
-      offlineMode
-    ) {
-      setSuccessMessage(
-        "Appointment cancelled locally."
-      )
+    if (appointment.apiId === undefined || offlineMode) {
+      setSuccessMessage("Appointment cancelled on this device.")
       return
     }
 
     try {
-
-      await api.appointments.patch(
-        appointment.apiId,
-        { status: "Cancelled" }
-      )
-
-      setSuccessMessage(
-        "Appointment cancelled successfully."
-      )
-
+      await api.appointments.patch(appointment.apiId, { status: "Cancelled" })
+      setSuccessMessage("Appointment cancelled.")
     } catch (error) {
-
+      if (!error.isNetworkError) {
+        setLoadError(`Not cancelled on the server: ${error.message}`)
+        setReloadToken((t) => t + 1)
+        return
+      }
       setOfflineMode(true)
-      setSuccessMessage(
-        "Cancelled locally. The server could not be reached."
-      )
+      setSuccessMessage("Cancelled on this device. The server could not be reached.")
     }
   }
 
+  const runConfirmed = async () => {
+    const { type, appointment } = confirm
+    setConfirm(null)
+    setShowView(false)
+    if (type === "delete") await handleDelete(appointment)
+    else await handleCancel(appointment)
+  }
 
   // =========================
-  // View Appointment
+  // View / Edit
   // =========================
 
   const handleView = (appointment) => {
-
-    setSelectedAppointment(
-      appointment
-    )
-
+    setSelectedAppointment(appointment)
     setShowView(true)
   }
 
-
-  // =========================
-  // Edit Appointment
-  // =========================
-
   const handleEdit = (appointment) => {
-
-    setSelectedAppointment(
-      appointment
-    )
-
+    setSelectedAppointment(appointment)
     setFormData({
-
-      patient:
-        appointment.patient || "",
-
-      village:
-        appointment.village || "",
-
-      contact:
-        appointment.contact || "",
-
-      doctor:
-        appointment.doctor || "",
-
-      date:
-        toInputDate(appointment.date),
-
-      time:
-        toInputTime(appointment.time),
-
-      reason:
-        appointment.reason || "",
+      patient: appointment.patient || "",
+      village: appointment.village || "",
+      contact: appointment.contact || "",
+      doctor: appointment.doctor || "",
+      date: toInputDate(appointment.date),
+      time: toInputTime(appointment.time),
+      reason: appointment.reason || "",
     })
-
+    setFormError("")
+    setShowView(false)
     setShowForm(true)
   }
 
+  const openNew = () => {
+    if (!selectedHospital) {
+      setLoadError("Please select a hospital first.")
+      return
+    }
+    setSelectedAppointment(null)
+    setFormData(EMPTY_FORM)
+    setFormError("")
+    setShowForm(true)
+  }
 
   // =========================
   // Save Edit
   // =========================
 
   const handleUpdate = async (e) => {
-
     e.preventDefault()
-
-    if (formData.contact.length !== 10) {
-
-      alert(
-        "Please enter a valid 10 digit contact number."
-      )
-
+    const problem = validate()
+    if (problem) {
+      setFormError(problem)
       return
     }
-
-    if (!selectedHospital) {
-
-      alert(
-        "Please select a hospital before updating an appointment."
-      )
-
-      return
-    }
+    setFormError("")
 
     const target = selectedAppointment
+    const localChanges = {
+      patient: formData.patient,
+      village: formData.village,
+      contact: formData.contact,
+      doctor: formData.doctor,
+      date: formatDate(formData.date),
+      time: formatTime(formData.time),
+      reason: formData.reason,
+    }
 
     setSaving(true)
 
     try {
+      const patientId = await resolvePatientId(formData.patient, formData.contact)
+      const doctorId = await resolveDoctorId(formData.doctor)
 
-      const patientId = await resolvePatientId(
-        formData.patient,
-        formData.contact
-      )
-
-      const doctorId = await resolveDoctorId(
-        formData.doctor
-      )
-
-      const updated =
-        await api.appointments.update(
-          target.apiId ?? target.id,
-          {
-            hospital: selectedHospital.id,
-            patient: patientId,
-            doctor: doctorId,
-            appointment_date: formData.date,
-            appointment_time: formData.time,
-            reason: formData.reason,
-            status: target.status,
-            village: formData.village,
-            contact: formData.contact,
-          }
-        )
+      const updated = await api.appointments.update(target.apiId ?? target.id, {
+        hospital: selectedHospital.id,
+        patient: patientId,
+        doctor: doctorId,
+        appointment_date: formData.date,
+        appointment_time: formData.time,
+        reason: formData.reason,
+        status: target.status,
+        village: formData.village,
+        contact: formData.contact,
+      })
 
       const mapped = mapAppointmentFromApi(updated)
-
       setAppointments((prev) =>
-        prev.map((appointment) =>
-          String(appointment.id) ===
-            String(target.id)
-            ? {
-              ...appointment,
-              ...mapped,
-            }
-            : appointment
-        )
+        prev.map((appointment) => (String(appointment.id) === String(target.id) ? { ...appointment, ...mapped } : appointment)),
       )
-
-      // NEW CODE
-      updateAppointment(
-        target.id,
-        {
-          patient: formData.patient,
-          village: formData.village,
-          contact: formData.contact,
-          doctor: formData.doctor,
-          date: formatDate(formData.date),
-          time: formatTime(formData.time),
-          reason: formData.reason,
-        }
-      )
+      updateAppointment(target.id, localChanges)
 
       setOfflineMode(false)
-      setSuccessMessage(
-        "Appointment updated successfully."
-      )
-
+      setSuccessMessage("Appointment updated.")
       resetForm()
-
     } catch (error) {
-
-      // Degrade to the original local behaviour.
+      if (!error.isNetworkError) {
+        setFormError(error.message)
+        return
+      }
+      // Server unreachable: degrade to the original local behaviour.
       setOfflineMode(true)
-
       setAppointments((prev) =>
-        prev.map((appointment) =>
-          String(appointment.id) ===
-            String(target.id)
-            ? {
-              ...appointment,
-
-              patient:
-                formData.patient,
-
-              village:
-                formData.village,
-
-              contact:
-                formData.contact,
-
-              doctor:
-                formData.doctor,
-
-              date:
-                formatDate(formData.date),
-
-              time:
-                formatTime(formData.time),
-
-              reason:
-                formData.reason,
-            }
-            : appointment
-        )
+        prev.map((appointment) => (String(appointment.id) === String(target.id) ? { ...appointment, ...localChanges } : appointment)),
       )
-
-      updateAppointment(
-        target.id,
-        {
-          patient: formData.patient,
-          village: formData.village,
-          contact: formData.contact,
-          doctor: formData.doctor,
-          date: formatDate(formData.date),
-          time: formatTime(formData.time),
-          reason: formData.reason,
-        }
-      )
-
-      setSuccessMessage(
-        "Saved locally. The server could not be reached."
-      )
-
+      updateAppointment(target.id, localChanges)
+      setSuccessMessage("Saved on this device only. The server could not be reached.")
       resetForm()
     } finally {
-
       setSaving(false)
     }
   }
-
 
   // =========================
   // Reset
   // =========================
 
   const resetForm = () => {
-
-    setFormData({
-
-      patient: "",
-
-      village: "",
-
-      contact: "",
-
-      doctor: "",
-
-      date: "",
-
-      time: "",
-
-      reason: "",
-    })
-
-    setSelectedAppointment(
-      null
-    )
-
+    setFormData(EMPTY_FORM)
+    setSelectedAppointment(null)
+    setFormError("")
     setShowForm(false)
   }
 
+  const canChange = (a) => a.status !== "Cancelled" && a.status !== "Completed"
+
+  const statusTabs = [
+    { id: "All Status", label: "All", count: baseFiltered.length },
+    ...APPOINTMENT_STATUSES.map((s) => ({ id: s, label: s, count: statusCounts[s] })),
+  ]
 
   return (
-
-    <div>
-
-      {/* =========================
-          Header
-      ========================= */}
-
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-
-        <div>
-
-          <h1 className="text-3xl font-bold text-gray-800">
-            Appointments
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Schedule and manage hospital appointments
-          </p>
-
-        </div>
-
-        <button
-          onClick={() => {
-
-            if (!selectedHospital) {
-
-              alert(
-                "Please select a hospital first."
-              )
-
-              return
-            }
-
-            setSelectedAppointment(null)
-
-            setFormData({
-              patient: "",
-              village: "",
-              contact: "",
-              doctor: "",
-              date: "",
-              time: "",
-              reason: "",
-            })
-
-            setShowForm(true)
-
-          }}
-          className="bg-blue-600 text-white px-5 py-3 rounded-lg font-medium hover:bg-blue-700"
-        >
-          + New Appointment
-        </button>
-
-      </div>
-
-
-      {/* =========================
-          Current Hospital
-      ========================= */}
-
-      <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border border-gray-100">
-
-        {selectedHospital ? (
-
-          <div className="flex items-center gap-4">
-
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl">
-              🏥
-            </div>
-
-            <div>
-
-              <p className="text-xs text-gray-500">
-                Current Hospital
-              </p>
-
-              <h2 className="font-bold text-gray-800">
-                {selectedHospital.name}
-              </h2>
-
-              <p className="text-sm text-gray-500">
-                📍 {selectedHospital.address}
-              </p>
-
-            </div>
-
-          </div>
-
-        ) : (
-
-          <div>
-
-            <p className="font-semibold text-orange-600">
-              ⚠️ No hospital selected
-            </p>
-
-            <p className="text-sm text-gray-500 mt-1">
-              Select a hospital from the header first.
-            </p>
-
-          </div>
-
-        )}
-
-      </div>
-
-
-      {/* =========================
-          Feedback (success / offline / error)
-      ========================= */}
+    <div className="space-y-5">
+      <PageHeader
+        title="Appointments"
+        description={selectedHospital ? `Bookings at ${selectedHospital.name}.` : "Select a hospital from the header to see its appointments."}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Appointments" }]}
+        actions={
+          <Button icon={CalendarPlus} onClick={openNew} disabled={!selectedHospital}>
+            New appointment
+          </Button>
+        }
+      />
 
       {successMessage && (
-
-        <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-5 py-3 mb-6">
+        <Alert tone={offlineMode ? "warning" : "success"} onDismiss={() => setSuccessMessage("")}>
           {successMessage}
-        </div>
-
+        </Alert>
       )}
 
       {offlineMode && (
-
-        <div className="bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-5 py-3 mb-6">
-          Offline mode — showing locally saved appointments. Changes are kept on this device until the server is reachable again.
-        </div>
-
+        <Alert tone="warning" title="Working offline">
+          Showing appointments saved on this device. Changes stay here until the server is reachable again.
+        </Alert>
       )}
 
       {loadError && (
-
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-5 py-3 mb-6 flex items-center justify-between gap-4">
-
-          <span>{loadError}</span>
-
-          <button
-            onClick={() =>
-              setReloadToken(
-                (token) => token + 1
-              )
-            }
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Retry
-          </button>
-
-        </div>
-
+        <Alert
+          tone="danger"
+          action={<Button size="sm" variant="secondary" onClick={() => setReloadToken((token) => token + 1)}>Retry</Button>}
+        >
+          {loadError}
+        </Alert>
       )}
 
+      {!selectedHospital ? (
+        <Card>
+          <EmptyState icon={Hospital} title="No hospital selected" description="Choose a hospital in the header to manage its appointments." />
+        </Card>
+      ) : (
+        <Card className="overflow-hidden">
+          <div className="px-4 pt-2">
+            <Tabs tabs={statusTabs} value={statusFilter} onChange={setStatusFilter} label="Filter by status" />
+          </div>
+          <Toolbar>
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Patient, phone or appointment ID"
+              label="Search appointments"
+              className="w-full sm:max-w-xs"
+            />
+            <Select
+              value={doctorFilter}
+              onChange={(e) => setDoctorFilter(e.target.value)}
+              aria-label="Filter by doctor"
+              className="w-full sm:w-52"
+            >
+              <option>All Doctors</option>
+              {doctorChoices.map((doctor) => (
+                <option key={doctor} value={doctor}>{doctor}</option>
+              ))}
+            </Select>
+            <SegmentedControl
+              label="Date range"
+              value={dateFilter}
+              onChange={setDateFilter}
+              options={[
+                { value: "all", label: "All dates" },
+                { value: "today", label: "Today" },
+                { value: "upcoming", label: "Upcoming" },
+              ]}
+            />
+          </Toolbar>
 
-      {/* =========================
-          Content
-      ========================= */}
+          {loading && filteredAppointments.length === 0 ? (
+            <SkeletonRows rows={6} />
+          ) : filteredAppointments.length === 0 ? (
+            <EmptyState
+              icon={CalendarDays}
+              title={hospitalAppointments.length ? "No appointments match these filters" : "No appointments yet"}
+              description={hospitalAppointments.length ? "Change the status, doctor or date filter." : "Booked appointments for this hospital will appear here."}
+              action={!hospitalAppointments.length && <Button icon={CalendarPlus} onClick={openNew}>New appointment</Button>}
+            />
+          ) : (
+            <>
+              <TableWrap className="hidden lg:block">
+                <table className="hms-table">
+                  <caption className="sr-only">Appointments at {selectedHospital.name}</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">When</th>
+                      <th scope="col">Patient</th>
+                      <th scope="col">Doctor</th>
+                      <th scope="col">Contact</th>
+                      <th scope="col">Token</th>
+                      <th scope="col">Status</th>
+                      <th scope="col"><span className="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAppointments.map((appointment) => (
+                      <tr key={appointment.id}>
+                        <td className="whitespace-nowrap">
+                          <span className="block font-medium text-ink-900 tabular-nums">{appointment.time || "—"}</span>
+                          <span className="block text-xs text-ink-500 tabular-nums">{appointment.date}</span>
+                        </td>
+                        <td className="max-w-[18rem]">
+                          <button type="button" onClick={() => handleView(appointment)} className="text-left">
+                            <span className="block font-medium text-ink-900 hover:text-brand-700">{appointment.patient}</span>
+                            <span className="block truncate text-xs text-ink-500">
+                              <span className="tabular-nums">{appointment.id}</span>
+                              {appointment.reason ? ` · ${appointment.reason}` : ""}
+                            </span>
+                          </button>
+                        </td>
+                        <td className="whitespace-nowrap">{appointment.doctor || <span className="text-ink-400">—</span>}</td>
+                        <td>
+                          <span className="block tabular-nums">{appointment.contact || "—"}</span>
+                          {appointment.village && <span className="block text-xs text-ink-500">{appointment.village}</span>}
+                        </td>
+                        <td className="tabular-nums">{appointment.tokenNumber || <span className="text-ink-400">—</span>}</td>
+                        <td>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <StatusBadge status={appointment.status} />
+                            {appointment.apiId === undefined && (
+                              <Badge tone="warning" className="normal-case">On this device only</Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(appointment)} aria-label={`View appointment ${appointment.id}`} title="View" />
+                            <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => handleEdit(appointment)} aria-label={`Edit appointment ${appointment.id}`} title="Edit" />
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              icon={Ban}
+                              disabled={!canChange(appointment)}
+                              onClick={() => setConfirm({ type: "cancel", appointment })}
+                              aria-label={`Cancel appointment ${appointment.id}`}
+                              title="Cancel appointment"
+                            />
+                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setConfirm({ type: "delete", appointment })} aria-label={`Delete appointment ${appointment.id}`} title="Delete" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableWrap>
 
-      {selectedHospital && (
-
-        <>
-
-          {/* =========================
-              Search & Filters
-          ========================= */}
-
-          <div className="bg-white rounded-xl shadow-sm p-5 mb-6">
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-              <input
-                type="text"
-                placeholder="Search patient or appointment ID..."
-                value={search}
-                onChange={(e) =>
-                  setSearch(
-                    e.target.value
-                  )
-                }
-                className="border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-              />
-
-              <select
-                value={doctorFilter}
-                onChange={(e) =>
-                  setDoctorFilter(
-                    e.target.value
-                  )
-                }
-                className="border border-gray-300 rounded-lg px-4 py-3"
-              >
-
-                <option>
-                  All Doctors
-                </option>
-
-                {doctorChoices.map((doctor) => (
-
-                  <option
-                    key={doctor}
-                    value={doctor}
-                  >
-                    {doctor}
-                  </option>
-
+              <ul className="divide-y divide-ink-100 lg:hidden">
+                {filteredAppointments.map((appointment) => (
+                  <li key={appointment.id}>
+                    <button type="button" onClick={() => handleView(appointment)} className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-ink-50">
+                      <span className="w-16 shrink-0">
+                        <span className="block text-sm font-semibold text-ink-900 tabular-nums">{appointment.time || "—"}</span>
+                        <span className="block text-[11px] text-ink-500 tabular-nums">{appointment.date}</span>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium text-ink-900">{appointment.patient}</span>
+                        <span className="block truncate text-xs text-ink-500">{appointment.doctor}{appointment.reason ? ` · ${appointment.reason}` : ""}</span>
+                      </span>
+                      <StatusBadge status={appointment.status} />
+                    </button>
+                  </li>
                 ))}
-
-              </select>
-
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(
-                    e.target.value
-                  )
-                }
-                className="border border-gray-300 rounded-lg px-4 py-3"
-              >
-
-                <option>
-                  All Status
-                </option>
-
-                <option>
-                  Confirmed
-                </option>
-
-                <option>
-                  Waiting
-                </option>
-
-                <option>
-                  Completed
-                </option>
-
-                <option>
-                  Cancelled
-                </option>
-
-              </select>
-
-            </div>
-
-          </div>
-
-
-          {/* =========================
-              Appointment Table
-          ========================= */}
-
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-
-            <div className="p-5 border-b">
-
-              <h2 className="text-lg font-semibold text-gray-800">
-                Appointment List
-              </h2>
-
-              <p className="text-sm text-gray-500 mt-1">
-                {filteredAppointments.length}
-                {" "}
-                appointment(s) found
+              </ul>
+              <p className="border-t border-line px-4 py-2.5 text-xs text-ink-500">
+                Showing {filteredAppointments.length} of {hospitalAppointments.length} appointments
               </p>
-
-            </div>
-
-            <div className="overflow-x-auto">
-
-              <table className="w-full">
-
-                <thead className="bg-gray-50">
-
-                  <tr>
-
-                    <th className="text-left px-5 py-4 text-sm text-gray-600">
-                      ID
-                    </th>
-
-                    <th className="text-left px-5 py-4 text-sm text-gray-600">
-                      Patient
-                    </th>
-
-                    <th className="text-left px-5 py-4 text-sm text-gray-600">
-                      Village
-                    </th>
-
-                    <th className="text-left px-5 py-4 text-sm text-gray-600">
-                      Contact
-                    </th>
-
-                    <th className="text-left px-5 py-4 text-sm text-gray-600">
-                      Doctor
-                    </th>
-
-                    <th className="text-left px-5 py-4 text-sm text-gray-600">
-                      Date
-                    </th>
-
-                    <th className="text-left px-5 py-4 text-sm text-gray-600">
-                      Time
-                    </th>
-
-                    <th className="text-left px-5 py-4 text-sm text-gray-600">
-                      Token
-                    </th>
-
-                    <th className="text-left px-5 py-4 text-sm text-gray-600">
-                      Status
-                    </th>
-
-                    <th className="text-left px-5 py-4 text-sm text-gray-600">
-                      Actions
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {loading ? (
-
-                    <tr>
-
-                      <td
-                        colSpan="10"
-                        className="text-center py-10 text-gray-500"
-                      >
-                        Loading appointments...
-                      </td>
-
-                    </tr>
-
-                  ) : filteredAppointments.length === 0 ? (
-
-                    <tr>
-
-                      <td
-                        colSpan="10"
-                        className="text-center py-10 text-gray-500"
-                      >
-                        No appointments found
-                      </td>
-
-                    </tr>
-
-                  ) : (
-
-                    filteredAppointments.map(
-                      (appointment) => (
-
-                        <tr
-                          key={appointment.id}
-                          className="border-t hover:bg-gray-50"
-                        >
-
-                          <td className="px-5 py-4 font-medium text-blue-600">
-                            {appointment.id}
-                          </td>
-
-                          <td className="px-5 py-4">
-
-                            <div className="font-medium text-gray-800">
-                              {appointment.patient}
-                            </div>
-
-                            <div className="text-sm text-gray-500">
-                              {appointment.reason}
-                            </div>
-
-                          </td>
-
-                          <td className="px-5 py-4 text-gray-600">
-                            {appointment.village || "—"}
-                          </td>
-
-                          <td className="px-5 py-4 text-gray-600">
-                            {appointment.contact || "—"}
-                          </td>
-
-                          <td className="px-5 py-4 text-gray-600">
-                            {appointment.doctor}
-                          </td>
-
-                          <td className="px-5 py-4 text-gray-600">
-                            {appointment.date}
-                          </td>
-
-                          <td className="px-5 py-4 text-gray-600">
-                            {appointment.time}
-                          </td>
-
-                          <td className="px-5 py-4">
-
-                            <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold text-sm">
-                              {appointment.tokenNumber || "—"}
-                            </span>
-
-                          </td>
-
-                          <td className="px-5 py-4">
-
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${appointment.status ===
-                                "Confirmed"
-                                ? "bg-blue-100 text-blue-700"
-                                : appointment.status ===
-                                  "Waiting"
-                                  ? "bg-orange-100 text-orange-700"
-                                  : appointment.status ===
-                                    "Completed"
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-red-100 text-red-700"
-                                }`}
-                            >
-                              {appointment.status}
-                            </span>
-
-                          </td>
-
-                          <td className="px-5 py-4">
-
-                            <div className="flex gap-2">
-
-                              <button
-                                onClick={() =>
-                                  handleView(
-                                    appointment
-                                  )
-                                }
-                                className="px-3 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
-                              >
-                                View
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  handleEdit(
-                                    appointment
-                                  )
-                                }
-                                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                              >
-                                Edit
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  handleCancel(
-                                    appointment
-                                  )
-                                }
-                                disabled={
-                                  appointment.status ===
-                                  "Cancelled" ||
-                                  appointment.status ===
-                                  "Completed"
-                                }
-                                className="px-3 py-1 text-sm bg-orange-100 text-orange-700 rounded hover:bg-orange-200 disabled:opacity-40"
-                              >
-                                Cancel
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  handleDelete(
-                                    appointment
-                                  )
-                                }
-                                className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
-                              >
-                                Delete
-                              </button>
-
-                            </div>
-
-                          </td>
-
-                        </tr>
-
-                      )
-                    )
-
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-          </div>
-
-
-          {/* =========================
-              Add / Edit Modal
-          ========================= */}
-
-          {showForm && (
-
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-
-              <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl">
-
-                <div className="flex justify-between items-center p-6 border-b">
-
-                  <div>
-
-                    <h2 className="text-xl font-bold text-gray-800">
-
-                      {selectedAppointment
-                        ? "Edit Appointment"
-                        : "New Appointment"}
-
-                    </h2>
-
-                    <p className="text-sm text-gray-500 mt-1">
-                      Enter appointment details
-                    </p>
-
-                  </div>
-
-                  <button
-                    onClick={resetForm}
-                    className="text-2xl text-gray-500"
-                  >
-                    ×
-                  </button>
-
-                </div>
-
-                <form
-                  onSubmit={
-                    selectedAppointment
-                      ? handleUpdate
-                      : handleSubmit
-                  }
-                  className="p-6 space-y-4"
-                >
-
-                  {/* Patient Name */}
-
-                  <div>
-
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Patient Name
-                    </label>
-
-                    <input
-                      type="text"
-                      name="patient"
-                      value={formData.patient}
-                      onChange={handleChange}
-                      required
-                      placeholder="Enter patient name"
-                      className="w-full border rounded-lg px-4 py-3"
-                    />
-
-                  </div>
-
-
-                  {/* Village Name */}
-
-                  <div>
-
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Village Name
-                    </label>
-
-                    <input
-                      type="text"
-                      name="village"
-                      value={formData.village}
-                      onChange={handleChange}
-                      required
-                      placeholder="Enter village name"
-                      className="w-full border rounded-lg px-4 py-3"
-                    />
-
-                  </div>
-
-
-                  {/* Contact Number */}
-
-                  <div>
-
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Contact Number
-                    </label>
-
-                    <input
-                      type="tel"
-                      name="contact"
-                      value={formData.contact}
-                      onChange={(e) => {
-
-                        const value =
-                          e.target.value.replace(
-                            /\D/g,
-                            ""
-                          )
-
-                        if (value.length <= 10) {
-
-                          setFormData({
-                            ...formData,
-                            contact: value,
-                          })
-
-                        }
-
-                      }}
-                      required
-                      maxLength="10"
-                      placeholder="Enter 10 digit contact number"
-                      className="w-full border rounded-lg px-4 py-3"
-                    />
-
-                  </div>
-
-
-                  {/* Doctor */}
-
-                  <div>
-
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Doctor
-                    </label>
-
-                    <select
-                      name="doctor"
-                      value={formData.doctor}
-                      onChange={handleChange}
-                      required
-                      className="w-full border rounded-lg px-4 py-3"
-                    >
-
-                      <option value="">
-                        Select Doctor
-                      </option>
-
-                      {doctorChoices.map((doctor) => (
-
-                        <option
-                          key={doctor}
-                          value={doctor}
-                        >
-                          {doctor}
-                        </option>
-
-                      ))}
-
-                      {formData.doctor &&
-                        !doctorChoices.includes(
-                          formData.doctor
-                        ) && (
-
-                          <option value={formData.doctor}>
-                            {formData.doctor}
-                          </option>
-
-                        )}
-
-                    </select>
-
-                  </div>
-
-
-                  {/* Date + Time */}
-
-                  <div className="grid grid-cols-2 gap-4">
-
-                    <div>
-
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Date
-                      </label>
-
-                      <input
-                        type="date"
-                        name="date"
-                        value={formData.date}
-                        onChange={handleChange}
-                        required
-                        className="w-full border rounded-lg px-4 py-3"
-                      />
-
-                    </div>
-
-                    <div>
-
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Time
-                      </label>
-
-                      <input
-                        type="time"
-                        name="time"
-                        value={formData.time}
-                        onChange={handleChange}
-                        required
-                        className="w-full border rounded-lg px-4 py-3"
-                      />
-
-                    </div>
-
-                  </div>
-
-
-                  {/* Reason */}
-
-                  <div>
-
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Reason
-                    </label>
-
-                    <textarea
-                      name="reason"
-                      value={formData.reason}
-                      onChange={handleChange}
-                      required
-                      rows="3"
-                      placeholder="Enter appointment reason"
-                      className="w-full border rounded-lg px-4 py-3"
-                    />
-
-                  </div>
-
-
-                  {/* Buttons */}
-
-                  <div className="flex justify-end gap-3 pt-3">
-
-                    <button
-                      type="button"
-                      onClick={resetForm}
-                      className="px-5 py-3 border rounded-lg"
-                    >
-                      Cancel
-                    </button>
-
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
-                    >
-
-                      {saving
-                        ? "Saving..."
-                        : selectedAppointment
-                          ? "Save Changes"
-                          : "Book Appointment"}
-
-                    </button>
-
-                  </div>
-
-                </form>
-
-              </div>
-
-            </div>
-
+            </>
+          )}
+        </Card>
+      )}
+
+      {/* Add / Edit */}
+      <Modal
+        open={showForm}
+        onClose={resetForm}
+        size="lg"
+        title={selectedAppointment ? `Edit appointment ${selectedAppointment.id}` : "New appointment"}
+        description={selectedHospital ? `At ${selectedHospital.name}` : undefined}
+        footer={
+          <>
+            <Button variant="secondary" onClick={resetForm} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="appointment-form" loading={saving} disabled={doctorsLoaded && doctorChoices.length === 0}>
+              {selectedAppointment ? "Save changes" : "Book appointment"}
+            </Button>
+          </>
+        }
+      >
+        <form id="appointment-form" onSubmit={selectedAppointment ? handleUpdate : handleSubmit} className="space-y-6">
+          {formError && <Alert tone="danger" title="Not saved">{formError}</Alert>}
+          {doctorsLoaded && doctorChoices.length === 0 && (
+            <Alert tone="warning" title="No doctors registered">
+              Add a doctor for this hospital before booking. <Link to="/doctors" className="font-medium underline">Go to Doctors</Link>
+            </Alert>
           )}
 
-
-          {/* =========================
-              View Modal
-          ========================= */}
-
-          {showView &&
-            selectedAppointment && (
-
-              <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-
-                <div className="bg-white w-full max-w-md rounded-2xl shadow-xl">
-
-                  <div className="p-6 border-b">
-
-                    <div className="flex justify-between">
-
-                      <div>
-
-                        <h2 className="text-xl font-bold text-gray-800">
-                          Appointment Details
-                        </h2>
-
-                        <p className="text-blue-600 mt-1">
-                          {selectedAppointment.id}
-                        </p>
-
-                      </div>
-
-                      <button
-                        onClick={() =>
-                          setShowView(false)
-                        }
-                        className="text-2xl text-gray-500"
-                      >
-                        ×
-                      </button>
-
-                    </div>
-
-                  </div>
-
-
-                  <div className="p-6 space-y-4">
-
-                    <div>
-
-                      <p className="text-sm text-gray-500">
-                        Hospital
-                      </p>
-
-                      <p className="font-semibold">
-                        {selectedHospital.name}
-                      </p>
-
-                    </div>
-
-
-                    <div>
-
-                      <p className="text-sm text-gray-500">
-                        Token Number
-                      </p>
-
-                      <p className="font-semibold text-purple-600">
-                        {selectedAppointment.tokenNumber || "—"}
-                      </p>
-
-                    </div>
-
-
-                    <div>
-
-                      <p className="text-sm text-gray-500">
-                        Patient
-                      </p>
-
-                      <p className="font-semibold">
-                        {selectedAppointment.patient}
-                      </p>
-
-                    </div>
-
-
-                    <div>
-
-                      <p className="text-sm text-gray-500">
-                        Village
-                      </p>
-
-                      <p className="font-semibold">
-                        {selectedAppointment.village || "—"}
-                      </p>
-
-                    </div>
-
-
-                    <div>
-
-                      <p className="text-sm text-gray-500">
-                        Contact Number
-                      </p>
-
-                      <p className="font-semibold">
-                        {selectedAppointment.contact || "—"}
-                      </p>
-
-                    </div>
-
-
-                    <div>
-
-                      <p className="text-sm text-gray-500">
-                        Doctor
-                      </p>
-
-                      <p className="font-semibold">
-                        {selectedAppointment.doctor}
-                      </p>
-
-                    </div>
-
-
-                    <div className="grid grid-cols-2 gap-4">
-
-                      <div>
-
-                        <p className="text-sm text-gray-500">
-                          Date
-                        </p>
-
-                        <p className="font-semibold">
-                          {selectedAppointment.date}
-                        </p>
-
-                      </div>
-
-
-                      <div>
-
-                        <p className="text-sm text-gray-500">
-                          Time
-                        </p>
-
-                        <p className="font-semibold">
-                          {selectedAppointment.time}
-                        </p>
-
-                      </div>
-
-                    </div>
-
-
-                    <div>
-
-                      <p className="text-sm text-gray-500">
-                        Reason
-                      </p>
-
-                      <p className="font-semibold">
-                        {selectedAppointment.reason}
-                      </p>
-
-                    </div>
-
-
-                    <div>
-
-                      <p className="text-sm text-gray-500">
-                        Status
-                      </p>
-
-                      <p className="font-semibold">
-                        {selectedAppointment.status}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-
-                  <div className="p-6 border-t text-right">
-
-                    <button
-                      onClick={() =>
-                        setShowView(false)
-                      }
-                      className="px-5 py-2 bg-gray-100 rounded-lg"
-                    >
-                      Close
-                    </button>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            )}
-
-        </>
-
-      )}
-
+          <FormSection title="Patient" description="Start typing to pick an existing patient; a new record is created only if none matches.">
+            <Field label="Patient name" required className="sm:col-span-2">
+              <Input name="patient" value={formData.patient} onChange={handleChange} list="appointment-patient-suggestions" autoComplete="off" />
+            </Field>
+            <datalist id="appointment-patient-suggestions">
+              {patientSuggestions.map((p) => (
+                <option key={p.id} value={p.name}>{p.phone ? `${p.phone}` : ""}</option>
+              ))}
+            </datalist>
+            <Field label="Mobile number" required hint="10 digits">
+              <Input
+                type="tel"
+                inputMode="numeric"
+                name="contact"
+                value={formData.contact}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "")
+                  if (value.length <= 10) setFormData({ ...formData, contact: value })
+                }}
+                maxLength={10}
+              />
+            </Field>
+            <Field label="Village / locality" required>
+              <Input name="village" value={formData.village} onChange={handleChange} />
+            </Field>
+          </FormSection>
+
+          <FormSection title="Visit">
+            <Field label="Doctor" required className="sm:col-span-2">
+              <Select name="doctor" value={formData.doctor} onChange={handleChange}>
+                <option value="">{doctorsLoaded ? "Select doctor" : "Loading doctors…"}</option>
+                {doctorChoices.map((doctor) => (
+                  <option key={doctor} value={doctor}>{doctor}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Date" required>
+              <Input type="date" name="date" value={formData.date} onChange={handleChange} min={selectedAppointment ? undefined : today} />
+            </Field>
+            <Field label="Time" required>
+              <Input type="time" name="time" value={formData.time} onChange={handleChange} />
+            </Field>
+            <Field label="Reason for visit" required className="sm:col-span-2">
+              <Textarea name="reason" value={formData.reason} onChange={handleChange} rows={3} />
+            </Field>
+          </FormSection>
+        </form>
+      </Modal>
+
+      {/* Details */}
+      <Modal
+        open={showView && Boolean(selectedAppointment)}
+        onClose={() => setShowView(false)}
+        title="Appointment details"
+        description={selectedAppointment?.id}
+        footer={
+          selectedAppointment && (
+            <>
+              <Button variant="danger-ghost" icon={Trash2} onClick={() => setConfirm({ type: "delete", appointment: selectedAppointment })} className="mr-auto">
+                Delete
+              </Button>
+              {canChange(selectedAppointment) && (
+                <Button variant="secondary" icon={Ban} onClick={() => setConfirm({ type: "cancel", appointment: selectedAppointment })}>
+                  Cancel appointment
+                </Button>
+              )}
+              <Button icon={Pencil} onClick={() => handleEdit(selectedAppointment)}>Edit</Button>
+            </>
+          )
+        }
+      >
+        {selectedAppointment && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-3 rounded-xl bg-ink-50 px-4 py-3">
+              <Clock size={18} className="text-brand-600" aria-hidden="true" />
+              <p className="text-sm font-semibold text-ink-900 tabular-nums">
+                {selectedAppointment.date} · {selectedAppointment.time}
+              </p>
+              <StatusBadge status={selectedAppointment.status} className="ml-auto" />
+            </div>
+            <DescriptionList
+              items={[
+                { label: "Patient", value: selectedAppointment.patient },
+                { label: "Doctor", value: selectedAppointment.doctor && <span className="inline-flex items-center gap-1.5"><Stethoscope size={14} className="text-ink-400" aria-hidden="true" />{selectedAppointment.doctor}</span> },
+                { label: "Mobile", value: selectedAppointment.contact && <span className="inline-flex items-center gap-1.5 tabular-nums"><Phone size={14} className="text-ink-400" aria-hidden="true" />{selectedAppointment.contact}</span> },
+                { label: "Village / locality", value: selectedAppointment.village },
+                { label: "Token", value: selectedAppointment.tokenNumber },
+                { label: "Hospital", value: selectedHospital?.name },
+              ]}
+            />
+            <DescriptionList columns={1} items={[{ label: "Reason for visit", value: selectedAppointment.reason }]} />
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        onCancel={() => setConfirm(null)}
+        onConfirm={runConfirmed}
+        destructive
+        title={confirm?.type === "delete" ? "Delete appointment?" : "Cancel appointment?"}
+        confirmLabel={confirm?.type === "delete" ? "Delete" : "Cancel appointment"}
+        cancelLabel="Keep"
+        message={
+          confirm && (
+            <>
+              {confirm.type === "delete" ? "This permanently removes" : "This cancels"} the appointment for{" "}
+              <strong className="font-semibold text-ink-900">{confirm.appointment.patient}</strong> on{" "}
+              {confirm.appointment.date} at {confirm.appointment.time}.
+              {confirm.type === "delete" && " It cannot be undone."}
+            </>
+          )
+        }
+      />
     </div>
   )
 }

@@ -1,12 +1,48 @@
 import { createContext, useContext, useState, useCallback } from "react"
+import { CircleAlert, TriangleAlert, CircleCheck, Info, X } from "lucide-react"
 
 const ToastContext = createContext(null)
 
 const TOAST_TYPES = {
-  success: { icon: "✅", bg: "bg-green-50", border: "border-green-200", text: "text-green-700" },
-  error: { icon: "❌", bg: "bg-red-50", border: "border-red-200", text: "text-red-700" },
-  warning: { icon: "⚠️", bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700" },
-  info: { icon: "ℹ️", bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700" },
+  success: { icon: CircleCheck, accent: "text-green-600", bar: "bg-green-500" },
+  error: { icon: CircleAlert, accent: "text-red-600", bar: "bg-red-500" },
+  warning: { icon: TriangleAlert, accent: "text-amber-600", bar: "bg-amber-500" },
+  info: { icon: Info, accent: "text-brand-600", bar: "bg-brand-500" },
+}
+
+function ToastList({ toasts, hideToast }) {
+  return (
+    <div
+      className="pointer-events-none fixed inset-x-4 bottom-4 z-[70] flex flex-col items-end gap-2 sm:inset-x-auto sm:right-4"
+      role="region"
+      aria-label="Notifications"
+      aria-live="polite"
+    >
+      {toasts.map((toast) => {
+        const s = TOAST_TYPES[toast.type] || TOAST_TYPES.info
+        const Icon = s.icon
+        return (
+          <div
+            key={toast.id}
+            className="pointer-events-auto relative flex w-full max-w-sm items-start gap-3 overflow-hidden rounded-xl border border-line bg-white py-3 pl-4 pr-3 shadow-lg animate-slide-in"
+            role={toast.type === "error" ? "alert" : "status"}
+          >
+            <span className={`absolute inset-y-0 left-0 w-1 ${s.bar}`} aria-hidden="true" />
+            <Icon size={18} className={`mt-0.5 shrink-0 ${s.accent}`} aria-hidden="true" />
+            <p className="flex-1 text-sm font-medium leading-6 text-ink-800">{toast.message}</p>
+            <button
+              type="button"
+              onClick={() => hideToast(toast.id)}
+              className="rounded-md p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
+              aria-label="Dismiss notification"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export function ToastProvider({ children }) {
@@ -38,28 +74,7 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ toasts, showToast, hideToast, success, error, warning, info }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none" role="region" aria-live="polite">
-        {toasts.map((toast) => {
-          const style = TOAST_TYPES[toast.type] || TOAST_TYPES.info
-          return (
-            <div
-              key={toast.id}
-              className={`${style.bg} ${style.border} ${style.text} border rounded-xl shadow-lg p-4 flex items-center gap-3 min-w-[280px] max-w-md pointer-events-auto animate-slide-in`}
-              role="alert"
-            >
-              <span className="text-lg flex-shrink-0">{style.icon}</span>
-              <p className="text-sm font-medium flex-1">{toast.message}</p>
-              <button
-                onClick={() => hideToast(toast.id)}
-                className="text-current opacity-50 hover:opacity-100 transition flex-shrink-0"
-                aria-label="Dismiss"
-              >
-                ✕
-              </button>
-            </div>
-          )
-        })}
-      </div>
+      <ToastList toasts={toasts} hideToast={hideToast} />
     </ToastContext.Provider>
   )
 }
@@ -74,30 +89,5 @@ export function useToast() {
 
 export function ToastContainer() {
   const { toasts, hideToast } = useToast()
-  const style = TOAST_TYPES
-
-  return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none" role="region" aria-live="polite">
-      {toasts.map((toast) => {
-        const s = style[toast.type] || style.info
-        return (
-          <div
-            key={toast.id}
-            className={`${s.bg} ${s.border} ${s.text} border rounded-xl shadow-lg p-4 flex items-center gap-3 min-w-[280px] max-w-md pointer-events-auto animate-slide-in`}
-            role="alert"
-          >
-            <span className="text-lg flex-shrink-0">{s.icon}</span>
-            <p className="text-sm font-medium flex-1">{toast.message}</p>
-            <button
-              onClick={() => hideToast(toast.id)}
-              className="text-current opacity-50 hover:opacity-100 transition flex-shrink-0"
-              aria-label="Dismiss"
-            >
-              ✕
-            </button>
-          </div>
-        )
-      })}
-    </div>
-  )
+  return <ToastList toasts={toasts} hideToast={hideToast} />
 }

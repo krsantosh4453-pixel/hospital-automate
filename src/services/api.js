@@ -121,9 +121,12 @@ async function request(url, options = {}) {
     const timeoutSignal = rest.signal || AbortSignal.timeout(8000)
     response = await fetch(url, { ...rest, headers, signal: timeoutSignal })
   } catch (networkError) {
-    throw new Error(
+    const error = new Error(
       networkError.message || 'Network error. Is the Django server running?'
     )
+    // Lets pages tell "server unreachable" apart from "server said no".
+    error.isNetworkError = true
+    throw error
   }
 
   if (response.status === 401 && !_retried && shouldAttemptRefresh(url) && getRefreshToken()) {
@@ -146,7 +149,9 @@ async function request(url, options = {}) {
       // Response body was not JSON — keep the default message.
     }
 
-    throw new Error(detail)
+    const error = new Error(detail)
+    error.status = response.status
+    throw error
   }
 
   if (response.status === 204) {
@@ -289,10 +294,11 @@ const api = {
 
   patients: {
     // GET /api/patients/ (optionally scoped to a hospital)
-    list: async (hospitalId, page = 1) => {
+    list: async (hospitalId, page = 1, search = '') => {
       const params = new URLSearchParams()
       if (hospitalId) params.set('hospital', hospitalId)
       params.set('page', page)
+      if (search) params.set('search', search)
       const query = params.toString() ? `?${params.toString()}` : ''
 
       return request(`${API_BASE_URL}/patients/${query}`)

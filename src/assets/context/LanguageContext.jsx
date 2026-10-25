@@ -13,6 +13,15 @@ const HI = {
   Notifications: "सूचनाएँ",
   Logout: "लॉग आउट",
   Loading: "लोड हो रहा है",
+  // Staff navigation groups
+  Overview: "सारांश",
+  "Front desk": "रिसेप्शन",
+  "Clinical care": "क्लिनिकल देखभाल",
+  "Diagnostics & pharmacy": "जाँच और फ़ार्मेसी",
+  "Finance & operations": "वित्त और संचालन",
+  Staff: "स्टाफ़",
+  Administration: "प्रशासन",
+  System: "सिस्टम",
   // Staff navigation
   Home: "होम",
   Patients: "मरीज़",

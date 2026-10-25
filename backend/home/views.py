@@ -1,4 +1,5 @@
 from datetime import date
+from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -109,7 +110,6 @@ def home_dashboard(request):
     partial_invoices = invoice_qs.filter(status="Partial").count()
     
     # Revenue - use aggregation
-    from django.db.models import Sum
     total_revenue = payment_qs.aggregate(total=Sum("amount"))["total"] or 0
     today_revenue = payment_qs.filter(paid_at__date=today).aggregate(total=Sum("amount"))["total"] or 0
     
