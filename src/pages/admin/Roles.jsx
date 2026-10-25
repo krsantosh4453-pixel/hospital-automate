@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import api from "../../services/api.js"
+import { Alert, PageHeader } from "../../components/ui"
 
 // Roles are fixed in the backend (users.models.StaffRole) and the server
 // decides access per hospital membership. This matrix summarises the
@@ -69,23 +70,18 @@ function Roles() {
   }, [selectedHospital])
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Roles &amp; Permissions</h1>
-        <p className="text-gray-500 mt-1">
-          The server enforces these roles for each hospital membership. Assign roles to people on the Users page.
-        </p>
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        title="Roles"
+        description="The server enforces these roles for each hospital membership. Assign roles to people on the Users page."
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Roles" }]}
+      />
 
-      {countError && (
-        <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm" role="status">
-          {countError}
-        </div>
-      )}
+      {countError && <Alert tone="warning">{countError}</Alert>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
         {ROLES.map((role) => (
-          <div key={role} className="bg-white rounded-xl shadow p-5">
+          <div key={role} className="rounded-2xl border border-line bg-white p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-800">{role}</h2>
               <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">

@@ -38,10 +38,12 @@ export function Tabs({ tabs, value, onChange, className = "", label = "Sections"
               role="tab"
               id={`${baseId}-${tab.id}`}
               aria-selected={active}
+              aria-disabled={tab.disabled || undefined}
+              disabled={tab.disabled}
               tabIndex={active ? 0 : -1}
               onClick={() => onChange(tab.id)}
               onKeyDown={(e) => onKeyDown(e, index)}
-              className={`relative -mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+              className={`relative -mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:text-ink-300 disabled:hover:border-transparent ${
                 active
                   ? "border-brand-600 text-brand-700"
                   : "border-transparent text-ink-500 hover:border-ink-300 hover:text-ink-800"

@@ -1,6 +1,8 @@
+import { Plus as PlusIcon } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import api from "../../services/api.js"
+import { Alert, Button, PageHeader } from "../../components/ui"
 
 const EMPTY_FORM = { name: "", code: "", head: "", description: "", status: "Active" }
 const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
@@ -119,39 +121,32 @@ function Departments() {
   const doctorCount = departments.reduce((sum, d) => sum + (d.doctors || 0), 0)
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Departments</h1>
-          <p className="text-gray-500 mt-1">Departments and clinics of {selectedHospital?.name || "the selected hospital"}</p>
-        </div>
-        <button onClick={openAdd} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium">
-          + Add Department
-        </button>
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        title="Departments"
+        description={`Departments and clinics of ${selectedHospital?.name || "the selected hospital"}.`}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Departments" }]}
+        actions={<Button icon={PlusIcon} onClick={openAdd}>Add department</Button>}
+      />
 
-      {error && !showModal && (
-        <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
-          {error}
-        </div>
-      )}
+      {error && !showModal && <Alert tone="danger">{error}</Alert>}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">Total Departments</p>
           <h2 className="text-3xl font-bold mt-2">{departments.length}</h2>
         </div>
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">Active</p>
           <h2 className="text-3xl font-bold text-green-600 mt-2">{activeCount}</h2>
         </div>
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">Doctors Assigned</p>
           <h2 className="text-3xl font-bold text-blue-600 mt-2">{doctorCount}</h2>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow p-5">
+      <div className="rounded-2xl border border-line bg-white p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           <input
             type="text"

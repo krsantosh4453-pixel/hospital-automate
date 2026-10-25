@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import api from "../../services/api.js"
-import { useConfirm } from "../../components/ui"
+import { Alert, PageHeader, useConfirm } from "../../components/ui"
 
 // Roles a hospital membership can hold (users.models.StaffRole).
 const ROLES = [
@@ -109,38 +109,26 @@ function Users() {
   const activeCount = staff.filter((member) => member.membership?.is_active).length
 
   return (
-    <>{confirmDialog}<div className="p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Users</h1>
-          <p className="text-gray-500 mt-1">
-            Staff of {selectedHospital?.name || "the selected hospital"}. New staff create an
-            account and are approved here.
-          </p>
-        </div>
-      </div>
+    <>{confirmDialog}<div className="space-y-5">
+      <PageHeader
+        title="Users"
+        description={`Staff of ${selectedHospital?.name || "the selected hospital"}. New staff create an account and are approved here.`}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Users" }]}
+      />
 
-      {error && (
-        <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
-          {error}
-        </div>
-      )}
-      {notice && !error && (
-        <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm" role="status">
-          {notice}
-        </div>
-      )}
+      {error && <Alert tone="danger">{error}</Alert>}
+      {notice && !error && <Alert tone="success">{notice}</Alert>}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">Total Staff</p>
           <h2 className="text-3xl font-bold mt-2">{staff.length}</h2>
         </div>
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">Active</p>
           <h2 className="text-3xl font-bold text-green-600 mt-2">{activeCount}</h2>
         </div>
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">Awaiting Approval</p>
           <h2 className="text-3xl font-bold text-orange-600 mt-2">{pending.length}</h2>
         </div>
@@ -199,7 +187,7 @@ function Users() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow p-5">
+      <div className="rounded-2xl border border-line bg-white p-5">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           <input
             type="text"

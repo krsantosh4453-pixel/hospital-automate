@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import api from "../services/api.js"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { Alert, Card, EmptyState, PageHeader, SegmentedControl } from "../components/ui"
 import { CalendarDaysIcon, FlaskConicalIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, StethoscopeIcon, UsersIcon, WalletIcon } from "lucide-react"
 
 
@@ -81,37 +82,9 @@ function Reports() {
 
     return (
 
-      <div className="space-y-6">
-
-        <div>
-
-          <p className="text-blue-600 font-semibold text-sm">
-            HOSPITAL REPORTS
-          </p>
-
-          <h1 className="text-3xl font-bold text-gray-800 mt-1">
-            Reports
-          </h1>
-
-        </div>
-
-
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-12 text-center">
-
-          <div className="text-5xl mb-4">
-            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-          </div>
-
-          <h2 className="text-xl font-bold text-gray-800">
-            Select a Hospital
-          </h2>
-
-          <p className="text-gray-500 mt-2">
-            Select a hospital from the header to view reports.
-          </p>
-
-        </div>
-
+      <div className="space-y-5">
+        <PageHeader title="Reports" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Reports" }]} />
+        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to view its reports." /></Card>
       </div>
 
     )
@@ -145,45 +118,15 @@ function Reports() {
 
   // =====================================
 
-  const ReportCard = ({
-    title,
-    value,
-    subtitle,
-    icon,
-    iconBg,
-  }) => (
-
-    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
-
-      <div className="flex items-center justify-between">
-
-        <div>
-
-          <p className="text-sm text-gray-500">
-            {title}
-          </p>
-
-          <h3 className="text-3xl font-bold text-gray-800 mt-2">
-            {value}
-          </h3>
-
-          <p className="text-xs text-gray-500 mt-1">
-            {subtitle}
-          </p>
-
-        </div>
-
-
-        <div
-          className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${iconBg}`}
-        >
-          {icon}
-        </div>
-
+  const ReportCard = ({ title, value, subtitle, icon, iconBg }) => (
+    <div className="flex items-start gap-3.5 rounded-2xl border border-line bg-white p-4">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl text-ink-700 ${iconBg}`}>{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-ink-500">{title}</p>
+        <p className="mt-0.5 text-2xl font-semibold leading-8 tracking-tight text-ink-900 tabular-nums">{loading && !kpis ? "—" : value}</p>
+        {subtitle && <p className="mt-0.5 text-xs text-ink-500">{subtitle}</p>}
       </div>
-
     </div>
-
   )
 
 
@@ -192,109 +135,22 @@ function Reports() {
     <div className="space-y-6">
 
 
-      {/* =====================================
-          HEADER
-      ===================================== */}
+      <PageHeader
+        title="Reports"
+        description={`Operational and financial figures for ${selectedHospital.name}, counted on the server.`}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Reports" }]}
+        actions={
+          <SegmentedControl
+            label="Report period"
+            value={period}
+            onChange={setPeriod}
+            options={Object.keys(PERIODS).map((p) => ({ value: p, label: p }))}
+          />
+        }
+      />
 
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-
-        <div>
-
-          <p className="text-blue-600 font-semibold text-sm">
-            HOSPITAL REPORTS
-          </p>
-
-          <h1 className="text-3xl font-bold text-gray-800 mt-1">
-            Reports
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Complete operational and financial overview.
-          </p>
-
-        </div>
-
-
-        <select
-
-          value={period}
-
-          onChange={(e) =>
-            setPeriod(
-              e.target.value
-            )
-          }
-
-          className="hms-input"
-
-        >
-
-          <option>
-            Today
-          </option>
-
-          <option>
-            This Week
-          </option>
-
-          <option>
-            This Month
-          </option>
-
-          <option>
-            This Year
-          </option>
-
-        </select>
-
-      </div>
-
-
-      {/* =====================================
-          HOSPITAL
-      ===================================== */}
-
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
-
-        <div className="flex items-center gap-4">
-
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
-          </div>
-
-          <div>
-
-            <p className="text-xs text-gray-500">
-              Selected Hospital
-            </p>
-
-            <h2 className="font-bold text-gray-800 text-lg">
-              {selectedHospital.name}
-            </h2>
-
-            <p className="text-sm text-gray-500">
-              <MapPinIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {selectedHospital.address}
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      {/* =====================================
-          OVERVIEW
-      ===================================== */}
-
-      {loadError && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm" role="alert">
-          {loadError}
-        </div>
-      )}
-      {loading && (
-        <p className="text-sm text-gray-500" role="status">Loading report figures…</p>
-      )}
+      {loadError && <Alert tone="warning">{loadError}</Alert>}
+      {loading && <p className="text-sm text-ink-500" role="status">Loading report figures…</p>}
 
       <div>
 
@@ -333,7 +189,7 @@ function Reports() {
             value={
               appointmentsTotal
             }
-            subtitle="Appointments"
+            subtitle={`In ${period.toLowerCase()}`}
             icon={<CalendarDaysIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-orange-100"
           />

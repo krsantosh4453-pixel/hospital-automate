@@ -3,7 +3,7 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import api from "../services/api.js"
 import { CircleCheckIcon, CircleXIcon, HospitalIcon, MicIcon, NotebookPenIcon, RefreshCwIcon, SparklesIcon, SquareIcon, TriangleAlertIcon, XIcon } from "lucide-react"
-import { useConfirm, usePrompt } from "../components/ui"
+import { Alert, Card, EmptyState, PageHeader, Tabs, useConfirm, usePrompt } from "../components/ui"
 
 const DIAGNOSIS_TYPES = [
   "Provisional",
@@ -602,45 +602,28 @@ function AIScribe() {
   }
 
   const tabs = [
-    { id: "recording", label: "Recording", icon: <MicIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
-    { id: "transcript", label: "Transcript", icon: <NotebookPenIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
-    { id: "draft", label: "AI Draft", icon: <SparklesIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
-    { id: "review", label: "Review", icon: <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> },
+    { id: "recording", label: "Recording", icon: MicIcon },
+    { id: "transcript", label: "Transcript", icon: NotebookPenIcon, disabled: !transcript },
+    { id: "draft", label: "AI Draft", icon: SparklesIcon },
+    { id: "review", label: "Review", icon: CircleCheckIcon },
   ]
 
   return (
-    <>{confirmDialog}{promptDialog}<div className="p-4 md:p-6 space-y-6 bg-slate-50 min-h-screen">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">AI Medical Scribe</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Record consultation, transcribe, generate AI clinical draft, review & approve
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm text-slate-600">
-            <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> <strong className="text-slate-800">{selectedHospital?.name || "No hospital"}</strong>
-          </span>
-        </div>
-      </div>
+    <>{confirmDialog}{promptDialog}<div className="space-y-5">
+      <PageHeader
+        title="AI scribe"
+        description="Record a consultation, transcribe it and review the AI draft. Nothing enters the medical record until a doctor approves it."
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "AI scribe" }]}
+      />
 
-      {successMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
-          <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {successMessage}
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start justify-between gap-3">
-          <span><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> {errorMessage}</span>
-          <button onClick={() => setErrorMessage("")} className="text-red-500 hover:text-red-700 font-bold cursor-pointer"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
-        </div>
-      )}
+      {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}
+      {errorMessage && <Alert tone="danger" onDismiss={() => setErrorMessage("")}>{errorMessage}</Alert>}
+      {[...new Set([visitsError, sessionError, transcriptError, draftsError].filter(Boolean))].map((message) => (
+        <Alert key={message} tone="warning">{message}</Alert>
+      ))}
 
       {!selectedHospital && (
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 text-center text-slate-500">
-          Select a hospital from the navbar to start.
-        </div>
+        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to start." /></Card>
       )}
 
       {selectedHospital && (
@@ -681,19 +664,7 @@ function AIScribe() {
 
       {selectedVisitId && session && (
         <>
-          <div className="flex flex-wrap gap-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer border ${activeTab === tab.id ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"}`}
-                disabled={tab.id === "transcript" && !transcript}
-              >
-                {tab.icon} {tab.label}
-              </button>
-            ))}
-          </div>
+          <Tabs tabs={tabs} value={activeTab} onChange={setActiveTab} label="Scribe steps" />
 
           {/* RECORDING TAB */}
           {activeTab === "recording" && (
@@ -822,12 +793,22 @@ function AIScribe() {
               {selectedDraft && (
                 <>
                   <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <p
-                      className={`mb-3 text-sm font-semibold ${selectedDraft.status === "approved" ? "text-emerald-700" : "text-amber-700"}`}
+                    <div
                       role="status"
+                      className={`mb-3 flex items-start gap-3 rounded-lg border px-3 py-2.5 ${selectedDraft.status === "approved" ? "border-green-200 bg-green-50 text-green-800" : "border-accent-200 bg-accent-50 text-accent-800"}`}
                     >
-                      {t(selectedDraft.reviewLabel)}
-                    </p>
+                      {selectedDraft.status === "approved" ? (
+                        <CircleCheckIcon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+                      ) : (
+                        <SparklesIcon size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+                      )}
+                      <div>
+                        <p className="text-sm font-semibold">{t(selectedDraft.reviewLabel)}</p>
+                        {selectedDraft.status !== "approved" && (
+                          <p className="text-xs opacity-90">Generated by AI. Check every section against the consultation; it is not part of the medical record until a linked doctor approves it.</p>
+                        )}
+                      </div>
+                    </div>
                     <div className="flex flex-wrap items-center gap-4 text-sm">
                       <span className={`px-3 py-1 rounded-full ${selectedDraft.status === "approved" ? "bg-emerald-100 text-emerald-700" : selectedDraft.status === "under_review" ? "bg-blue-100 text-blue-700" : selectedDraft.status === "edited" ? "bg-amber-100 text-amber-700" : selectedDraft.status === "rejected" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"}`}>
                         {selectedDraft.status.replace("_", " ").toUpperCase()}
@@ -912,9 +893,7 @@ function AIScribe() {
       )}
 
       {!selectedVisitId && selectedHospital && visits.length === 0 && (
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 text-center text-slate-500">
-          No visits found for this hospital.
-        </div>
+        <Card><EmptyState compact title="No visits yet" description="A visit is created when a patient is issued a queue token." /></Card>
       )}
     </div></>
   )

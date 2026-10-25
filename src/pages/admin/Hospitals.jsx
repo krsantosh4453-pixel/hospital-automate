@@ -1,6 +1,7 @@
+import { Plus as PlusIcon } from "lucide-react"
 import { useState } from "react"
 import { useHospitals } from "../../assets/context/HospitalsContext.jsx"
-import { useConfirm } from "../../components/ui"
+import { Alert, Button, PageHeader, useConfirm } from "../../components/ui"
 
 function Hospitals() {
   const [confirm, confirmDialog] = useConfirm()
@@ -206,44 +207,22 @@ function Hospitals() {
     ).length
 
   return (
-    <>{confirmDialog}<div className="p-6">
+    <>{confirmDialog}<div className="space-y-5">
+      <PageHeader
+        title="Hospitals"
+        description="Hospitals in the system and their contact details."
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Hospitals" }]}
+        actions={<Button icon={PlusIcon} onClick={openAddModal}>Add hospital</Button>}
+      />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">
-            Hospitals
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Manage hospitals in the system
-          </p>
-        </div>
-
-        <button
-          onClick={openAddModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium"
-        >
-          + Add Hospital
-        </button>
-
-      </div>
-
-      {(loadError || actionError) && !showModal && (
-        <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
-          {actionError || loadError}
-        </div>
-      )}
-      {loading && (
-        <p className="mb-6 text-sm text-gray-500" role="status">Loading hospitals…</p>
-      )}
+      {(loadError || actionError) && !showModal && <Alert tone="danger">{actionError || loadError}</Alert>}
+      {loading && <p className="text-sm text-ink-500" role="status">Loading hospitals…</p>}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
 
         {/* Total */}
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
             Total Hospitals
           </p>
@@ -254,7 +233,7 @@ function Hospitals() {
         </div>
 
         {/* Active */}
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
             Active Hospitals
           </p>
@@ -265,7 +244,7 @@ function Hospitals() {
         </div>
 
         {/* Government */}
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
             Government
           </p>
@@ -276,7 +255,7 @@ function Hospitals() {
         </div>
 
         {/* Private */}
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
             Private
           </p>

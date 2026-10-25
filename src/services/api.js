@@ -1260,6 +1260,13 @@ const api = {
         await request(`${API_BASE_URL}/bloodbank/requests/${id}/`, { method: 'DELETE' })
         return true
       },
+      // Workflow: Requested -> approve (checks stock) -> issue (deducts stock), or reject.
+      approve: async (id) =>
+        request(`${API_BASE_URL}/bloodbank/requests/${id}/approve/`, { method: 'POST' }),
+      issue: async (id) =>
+        request(`${API_BASE_URL}/bloodbank/requests/${id}/issue/`, { method: 'POST' }),
+      reject: async (id) =>
+        request(`${API_BASE_URL}/bloodbank/requests/${id}/reject/`, { method: 'POST' }),
     },
     transactions: {
       list: async (hospitalId) => {
@@ -1525,6 +1532,14 @@ api.patch = async (url, body, config = {}) => {
 api.delete = async (url, config = {}) => {
   const data = await request(resolveUrl(url), { method: "DELETE", ...config })
   return { data }
+}
+
+// Audit trail of the selected hospital (Admin role).
+api.audit = {
+  logs: async (hospitalId) => {
+    const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
+    return request(`${API_BASE_URL}/audit/audit-logs/${query}`)
+  },
 }
 
 // Staff administration for the selected hospital (Admin / Hospital Manager).
