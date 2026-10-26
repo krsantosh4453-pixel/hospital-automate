@@ -348,7 +348,8 @@ def staff_login_start_otp(request):
     otp_provider = getattr(settings, "OTP_PROVIDER", "twilio")
     if otp_provider != "twilio":
         return Response(
-            {"error": "OTP service not configured for production."},
+            # e.g. OTP_PROVIDER=console in a development .env: no SMS is ever sent.
+            {"error": "SMS OTP is turned off on this server (OTP_PROVIDER is not 'twilio')."},
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
 

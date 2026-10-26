@@ -136,3 +136,31 @@ No existing test was deleted, skipped or weakened, and no existing assertion was
 - Bandit.
 - Patient-portal browser pass.
 - A rehearsal on a real server with a real domain and CA certificate.
+
+## Update 2026-10-26: real Twilio Verify test (T-030 → PASS for SMS OTP)
+
+**Setup:**
+
+- The owner's Twilio account is a trial account.
+- A Verify Service "Hospital OTP" (6-digit codes) was created through the API, and its SID added to `.env`.
+- The development `.env` had `OTP_PROVIDER=console`, so no SMS could ever be sent. It was switched to `twilio`.
+
+**Test:** in a scratch database, a synthetic staff account was created with the owner's mobile number. The run was:
+
+1. `POST /api/auth/staff/login/otp/start/` → 200 "OTP sent (******5347)".
+2. The real SMS arrived on the owner's phone, and the owner read the code back.
+3. `POST /api/auth/staff/login/otp/verify/` with the challenge, the code and `X-Auth-Mode: cookie` → 200. The body held no tokens; the `hms_access` and `hms_refresh` cookies were set.
+4. `/api/auth/staff/me/` with the cookies → 200.
+
+**Result: PASS.**
+
+**Not yet tested with real providers:**
+
+- SMTP email: no email credentials are in `.env`.
+- Google sign-in.
+- The AI provider.
+
+**Follow-ups:**
+
+- The Auth Token was printed into the session transcript by an audit script error. **Rotate it in Twilio** and update `.env`.
+- The misleading 503 text "OTP service not configured for production" now says SMS OTP is turned off (`OTP_PROVIDER` is not `twilio`).
