@@ -9,9 +9,11 @@ function isDevelopmentAuthBypassEnabled() {
     return false
   }
 
+  // Off unless explicitly enabled: when on, anyone opening the dev server is
+  // signed in as a fake Admin and sees every add/create action.
   const configured = import.meta.env.VITE_DEV_AUTH_BYPASS
   if (configured === undefined || configured === null || configured === "") {
-    return true
+    return false
   }
 
   return String(configured).toLowerCase() === "true"

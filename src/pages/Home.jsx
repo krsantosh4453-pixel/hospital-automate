@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import { useState, useEffect, useCallback } from "react"
 import {
   BedDouble,
@@ -23,7 +23,9 @@ import {
 
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useAuth } from "../assets/context/AuthContext.jsx"
-import { useRole } from "../assets/context/RoleContext.jsx"
+import { eligibleRolesFor, useRole } from "../assets/context/RoleContext.jsx"
+import { roleHomeFor } from "../config/roleHomes.js"
+import GuestHome from "./GuestHome.jsx"
 import api from "../services/api.js"
 import {
   Alert,
@@ -90,90 +92,15 @@ function FlowRow({ icon: Icon, title, to, children }) {
 }
 
 /* ---------------- Guest landing (development builds only) ---------------- */
-function GuestHome() {
-  const services = [
-    { to: "/appointments", icon: CalendarDays, title: "Book an appointment", text: "Choose a hospital, doctor, date and available slot." },
-    { to: "/doctors", icon: Stethoscope, title: "Find a doctor", text: "Browse doctors by department." },
-    { to: "/laboratory", icon: FlaskConical, title: "Laboratory", text: "See the tests and services offered." },
-    { to: "/pharmacy", icon: Pill, title: "Pharmacy", text: "Medicines and pharmacy services." },
-  ]
-  const steps = [
-    { icon: Hospital, title: "Select hospital", text: "Pick where you want to be seen." },
-    { icon: Stethoscope, title: "Select doctor", text: "Choose a department and doctor." },
-    { icon: CalendarCheck, title: "Choose a slot", text: "Pick a date and an available time." },
-    { icon: ShieldCheck, title: "Confirm", text: "Sign in only when you confirm the booking." },
-  ]
-
-  return (
-    <div className="space-y-8">
-      <section className="overflow-hidden rounded-2xl bg-brand-900 px-6 py-10 text-white sm:px-10 sm:py-14">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-brand-200">Hospital services</p>
-        <h1 className="mt-3 max-w-2xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-          Your care, organised in one place
-        </h1>
-        <p className="mt-4 max-w-xl text-[15px] leading-7 text-brand-100/90">
-          Find doctors, book appointments and keep track of your visits, prescriptions and reports.
-        </p>
-        <div className="mt-7 flex flex-wrap gap-3">
-          <Link
-            to="/appointments"
-            className="inline-flex h-11 items-center gap-2 rounded-lg bg-white px-5 text-sm font-semibold text-brand-800 hover:bg-brand-50"
-          >
-            <CalendarPlus size={17} aria-hidden="true" /> Book appointment
-          </Link>
-          <Link
-            to="/patient-login"
-            className="inline-flex h-11 items-center gap-2 rounded-lg border border-white/30 px-5 text-sm font-semibold text-white hover:bg-white/10"
-          >
-            <LogIn size={17} aria-hidden="true" /> Sign in
-          </Link>
-        </div>
-      </section>
-
-      <section aria-labelledby="guest-services">
-        <h2 id="guest-services" className="mb-4 text-base font-semibold text-ink-900">
-          Explore without signing in
-        </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {services.map(({ to, icon: Icon, title, text }) => (
-            <Link key={title} to={to} className="group rounded-2xl border border-line bg-white p-5 transition-colors hover:border-brand-300">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
-                <Icon size={20} aria-hidden="true" />
-              </span>
-              <p className="mt-4 font-semibold text-ink-900 group-hover:text-brand-800">{title}</p>
-              <p className="mt-1 text-sm text-ink-500">{text}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <Card>
-        <CardHeader title="How booking works" description="You can explore the process before signing in." />
-        <ol className="grid grid-cols-1 gap-6 px-5 py-6 sm:grid-cols-2 lg:grid-cols-4">
-          {steps.map(({ icon: Icon, title, text }, i) => (
-            <li key={title} className="flex gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">
-                {i + 1}
-              </span>
-              <div>
-                <p className="flex items-center gap-1.5 font-medium text-ink-900">
-                  <Icon size={15} className="text-ink-400" aria-hidden="true" /> {title}
-                </p>
-                <p className="mt-0.5 text-sm text-ink-500">{text}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </Card>
-    </div>
-  )
-}
-
 /* ---------------- Staff dashboard ---------------- */
 function Home() {
   const { isLoggedIn, patient, user } = useAuth()
   const { selectedHospital } = usePatient()
   const { canView, activeRoleName } = useRole()
+  // null for Admin / Hospital Manager: they keep the full hospital dashboard.
+  const roleHome = roleHomeFor(activeRoleName)
+  // Set by ProtectedRoute when this role opened another department's page.
+  const denied = useLocation().state?.denied
 
   const [dashboardStats, setDashboardStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -230,6 +157,28 @@ function Home() {
   const firstName = user?.first_name || user?.user?.first_name || user?.username || user?.user?.username
   const today = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })
 
+  const fmt = (n) => (n === null ? null : num.format(n))
+  const tiles = {
+    patients: { icon: UsersRound, label: "Patients registered today", value: fmt(v(stats.patients, "today")),
+      hint: dashboardStats ? `${num.format(stats.patients?.total || 0)} registered in total` : undefined },
+    appointments: { icon: CalendarDays, tone: "accent", label: "Appointments today", value: fmt(v(stats.appointments, "today")),
+      hint: dashboardStats ? `${num.format(stats.appointments?.pending || 0)} pending` : undefined },
+    queue: { icon: ListOrdered, tone: "warning", label: "Waiting in queue", value: fmt(v(stats.queue, "waiting")),
+      hint: dashboardStats && stats.queue?.current_token ? `Now serving token ${stats.queue.current_token}` : "No token being served" },
+    beds: { icon: BedDouble, tone: "success", label: "Beds available", value: fmt(availableBeds),
+      hint: dashboardStats ? `${num.format(occupiedBeds || 0)} occupied of ${num.format(totalBeds || 0)}` : undefined },
+    admissions: { icon: BedDouble, label: "Current admissions", value: fmt(v(stats.admissions, "current")) },
+    labPending: { icon: FlaskConical, tone: "warning", label: "Lab tests pending", value: fmt(v(stats.laboratory, "pending")) },
+    labUrgent: { icon: FlaskConical, tone: "warning", label: "Urgent lab tests", value: fmt(v(stats.laboratory, "urgent")) },
+    labCompleted: { icon: ClipboardCheck, tone: "success", label: "Lab tests completed", value: fmt(v(stats.laboratory, "completed")) },
+    billingPending: { icon: ReceiptIndianRupee, tone: "warning", label: "Invoices awaiting payment", value: fmt(v(stats.billing, "pending")) },
+    revenueToday: { icon: ReceiptIndianRupee, tone: "success", label: "Collected today",
+      value: dashboardStats ? inr.format(Number(stats.billing?.today_revenue || 0)) : null },
+  }
+  const tileKeys = roleHome ? roleHome.tiles : ["patients", "appointments", "queue", "beds"]
+  const showFlow = !roleHome || roleHome.showFlow
+  const showRecentPatients = !roleHome || roleHome.showRecentPatients
+
   const attention = dashboardStats
     ? [
         canView("Emergency") && stats.emergency?.active > 0 && {
@@ -258,7 +207,7 @@ function Home() {
       ].filter(Boolean)
     : []
 
-  const quickActions = [
+  const allQuickActions = [
     { to: "/patients", icon: UserPlus, label: "Register patient", module: "Patients" },
     { to: "/appointments", icon: CalendarPlus, label: "New appointment", module: "Appointments" },
     { to: "/queue", icon: ListOrdered, label: "Open queue", module: "Queue" },
@@ -267,7 +216,8 @@ function Home() {
     { to: "/laboratory", icon: FlaskConical, label: "Lab worklist", module: "Laboratory" },
     { to: "/billing", icon: ReceiptIndianRupee, label: "Create invoice", module: "Billing" },
     { to: "/patients", icon: Search, label: "Find a patient", module: "Patients" },
-  ].filter((a) => canView(a.module))
+  ]
+  const quickActions = (roleHome ? roleHome.actions : allQuickActions).filter((a) => canView(a.module))
 
   const toneCls = {
     danger: "bg-red-50 text-red-700",
@@ -281,13 +231,13 @@ function Home() {
         title={`${greeting()}${firstName ? `, ${firstName}` : ""}`}
         description={
           <>
-            {today} · <span className="font-medium text-ink-700">{selectedHospital.name}</span>
+            {roleHome ? `${roleHome.title} · ` : ""}{today} · <span className="font-medium text-ink-700">{selectedHospital.name}</span>
             {activeRoleName ? ` · ${activeRoleName}` : ""}
           </>
         }
         actions={
           <>
-            {canView("Appointments") && (
+            {!roleHome && canView("Appointments") && (
               <Link
                 to="/appointments"
                 className="inline-flex h-10 items-center gap-2 rounded-lg border border-line-strong bg-white px-4 text-sm font-medium text-ink-800 shadow-sm hover:bg-ink-50"
@@ -295,7 +245,7 @@ function Home() {
                 <CalendarPlus size={17} aria-hidden="true" /> New appointment
               </Link>
             )}
-            {canView("Patients") && (
+            {!roleHome && canView("Patients") && (
               <Link
                 to="/patients"
                 className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-700"
@@ -317,44 +267,29 @@ function Home() {
         </Alert>
       )}
 
+      {denied && (
+        <Alert tone="warning" title="You are not eligible for that page">
+          {denied} work is only for {eligibleRolesFor(denied).join(", ")}. You are signed in as {activeRoleName}.
+        </Alert>
+      )}
+
+      {tileKeys.length > 0 && (
       <section aria-label="Today at a glance" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {loading && !dashboardStats ? (
-          Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-[88px] rounded-2xl" />)
+          tileKeys.map((key) => <div key={key} className="skeleton h-[88px] rounded-2xl" />)
         ) : (
           <>
-            <StatTile
-              icon={UsersRound}
-              label="Patients registered today"
-              value={v(stats.patients, "today") === null ? null : num.format(v(stats.patients, "today"))}
-              hint={dashboardStats ? `${num.format(stats.patients?.total || 0)} registered in total` : undefined}
-            />
-            <StatTile
-              icon={CalendarDays}
-              tone="accent"
-              label="Appointments today"
-              value={v(stats.appointments, "today") === null ? null : num.format(v(stats.appointments, "today"))}
-              hint={dashboardStats ? `${num.format(stats.appointments?.pending || 0)} pending` : undefined}
-            />
-            <StatTile
-              icon={ListOrdered}
-              tone="warning"
-              label="Waiting in queue"
-              value={v(stats.queue, "waiting") === null ? null : num.format(v(stats.queue, "waiting"))}
-              hint={dashboardStats && stats.queue?.current_token ? `Now serving token ${stats.queue.current_token}` : "No token being served"}
-            />
-            <StatTile
-              icon={BedDouble}
-              tone="success"
-              label="Beds available"
-              value={availableBeds === null ? null : num.format(availableBeds)}
-              hint={dashboardStats ? `${num.format(occupiedBeds || 0)} occupied of ${num.format(totalBeds || 0)}` : undefined}
-            />
+            {tileKeys.map((key) => (
+              <StatTile key={key} {...tiles[key]} />
+            ))}
           </>
         )}
       </section>
+      )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
+          {showFlow && (
           <Card>
             <CardHeader title="Today's patient flow" description="Live counts for the selected hospital." />
             <div className="divide-y divide-line">
@@ -392,7 +327,9 @@ function Home() {
               )}
             </div>
           </Card>
+          )}
 
+          {showRecentPatients && (
           <Card>
             <CardHeader
               title="Recently registered patients"
@@ -427,6 +364,7 @@ function Home() {
               <EmptyState compact icon={UsersRound} title={loading ? "Loading…" : "No patients registered yet"} />
             )}
           </Card>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -474,7 +412,7 @@ function Home() {
             </Card>
           )}
 
-          {(canView("Billing") || canView("IPD")) && dashboardStats && (
+          {!roleHome && (canView("Billing") || canView("IPD")) && dashboardStats && (
             <Card>
               <CardHeader title="Operations" />
               <dl className="divide-y divide-ink-100 text-sm">

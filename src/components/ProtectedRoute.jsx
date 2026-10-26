@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import { backendRoleCanView } from "../assets/context/RoleContext.jsx"
 import { getAuthenticatedStaffRole, mapBackendRoleToUi, staffModuleForPath } from "../utils/roleRouting.js"
+import GuestHome from "../pages/GuestHome.jsx"
 
 function AuthLoading() {
   return (
@@ -37,6 +38,9 @@ export function ProtectedRoute({ audience = "staff" }) {
   }
 
   if (!isStaff) {
+    // Visitors who have not signed in see the public home page (no figures,
+    // no add actions); every other staff page asks them to sign in.
+    if (location.pathname === "/") return <GuestHome />
     return <Navigate to="/staff-login" state={{ from: location }} replace />
   }
 
@@ -46,7 +50,8 @@ export function ProtectedRoute({ audience = "staff" }) {
   const primaryRole = getAuthenticatedStaffRole(user)
   if (primaryRole && !roleNames.includes(primaryRole)) roleNames.unshift(primaryRole)
   if (moduleName && !roleNames.some((roleName) => backendRoleCanView(roleName, moduleName))) {
-    return <Navigate to="/" replace />
+    // Another department's page: back to this role's home, which says why.
+    return <Navigate to="/" replace state={{ denied: moduleName }} />
   }
 
   return <Outlet />

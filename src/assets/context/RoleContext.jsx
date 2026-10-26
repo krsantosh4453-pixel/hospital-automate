@@ -216,6 +216,13 @@ export function backendRoleCanView(roleName, moduleName) {
   return (role.permissions?.[moduleName] || []).includes("View")
 }
 
+/** Staff roles allowed to open a module, for "only for …" messages. */
+export function eligibleRolesFor(moduleName) {
+  return DEFAULT_ROLES.filter((role) => role.name !== "Patient" && backendRoleCanView(role.name, moduleName)).map(
+    (role) => role.name,
+  )
+}
+
 export function RoleProvider({ children }) {
   const { isStaff, isPatient, user } = useAuth()
   // Load roles & permissions from localStorage or defaults
