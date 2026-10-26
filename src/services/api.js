@@ -204,9 +204,10 @@ async function request(url, options = {}) {
 
   if (!response.ok) {
     let detail = `Request failed (${response.status})`
+    let body = null
 
     try {
-      const body = await response.json()
+      body = await response.json()
       detail = parseErrorDetail(body, response.status)
     } catch (parseError) {
       // Response body was not JSON — keep the default message.
@@ -214,6 +215,7 @@ async function request(url, options = {}) {
 
     const error = new Error(detail)
     error.status = response.status
+    error.body = body
     throw error
   }
 

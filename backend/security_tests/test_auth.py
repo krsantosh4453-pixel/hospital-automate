@@ -58,6 +58,23 @@ class StaffAuthTests(TestCase):
         self.assertEqual(resp.status_code, 200, resp.content)
         return resp.json()["challenge"]
 
+    def post_start(self):
+        return self.client.post(
+            "/api/auth/staff/login/otp/start/", {"username": "auth_doc", "password": PASSWORD}, format="json"
+        )
+
+    @override_settings(OTP_PROVIDER="console")
+    def test_start_flags_otp_unavailable_when_sms_is_off(self):
+        resp = self.post_start()
+        self.assertEqual(resp.status_code, 503)
+        self.assertTrue(resp.json()["otp_unavailable"])
+
+    def test_start_flags_otp_unavailable_without_a_mobile_number(self):
+        StaffProfile.objects.filter(user=self.user).update(phone="")
+        resp = self.post_start()
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(resp.json()["otp_unavailable"])
+
     def test_otp_verify_requires_password_challenge(self):
         resp = self.client.post(
             "/api/auth/staff/login/otp/verify/", {"user_id": self.user.id, "otp": VALID_CODE}, format="json"

@@ -331,10 +331,12 @@ def staff_login_start_otp(request):
         )
     security.clear_failures(username)
 
+    # otp_unavailable tells the sign-in page to fall back to the password
+    # login, which itself refuses when STAFF_LOGIN_REQUIRE_OTP is on.
     phone = staff_data.get("phone")
     if not phone:
         return Response(
-            {"error": "No mobile number registered for this staff account."},
+            {"error": "No mobile number registered for this staff account.", "otp_unavailable": True},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -349,14 +351,14 @@ def staff_login_start_otp(request):
     if otp_provider != "twilio":
         return Response(
             # e.g. OTP_PROVIDER=console in a development .env: no SMS is ever sent.
-            {"error": "SMS OTP is turned off on this server (OTP_PROVIDER is not 'twilio')."},
+            {"error": "SMS OTP is turned off on this server (OTP_PROVIDER is not 'twilio').", "otp_unavailable": True},
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
 
     verify_service = get_twilio_verify_service()
     if not verify_service.is_configured():
         return Response(
-            {"error": "Twilio Verify is not configured."},
+            {"error": "Twilio Verify is not configured.", "otp_unavailable": True},
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
 

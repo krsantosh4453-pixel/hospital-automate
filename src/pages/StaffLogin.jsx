@@ -34,9 +34,10 @@ function StaffLogin() {
       try {
         data = await staffLoginStartOtp(username, password)
       } catch (otpError) {
-        // SMS OTP is not set up for this hospital: sign in with the password.
-        // The server refuses this when its policy requires OTP.
-        if (/not configured/i.test(otpError.message || "")) {
+        // SMS OTP cannot be used (switched off, not set up, or no mobile
+        // number): sign in with the password. The server refuses this when
+        // its policy requires OTP.
+        if (otpError.body?.otp_unavailable) {
           await staffLogin(username, password)
           navigate("/")
           return
