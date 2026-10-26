@@ -19,6 +19,8 @@ function PatientLogin() {
 
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  // From the public "Book appointment" button: open the booking form after sign-in.
+  const afterPatientLogin = searchParams.get("next") === "book" ? "/patient/appointments?book=1" : "/patient"
   const { patientLogin, staffLogin, adoptExternalSession } = useAuth()
   const { savePatient } = usePatient()
   const { switchRole } = useRole()
@@ -140,7 +142,7 @@ function PatientLogin() {
 
       setGoogleStatus("Login successful! Redirecting...")
       setTimeout(() => {
-        navigate(data.account_type === "staff" ? "/" : "/patient")
+        navigate(data.account_type === "staff" ? "/" : afterPatientLogin)
       }, 500)
     } catch (error) {
       console.error("Google login error:", error)
@@ -210,7 +212,7 @@ function PatientLogin() {
       patientLogin(data)
       if (data.patient) savePatient(data.patient)
       switchRole("Patient")
-      navigate("/patient")
+      navigate(afterPatientLogin)
     } catch (error) {
       setOtpError(error.message || "Invalid or expired verification code.")
     } finally {
@@ -233,7 +235,7 @@ function PatientLogin() {
       patientLogin(data)
       if (data.patient) savePatient(data.patient)
       switchRole("Patient")
-      navigate("/patient")
+      navigate(afterPatientLogin)
     } catch (error) {
       setTokenError(error.message || "Invalid patient credentials.")
     }
@@ -247,7 +249,7 @@ function PatientLogin() {
       patientLogin(data)
       if (data.patient) savePatient(data.patient)
       switchRole("Patient")
-      navigate("/patient")
+      navigate(afterPatientLogin)
     } catch (error) {
       const message = error.message || "Invalid email or password."
       setEmailError(message)

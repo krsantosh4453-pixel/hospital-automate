@@ -81,7 +81,7 @@ function GuestHome() {
           Book an appointment, then sign in to follow your visits, prescriptions, reports and bills.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link to="/patient-login" state={{ from: { pathname: "/patient/appointments" } }} className={primaryLink}>
+          <Link to="/patient-login?next=book" className={primaryLink}>
             <CalendarPlus size={17} aria-hidden="true" /> Book appointment
           </Link>
           <Link to="/patient-login" className={outlineLink}>

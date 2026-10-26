@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
-import { CalendarDays } from "lucide-react"
-import { Alert, Card, EmptyState, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
+import { CalendarDays, CalendarPlus } from "lucide-react"
+import { Alert, Button, Card, EmptyState, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
+import BookAppointmentModal from "./BookAppointmentModal.jsx"
 
 function PatientAppointments() {
   const { patient } = useAuth()
@@ -10,6 +12,11 @@ function PatientAppointments() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState("all")
+  // ?book=1 comes from the public "Book appointment" button, through sign-in.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [booking, setBooking] = useState(searchParams.get("book") === "1")
+  const [notice, setNotice] = useState("")
+  const [reloadToken, setReloadToken] = useState(0)
 
   useEffect(() => {
     if (!patient?.id) return
@@ -31,7 +38,7 @@ function PatientAppointments() {
     }
 
     fetchAppointments()
-  }, [patient?.id])
+  }, [patient?.id, reloadToken])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—"
@@ -53,6 +60,10 @@ function PatientAppointments() {
           <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">Appointments</h1>
           <p className="mt-1 text-sm text-ink-500">Your bookings at the hospital.</p>
         </div>
+        <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={() => setBooking(true)}>
+          <CalendarPlus size={16} aria-hidden="true" /> Book appointment
+        </Button>
         <SegmentedControl
           label="Filter appointments"
           value={filter}
@@ -64,7 +75,21 @@ function PatientAppointments() {
             { value: "cancelled", label: "Cancelled" },
           ]}
         />
+        </div>
       </header>
+
+      <BookAppointmentModal
+        open={booking}
+        onClose={() => {
+          setBooking(false)
+          if (searchParams.get("book")) setSearchParams({}, { replace: true })
+        }}
+        onBooked={(appt) => {
+          setNotice(`Booked with ${appt.doctor_name || "the doctor"} on ${formatDate(appt.appointment_date)} at ${String(appt.appointment_time).slice(0, 5)}.`)
+          setReloadToken((n) => n + 1)
+        }}
+      />
+      {notice && <Alert tone="success">{notice}</Alert>}
 
       {error && <Alert tone="danger">{error}</Alert>}
 
@@ -75,7 +100,7 @@ function PatientAppointments() {
           <EmptyState
             icon={CalendarDays}
             title={appointments.length ? "No appointments match this filter" : "No appointments yet"}
-            description={appointments.length ? undefined : "Appointments booked at the hospital will appear here."}
+            description={appointments.length ? undefined : "Use Book appointment to choose a doctor and a time."}
           />
         </Card>
       ) : (

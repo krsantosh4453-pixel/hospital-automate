@@ -742,6 +742,23 @@ const api = {
   },
 
   appointments: {
+    // GET /api/appointments/booking-options/?hospital=&doctor=&date= (patients only)
+    bookingOptions: async ({ hospital, doctor, date } = {}) => {
+      const params = new URLSearchParams()
+      if (hospital) params.set('hospital', hospital)
+      if (doctor) params.set('doctor', doctor)
+      if (date) params.set('date', date)
+      const query = params.toString() ? `?${params.toString()}` : ''
+      return request(`${API_BASE_URL}/appointments/booking-options/${query}`)
+    },
+
+    // POST /api/appointments/book/ — a patient books a slot for themselves
+    book: async (data) =>
+      request(`${API_BASE_URL}/appointments/book/`, {
+        method: 'POST',
+        ...jsonBody(data),
+      }),
+
     // GET /api/appointments/ (scoped to the selected hospital)
     list: async (hospitalId) => {
       const query = hospitalId
