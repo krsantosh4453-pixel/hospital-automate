@@ -7,6 +7,7 @@ const WIDTHS = { sm: "max-w-md", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+const FORM_FIELD = 'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
 
 /**
  * Accessible dialog: focus moves in and is trapped, Escape and the backdrop
@@ -16,18 +17,28 @@ export function Modal({ open, onClose, title, description, size = "md", footer, 
   const titleId = useId()
   const descId = useId()
   const panelRef = useRef(null)
+  // Pages pass onClose as a new inline function on every render. Reading it
+  // through a ref keeps the effect below from re-running on each keystroke,
+  // which used to pull focus out of the field being typed in.
+  const onCloseRef = useRef(onClose)
+  const dismissibleRef = useRef(dismissible)
+  useEffect(() => {
+    onCloseRef.current = onClose
+    dismissibleRef.current = dismissible
+  })
 
   useEffect(() => {
     if (!open) return undefined
     const opener = document.activeElement
     const panel = panelRef.current
-    const first = panel?.querySelector(FOCUSABLE)
+    // Start in the first form field so typing can begin at once.
+    const first = panel?.querySelector(FORM_FIELD) || panel?.querySelector(FOCUSABLE)
     ;(first || panel)?.focus()
 
     const onKey = (e) => {
-      if (e.key === "Escape" && dismissible) {
+      if (e.key === "Escape" && dismissibleRef.current) {
         e.stopPropagation()
-        onClose?.()
+        onCloseRef.current?.()
       }
       if (e.key === "Tab" && panel) {
         const items = [...panel.querySelectorAll(FOCUSABLE)]
@@ -51,7 +62,7 @@ export function Modal({ open, onClose, title, description, size = "md", footer, 
       document.body.style.overflow = prevOverflow
       if (opener && typeof opener.focus === "function") opener.focus()
     }
-  }, [open, onClose, dismissible])
+  }, [open])
 
   if (!open) return null
 
