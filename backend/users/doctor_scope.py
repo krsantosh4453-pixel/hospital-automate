@@ -114,6 +114,25 @@ def limit_to_patients_in_care(queryset, user, hospital_ids, in_hospitals):
     return queryset.filter(visible)
 
 
+def doctor_view_of(queryset, user, hospital_id):
+    """
+    For a Doctor in ``hospital_id``, the rows of their own work: appointments,
+    visits, queue tokens and admissions under their own profile, and other
+    patient rows (lab, emergency, billing) of patients in their care. Rows
+    not about a patient (beds, doctors) and other roles are left unchanged.
+    """
+    if not doctor_hospital_ids(user, [hospital_id]):
+        return queryset
+    label = queryset.model._meta.label
+    for care_label, field in CARE_LINKS:
+        if label == care_label and label != "emergency.EmergencyVisit":
+            return queryset.filter(**{f"{field}__user": user})
+    lookup = resolve_patient_lookup(queryset.model)
+    if lookup is None:
+        return queryset
+    return queryset.filter(**{f"{lookup}__in": patients_in_care(user, [hospital_id])})
+
+
 def _patient_id_of(obj):
     """The id of the patient ``obj`` is about, or None."""
     lookup = resolve_patient_lookup(type(obj))

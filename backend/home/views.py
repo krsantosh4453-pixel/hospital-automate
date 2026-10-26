@@ -14,6 +14,7 @@ from emergency.models import EmergencyVisit
 from ipd.models import Admission
 from billing.models import Invoice, Payment
 from laboratory.models import LabTest
+from users.doctor_scope import doctor_view_of
 from users.permissions import get_user_hospital_ids
 
 
@@ -48,18 +49,21 @@ def home_dashboard(request):
             "detail": "Provide ?hospital=<id> query parameter for a hospital you have access to"
         }, status=403)
 
-    # Hospital-scoped queries
-    patient_qs = Patient.objects.filter(hospital_id=hospital_id)
+    # Hospital-scoped queries; a Doctor counts only their own patients.
+    def own(queryset):
+        return doctor_view_of(queryset, request.user, hospital_id)
+
+    patient_qs = own(Patient.objects.filter(hospital_id=hospital_id))
     doctor_qs = Doctor.objects.filter(hospital_id=hospital_id)
-    appointment_qs = Appointment.objects.filter(hospital_id=hospital_id)
+    appointment_qs = own(Appointment.objects.filter(hospital_id=hospital_id))
     bed_qs = Bed.objects.filter(room__ward__hospital_id=hospital_id)
-    queue_qs = QueueToken.objects.filter(hospital_id=hospital_id)
-    visit_qs = Visit.objects.filter(hospital_id=hospital_id)
-    emergency_qs = EmergencyVisit.objects.filter(hospital_id=hospital_id)
-    admission_qs = Admission.objects.filter(hospital_id=hospital_id)
-    invoice_qs = Invoice.objects.filter(hospital_id=hospital_id)
-    payment_qs = Payment.objects.filter(invoice__hospital_id=hospital_id)
-    lab_qs = LabTest.objects.filter(patient__hospital_id=hospital_id)
+    queue_qs = own(QueueToken.objects.filter(hospital_id=hospital_id))
+    visit_qs = own(Visit.objects.filter(hospital_id=hospital_id))
+    emergency_qs = own(EmergencyVisit.objects.filter(hospital_id=hospital_id))
+    admission_qs = own(Admission.objects.filter(hospital_id=hospital_id))
+    invoice_qs = own(Invoice.objects.filter(hospital_id=hospital_id))
+    payment_qs = own(Payment.objects.filter(invoice__hospital_id=hospital_id))
+    lab_qs = own(LabTest.objects.filter(patient__hospital_id=hospital_id))
 
     today = timezone.localdate()
     
@@ -208,23 +212,26 @@ def home_stats_summary(request):
 
     today = timezone.localdate()
     
-    # Quick counts only
-    total_patients = Patient.objects.filter(hospital_id=hospital_id).count()
-    today_appointments = Appointment.objects.filter(
+    # Quick counts only; a Doctor counts only their own patients.
+    def own(queryset):
+        return doctor_view_of(queryset, request.user, hospital_id)
+
+    total_patients = own(Patient.objects.filter(hospital_id=hospital_id)).count()
+    today_appointments = own(Appointment.objects.filter(
         hospital_id=hospital_id,
         appointment_date=timezone.localdate()
-    ).count()
-    waiting_queue = QueueToken.objects.filter(
+    )).count()
+    waiting_queue = own(QueueToken.objects.filter(
         hospital_id=hospital_id,
         status="Waiting"
-    ).count()
+    )).count()
     available_beds = Bed.objects.filter(
         room__ward__hospital_id=hospital_id,
         status="Available"
     ).count()
-    total_revenue = Payment.objects.filter(
+    total_revenue = own(Payment.objects.filter(
         invoice__hospital_id=hospital_id
-    ).aggregate(total=Sum("amount"))["total"] or 0
+    )).aggregate(total=Sum("amount"))["total"] or 0
 
     return Response({
         "patients": total_patients,

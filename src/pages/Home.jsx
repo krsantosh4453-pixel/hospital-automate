@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import {
   BedDouble,
   CalendarCheck,
@@ -106,17 +106,23 @@ function Home() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  // Only the latest request may update the page: after sign-in the stored
+  // hospital can be stale and its late 403 must not overwrite fresh figures.
+  const latestRequest = useRef(0)
+
   const fetchStats = useCallback(async () => {
     if (!selectedHospital) return
+    const requestId = ++latestRequest.current
+    const isLatest = () => requestId === latestRequest.current
     setLoading(true)
     setError(null)
     try {
       const data = await api.home.stats(selectedHospital.id)
-      setDashboardStats(data)
+      if (isLatest()) setDashboardStats(data)
     } catch (err) {
-      setError(err.message)
+      if (isLatest()) setError(err.message)
     } finally {
-      setLoading(false)
+      if (isLatest()) setLoading(false)
     }
   }, [selectedHospital])
 
