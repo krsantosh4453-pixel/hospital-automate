@@ -8,6 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 
 from hospital.models import Hospital
+from users.doctor_scope import limit_to_patients_in_care, may_write_for_patients
 from users.permissions import (
     IsStaffUser,
     IsHospitalMember,
@@ -182,7 +183,11 @@ class HospitalScopedViewSet(viewsets.ModelViewSet):
                 queryset.model._meta.label, type(self).__name__,
             )
             return queryset.none()
-        return queryset.filter(**{f"{lookup}__in": hospital_ids})
+        queryset = queryset.filter(**{f"{lookup}__in": hospital_ids})
+        return limit_to_patients_in_care(
+            queryset, self.request.user, hospital_ids,
+            lambda ids: models.Q(**{f"{lookup}__in": list(ids)}),
+        )
 
     # ------------------------------------------------------------------
     # Writes: every related row and the row's own hospital must be in scope
@@ -243,6 +248,10 @@ class HospitalScopedViewSet(viewsets.ModelViewSet):
             owners.add(related_hospital)
         if len(owners) > 1:
             raise ValidationError("Related records belong to different hospitals.")
+        acting = get_request_hospital_id(self.request, self)
+        scope = list(owners) or ([acting] if acting is not None else list(allowed))
+        if not may_write_for_patients(self.request.user, model, validated_data, scope):
+            raise PermissionDenied("This patient is not in your care.")
         return extra
 
     def _audit(self, verb, obj, details=None):

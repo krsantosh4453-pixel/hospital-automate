@@ -53,6 +53,7 @@ class ClinicalAPITests(TestCase):
 
         # Create doctor
         self.doctor = Doctor.objects.create(
+            user=self.user,
             name="Dr. Test",
             specialization="General",
             phone="9876543210",

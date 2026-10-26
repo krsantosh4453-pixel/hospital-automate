@@ -134,7 +134,8 @@ class HospitalWorkflowTests(TestCase):
         patient.save(update_fields=["user"])
         other = Patient.objects.create(name="Synthetic Other", age=20, gender="Male",
                                        phone="9000000042", hospital=self.hospital)
-        self.ok(doctor.post("/api/laboratory/", {"name": "LFT", "patient": other.id,
+        # Another patient's test, ordered by the lab (the doctor has no care of them).
+        self.ok(lab.post("/api/laboratory/", {"name": "LFT", "patient": other.id,
                                                   "hospital": self.hospital.id}, format="json"), 201)
         self.ok(doctor.post("/api/laboratory/", {"name": "ESR", "patient": patient.id,
                                                   "hospital": self.hospital.id}, format="json"), 201)

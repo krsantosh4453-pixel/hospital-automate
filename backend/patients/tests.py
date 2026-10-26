@@ -9,6 +9,7 @@ from rest_framework import status
 from hospital.models import Hospital, Department
 from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 from patients.models import Patient, PatientHospital, PatientDocument
+from security_tests.test_tenant_isolation import put_in_care
 
 User = get_user_model()
 
@@ -71,6 +72,9 @@ class PatientAPITests(TestCase):
             hospital=self.hospital_b,
             is_active=True,
         )
+
+        # The acting user is a Doctor: Patient A is in their care.
+        put_in_care(self.user, self.hospital_a, self.patient_a)
 
         # Authenticate
         self.client.force_authenticate(user=self.user)

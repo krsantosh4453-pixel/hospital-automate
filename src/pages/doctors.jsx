@@ -44,13 +44,15 @@ const mapDoctorFromApi = (record) => ({
   name: record.name || "",
   specialization: record.specialization || "",
   phone: record.phone || "",
+  email: record.email || "",
+  loginLinked: Boolean(record.user),
   experience: record.experience || "",
   status: normaliseDoctorStatus(record.status),
   availability: record.availability || "",
   hospitalId: record.hospital,
 })
 
-const EMPTY_FORM = { name: "", specialization: "", phone: "", experience: "", status: "Available", availability: "" }
+const EMPTY_FORM = { name: "", specialization: "", phone: "", email: "", experience: "", status: "Available", availability: "" }
 
 function Doctors() {
   const { selectedHospital } = usePatient()
@@ -168,6 +170,7 @@ function Doctors() {
       name: formData.name,
       specialization: formData.specialization,
       phone: formData.phone,
+      email: formData.email,
       experience: formData.experience,
       availability: formData.availability,
       status: formData.status || "Available",
@@ -196,6 +199,7 @@ function Doctors() {
       name: doctor.name,
       specialization: doctor.specialization,
       phone: doctor.phone,
+      email: doctor.email,
       experience: doctor.experience,
       status: doctor.status,
       availability: doctor.availability,
@@ -212,6 +216,7 @@ function Doctors() {
       name: formData.name,
       specialization: formData.specialization,
       phone: formData.phone,
+      email: formData.email,
       experience: formData.experience,
       availability: formData.availability,
       status: formData.status || "Available",
@@ -375,6 +380,16 @@ function Doctors() {
             </Field>
             <Field label="Phone" required>
               <Input type="tel" name="phone" value={formData.phone} onChange={handleChange} />
+            </Field>
+            <Field
+              label="Login email"
+              hint={
+                selectedDoctor?.loginLinked
+                  ? "Linked to this doctor's staff login."
+                  : "The doctor's staff login email. Links the login so the doctor sees their own patients."
+              }
+            >
+              <Input type="email" name="email" value={formData.email} onChange={handleChange} />
             </Field>
             <Field label="Experience" required hint="e.g. 8 years">
               <Input name="experience" value={formData.experience} onChange={handleChange} />

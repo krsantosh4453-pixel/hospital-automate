@@ -20,6 +20,7 @@ from notifications.services import (
     NotificationChannel,
     NotificationPayload,
 )
+from users.doctor_scope import doctor_hospital_ids
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsHospitalManager, IsReceptionist, IsDoctor, IsNurse, IsPatientReadOnly
 
@@ -204,11 +205,12 @@ class QueueTokenViewSet(HospitalScopedViewSet):
 
     def _send_status_change_notification(self, token: QueueToken, old_status: str, new_status: str):
         """Send appropriate notification based on status transition."""
+        doctor_name = token.doctor.name if token.doctor else "the doctor"
         event_map = {
             QueueToken.Status.CALLED: (
                 NotificationEvent.PATIENT_CALLED,
                 "You Are Being Called",
-                f"Token #{token.token_number}: Please proceed to {token.doctor_name}'s consultation room.",
+                f"Token #{token.token_number}: Please proceed to {doctor_name}'s consultation room.",
                 [NotificationChannel.SMS, NotificationChannel.WHATSAPP, NotificationChannel.VOICE],
             ),
             QueueToken.Status.ACKNOWLEDGED: (
@@ -226,13 +228,13 @@ class QueueTokenViewSet(HospitalScopedViewSet):
             QueueToken.Status.IN_CONSULTATION: (
                 NotificationEvent.CONSULTATION_STARTED,
                 "Consultation Started",
-                f"Token #{token.token_number}: Consultation with {token.doctor_name} has started.",
+                f"Token #{token.token_number}: Consultation with {doctor_name} has started.",
                 [],
             ),
             QueueToken.Status.COMPLETED: (
                 NotificationEvent.CONSULTATION_COMPLETED,
                 "Consultation Completed",
-                f"Token #{token.token_number}: Your consultation with {token.doctor_name} is complete.",
+                f"Token #{token.token_number}: Your consultation with {doctor_name} is complete.",
                 [NotificationChannel.SMS],
             ),
             QueueToken.Status.SKIPPED: (
@@ -383,6 +385,9 @@ class QueueTokenViewSet(HospitalScopedViewSet):
             )
 
         base = QueueToken.objects.filter(hospital_id=hospital_id)
+        # A Doctor calls and completes only their own patients' tokens.
+        if doctor_hospital_ids(request.user, [int(hospital_id)]):
+            base = base.filter(doctor__user=request.user)
 
         base.filter(status__iexact="In Consultation").update(
             status="Completed"

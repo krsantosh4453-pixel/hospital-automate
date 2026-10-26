@@ -11,7 +11,7 @@ from hospital.models import Department, Hospital, Ward
 from patients.models import Patient, PatientDocument, PatientHospital
 from users.models import StaffHospitalMembership, StaffRole
 
-from .test_tenant_isolation import make_staff
+from .test_tenant_isolation import make_staff, put_in_care
 
 
 class TwoHospitalCase(TestCase):
@@ -46,6 +46,7 @@ class RolePerHospitalTests(TwoHospitalCase):
         StaffHospitalMembership.objects.create(
             staff=profile, hospital=cls.hospital_b, role=StaffRole.RECEPTIONIST, is_active=True
         )
+        put_in_care(cls.user, cls.hospital_a, cls.patient)
 
     def test_doctor_in_a_can_record_vitals_in_a(self):
         resp = self.client_for(self.user, self.hospital_a).post(
@@ -183,6 +184,7 @@ class AuditTrailTests(TwoHospitalCase):
     def setUpTestData(cls):
         super().setUpTestData()
         cls.doctor_a, _ = make_staff("audit_doctor", cls.hospital_a, role=StaffRole.DOCTOR)
+        put_in_care(cls.doctor_a, cls.hospital_a, cls.patient)
 
     def test_clinical_write_creates_hospital_scoped_audit_row(self):
         resp = self.client_for(self.doctor_a).post(
@@ -202,6 +204,8 @@ class SharedPatientDocumentTests(TwoHospitalCase):
         super().setUpTestData()
         cls.doctor_a, _ = make_staff("doc_owner_a", cls.hospital_a, role=StaffRole.DOCTOR)
         cls.doctor_b, _ = make_staff("doc_owner_b", cls.hospital_b, role=StaffRole.DOCTOR)
+        put_in_care(cls.doctor_a, cls.hospital_a, cls.patient)
+        put_in_care(cls.doctor_b, cls.hospital_b, cls.patient)
 
     def test_document_uploaded_in_b_not_visible_in_a(self):
         upload = SimpleUploadedFile("note.txt", b"synthetic", content_type="text/plain")

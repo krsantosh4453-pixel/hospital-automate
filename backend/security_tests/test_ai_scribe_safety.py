@@ -87,8 +87,10 @@ class AIScribeSafetyTests(TestCase):
         self.assertFalse(ClinicalNote.objects.exists())
 
         # A doctor without a linked Doctor profile cannot approve.
+        # (404 once the doctor scope hides the draft from a doctor with no patients.)
         resp = self._client(self.unlinked_user).post(f"/api/ai/drafts/{draft.id}/approve/", {}, format="json")
-        self.assertEqual(resp.status_code, 403)
+        self.assertIn(resp.status_code, (403, 404))
+        self.assertFalse(ClinicalNote.objects.exists())
 
         resp = self.client.post(f"/api/ai/drafts/{draft.id}/approve/", {}, format="json")
         self.assertEqual(resp.status_code, 200, resp.content)

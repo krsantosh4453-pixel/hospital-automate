@@ -8,7 +8,7 @@ from hospital.models import Hospital
 from patients.models import Patient, PatientHospital
 from users.models import StaffRole
 
-from .test_tenant_isolation import make_staff
+from .test_tenant_isolation import make_staff, put_in_care
 
 
 class BloodBankFlowTests(TestCase):
@@ -17,6 +17,7 @@ class BloodBankFlowTests(TestCase):
         self.user, _ = make_staff("bb_staff", self.hospital, role=StaffRole.DOCTOR)
         self.patient = Patient.objects.create(name="Synthetic Blood Patient", age=30, gender="Female", phone="9000000092", hospital=self.hospital)
         PatientHospital.objects.create(patient=self.patient, hospital=self.hospital, uhid="BB-1")
+        put_in_care(self.user, self.hospital, self.patient)
         self.stock = BloodInventory.objects.create(hospital=self.hospital, blood_group="O+", component="Whole Blood", units=5)
         self.client = APIClient(raise_request_exception=False)
         self.client.force_authenticate(self.user)

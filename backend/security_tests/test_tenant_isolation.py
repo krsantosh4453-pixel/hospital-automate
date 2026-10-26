@@ -93,6 +93,23 @@ def make_staff(username, hospital, role=StaffRole.ADMIN):
     return user, profile
 
 
+def put_in_care(user, hospital, *patients):
+    """
+    Give a Doctor login its Doctor profile in ``hospital`` and an OPD visit
+    with each patient, so those patients are in that doctor's care.
+    """
+    from doctors.models import Doctor
+    from encounters.models import Visit
+
+    doctor, _ = Doctor.objects.get_or_create(
+        user=user, hospital=hospital,
+        defaults={"name": f"Dr {user.username}", "specialization": "General", "phone": "9000000999"},
+    )
+    for patient in patients:
+        Visit.objects.create(patient=patient, hospital=hospital, doctor=doctor)
+    return doctor
+
+
 class TenantIsolationProbe(TestCase):
     @classmethod
     def setUpTestData(cls):

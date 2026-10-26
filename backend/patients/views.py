@@ -8,6 +8,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from .models import Patient, PatientDocument, PatientHospital
 from .serializers import PatientSerializer, PatientHospitalSerializer
 from audit.services import record_audit
+from users.doctor_scope import limit_to_patients_in_care
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import (
     IsReceptionist,
@@ -158,12 +159,17 @@ class PatientViewSet(HospitalScopedViewSet):
         hospital_ids = self.get_acting_hospital_ids()
         if not hospital_ids:
             return queryset.none()
-        queryset = queryset.filter(
-            Q(hospital_id__in=hospital_ids)
-            | Q(
-                hospital_memberships__hospital_id__in=hospital_ids,
+        def in_hospitals(ids):
+            ids = list(ids)
+            return Q(hospital_id__in=ids) | Q(
+                hospital_memberships__hospital_id__in=ids,
                 hospital_memberships__is_active=True,
             )
+
+        queryset = queryset.filter(in_hospitals(hospital_ids))
+        # A Doctor sees only the patients in their own care.
+        queryset = limit_to_patients_in_care(
+            queryset, self.request.user, hospital_ids, in_hospitals
         ).distinct()
 
         # Search filter

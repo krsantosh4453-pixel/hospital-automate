@@ -63,6 +63,7 @@ class IPDAPITests(TestCase):
         )
 
         self.doctor = Doctor.objects.create(
+            user=self.user,
             name="Dr. IPD",
             specialization="Internal Medicine",
             phone="9876543210",
