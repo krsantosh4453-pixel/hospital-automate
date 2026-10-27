@@ -77,7 +77,36 @@ class DepartmentSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "head_name", "doctors"]
 
 
+# Bed states. "Occupied" is set by allocating the bed to an admission.
+BED_STATUSES = ("Available", "Occupied", "Maintenance", "Cleaning", "Reserved")
+
+
+def _refuse_duplicate(model, field, value, instance, label, **scope):
+    """Names are unique within their parent, ignoring case and spaces."""
+    clashes = model.objects.filter(**scope, **{f"{field}__iexact": value})
+    if instance is not None:
+        clashes = clashes.exclude(pk=instance.pk)
+    if clashes.exists():
+        raise serializers.ValidationError({field: f"{label} {value} already exists here."})
+
+
+def _clean_name(value, label):
+    value = (value or "").strip()
+    if not value:
+        raise serializers.ValidationError(f"{label} is required.")
+    return value
+
+
 class WardSerializer(serializers.ModelSerializer):
+    def validate_name(self, value):
+        return _clean_name(value, "Ward name")
+
+    def validate(self, attrs):
+        hospital = attrs.get("hospital", getattr(self.instance, "hospital", None))
+        name = attrs.get("name", getattr(self.instance, "name", ""))
+        _refuse_duplicate(Ward, "name", name, self.instance, "Ward", hospital=hospital)
+        return attrs
+
     class Meta:
         model = Ward
         fields = [
@@ -90,6 +119,15 @@ class WardSerializer(serializers.ModelSerializer):
 
 
 class RoomSerializer(serializers.ModelSerializer):
+    def validate_room_number(self, value):
+        return _clean_name(value, "Room number")
+
+    def validate(self, attrs):
+        ward = attrs.get("ward", getattr(self.instance, "ward", None))
+        number = attrs.get("room_number", getattr(self.instance, "room_number", ""))
+        _refuse_duplicate(Room, "room_number", number, self.instance, "Room", ward=ward)
+        return attrs
+
     class Meta:
         model = Room
         fields = [
@@ -102,6 +140,22 @@ class RoomSerializer(serializers.ModelSerializer):
 
 
 class BedSerializer(serializers.ModelSerializer):
+    status = serializers.ChoiceField(choices=BED_STATUSES, required=False)
+
+    def validate_bed_number(self, value):
+        return _clean_name(value, "Bed number")
+
+    def validate_status(self, value):
+        if self.instance is None and value == "Occupied":
+            raise serializers.ValidationError("A new bed cannot start as Occupied; allocate it to an admission.")
+        return value
+
+    def validate(self, attrs):
+        room = attrs.get("room", getattr(self.instance, "room", None))
+        number = attrs.get("bed_number", getattr(self.instance, "bed_number", ""))
+        _refuse_duplicate(Bed, "bed_number", number, self.instance, "Bed", room=room)
+        return attrs
+
     class Meta:
         model = Bed
         fields = [

@@ -1676,10 +1676,25 @@ api.departments = {
     request(`${API_BASE_URL}/hospital/departments/${id}/`, { method: "DELETE" }),
 }
 
-// Wards of a hospital.
+// Wards, rooms and beds of a hospital. Only its Admin or Manager may add them.
+const scoped = (path, hospitalId) => `${API_BASE_URL}/hospital/${path}/?hospital=${encodeURIComponent(hospitalId)}`
+
 api.wards = {
-  list: async (hospitalId) =>
-    request(`${API_BASE_URL}/hospital/wards/?hospital=${encodeURIComponent(hospitalId)}`),
+  list: async (hospitalId) => request(scoped("wards", hospitalId)),
+  create: async (hospitalId, data) =>
+    request(scoped("wards", hospitalId), { method: "POST", ...jsonBody({ ...data, hospital: hospitalId }) }),
+}
+
+api.rooms = {
+  list: async (hospitalId, wardId) =>
+    request(`${scoped("rooms", hospitalId)}&ward=${encodeURIComponent(wardId)}`),
+  create: async (hospitalId, data) =>
+    request(scoped("rooms", hospitalId), { method: "POST", ...jsonBody(data) }),
+}
+
+api.beds = {
+  create: async (hospitalId, data) =>
+    request(scoped("beds", hospitalId), { method: "POST", ...jsonBody(data) }),
 }
 
 // Nurse ward duty roster (Admin or Manager write; a Nurse sees the patients

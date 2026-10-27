@@ -1,3 +1,4 @@
+from django.db import models
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,10 +11,11 @@ from users.permissions import (
     IsAdmin,
     IsHospitalManager,
     IsHospitalMember,
+    get_request_hospital_id,
     get_user_hospital_ids,
     get_user_roles,
 )
-from users.viewsets import HospitalScopedViewSet
+from users.viewsets import HospitalScopedViewSet, hospital_id_of, resolve_hospital_lookup
 from users.models import StaffRole
 from .models import Hospital, Department, Ward, Room, Bed
 from .serializers import (
@@ -75,6 +77,43 @@ class _OrgStructureViewSet(HospitalScopedViewSet):
             return [IsAuthenticated(), IsStaffUser(), IsHospitalMember(), (IsAdmin | IsHospitalManager)()]
         return [IsAuthenticated(), IsStaffUser(), IsHospitalMember()]
 
+    def _hospital_of_data(self, data):
+        """Hospital a new or changed row would belong to (via its ward, room, …)."""
+        for value in data.values():
+            if isinstance(value, Hospital):
+                return value.pk
+            if isinstance(value, models.Model):
+                owner = hospital_id_of(value, resolve_hospital_lookup(type(value)))
+                if owner is not None:
+                    return owner
+        return get_request_hospital_id(self.request, self)
+
+    def _require_manager_of(self, hospital_id):
+        # The permission class checks the role at the hospital named in the
+        # request; the row may belong to another hospital the user is in.
+        if self.request.user.is_superuser or hospital_id is None:
+            return
+        roles = get_user_roles(self.request.user, hospital_id)
+        if StaffRole.ADMIN not in roles and StaffRole.HOSPITAL_MANAGER not in roles:
+            raise PermissionDenied("Only this hospital's Admin or Manager can change its wards, rooms and beds.")
+
+    def perform_create(self, serializer):
+        self._require_manager_of(self._hospital_of_data(serializer.validated_data))
+        super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        self._require_manager_of(self.get_object_hospital_id(serializer.instance))
+        self._require_manager_of(self._hospital_of_data(serializer.validated_data))
+        super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        self._require_manager_of(self.get_object_hospital_id(instance))
+        super().perform_destroy(instance)
+
+    def _filter_by_param(self, queryset, param):
+        value = self.request.query_params.get(param)
+        return queryset.filter(**{f"{param}_id": value}) if value and value.isdigit() else queryset
+
 
 class DepartmentViewSet(_OrgStructureViewSet):
     queryset = Department.objects.select_related("hospital").order_by("name")
@@ -90,10 +129,16 @@ class RoomViewSet(_OrgStructureViewSet):
     queryset = Room.objects.select_related("ward__hospital").order_by("id")
     serializer_class = RoomSerializer
 
+    def get_queryset(self):
+        return self._filter_by_param(super().get_queryset(), "ward")
+
 
 class BedViewSet(_OrgStructureViewSet):
     queryset = Bed.objects.select_related("room__ward__hospital").order_by("id")
     serializer_class = BedSerializer
+
+    def get_queryset(self):
+        return self._filter_by_param(super().get_queryset(), "room")
 
 
 class HospitalDirectoryView(APIView):
