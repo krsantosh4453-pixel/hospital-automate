@@ -20,7 +20,7 @@ from notifications.services import (
     NotificationChannel,
     NotificationPayload,
 )
-from users.doctor_scope import doctor_hospital_ids
+from users.care_scope import doctor_hospital_ids
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsHospitalManager, IsReceptionist, IsDoctor, IsNurse, IsPatientReadOnly
 

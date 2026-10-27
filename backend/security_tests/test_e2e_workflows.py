@@ -22,7 +22,7 @@ from patients.models import Patient
 from pharmacy.models import Medicine
 from users.models import StaffRole
 
-from .test_tenant_isolation import make_staff
+from .test_tenant_isolation import make_staff, put_on_duty
 
 User = get_user_model()
 TODAY = datetime.date.today()
@@ -153,6 +153,7 @@ class HospitalWorkflowTests(TestCase):
         ward = Ward.objects.create(hospital=self.hospital, name="Synthetic Ward")
         room = Room.objects.create(ward=ward, room_number="101")
         bed = Bed.objects.create(room=room, bed_number="101-A", status="Available")
+        put_on_duty(self.nurse, self.hospital, ward)
 
         doctor = self.api(self.doctor_user)
         nurse = self.api(self.nurse)

@@ -14,7 +14,7 @@ from emergency.models import EmergencyVisit
 from ipd.models import Admission
 from billing.models import Invoice, Payment
 from laboratory.models import LabTest
-from users.doctor_scope import doctor_view_of
+from users.care_scope import care_view_of
 from users.permissions import get_user_hospital_ids
 
 
@@ -49,9 +49,9 @@ def home_dashboard(request):
             "detail": "Provide ?hospital=<id> query parameter for a hospital you have access to"
         }, status=403)
 
-    # Hospital-scoped queries; a Doctor counts only their own patients.
+    # Hospital-scoped queries; a Doctor or Nurse counts only their own patients.
     def own(queryset):
-        return doctor_view_of(queryset, request.user, hospital_id)
+        return care_view_of(queryset, request.user, hospital_id)
 
     patient_qs = own(Patient.objects.filter(hospital_id=hospital_id))
     doctor_qs = Doctor.objects.filter(hospital_id=hospital_id)
@@ -212,9 +212,9 @@ def home_stats_summary(request):
 
     today = timezone.localdate()
     
-    # Quick counts only; a Doctor counts only their own patients.
+    # Quick counts only; a Doctor or Nurse counts only their own patients.
     def own(queryset):
-        return doctor_view_of(queryset, request.user, hospital_id)
+        return care_view_of(queryset, request.user, hospital_id)
 
     total_patients = own(Patient.objects.filter(hospital_id=hospital_id)).count()
     today_appointments = own(Appointment.objects.filter(

@@ -1,6 +1,10 @@
 from rest_framework import serializers
+
+from users.models import StaffRole
+from users.staff_links import link_profile_login
 from .models import (
     Nurse,
+    NurseWardAssignment,
     NursingAssessment,
     NursingNote,
     CareTask,
@@ -19,6 +23,7 @@ class NurseSerializer(serializers.ModelSerializer):
             "id",
             "hospital",
             "hospital_name",
+            "user",
             "name",
             "phone",
             "email",
@@ -30,6 +35,11 @@ class NurseSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at", "hospital_name"]
+
+    def validate(self, attrs):
+        """A linked login must be an active Nurse member of the same hospital."""
+        attrs = super().validate(attrs)
+        return link_profile_login(attrs, self.instance, StaffRole.NURSE, "nurse_profiles")
 
     def validate_hospital(self, value):
         """Ensure user has access to the hospital."""
@@ -240,3 +250,23 @@ class PatientAssignmentSerializer(serializers.ModelSerializer):
             "hospital_name",
         ]
         read_only_fields = ["id", "assigned_at", "nurse_name", "patient_name", "hospital_name"]
+
+class NurseWardAssignmentSerializer(serializers.ModelSerializer):
+    nurse_name = serializers.CharField(source="nurse.name", read_only=True)
+    ward_name = serializers.CharField(source="ward.name", read_only=True)
+
+    class Meta:
+        model = NurseWardAssignment
+        fields = [
+            "id",
+            "nurse",
+            "ward",
+            "hospital",
+            "shift",
+            "shift_date",
+            "is_active",
+            "assigned_at",
+            "nurse_name",
+            "ward_name",
+        ]
+        read_only_fields = ["id", "assigned_at", "nurse_name", "ward_name"]

@@ -1,5 +1,10 @@
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+# Duty shifts used by ward assignments. A Night shift runs past midnight.
+SHIFTS = ("Morning", "Evening", "Night")
+NIGHT_SHIFT = "Night"
 
 
 class Nurse(models.Model):
@@ -10,6 +15,15 @@ class Nurse(models.Model):
         null=True,
         blank=True,
         db_index=True
+    )
+    # The staff login of this nurse; a Nurse sees only the patients of
+    # their own duty, which needs this link. Null for unlinked profiles.
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="nurse_profiles",
     )
     name = models.CharField(max_length=100, db_index=True)
     phone = models.CharField(max_length=15)
@@ -31,6 +45,36 @@ class Nurse(models.Model):
             models.Index(fields=["hospital", "department"]),
             models.Index(fields=["hospital", "shift"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "hospital"],
+                condition=models.Q(user__isnull=False),
+                name="nurse_unique_user_per_hospital",
+            ),
+        ]
+
+
+class NurseWardAssignment(models.Model):
+    """A nurse on duty in a ward for one shift of one day."""
+    nurse = models.ForeignKey(Nurse, on_delete=models.CASCADE, related_name="ward_assignments")
+    ward = models.ForeignKey("hospital.Ward", on_delete=models.CASCADE, related_name="nurse_assignments")
+    hospital = models.ForeignKey("hospital.Hospital", on_delete=models.CASCADE, related_name="nurse_ward_assignments")
+    shift = models.CharField(max_length=20, choices=[(s, s) for s in SHIFTS])
+    shift_date = models.DateField(db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.nurse.name} - {self.ward.name} ({self.shift} {self.shift_date})"
+
+    class Meta:
+        ordering = ["-shift_date", "shift"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["nurse", "ward", "shift", "shift_date"], name="nurse_ward_shift_once",
+            ),
+        ]
+        indexes = [models.Index(fields=["hospital", "shift_date", "is_active"])]
 
 
 class NursingAssessment(models.Model):

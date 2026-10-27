@@ -60,6 +60,7 @@ const STAFF_ROUTE_MODULES = [
   ["/admin/roles", "Roles"],
   ["/admin/hospitals", "Hospitals"],
   ["/admin/departments", "Departments"],
+  ["/admin/nurse-duty", "Departments"],
   ["/admin/permissions", "Permissions"],
   ["/admin", "Users"],
   ["/patients", "Patients"],

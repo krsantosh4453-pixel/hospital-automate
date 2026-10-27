@@ -8,7 +8,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from .models import Patient, PatientDocument, PatientHospital
 from .serializers import PatientSerializer, PatientHospitalSerializer
 from audit.services import record_audit
-from users.doctor_scope import limit_to_patients_in_care
+from users.care_scope import limit_to_patients_in_care
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import (
     IsReceptionist,

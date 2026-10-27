@@ -110,6 +110,20 @@ def put_in_care(user, hospital, *patients):
     return doctor
 
 
+def put_on_duty(user, hospital, ward):
+    """Give a Nurse login its Nurse profile and today's Morning duty in ``ward``."""
+    from config.hospital_time import hospital_today
+    from nurses.models import Nurse, NurseWardAssignment
+
+    nurse, _ = Nurse.objects.get_or_create(
+        user=user, hospital=hospital, defaults={"name": f"Nurse {user.username}", "phone": "9000000998"},
+    )
+    NurseWardAssignment.objects.create(
+        nurse=nurse, ward=ward, hospital=hospital, shift="Morning", shift_date=hospital_today(),
+    )
+    return nurse
+
+
 class TenantIsolationProbe(TestCase):
     @classmethod
     def setUpTestData(cls):

@@ -1667,6 +1667,26 @@ api.departments = {
     request(`${API_BASE_URL}/hospital/departments/${id}/`, { method: "DELETE" }),
 }
 
+// Wards of a hospital.
+api.wards = {
+  list: async (hospitalId) =>
+    request(`${API_BASE_URL}/hospital/wards/?hospital=${encodeURIComponent(hospitalId)}`),
+}
+
+// Nurse ward duty roster (Admin or Manager write; a Nurse sees the patients
+// of the wards of today's duty).
+api.nurseWardDuty = {
+  list: async (hospitalId, shiftDate) => {
+    const params = new URLSearchParams({ hospital: hospitalId })
+    if (shiftDate) params.set("shift_date", shiftDate)
+    return request(`${API_BASE_URL}/nurses/ward-assignments/?${params}`)
+  },
+  create: async (data) =>
+    request(`${API_BASE_URL}/nurses/ward-assignments/`, { method: "POST", ...jsonBody(data) }),
+  update: async (id, data) =>
+    request(`${API_BASE_URL}/nurses/ward-assignments/${id}/`, { method: "PATCH", ...jsonBody(data) }),
+}
+
 // Hospital KPIs, counted on the server for the selected period.
 api.reports = {
   dashboard: async (hospitalId, period = "last_30_days") =>

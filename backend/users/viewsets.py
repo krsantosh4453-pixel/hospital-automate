@@ -8,7 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 
 from hospital.models import Hospital
-from users.doctor_scope import limit_to_patients_in_care, may_write_for_patients
+from users.care_scope import limit_to_patients_in_care, may_write_for_patients
 from users.permissions import (
     IsStaffUser,
     IsHospitalMember,

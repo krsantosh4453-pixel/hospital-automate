@@ -16,6 +16,7 @@ from .models import (
     CareTask,
     MAR,
     MARAdministration,
+    NurseWardAssignment,
     PatientAssignment,
 )
 from .serializers import (
@@ -25,6 +26,7 @@ from .serializers import (
     CareTaskSerializer,
     MARSerializer,
     MARAdministrationSerializer,
+    NurseWardAssignmentSerializer,
     PatientAssignmentSerializer,
 )
 
@@ -440,6 +442,26 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         admin.save()
 
         return Response(MARAdministrationSerializer(admin).data)
+
+
+class NurseWardAssignmentViewSet(HospitalScopedViewSet):
+    """Ward duty roster: admins assign; nurses read it."""
+    queryset = NurseWardAssignment.objects.select_related("nurse", "ward")
+    serializer_class = NurseWardAssignmentSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsNurse]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return super().get_permissions()
+        return [(IsAdmin | IsHospitalManager)()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        for param in ("nurse", "ward", "shift", "shift_date"):
+            value = self.request.query_params.get(param)
+            if value:
+                qs = qs.filter(**{param: value})
+        return qs
 
 
 class PatientAssignmentViewSet(HospitalScopedViewSet):

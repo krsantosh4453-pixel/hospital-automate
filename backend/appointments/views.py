@@ -1,9 +1,6 @@
 from datetime import date, datetime, time, timedelta
-from zoneinfo import ZoneInfo
 
-from django.conf import settings
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -12,6 +9,7 @@ from rest_framework.response import Response
 from .models import Appointment
 from .serializers import AppointmentSerializer
 from audit.services import record_audit
+from config.hospital_time import hospital_now
 from doctors.models import Doctor
 from hospital.models import Hospital
 from users.viewsets import HospitalScopedViewSet
@@ -38,7 +36,7 @@ UNBOOKABLE_DOCTOR_STATUSES = {"On Leave", "Inactive", "Unavailable"}
 
 def _hospital_now():
     # Settings use UTC; slots and "today" follow the hospital's clock.
-    return timezone.now().astimezone(ZoneInfo(getattr(settings, "HOSPITAL_TIME_ZONE", "Asia/Kolkata")))
+    return hospital_now()
 
 
 def _day_slots():
