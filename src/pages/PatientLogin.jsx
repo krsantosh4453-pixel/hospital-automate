@@ -13,6 +13,7 @@ import { MailIcon, SmartphoneIcon, TicketIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import { BrandMark } from "../components/Sidebar.jsx"
 import { Alert } from "../components/ui"
+import DevLoginPanel from "../components/DevLoginPanel.jsx"
 
 function PatientLogin() {
   const toast = useToast()
@@ -338,6 +339,8 @@ function PatientLogin() {
             ))}
           </div>
         </div>
+
+        <DevLoginPanel role={selectedRole} onRoleChange={setSelectedRole} afterPatientLogin={afterPatientLogin} />
 
         {/* Main Card */}
         <div className="rounded-2xl border border-line bg-white/95 p-6 shadow-xl shadow-ink-900/5 backdrop-blur-sm sm:p-8">

@@ -319,6 +319,13 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 GOOGLE_CLIENT_ID = None  # Set in environment-specific settings
 ADMIN_INVITE_CODE = os.environ.get("ADMIN_INVITE_CODE", "")
 
+# Temporary shared development sign-in (users/dev_login.py). Works only with
+# DEBUG on; production.py switches it off.
+DEV_LOGIN_ENABLED = os.environ.get("DEV_LOGIN_ENABLED", "False").lower() == "true"
+DEV_LOGIN_MOBILE = os.environ.get("DEV_LOGIN_MOBILE", "")
+DEV_LOGIN_EMAIL = os.environ.get("DEV_LOGIN_EMAIL", "")
+DEV_LOGIN_PASSWORD = os.environ.get("DEV_LOGIN_PASSWORD", "")
+
 
 # ============================================================
 # Logging Configuration (Base - extended in env-specific settings)

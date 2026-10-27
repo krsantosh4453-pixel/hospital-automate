@@ -114,6 +114,7 @@ function shouldAttemptRefresh(url) {
     '/auth/patient/login/',
     '/auth/patient/token/',
     '/auth/google/',
+    '/auth/dev/',
     '/auth/register/',
   ].some((path) => url.includes(path))
 }
@@ -369,6 +370,14 @@ const api = {
       setTokens({ access: data?.access, refresh: data?.refresh })
       return data
     },
+    // Temporary shared development sign-in (backend/users/dev_login.py).
+    devLoginStatus: async () =>
+      request(`${API_BASE_URL}/auth/dev/login/`).catch(() => ({ enabled: false })),
+    devLogin: async (identifier, password, role) =>
+      request(`${API_BASE_URL}/auth/dev/login/`, {
+        method: 'POST',
+        ...jsonBody({ identifier, password, role }),
+      }),
   },
 
   patients: {

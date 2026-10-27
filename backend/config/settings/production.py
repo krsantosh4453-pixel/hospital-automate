@@ -233,6 +233,10 @@ if not GOOGLE_CLIENT_ID:
     raise ImproperlyConfigured('GOOGLE_CLIENT_ID environment variable is required in production')
 ADMIN_INVITE_CODE = os.environ.get("ADMIN_INVITE_CODE", "")
 
+# The shared development sign-in never runs in production.
+DEV_LOGIN_ENABLED = False
+DEV_LOGIN_PASSWORD = ""
+
 
 # ============================================================
 # Logging - Production (Structured JSON)

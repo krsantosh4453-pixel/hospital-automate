@@ -5,6 +5,7 @@ import api from "../services/api.js"
 import { Link } from "react-router-dom"
 import { ArrowLeft, KeyRound, LockKeyhole, ShieldCheck, UserRound } from "lucide-react"
 import { BrandMark } from "../components/Sidebar.jsx"
+import DevLoginPanel from "../components/DevLoginPanel.jsx"
 import { Alert, Button, Field, Input } from "../components/ui"
 
 function StaffLogin() {
@@ -180,6 +181,8 @@ function StaffLogin() {
           <div className="mb-8 lg:hidden">
             <BrandMark inverted={false} />
           </div>
+
+          <DevLoginPanel />
 
           <div className="rounded-2xl border border-line bg-white/95 p-6 shadow-xl shadow-ink-900/5 backdrop-blur-sm sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-700">Staff portal</p>

@@ -3,6 +3,7 @@ from rest_framework_simplejwt.views import TokenVerifyView
 
 from config.auth_cookie_views import CookieTokenRefreshView, csrf_token
 
+from .dev_login import dev_login
 from .views import (
     google_login,
     patient_email_login,
@@ -26,6 +27,7 @@ from .views import (
 
 urlpatterns = [
     path("google/", google_login, name="google-login"),
+    path("dev/login/", dev_login, name="dev-login"),
     path("register/", register_account, name="register-account"),
     # Tokens are only issued by the staff/patient sign-in views, which apply
     # lockout, OTP policy and audit. The bare SimpleJWT obtain view is not exposed.
