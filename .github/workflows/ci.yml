@@ -158,6 +158,10 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
+    # The repository's default token is read-only; uploading SARIF needs this.
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
