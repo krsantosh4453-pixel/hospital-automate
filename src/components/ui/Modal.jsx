@@ -11,7 +11,8 @@ const FORM_FIELD = 'input:not([disabled]):not([type="hidden"]), select:not([disa
 
 /**
  * Accessible dialog: focus moves in and is trapped, Escape and the backdrop
- * close it, and focus returns to the opener on close.
+ * close it, and focus returns to the opener on close. The panel is portalled
+ * outside the page, so it takes the teal card colours from hms-surface-dark.
  */
 export function Modal({ open, onClose, title, description, size = "md", footer, children, dismissible = true }) {
   const titleId = useId()
@@ -80,7 +81,7 @@ export function Modal({ open, onClose, title, description, size = "md", footer, 
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`relative flex max-h-[92vh] w-full ${WIDTHS[size] || WIDTHS.md} flex-col rounded-t-2xl bg-white shadow-2xl outline-none animate-rise-in sm:rounded-2xl`}
+        className={`relative flex max-h-[92vh] w-full ${WIDTHS[size] || WIDTHS.md} flex-col rounded-t-2xl hms-surface-dark shadow-2xl outline-none animate-rise-in sm:rounded-2xl`}
       >
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div className="min-w-0">
