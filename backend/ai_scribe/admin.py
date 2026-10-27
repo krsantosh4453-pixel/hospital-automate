@@ -99,3 +99,9 @@ class AIPromptTemplateAdmin(admin.ModelAdmin):
     list_filter = ["is_active", "schema_version"]
     search_fields = ["version", "name"]
     readonly_fields = ["created_at", "updated_at"]
+
+
+# Every other ai_scribe table, with default columns (config/admin_registry.py).
+from config.admin_registry import register_app_models  # noqa: E402
+
+register_app_models("ai_scribe")

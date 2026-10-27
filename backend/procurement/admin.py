@@ -116,3 +116,9 @@ class StockTransactionAdmin(admin.ModelAdmin):
     list_filter = ("hospital", "transaction_type")
     search_fields = ("medicine__name", "reason", "reference")
     readonly_fields = ("created_at",)
+
+
+# Every other procurement table, with default columns (config/admin_registry.py).
+from config.admin_registry import register_app_models  # noqa: E402
+
+register_app_models("procurement")

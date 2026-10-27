@@ -23,3 +23,9 @@ class GoogleAccountAdmin(admin.ModelAdmin):
     list_display = ["email", "user", "patient", "created_at"]
     search_fields = ["email", "user__username", "google_id"]
     readonly_fields = ["created_at", "updated_at"]
+
+
+# Every other users table, with default columns (config/admin_registry.py).
+from config.admin_registry import register_app_models  # noqa: E402
+
+register_app_models("users")

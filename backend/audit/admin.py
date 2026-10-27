@@ -1,3 +1,4 @@
-from django.contrib import admin
+from config.admin_registry import register_app_models
 
-# Register your models here.
+# Audit records are append-only: view them, never edit.
+register_app_models("audit", read_only=True)
