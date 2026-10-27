@@ -306,9 +306,7 @@ function StaffLogin() {
 
           <div className="mt-6 space-y-2 text-center text-[13px] text-ink-500">
             <p>
-              New staff member?{" "}
-              <Link to="/register?role=Doctor" className="font-medium text-brand-700 hover:underline">Create an account</Link>
-              {" "}— an administrator approves it before you can sign in.
+              New staff member? Ask your hospital&apos;s administrator for an invitation — it has the link to set your password.
             </p>
             <p>
               Patient?{" "}
