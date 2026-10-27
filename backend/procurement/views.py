@@ -34,6 +34,9 @@ from users.permissions import (
 from users.models import StaffRole
 
 
+STOCK_ADJUST_ROLES = {StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER, StaffRole.INVENTORY_STAFF}
+
+
 class ReadOnlyScopePermission(BasePermission):
     """
     Permission for read-only viewsets that only allow safe methods.
@@ -358,12 +361,13 @@ class GoodsReceiptItemViewSet(
 class StockTransactionViewSet(
     viewsets.ReadOnlyModelViewSet, HospitalScopedViewSet
 ):
-    """The stock ledger is append-only: read-only access."""
+    """The stock ledger is append-only: read-only access, plus the adjust action."""
 
     queryset = StockTransaction.objects.all()
     serializer_class = StockTransactionSerializer
     permission_classes = [ReadOnlyScopePermission]
-    http_method_names = ['get', 'head', 'options']
+    # POST reaches only the adjust action: the ledger has no create route.
+    http_method_names = ['get', 'post', 'head', 'options']
 
     def get_queryset(self):
         # Anonymous users get empty queryset
@@ -405,7 +409,8 @@ class StockTransactionViewSet(
     # Explicitly disable create
     create = None
 
-    @action(detail=False, methods=["post"], url_path="adjust")
+    # The ledger itself is read-only; this action is the store's one write.
+    @action(detail=False, methods=["post"], url_path="adjust", permission_classes=[RequiresHospitalScope])
     def adjust(self, request):
         """Manual stock adjustment (add/remove).
 
@@ -423,6 +428,9 @@ class StockTransactionViewSet(
 
         medicine = serializer.validated_data["medicine"]
         hospital = medicine.hospital
+        # The role must be held in the medicine's own hospital, not elsewhere.
+        if not STOCK_ADJUST_ROLES & set(get_user_roles(request.user, medicine.hospital_id)):
+            raise PermissionDenied("Only this hospital's Admin, Hospital Manager or Inventory Staff can adjust its stock.")
 
         scoped_hospital = request.query_params.get("hospital")
         if scoped_hospital:

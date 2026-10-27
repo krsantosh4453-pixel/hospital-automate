@@ -1026,3 +1026,41 @@ class ProcurementAPITests(TestCase):
         ]:
             response = self.client.post(url, {}, format="json")
             self.assertIn(response.status_code, (403, 405), f"URL {url} returned {response.status_code}")
+
+
+class StockAdjustAPITests(TestCase):
+    """POST /stock-transactions/adjust/: the store may correct its own hospital's stock."""
+
+    setUp = ProcurementAPITests.setUp
+    URL = "/api/procurement/stock-transactions/adjust/"
+
+    def adjust(self, medicine, quantity=10, kind="add"):
+        return self.client.post(
+            f"{self.URL}?hospital={medicine.hospital_id}",
+            {"medicine": medicine.id, "type": kind, "quantity": quantity, "reason": "Count correction"},
+            format="json",
+        )
+
+    def test_inventory_staff_adjusts_own_hospital_stock(self):
+        response = self.adjust(self.medicine_a, quantity=10)
+        self.assertEqual(response.status_code, 201, response.content)
+        self.medicine_a.refresh_from_db()
+        self.assertEqual(self.medicine_a.quantity, 110)
+        self.assertEqual(StockTransaction.objects.filter(medicine=self.medicine_a).count(), 1)
+
+    def test_cannot_adjust_another_hospitals_stock(self):
+        response = self.client.post(
+            f"{self.URL}?hospital={self.hospital_a.id}",
+            {"medicine": self.medicine_b.id, "type": "add", "quantity": 10},
+            format="json",
+        )
+        self.assertIn(response.status_code, (400, 403))
+        self.medicine_b.refresh_from_db()
+        self.assertEqual(self.medicine_b.quantity, 50)
+        self.assertFalse(StockTransaction.objects.filter(medicine=self.medicine_b).exists())
+
+    def test_pharmacist_may_read_but_not_adjust(self):
+        StaffHospitalMembership.objects.filter(staff=self.staff_profile).update(role=StaffRole.PHARMACIST)
+        self.assertEqual(self.adjust(self.medicine_a).status_code, 403)
+        self.medicine_a.refresh_from_db()
+        self.assertEqual(self.medicine_a.quantity, 100)
