@@ -29,13 +29,7 @@ const EMPTY_FORM = { name: "", age: "", gender: "", phone: "", condition: "" }
 function Patients() {
   // Only the front desk registers patients; a Hospital Manager only views them.
   const { canAdd, canEdit } = useRole()
-  const {
-    selectedHospital,
-    getHospitalPatients,
-    addPatient: addLocalPatient,
-    updatePatient: updateLocalPatient,
-    deletePatient: deleteLocalPatient,
-  } = usePatient()
+  const { selectedHospital } = usePatient()
 
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
@@ -44,15 +38,14 @@ function Patients() {
   const [totalRecords, setTotalRecords] = useState(0)
   const pageSizeRef = useRef(50)
 
-  // Display list. Loaded from the Django API when reachable, otherwise it
-  // falls back to the localStorage-backed PatientContext data.
+  // Display list, always loaded from the Django API. Nothing is kept in the
+  // browser: a patient exists only once the server has saved it.
   const [patients, setPatients] = useState([])
 
   // Request + feedback state
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
-  const [offlineMode, setOfflineMode] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
 
   // Add / Edit form state
@@ -115,7 +108,6 @@ function Patients() {
     if (!selectedHospital) {
       setPatients([])
       setLoadError("")
-      setOfflineMode(false)
       return undefined
     }
 
@@ -142,15 +134,10 @@ function Patients() {
           setTotalRecords(results.length)
           setTotalPages(1)
         }
-
-        setOfflineMode(false)
       } catch (error) {
         if (cancelled) return
-
-        // Fall back to localStorage so existing behaviour keeps working.
-        setPatients(getHospitalPatients(selectedHospital.id))
-        setOfflineMode(true)
-        setLoadError(error.message || "Unable to reach the server. Showing locally saved patients.")
+        setPatients([])
+        setLoadError(error.message || "Unable to reach the server. Patients could not be loaded.")
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -170,12 +157,8 @@ function Patients() {
     return patients.filter((patient) => String(patient.hospitalId) === String(selectedHospital.id))
   }, [patients, selectedHospital])
 
-  // In offline mode the server can't search, so filter what is on screen.
-  const filteredPatients = offlineMode
-    ? hospitalPatients.filter((patient) =>
-        `${patient.name || ""} ${patient.phone || ""} ${patient.condition || ""}`.toLowerCase().includes(search.toLowerCase()),
-      )
-    : hospitalPatients
+  // The server already applied the search.
+  const filteredPatients = hospitalPatients
 
   // =====================================================
   // FORM HELPERS + VALIDATION
@@ -273,37 +256,13 @@ function Patients() {
         setSuccessMessage("Patient added successfully.")
       }
 
-      setOfflineMode(false)
       closeForm()
     } catch (error) {
-      // The server answered but refused (validation, permission): show why
-      // and keep the form open. Nothing is saved anywhere.
-      // A timeout is not "offline": the server may already have applied it.
-      if (!error.isNetworkError || error.isTimeout) {
-        setFormErrors((prev) => ({ ...prev, _server: error.message }))
-        return
-      }
-
-      // Backend unavailable: keep the feature working through the
-      // localStorage-backed PatientContext (temporary compatibility).
-      if (editingPatient) {
-        updateLocalPatient(editingPatient.id, { ...payload, hospitalId: selectedHospital?.id })
-        setPatients((prev) =>
-          prev.map((patient) =>
-            String(patient.id) === String(editingPatient.id)
-              ? { ...patient, ...payload, hospitalId: selectedHospital?.id ?? patient.hospitalId }
-              : patient,
-          ),
-        )
-        setLoadError(`Saved locally, but the server update failed: ${error.message}`)
-      } else {
-        const localPatient = addLocalPatient({ ...payload, hospitalId: selectedHospital?.id })
-        setPatients((prev) => [{ ...localPatient, hospitalId: localPatient.hospitalId ?? selectedHospital?.id }, ...prev])
-        setLoadError(`Saved locally, but the server save failed: ${error.message}`)
-      }
-
-      setOfflineMode(true)
-      closeForm()
+      // Refused, unreachable or timed out: keep the form open and say so.
+      // Nothing is saved in the browser. After a timeout the server may
+      // already have saved it, so the list is reloaded to show the truth.
+      setFormErrors((prev) => ({ ...prev, _server: `Not saved: ${error.message}` }))
+      if (error.isTimeout) setReloadToken((value) => value + 1)
     } finally {
       setSaving(false)
     }
@@ -323,20 +282,13 @@ function Patients() {
       await api.patients.delete(patient.id)
       setSuccessMessage("Patient deleted successfully.")
       setTotalRecords((n) => Math.max(n - 1, 0))
-      setOfflineMode(false)
     } catch (error) {
-      // A timeout is not "offline": the server may already have applied it.
-      if (!error.isNetworkError || error.isTimeout) {
-        // The server refused (e.g. permission): the patient still exists.
-        setLoadError(`Not deleted: ${error.message}`)
-        setDeleting(false)
-        setPendingDelete(null)
-        return
-      }
-      // Remove locally so the UI stays consistent while offline.
-      deleteLocalPatient(patient.id)
-      setOfflineMode(true)
-      setLoadError(`Removed locally, but the server delete failed: ${error.message}`)
+      // Refused or unreachable: the patient still exists on the server.
+      setLoadError(`Not deleted: ${error.message}`)
+      setDeleting(false)
+      setPendingDelete(null)
+      if (error.isTimeout) setReloadToken((value) => value + 1)
+      return
     }
 
     setPatients((prev) => prev.filter((item) => String(item.id) !== String(patient.id)))
@@ -373,8 +325,7 @@ function Patients() {
 
       {loadError && (
         <Alert
-          tone={offlineMode ? "warning" : "danger"}
-          title={offlineMode ? "Working offline" : undefined}
+          tone="danger"
           action={
             <Button size="sm" variant="secondary" onClick={() => setReloadToken((value) => value + 1)}>
               Retry
@@ -486,7 +437,7 @@ function Patients() {
                 ))}
               </ul>
 
-              {!offlineMode && totalPages > 1 && (
+              {totalPages > 1 && (
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}

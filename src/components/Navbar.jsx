@@ -542,12 +542,14 @@ function Navbar() {
   const hospitalsList = useMemo(() => contextHospitals || [], [contextHospitals])
   const groups = isStaff ? visibleStaffNav(canView) : guestStaffNav()
 
-  // Select the first hospital if none is selected yet, and replace a stale
-  // selection that is no longer in the user's list.
+  // Select the first hospital if none is selected yet, replace a stale
+  // selection that is no longer in the user's list, and refresh a saved
+  // selection whose name has changed on the server.
   useEffect(() => {
     if (hospitalsList.length === 0) return
-    const stillValid = selectedHospital && hospitalsList.some((h) => String(h.id) === String(selectedHospital.id))
-    if (!stillValid) selectHospital(hospitalsList[0])
+    const current = selectedHospital && hospitalsList.find((h) => String(h.id) === String(selectedHospital.id))
+    if (!current) selectHospital(hospitalsList[0])
+    else if (current.name !== selectedHospital.name) selectHospital(current)
   }, [selectedHospital, hospitalsList, selectHospital])
 
   // Ctrl/⌘ K opens quick jump.
