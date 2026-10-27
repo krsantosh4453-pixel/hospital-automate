@@ -1,14 +1,23 @@
+import { Plus as PlusIcon } from "lucide-react"
 import { useState } from "react"
 import { useHospitals } from "../../assets/context/HospitalsContext.jsx"
+import { Alert, Button, PageHeader, useConfirm } from "../../components/ui"
 
 function Hospitals() {
+  const [confirm, confirmDialog] = useConfirm()
+
   const {
     hospitals,
     addHospital,
     updateHospital,
     deleteHospital: removeHospital,
     toggleHospitalStatus,
+    loading,
+    error: loadError,
   } = useHospitals()
+
+  const [actionError, setActionError] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState("All")
@@ -64,6 +73,7 @@ function Hospitals() {
 
   const closeModal = () => {
     setShowModal(false)
+    setActionError("")
     resetForm()
   }
 
@@ -85,53 +95,63 @@ function Hospitals() {
     })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setActionError("")
 
     if (!formData.name.trim()) {
-      alert("Please enter hospital name")
+      setActionError("Please enter hospital name")
       return
     }
 
     if (!formData.code.trim()) {
-      alert("Please enter hospital code")
+      setActionError("Please enter hospital code")
       return
     }
 
     if (formData.phone.length !== 10) {
-      alert("Please enter valid 10 digit phone number")
+      setActionError("Please enter valid 10 digit phone number")
       return
     }
 
-    if (editingHospital) {
-      updateHospital(
-        editingHospital.id,
-        formData
-      )
-    } else {
-      addHospital({
-        ...formData,
-        doctors: 0,
-        nurses: 0,
-        departments: 0,
-      })
+    setSaving(true)
+    try {
+      if (editingHospital) {
+        await updateHospital(editingHospital.id, formData)
+      } else {
+        await addHospital(formData)
+      }
+      closeModal()
+    } catch (err) {
+      // e.g. 403 when the signed-in user is not a platform administrator
+      setActionError(err.message || "Could not save the hospital.")
+    } finally {
+      setSaving(false)
     }
-
-    closeModal()
   }
 
-  const handleDeleteHospital = (id) => {
-    const confirmDelete = window.confirm(
+  const handleDeleteHospital = async (id) => {
+    const confirmDelete = (await confirm(
       "Are you sure you want to delete this hospital?"
-    )
+    ))
 
     if (!confirmDelete) return
 
-    removeHospital(id)
+    setActionError("")
+    try {
+      await removeHospital(id)
+    } catch (err) {
+      setActionError(err.message || "Could not delete the hospital.")
+    }
   }
 
-  const handleToggleStatus = (id) => {
-    toggleHospitalStatus(id)
+  const handleToggleStatus = async (id) => {
+    setActionError("")
+    try {
+      await toggleHospitalStatus(id)
+    } catch (err) {
+      setActionError(err.message || "Could not change the hospital status.")
+    }
   }
 
   const filteredHospitals = hospitals.filter(
@@ -187,35 +207,22 @@ function Hospitals() {
     ).length
 
   return (
-    <div className="p-6">
+    <>{confirmDialog}<div className="space-y-5">
+      <PageHeader
+        title="Hospitals"
+        description="Hospitals in the system and their contact details."
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Hospitals" }]}
+        actions={<Button icon={PlusIcon} onClick={openAddModal}>Add hospital</Button>}
+      />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">
-            Hospitals
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Manage hospitals in the system
-          </p>
-        </div>
-
-        <button
-          onClick={openAddModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium"
-        >
-          + Add Hospital
-        </button>
-
-      </div>
+      {(loadError || actionError) && !showModal && <Alert tone="danger">{actionError || loadError}</Alert>}
+      {loading && <p className="text-sm text-ink-500" role="status">Loading hospitals…</p>}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
 
         {/* Total */}
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
             Total Hospitals
           </p>
@@ -226,7 +233,7 @@ function Hospitals() {
         </div>
 
         {/* Active */}
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
             Active Hospitals
           </p>
@@ -237,7 +244,7 @@ function Hospitals() {
         </div>
 
         {/* Government */}
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
             Government
           </p>
@@ -248,7 +255,7 @@ function Hospitals() {
         </div>
 
         {/* Private */}
-        <div className="bg-white rounded-xl shadow p-5">
+        <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
             Private
           </p>
@@ -272,7 +279,7 @@ function Hospitals() {
             onChange={(e) =>
               setSearch(e.target.value)
             }
-            className="border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+            className="hms-input"
           />
 
           <select
@@ -280,7 +287,7 @@ function Hospitals() {
             onChange={(e) =>
               setTypeFilter(e.target.value)
             }
-            className="border rounded-lg px-4 py-2.5"
+            className="hms-input"
           >
             <option value="All">
               All Types
@@ -300,7 +307,7 @@ function Hospitals() {
             onChange={(e) =>
               setStatusFilter(e.target.value)
             }
-            className="border rounded-lg px-4 py-2.5"
+            className="hms-input"
           >
             <option value="All">
               All Status
@@ -553,6 +560,11 @@ function Hospitals() {
               onSubmit={handleSubmit}
               className="p-6 space-y-4"
             >
+              {actionError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
+                  {actionError}
+                </div>
+              )}
 
               {/* Hospital Name */}
               <div>
@@ -567,7 +579,7 @@ function Hospitals() {
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="Enter hospital name"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 />
 
               </div>
@@ -585,7 +597,7 @@ function Hospitals() {
                   value={formData.code}
                   onChange={handleChange}
                   placeholder="Example: CHB001"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 />
 
               </div>
@@ -603,7 +615,7 @@ function Hospitals() {
                   onChange={handleChange}
                   rows="3"
                   placeholder="Enter hospital address"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 />
 
               </div>
@@ -622,7 +634,7 @@ function Hospitals() {
                   onChange={handlePhoneChange}
                   maxLength="10"
                   placeholder="10 digit contact number"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 />
 
               </div>
@@ -640,7 +652,7 @@ function Hospitals() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="hospital@example.com"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input w-full"
                 />
 
               </div>
@@ -656,7 +668,7 @@ function Hospitals() {
                   name="type"
                   value={formData.type}
                   onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
+                  className="hms-input w-full"
                 >
 
                   <option value="Private">
@@ -682,7 +694,7 @@ function Hospitals() {
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
+                  className="hms-input w-full"
                 >
 
                   <option value="Active">
@@ -710,11 +722,14 @@ function Hospitals() {
 
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                  disabled={saving}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
                 >
-                  {editingHospital
-                    ? "Update Hospital"
-                    : "Add Hospital"}
+                  {saving
+                    ? "Saving…"
+                    : editingHospital
+                      ? "Update Hospital"
+                      : "Add Hospital"}
                 </button>
 
               </div>
@@ -727,7 +742,7 @@ function Hospitals() {
 
       )}
 
-    </div>
+    </div></>
   )
 }
 

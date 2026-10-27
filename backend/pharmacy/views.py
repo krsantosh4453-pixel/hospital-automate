@@ -1,6 +1,10 @@
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
+
+from audit.services import record_audit
+from procurement.models import StockTransaction
 from django.db.models import F
 from rest_framework import serializers, viewsets
 
@@ -8,50 +12,96 @@ from hospital.models import Hospital
 
 from .models import Medicine, Sale
 from .serializers import MedicineSerializer, SaleSerializer
+from users.viewsets import HospitalScopedViewSet
+from users.permissions import IsAdmin, IsCompounder, IsHospitalManager, IsInventoryStaff, IsPharmacist
 
 
-class MedicineViewSet(viewsets.ModelViewSet):
-    queryset = Medicine.objects.all()
+class MedicineViewSet(HospitalScopedViewSet):
+    queryset = Medicine.objects.select_related("hospital")
     serializer_class = MedicineSerializer
+    # Medicine stock: pharmacy (pharmacist, compounder) and the store.
+    permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist | IsCompounder | IsInventoryStaff]
 
     def get_queryset(self):
-        queryset = Medicine.objects.select_related("hospital")
+        queryset = super().get_queryset()
 
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
             queryset = queryset.filter(hospital_id=hospital_id)
 
+        # Search filter
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+
+        # Category filter
+        category = self.request.query_params.get("category")
+        if category:
+            queryset = queryset.filter(category=category)
+
+        # Status filter
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
         return queryset
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-
-        hospital_id = self.request.query_params.get("hospital")
-        if hospital_id:
-            context["scoped_hospital"] = (
-                Hospital.objects.filter(pk=hospital_id).first()
+    def _ledger(self, medicine, kind, quantity, reason):
+        if quantity:
+            StockTransaction.objects.create(
+                medicine=medicine,
+                hospital_id=medicine.hospital_id,
+                transaction_type=kind,
+                quantity=quantity,
+                reason=reason,
+                reference=f"MED-{medicine.pk}",
             )
 
-        return context
+    @transaction.atomic
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        medicine = serializer.instance
+        if medicine.hospital_id:
+            self._ledger(medicine, StockTransaction.TYPE_IN, medicine.quantity, "Opening stock")
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        before = Medicine.objects.select_for_update().get(pk=serializer.instance.pk).quantity
+        super().perform_update(serializer)
+        medicine = serializer.instance
+        delta = medicine.quantity - before
+        if delta and medicine.hospital_id:
+            reason = self.request.data.get("adjustment_reason") or "Manual stock correction"
+            self._ledger(medicine, StockTransaction.TYPE_ADJUST, abs(delta),
+                         f"{reason} ({'+' if delta > 0 else '-'}{abs(delta)})")
+
+    def perform_destroy(self, instance):
+        if instance.sales.exists() or instance.stock_transactions.exists():
+            raise serializers.ValidationError(
+                "This medicine has stock history and cannot be deleted; set its status to Discontinued."
+            )
+        super().perform_destroy(instance)
 
 
-class SaleViewSet(viewsets.ModelViewSet):
+class SaleViewSet(HospitalScopedViewSet):
     """Pharmacy sales.
 
     Sales are append-only: only list/create/retrieve are exposed
     because existing workflows never mutate a completed sale.
     """
 
-    queryset = Sale.objects.all()
+    queryset = Sale.objects.select_related(
+        "medicine",
+        "hospital",
+        "prescription",
+    )
     serializer_class = SaleSerializer
+    # Dispensing: pharmacist and compounder.
+    permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist | IsCompounder]
     http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
-        queryset = Sale.objects.select_related(
-            "medicine",
-            "hospital",
-            "prescription",
-        )
+        queryset = super().get_queryset()
 
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
@@ -61,10 +111,19 @@ class SaleViewSet(viewsets.ModelViewSet):
         if prescription_id:
             queryset = queryset.filter(prescription_id=prescription_id)
 
+        # Date range filter
+        date_from = self.request.query_params.get("date_from")
+        date_to = self.request.query_params.get("date_to")
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+
         return queryset
 
     @transaction.atomic
     def perform_create(self, serializer):
+        self._check_tenancy(serializer.validated_data)
         medicine = serializer.validated_data["medicine"]
         quantity = serializer.validated_data["quantity"]
 
@@ -92,6 +151,14 @@ class SaleViewSet(viewsets.ModelViewSet):
                 }
             )
 
+        if medicine.expiry_date and medicine.expiry_date < timezone.localdate():
+            raise serializers.ValidationError(
+                {"medicine": f"This batch expired on {medicine.expiry_date}; it cannot be dispensed."}
+            )
+        prescription = serializer.validated_data.get("prescription")
+        if prescription is not None and prescription.hospital_id != hospital.pk:
+            raise serializers.ValidationError({"prescription": "Prescription is from another hospital."})
+
         # Atomic, DB-level guard: the UPDATE only matches while
         # enough stock exists, so concurrent sales can never
         # oversell or drive quantity negative. Works on SQLite.
@@ -113,9 +180,7 @@ class SaleViewSet(viewsets.ModelViewSet):
 
         medicine.refresh_from_db(fields=["quantity"])
 
-        unit_price = serializer.validated_data.get("unit_price")
-        if unit_price is None:
-            unit_price = medicine.price
+        unit_price = medicine.price
 
         total = (
             Decimal(quantity) * Decimal(unit_price)
@@ -123,8 +188,19 @@ class SaleViewSet(viewsets.ModelViewSet):
 
         # Deduct stock first: rolled back automatically if the
         # sale insert below fails.
-        serializer.save(
+        sale = serializer.save(
             hospital=hospital,
             unit_price=unit_price,
             total=total,
         )
+        # Every stock change is mirrored in the append-only ledger.
+        StockTransaction.objects.create(
+            medicine=medicine,
+            hospital=hospital,
+            transaction_type=StockTransaction.TYPE_OUT,
+            quantity=quantity,
+            reason="Pharmacy sale",
+            reference=f"SALE-{sale.pk}",
+        )
+        record_audit(self.request, "pharmacy.sale.create", sale, hospital=hospital.pk,
+                     details={"medicine": medicine.pk, "quantity": quantity})

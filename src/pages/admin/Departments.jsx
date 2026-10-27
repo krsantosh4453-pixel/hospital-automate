@@ -1,724 +1,264 @@
-import { useState } from "react"
+import { Plus as PlusIcon } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { usePatient } from "../../assets/context/PatientContext.jsx"
+import api from "../../services/api.js"
+import { Alert, Button, PageHeader } from "../../components/ui"
 
+const EMPTY_FORM = { name: "", code: "", head: "", description: "", status: "Active" }
+const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
+
+// Departments / clinics of the selected hospital, saved through the API.
+// Only that hospital's Admin or Hospital Manager can change them (enforced
+// by the backend; others see the server's refusal).
 function Departments() {
-  const [departments, setDepartments] = useState([
-    {
-      id: 1,
-      name: "Cardiology",
-      code: "CARD",
-      hospital: "City Hospital Begusarai",
-      head: "Dr. Sharma",
-      doctors: 3,
-      status: "Active",
-    },
-    {
-      id: 2,
-      name: "General Medicine",
-      code: "GENMED",
-      hospital: "City Hospital Begusarai",
-      head: "Dr. Kumar",
-      doctors: 4,
-      status: "Active",
-    },
-    {
-      id: 3,
-      name: "Orthopedics",
-      code: "ORTHO",
-      hospital: "Sadar Hospital Begusarai",
-      head: "Dr. Singh",
-      doctors: 5,
-      status: "Active",
-    },
-    {
-      id: 4,
-      name: "Pediatrics",
-      code: "PEDIA",
-      hospital: "Sadar Hospital Begusarai",
-      head: "Dr. Verma",
-      doctors: 3,
-      status: "Active",
-    },
-    {
-      id: 5,
-      name: "Emergency",
-      code: "EMER",
-      hospital: "Medicare Hospital Begusarai",
-      head: "Dr. Gupta",
-      doctors: 2,
-      status: "Active",
-    },
-  ])
-
+  const { selectedHospital } = usePatient()
+  const [departments, setDepartments] = useState([])
+  const [doctors, setDoctors] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [search, setSearch] = useState("")
-  const [hospitalFilter, setHospitalFilter] =
-    useState("All")
-  const [statusFilter, setStatusFilter] =
-    useState("All")
+  const [statusFilter, setStatusFilter] = useState("All")
+  const [showModal, setShowModal] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [formData, setFormData] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
 
-  const [showModal, setShowModal] =
-    useState(false)
-
-  const [editingDepartment, setEditingDepartment] =
-    useState(null)
-
-  const [formData, setFormData] = useState({
-    name: "",
-    code: "",
-    hospital: "",
-    head: "",
-    doctors: 0,
-    status: "Active",
-  })
-
-  const hospitals = [
-    "City Hospital Begusarai",
-    "Sadar Hospital Begusarai",
-    "Medicare Hospital Begusarai",
-  ]
-
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      code: "",
-      hospital: "",
-      head: "",
-      doctors: 0,
-      status: "Active",
-    })
-
-    setEditingDepartment(null)
-  }
-
-  const openAddModal = () => {
-    resetForm()
-    setShowModal(true)
-  }
-
-  const openEditModal = (department) => {
-    setEditingDepartment(department)
-
-    setFormData({
-      name: department.name,
-      code: department.code,
-      hospital: department.hospital,
-      head: department.head,
-      doctors: department.doctors,
-      status: department.status,
-    })
-
-    setShowModal(true)
-  }
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-
-    if (!formData.name.trim()) {
-      alert("Please enter department name")
-      return
-    }
-
-    if (!formData.code.trim()) {
-      alert("Please enter department code")
-      return
-    }
-
-    if (!formData.hospital) {
-      alert("Please select hospital")
-      return
-    }
-
-    if (editingDepartment) {
-      setDepartments(
-        departments.map((department) =>
-          department.id === editingDepartment.id
-            ? {
-              ...department,
-              ...formData,
-              doctors: Number(formData.doctors),
-            }
-            : department
-        )
-      )
-    } else {
-      const newDepartment = {
-        id: Date.now(),
-        ...formData,
-        doctors: Number(formData.doctors),
-      }
-
-      setDepartments([
-        newDepartment,
-        ...departments,
+  const load = useCallback(async () => {
+    if (!selectedHospital) return
+    setLoading(true)
+    setError("")
+    try {
+      const [deptData, doctorData] = await Promise.all([
+        api.departments.list(selectedHospital.id),
+        api.doctors.list(selectedHospital.id),
       ])
+      setDepartments(rows(deptData))
+      setDoctors(rows(doctorData))
+    } catch (err) {
+      setError(err.message || "Could not load departments.")
+    } finally {
+      setLoading(false)
     }
+  }, [selectedHospital])
 
-    setShowModal(false)
-    resetForm()
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const openAdd = () => {
+    setEditing(null)
+    setFormData(EMPTY_FORM)
+    setShowModal(true)
   }
 
-  const deleteDepartment = (id) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this department?"
-    )
-
-    if (!confirmDelete) return
-
-    setDepartments(
-      departments.filter(
-        (department) => department.id !== id
-      )
-    )
-  }
-
-  const toggleStatus = (id) => {
-    setDepartments(
-      departments.map((department) =>
-        department.id === id
-          ? {
-            ...department,
-            status:
-              department.status === "Active"
-                ? "Inactive"
-                : "Active",
-          }
-          : department
-      )
-    )
-  }
-
-  const filteredDepartments =
-    departments.filter((department) => {
-      const searchText =
-        search.toLowerCase()
-
-      const matchesSearch =
-        department.name
-          .toLowerCase()
-          .includes(searchText) ||
-        department.code
-          .toLowerCase()
-          .includes(searchText) ||
-        department.head
-          .toLowerCase()
-          .includes(searchText)
-
-      const matchesHospital =
-        hospitalFilter === "All" ||
-        department.hospital ===
-        hospitalFilter
-
-      const matchesStatus =
-        statusFilter === "All" ||
-        department.status === statusFilter
-
-      return (
-        matchesSearch &&
-        matchesHospital &&
-        matchesStatus
-      )
+  const openEdit = (dept) => {
+    setEditing(dept)
+    setFormData({
+      name: dept.name,
+      code: dept.code || "",
+      head: dept.head ? String(dept.head) : "",
+      description: dept.description || "",
+      status: dept.is_active ? "Active" : "Inactive",
     })
+    setShowModal(true)
+  }
 
-  const activeDepartments =
-    departments.filter(
-      (department) =>
-        department.status === "Active"
-    ).length
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value })
 
-  const totalDoctors =
-    departments.reduce(
-      (total, department) =>
-        total + Number(department.doctors),
-      0
-    )
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!formData.name.trim()) {
+      setError("Please enter department name")
+      return
+    }
+    const payload = {
+      hospital: selectedHospital.id,
+      name: formData.name.trim(),
+      code: formData.code.trim().toUpperCase(),
+      head: formData.head ? Number(formData.head) : null,
+      description: formData.description,
+      is_active: formData.status === "Active",
+    }
+    setSaving(true)
+    setError("")
+    try {
+      if (editing) {
+        await api.departments.update(editing.id, payload)
+      } else {
+        await api.departments.create(payload)
+      }
+      setShowModal(false)
+      await load()
+    } catch (err) {
+      setError(err.message || "Department was not saved.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleStatus = async (dept) => {
+    setError("")
+    try {
+      await api.departments.update(dept.id, { is_active: !dept.is_active })
+      await load()
+    } catch (err) {
+      setError(err.message || "Status was not changed.")
+    }
+  }
+
+  const filtered = useMemo(() => {
+    const text = search.toLowerCase().trim()
+    return departments.filter((dept) => {
+      const matchesSearch =
+        !text || [dept.name, dept.code, dept.head_name].filter(Boolean).some((v) => v.toLowerCase().includes(text))
+      const matchesStatus =
+        statusFilter === "All" || (statusFilter === "Active" ? dept.is_active : !dept.is_active)
+      return matchesSearch && matchesStatus
+    })
+  }, [departments, search, statusFilter])
+
+  const activeCount = departments.filter((d) => d.is_active).length
+  const doctorCount = departments.reduce((sum, d) => sum + (d.doctors || 0), 0)
 
   return (
-    <div className="p-6">
+    <div className="space-y-5">
+      <PageHeader
+        title="Departments"
+        description={`Departments and clinics of ${selectedHospital?.name || "the selected hospital"}.`}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Departments" }]}
+        actions={<Button icon={PlusIcon} onClick={openAdd}>Add department</Button>}
+      />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      {error && !showModal && <Alert tone="danger">{error}</Alert>}
 
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">
-            Departments
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Manage hospital departments
-          </p>
-        </div>
-
-        <button
-          onClick={openAddModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium"
-        >
-          + Add Department
-        </button>
-
-      </div>
-
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-sm">
-            Total Departments
-          </p>
-
-          <h2 className="text-3xl font-bold mt-2">
-            {departments.length}
-          </h2>
+        <div className="rounded-2xl border border-line bg-white p-5">
+          <p className="text-gray-500 text-sm">Total Departments</p>
+          <h2 className="text-3xl font-bold mt-2">{departments.length}</h2>
         </div>
-
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-sm">
-            Active Departments
-          </p>
-
-          <h2 className="text-3xl font-bold text-green-600 mt-2">
-            {activeDepartments}
-          </h2>
+        <div className="rounded-2xl border border-line bg-white p-5">
+          <p className="text-gray-500 text-sm">Active</p>
+          <h2 className="text-3xl font-bold text-green-600 mt-2">{activeCount}</h2>
         </div>
-
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-sm">
-            Doctors Assigned
-          </p>
-
-          <h2 className="text-3xl font-bold text-blue-600 mt-2">
-            {totalDoctors}
-          </h2>
+        <div className="rounded-2xl border border-line bg-white p-5">
+          <p className="text-gray-500 text-sm">Doctors Assigned</p>
+          <h2 className="text-3xl font-bold text-blue-600 mt-2">{doctorCount}</h2>
         </div>
-
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow p-4 mb-6">
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
+      <div className="rounded-2xl border border-line bg-white p-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           <input
             type="text"
-            placeholder="Search department..."
+            aria-label="Search departments"
+            placeholder="Search by name, code or head"
             value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-            className="border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => setSearch(e.target.value)}
+            className="hms-input"
           />
-
           <select
-            value={hospitalFilter}
-            onChange={(e) =>
-              setHospitalFilter(e.target.value)
-            }
-            className="border rounded-lg px-4 py-2.5"
-          >
-            <option value="All">
-              All Hospitals
-            </option>
-
-            {hospitals.map((hospital) => (
-              <option
-                key={hospital}
-                value={hospital}
-              >
-                {hospital}
-              </option>
-            ))}
-          </select>
-
-          <select
+            aria-label="Filter by status"
             value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(e.target.value)
-            }
-            className="border rounded-lg px-4 py-2.5"
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="hms-input"
           >
-            <option value="All">
-              All Status
-            </option>
-
-            <option value="Active">
-              Active
-            </option>
-
-            <option value="Inactive">
-              Inactive
-            </option>
+            <option value="All">All Status</option>
+            <option>Active</option>
+            <option>Inactive</option>
           </select>
-
         </div>
 
-      </div>
-
-      {/* Departments Table */}
-      <div className="bg-white rounded-xl shadow overflow-x-auto">
-
-        <table className="w-full min-w-[1000px]">
-
-          <thead className="bg-gray-100">
-
-            <tr>
-
-              <th className="p-4 text-left">
-                Department
-              </th>
-
-              <th className="p-4 text-left">
-                Code
-              </th>
-
-              <th className="p-4 text-left">
-                Hospital
-              </th>
-
-              <th className="p-4 text-left">
-                Department Head
-              </th>
-
-              <th className="p-4 text-left">
-                Doctors
-              </th>
-
-              <th className="p-4 text-left">
-                Status
-              </th>
-
-              <th className="p-4 text-left">
-                Actions
-              </th>
-
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {filteredDepartments.length === 0 ? (
-
-              <tr>
-
-                <td
-                  colSpan="7"
-                  className="p-8 text-center text-gray-500"
-                >
-                  No departments found
-                </td>
-
-              </tr>
-
-            ) : (
-
-              filteredDepartments.map(
-                (department) => (
-
-                  <tr
-                    key={department.id}
-                    className="border-t hover:bg-gray-50"
-                  >
-
-                    <td className="p-4">
-
-                      <div className="font-semibold text-gray-800">
-                        {department.name}
-                      </div>
-
-                    </td>
-
-                    <td className="p-4">
-
-                      <span className="bg-gray-100 px-3 py-1 rounded-lg text-sm">
-                        {department.code}
-                      </span>
-
-                    </td>
-
-                    <td className="p-4">
-                      {department.hospital}
-                    </td>
-
-                    <td className="p-4">
-                      {department.head || "—"}
-                    </td>
-
-                    <td className="p-4">
-                      {department.doctors}
-                    </td>
-
-                    <td className="p-4">
-
+        {loading ? (
+          <p className="text-gray-500 text-sm" role="status">Loading departments…</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-gray-500 text-sm">No departments yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b">
+                  <th className="py-2 pr-4">Department</th>
+                  <th className="py-2 pr-4">Code</th>
+                  <th className="py-2 pr-4">Head</th>
+                  <th className="py-2 pr-4">Doctors</th>
+                  <th className="py-2 pr-4">Status</th>
+                  <th className="py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((dept) => (
+                  <tr key={dept.id} className="border-b last:border-0">
+                    <td className="py-3 pr-4 font-medium text-gray-800">{dept.name}</td>
+                    <td className="py-3 pr-4">{dept.code || "—"}</td>
+                    <td className="py-3 pr-4">{dept.head_name || "—"}</td>
+                    <td className="py-3 pr-4">{dept.doctors}</td>
+                    <td className="py-3 pr-4">
                       <button
-                        onClick={() =>
-                          toggleStatus(
-                            department.id
-                          )
-                        }
-                        className={
-                          department.status ===
-                            "Active"
-                            ? "text-green-600 font-medium"
-                            : "text-red-600 font-medium"
-                        }
+                        onClick={() => toggleStatus(dept)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${dept.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}
                       >
-                        {department.status}
+                        {dept.is_active ? "Active" : "Inactive"}
                       </button>
-
                     </td>
-
-                    <td className="p-4 whitespace-nowrap">
-
-                      <button
-                        onClick={() =>
-                          openEditModal(
-                            department
-                          )
-                        }
-                        className="text-blue-600 mr-4"
-                      >
+                    <td className="py-3 text-right">
+                      <button onClick={() => openEdit(dept)} className="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg">
                         Edit
                       </button>
-
-                      <button
-                        onClick={() =>
-                          deleteDepartment(
-                            department.id
-                          )
-                        }
-                        className="text-red-600"
-                      >
-                        Delete
-                      </button>
-
                     </td>
-
                   </tr>
-
-                )
-              )
-
-            )}
-
-          </tbody>
-
-        </table>
-
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Add / Edit Modal */}
       {showModal && (
-
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
-
-            {/* Modal Header */}
-            <div className="p-6 border-b">
-
-              <div className="flex justify-between items-center">
-
-                <div>
-
-                  <h2 className="text-xl font-bold">
-                    {editingDepartment
-                      ? "Edit Department"
-                      : "Add Department"}
-                  </h2>
-
-                  <p className="text-sm text-gray-500 mt-1">
-                    Enter department information
-                  </p>
-
-                </div>
-
-                <button
-                  onClick={() => {
-                    setShowModal(false)
-                    resetForm()
-                  }}
-                  className="text-gray-500 text-2xl"
-                >
-                  ×
-                </button>
-
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true">
+          <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
+            <h2 className="text-xl font-bold text-gray-800">{editing ? "Edit Department" : "Add Department"}</h2>
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
+                {error}
               </div>
-
+            )}
+            <label className="block text-sm font-medium text-gray-700">
+              Department Name
+              <input name="name" value={formData.name} onChange={handleChange} required className="hms-input mt-1 w-full" />
+            </label>
+            <label className="block text-sm font-medium text-gray-700">
+              Code
+              <input name="code" value={formData.code} onChange={handleChange} maxLength={20} className="hms-input mt-1 w-full" />
+            </label>
+            <label className="block text-sm font-medium text-gray-700">
+              Head of Department
+              <select name="head" value={formData.head} onChange={handleChange} className="hms-input mt-1 w-full">
+                <option value="">Not assigned</option>
+                {doctors.map((doctor) => (
+                  <option key={doctor.id} value={doctor.id}>{doctor.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm font-medium text-gray-700">
+              Description
+              <textarea name="description" value={formData.description} onChange={handleChange} rows={2} className="hms-input mt-1 w-full" />
+            </label>
+            <label className="block text-sm font-medium text-gray-700">
+              Status
+              <select name="status" value={formData.status} onChange={handleChange} className="hms-input mt-1 w-full">
+                <option>Active</option>
+                <option>Inactive</option>
+              </select>
+            </label>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => { setShowModal(false); setError("") }} className="px-5 py-2.5 bg-gray-100 rounded-lg">Cancel</button>
+              <button type="submit" disabled={saving} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50">
+                {saving ? "Saving…" : editing ? "Update Department" : "Add Department"}
+              </button>
             </div>
-
-            {/* Form */}
-            <form
-              onSubmit={handleSubmit}
-              className="p-6 space-y-4"
-            >
-
-              {/* Department Name */}
-              <div>
-
-                <label className="block text-sm font-medium mb-1">
-                  Department Name
-                </label>
-
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Example: Cardiology"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-
-              </div>
-
-              {/* Department Code */}
-              <div>
-
-                <label className="block text-sm font-medium mb-1">
-                  Department Code
-                </label>
-
-                <input
-                  type="text"
-                  name="code"
-                  value={formData.code}
-                  onChange={handleChange}
-                  placeholder="Example: CARD"
-                  className="w-full border rounded-lg px-4 py-2.5 uppercase outline-none focus:ring-2 focus:ring-blue-500"
-                />
-
-              </div>
-
-              {/* Hospital */}
-              <div>
-
-                <label className="block text-sm font-medium mb-1">
-                  Hospital
-                </label>
-
-                <select
-                  name="hospital"
-                  value={formData.hospital}
-                  onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
-                >
-
-                  <option value="">
-                    Select Hospital
-                  </option>
-
-                  {hospitals.map((hospital) => (
-                    <option
-                      key={hospital}
-                      value={hospital}
-                    >
-                      {hospital}
-                    </option>
-                  ))}
-
-                </select>
-
-              </div>
-
-              {/* Department Head */}
-              <div>
-
-                <label className="block text-sm font-medium mb-1">
-                  Department Head
-                </label>
-
-                <input
-                  type="text"
-                  name="head"
-                  value={formData.head}
-                  onChange={handleChange}
-                  placeholder="Enter department head"
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-
-              </div>
-
-              {/* Doctors */}
-              <div>
-
-                <label className="block text-sm font-medium mb-1">
-                  Number of Doctors
-                </label>
-
-                <input
-                  type="number"
-                  name="doctors"
-                  min="0"
-                  value={formData.doctors}
-                  onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-
-              </div>
-
-              {/* Status */}
-              <div>
-
-                <label className="block text-sm font-medium mb-1">
-                  Status
-                </label>
-
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
-                >
-
-                  <option value="Active">
-                    Active
-                  </option>
-
-                  <option value="Inactive">
-                    Inactive
-                  </option>
-
-                </select>
-
-              </div>
-
-              {/* Buttons */}
-              <div className="flex justify-end gap-3 pt-4">
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false)
-                    resetForm()
-                  }}
-                  className="px-5 py-2.5 border rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-                >
-                  {editingDepartment
-                    ? "Update Department"
-                    : "Add Department"}
-                </button>
-
-              </div>
-
-            </form>
-
-          </div>
-
+          </form>
         </div>
-
       )}
-
     </div>
   )
 }

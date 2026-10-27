@@ -47,7 +47,7 @@ function AppointmentList() {
         <div>
 
           <h2 className="text-xl font-bold text-gray-800">
-            Today's Appointments
+            Today&apos;s Appointments
           </h2>
 
           <p className="text-gray-500 mt-1">

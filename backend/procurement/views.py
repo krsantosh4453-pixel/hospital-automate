@@ -1,6 +1,9 @@
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404
 
 from hospital.models import Hospital
 
@@ -12,7 +15,6 @@ from .models import (
     GoodsReceiptItem,
     StockTransaction,
 )
-from .permissions import IsProcurementWriteAuthenticated
 from .serializers import (
     SupplierSerializer,
     PurchaseOrderSerializer,
@@ -21,66 +23,157 @@ from .serializers import (
     GoodsReceiptItemSerializer,
     StockTransactionSerializer,
     GoodsReceiptReceiveSerializer,
+    StockAdjustmentSerializer,
 )
-from .services import receive_purchase
+from .services import receive_purchase, adjust_stock
+from users.viewsets import HospitalScopedViewSet
+from users.permissions import (
+    IsAdmin, IsHospitalManager, IsInventoryStaff, 
+    get_user_hospital_ids, get_user_staff_profile, get_user_roles
+)
+from users.models import StaffRole
 
 
-class HospitalScopedMixin:
-    """Object-level ``?hospital=<id>`` scoping with deny-by-default.
+STOCK_ADJUST_ROLES = {StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER, StaffRole.INVENTORY_STAFF}
 
-    Reads are only ever returned for a hospital the caller explicitly
-    scopes to via ``?hospital=``. When the parameter is missing (or does
-    not resolve to a real hospital) every list is empty and every detail
-    lookup returns 404, so knowing a numeric ID alone can never expose
-    another hospital's procurement record.
 
-    Writes additionally require an authenticated user (see
-    :class:`~procurement.permissions.IsProcurementWriteAuthenticated`).
+class ReadOnlyScopePermission(BasePermission):
+    """
+    Permission for read-only viewsets that only allow safe methods.
+    All write methods (POST, PUT, PATCH, DELETE) are denied with 405.
     """
 
-    permission_classes = [IsProcurementWriteAuthenticated]
-
-    def get_scoped_hospital(self):
-        hospital_id = self.request.query_params.get("hospital")
-        if not hospital_id:
-            return None
-        return Hospital.objects.filter(pk=hospital_id).first()
-
-    def scope_queryset(self, queryset, hospital_lookup="hospital_id"):
-        """Filter ``queryset`` to the scoped hospital (deny by default)."""
-        hospital = self.get_scoped_hospital()
-        if hospital is None:
-            return queryset.none()
-        return queryset.filter(**{hospital_lookup: hospital.pk})
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        scoped = self.get_scoped_hospital()
-        if scoped is not None:
-            context["scoped_hospital"] = scoped
-        return context
+    def has_permission(self, request, view):
+        if request.method not in SAFE_METHODS:
+            return False
+        # For safe methods, delegate to RequiresHospitalScope logic
+        return RequiresHospitalScope().has_permission(request, view)
 
 
-class SupplierViewSet(HospitalScopedMixin, viewsets.ModelViewSet):
+class RequiresHospitalScope(BasePermission):
+    """
+    Permission that requires explicit hospital scoping via ?hospital= query param
+    for detail views and write operations (except list-create). List views are 
+    allowed without scoping (they return empty results via queryset filtering).
+    
+    Anonymous users are always rejected.
+    
+    For authenticated users, requires one of: Admin, HospitalManager, InventoryStaff
+    """
+
+    def has_permission(self, request, view):
+        # Check if this is a detail view (has pk in URL)
+        is_detail = view.kwargs.get("pk") is not None
+        is_write = request.method not in SAFE_METHODS
+        is_list_create = not is_detail and request.method == "POST"
+
+        # Procurement data is never public.
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Authenticated users: check role
+        staff_profile = get_user_staff_profile(request.user)
+        if not staff_profile or not staff_profile.is_active_staff:
+            return False
+
+        user_roles = get_user_roles(request.user)
+        allowed_roles = {StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER, StaffRole.INVENTORY_STAFF}
+        if not is_write:
+            # The pharmacy reads stock and purchases; only the store changes them.
+            allowed_roles |= {StaffRole.PHARMACIST, StaffRole.COMPOUNDER}
+        if not any(role in user_roles for role in allowed_roles):
+            return False
+
+        # For detail views and write operations (except list-create), require hospital param
+        if is_detail or (is_write and not is_list_create):
+            hospital_id = request.query_params.get("hospital")
+            if not hospital_id:
+                return False
+            # Check if user has access to the requested hospital
+            try:
+                hospital_id = int(hospital_id)
+            except (ValueError, TypeError):
+                return False
+            return hospital_id in get_user_hospital_ids(request.user)
+
+        # List views (safe methods) and list-create (POST to list) are allowed without explicit scoping
+        # Serializer validation will handle hospital scoping for create
+        return True
+
+
+class SupplierViewSet(HospitalScopedViewSet):
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
+    permission_classes = [RequiresHospitalScope]
 
     def get_queryset(self):
-        queryset = Supplier.objects.select_related("hospital")
-        return self.scope_queryset(queryset, "hospital_id")
+        # Anonymous users get empty queryset
+        if not self.request.user or not self.request.user.is_authenticated:
+            return Supplier.objects.none()
+        
+        # Require explicit hospital scoping via ?hospital= param
+        hospital_id = self.request.query_params.get("hospital")
+        if not hospital_id:
+            return Supplier.objects.none()
+        
+        qs = super().get_queryset()
+        qs = qs.filter(hospital_id=hospital_id)
+        return qs.select_related("hospital")
+
+    def get_object(self):
+        # For detail views, get object without hospital filter to allow proper permission checks
+        queryset = self.filter_queryset(self.get_queryset().model.objects.all())
+        pk = self.kwargs.get("pk")
+        obj = get_object_or_404(queryset, pk=pk)
+        
+        # Check if the object's hospital matches the scoped hospital (if provided)
+        scoped_hospital_id = self.request.query_params.get("hospital")
+        if scoped_hospital_id and obj.hospital_id != int(scoped_hospital_id):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Object does not belong to the selected hospital.")
+        
+        # Check object-level permissions
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
-class PurchaseOrderViewSet(HospitalScopedMixin, viewsets.ModelViewSet):
+class PurchaseOrderViewSet(HospitalScopedViewSet):
     queryset = PurchaseOrder.objects.all()
     serializer_class = PurchaseOrderSerializer
+    permission_classes = [RequiresHospitalScope]
 
     def get_queryset(self):
-        queryset = PurchaseOrder.objects.select_related(
+        # Anonymous users get empty queryset
+        if not self.request.user or not self.request.user.is_authenticated:
+            return PurchaseOrder.objects.none()
+        
+        # Require explicit hospital scoping via ?hospital= param
+        hospital_id = self.request.query_params.get("hospital")
+        if not hospital_id:
+            return PurchaseOrder.objects.none()
+        
+        qs = super().get_queryset()
+
+        qs = qs.select_related(
             "hospital",
             "supplier",
         ).prefetch_related("items__medicine")
 
-        return self.scope_queryset(queryset, "hospital_id")
+        qs = qs.filter(hospital_id=hospital_id)
+
+        return qs
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset().model.objects.all())
+        pk = self.kwargs.get("pk")
+        obj = get_object_or_404(queryset, pk=pk)
+        
+        scoped_hospital_id = self.request.query_params.get("hospital")
+        if scoped_hospital_id and obj.hospital_id != int(scoped_hospital_id):
+            raise PermissionDenied("Object does not belong to the selected hospital.")
+        
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     @action(detail=True, methods=["post"], url_path="receive")
     def receive(self, request, pk=None):
@@ -110,7 +203,7 @@ class PurchaseOrderViewSet(HospitalScopedMixin, viewsets.ModelViewSet):
         receipt = receive_purchase(
             purchase=purchase,
             payload=serializer.validated_data,
-            scoped_hospital=self.get_scoped_hospital(),
+            scoped_hospital=purchase.hospital,
         )
 
         return Response(
@@ -119,90 +212,244 @@ class PurchaseOrderViewSet(HospitalScopedMixin, viewsets.ModelViewSet):
         )
 
 
-class PurchaseItemViewSet(HospitalScopedMixin, viewsets.ModelViewSet):
+class PurchaseItemViewSet(HospitalScopedViewSet):
     queryset = PurchaseItem.objects.all()
     serializer_class = PurchaseItemSerializer
+    permission_classes = [RequiresHospitalScope]
 
     def get_queryset(self):
-        queryset = PurchaseItem.objects.select_related(
+        # Anonymous users get empty queryset
+        if not self.request.user or not self.request.user.is_authenticated:
+            return PurchaseItem.objects.none()
+        
+        # Require explicit hospital scoping via ?hospital= param
+        hospital_id = self.request.query_params.get("hospital")
+        if not hospital_id:
+            return PurchaseItem.objects.none()
+        
+        qs = super().get_queryset()
+
+        qs = qs.select_related(
             "purchase",
             "medicine",
         )
 
-        queryset = self.scope_queryset(queryset, "purchase__hospital_id")
+        qs = qs.filter(purchase__hospital_id=hospital_id)
 
         purchase_id = self.request.query_params.get("purchase")
         if purchase_id:
-            queryset = queryset.filter(purchase_id=purchase_id)
+            qs = qs.filter(purchase_id=purchase_id)
 
-        return queryset
+        return qs
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset().model.objects.all())
+        pk = self.kwargs.get("pk")
+        obj = get_object_or_404(queryset.select_related("purchase"), pk=pk)
+        
+        scoped_hospital_id = self.request.query_params.get("hospital")
+        if scoped_hospital_id and obj.purchase.hospital_id != int(scoped_hospital_id):
+            raise PermissionDenied("Object does not belong to the selected hospital.")
+        
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
-class GoodsReceiptViewSet(HospitalScopedMixin, viewsets.ReadOnlyModelViewSet):
+class GoodsReceiptViewSet(
+    viewsets.ReadOnlyModelViewSet, HospitalScopedViewSet
+):
     """GRNs are append-only: only list/retrieve are exposed."""
 
     queryset = GoodsReceipt.objects.all()
     serializer_class = GoodsReceiptSerializer
+    permission_classes = [ReadOnlyScopePermission]
+    http_method_names = ['get', 'head', 'options']
 
     def get_queryset(self):
-        queryset = GoodsReceipt.objects.select_related(
+        # Anonymous users get empty queryset
+        if not self.request.user or not self.request.user.is_authenticated:
+            return GoodsReceipt.objects.none()
+        
+        # Require explicit hospital scoping via ?hospital= param
+        hospital_id = self.request.query_params.get("hospital")
+        if not hospital_id:
+            return GoodsReceipt.objects.none()
+        
+        qs = super().get_queryset()
+
+        qs = qs.select_related(
             "hospital",
             "supplier",
             "purchase",
         ).prefetch_related("items__medicine")
 
-        queryset = self.scope_queryset(queryset, "hospital_id")
+        qs = qs.filter(hospital_id=hospital_id)
 
         purchase_id = self.request.query_params.get("purchase")
         if purchase_id:
-            queryset = queryset.filter(purchase_id=purchase_id)
+            qs = qs.filter(purchase_id=purchase_id)
 
-        return queryset
+        return qs
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset().model.objects.all())
+        pk = self.kwargs.get("pk")
+        obj = get_object_or_404(queryset, pk=pk)
+        
+        scoped_hospital_id = self.request.query_params.get("hospital")
+        if scoped_hospital_id and obj.hospital_id != int(scoped_hospital_id):
+            raise PermissionDenied("Object does not belong to the selected hospital.")
+        
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    # Explicitly disable create - GRNs are append-only via receive action
+    create = None
 
 
 class GoodsReceiptItemViewSet(
-    HospitalScopedMixin, viewsets.ReadOnlyModelViewSet
+    viewsets.ReadOnlyModelViewSet, HospitalScopedViewSet
 ):
     """Individual GRN lines are append-only: read-only access."""
 
     queryset = GoodsReceiptItem.objects.all()
     serializer_class = GoodsReceiptItemSerializer
+    permission_classes = [ReadOnlyScopePermission]
+    http_method_names = ['get', 'head', 'options']
 
     def get_queryset(self):
-        queryset = GoodsReceiptItem.objects.select_related(
+        # Anonymous users get empty queryset
+        if not self.request.user or not self.request.user.is_authenticated:
+            return GoodsReceiptItem.objects.none()
+        
+        # Require explicit hospital scoping via ?hospital= param
+        hospital_id = self.request.query_params.get("hospital")
+        if not hospital_id:
+            return GoodsReceiptItem.objects.none()
+        
+        qs = super().get_queryset()
+
+        qs = qs.select_related(
             "medicine",
             "goods_receipt",
         )
 
-        queryset = self.scope_queryset(
-            queryset, "goods_receipt__hospital_id"
-        )
+        qs = qs.filter(goods_receipt__hospital_id=hospital_id)
 
         goods_receipt_id = self.request.query_params.get("goods_receipt")
         if goods_receipt_id:
-            queryset = queryset.filter(goods_receipt_id=goods_receipt_id)
+            qs = qs.filter(goods_receipt_id=goods_receipt_id)
 
-        return queryset
+        return qs
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset().model.objects.all())
+        pk = self.kwargs.get("pk")
+        obj = get_object_or_404(queryset.select_related("goods_receipt"), pk=pk)
+        
+        scoped_hospital_id = self.request.query_params.get("hospital")
+        if scoped_hospital_id and obj.goods_receipt.hospital_id != int(scoped_hospital_id):
+            raise PermissionDenied("Object does not belong to the selected hospital.")
+        
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    # Explicitly disable create
+    create = None
 
 
 class StockTransactionViewSet(
-    HospitalScopedMixin, viewsets.ReadOnlyModelViewSet
+    viewsets.ReadOnlyModelViewSet, HospitalScopedViewSet
 ):
-    """The stock ledger is append-only: read-only access."""
+    """The stock ledger is append-only: read-only access, plus the adjust action."""
 
     queryset = StockTransaction.objects.all()
     serializer_class = StockTransactionSerializer
+    permission_classes = [ReadOnlyScopePermission]
+    # POST reaches only the adjust action: the ledger has no create route.
+    http_method_names = ['get', 'post', 'head', 'options']
 
     def get_queryset(self):
-        queryset = StockTransaction.objects.select_related(
+        # Anonymous users get empty queryset
+        if not self.request.user or not self.request.user.is_authenticated:
+            return StockTransaction.objects.none()
+        
+        # Require explicit hospital scoping via ?hospital= param
+        hospital_id = self.request.query_params.get("hospital")
+        if not hospital_id:
+            return StockTransaction.objects.none()
+        
+        qs = super().get_queryset()
+
+        qs = qs.select_related(
             "medicine",
             "hospital",
         )
 
-        queryset = self.scope_queryset(queryset, "hospital_id")
+        qs = qs.filter(hospital_id=hospital_id)
 
         medicine_id = self.request.query_params.get("medicine")
         if medicine_id:
-            queryset = queryset.filter(medicine_id=medicine_id)
+            qs = qs.filter(medicine_id=medicine_id)
 
-        return queryset
+        return qs
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset().model.objects.all())
+        pk = self.kwargs.get("pk")
+        obj = get_object_or_404(queryset, pk=pk)
+        
+        scoped_hospital_id = self.request.query_params.get("hospital")
+        if scoped_hospital_id and obj.hospital_id != int(scoped_hospital_id):
+            raise PermissionDenied("Object does not belong to the selected hospital.")
+        
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    # Explicitly disable create
+    create = None
+
+    # The ledger itself is read-only; this action is the store's one write.
+    @action(detail=False, methods=["post"], url_path="adjust", permission_classes=[RequiresHospitalScope])
+    def adjust(self, request):
+        """Manual stock adjustment (add/remove).
+
+        Body::
+            {
+              "medicine": 1,
+              "type": "add",           # "add" or "remove"
+              "quantity": 10,
+              "reason": "Stock correction",
+              "reference": "ADJ-001"   # optional
+            }
+        """
+        serializer = StockAdjustmentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        medicine = serializer.validated_data["medicine"]
+        hospital = medicine.hospital
+        # The role must be held in the medicine's own hospital, not elsewhere.
+        if not STOCK_ADJUST_ROLES & set(get_user_roles(request.user, medicine.hospital_id)):
+            raise PermissionDenied("Only this hospital's Admin, Hospital Manager or Inventory Staff can adjust its stock.")
+
+        scoped_hospital = request.query_params.get("hospital")
+        if scoped_hospital:
+            from hospital.models import Hospital
+            scoped_hospital = Hospital.objects.filter(pk=scoped_hospital).first()
+
+        try:
+            updated_medicine = adjust_stock(
+                medicine=medicine,
+                hospital=hospital,
+                payload=serializer.validated_data,
+                scoped_hospital=scoped_hospital,
+            )
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            StockTransactionSerializer(
+                updated_medicine.stock_transactions.first()
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )

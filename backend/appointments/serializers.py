@@ -26,7 +26,62 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Appointment
-        fields = "__all__"
+        fields = [
+            "id",
+            "hospital",
+            "patient",
+            "doctor",
+            "appointment_date",
+            "appointment_time",
+            "status",
+            "reason",
+            "village",
+            "contact",
+            "created_at",
+            "patient_name",
+            "doctor_name",
+            "hospital_name",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_hospital(self, value):
+        """Ensure user has access to the hospital."""
+        request = self.context.get("request")
+        if request and value:
+            from users.permissions import get_user_hospital_ids
+            user_hospital_ids = get_user_hospital_ids(request.user)
+            if value.id not in user_hospital_ids:
+                raise serializers.ValidationError(
+                    "You do not have access to this hospital."
+                )
+        return value
+
+    def validate_patient(self, value):
+        """Ensure patient belongs to the hospital."""
+        hospital_id = self.initial_data.get("hospital")
+        if hospital_id and value:
+            from hospital.models import Hospital
+            try:
+                hospital = Hospital.objects.get(pk=hospital_id)
+            except Hospital.DoesNotExist:
+                raise serializers.ValidationError({
+                    "hospital": "Invalid hospital."
+                })
+            has_membership = value.hospital_memberships.filter(
+                hospital=hospital,
+                is_active=True
+            ).exists()
+
+            has_direct_link = (
+                getattr(value, "hospital_id", None)
+                == hospital.id
+            )
+
+            if not (has_membership or has_direct_link):
+                raise serializers.ValidationError({
+                    "patient": "This patient is not registered in this hospital."
+                })
+        return value
 
     def validate(self, attrs):
         hospital = attrs.get("hospital")
@@ -34,11 +89,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
         doctor = attrs.get("doctor")
 
         if hospital and patient:
-            # A patient counts as "belonging" to the hospital either via
-            # the legacy PatientHospital membership OR the direct
-            # Patient.hospital foreign key added by the Patients module.
-            # Both are honoured so the appointment flow works with the
-            # way patients are actually created today.
             has_membership = patient.hospital_memberships.filter(
                 hospital=hospital,
                 is_active=True

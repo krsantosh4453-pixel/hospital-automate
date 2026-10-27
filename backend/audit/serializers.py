@@ -5,10 +5,28 @@ from .models import AuditLog, AIInteraction
 class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
-        fields = "__all__"
+        fields = [
+            "id",
+            "user",
+            "action",
+            "model_name",
+            "object_id",
+            "details",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
 
 
 class AIInteractionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIInteraction
-        fields = "__all__"
+        fields = [
+            "id",
+            "patient",
+            "input_text",
+            "ai_output",
+            "status",
+            "reviewed_by",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]

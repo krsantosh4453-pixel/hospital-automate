@@ -2,7 +2,25 @@ import { useEffect, useMemo, useState } from "react"
 
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
+import { FilePlus2, Hospital, PackageCheck, Pill, Plus, RefreshCw, Trash2, X } from "lucide-react"
+import {
+  Alert,
+  Button,
+  Card,
+  CardHeader,
+  ConfirmDialog,
+  EmptyState,
+  Field,
+  Input,
+  PageHeader,
+  SearchInput,
+  Select,
+  SkeletonRows,
+  StatusBadge,
+  TableWrap,
+} from "../components/ui"
 
 
 // =========================================================
@@ -86,22 +104,11 @@ const emptyForm = () => ({
   medicines: [emptyMedicine()],
 })
 
-const statusClass = (status) => {
-  switch (status) {
-    case "Dispensed":
-      return "bg-emerald-50 text-emerald-700"
-    case "Pending":
-      return "bg-amber-50 text-amber-700"
-    case "Cancelled":
-      return "bg-red-50 text-red-600"
-    default:
-      return "bg-blue-50 text-blue-700"
-  }
-}
-
-
 function Prescription() {
   const { selectedHospital } = usePatient()
+  // Doctors write prescriptions; pharmacy and nursing staff only read them.
+  const { canAdd } = useRole()
+  const canWrite = canAdd("Prescriptions")
 
   const {
     prescriptions,
@@ -133,6 +140,8 @@ function Prescription() {
   const [actionError, setActionError] = useState("")
   const [search, setSearch] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
+  const [pending, setPending] = useState(null) // { kind: 'dispense' | 'delete', record }
+  const [working, setWorking] = useState(false)
 
   const refresh = () => setReloadToken((token) => token + 1)
 
@@ -143,7 +152,7 @@ function Prescription() {
     let cancelled = false
 
     const loadOptions = async () => {
-      if (!selectedHospital) {
+      if (!selectedHospital || !canWrite) {
         setPatients([])
         setDoctors([])
         setVisits([])
@@ -191,7 +200,7 @@ function Prescription() {
     return () => {
       cancelled = true
     }
-  }, [selectedHospital, reloadToken])
+  }, [selectedHospital, reloadToken, canWrite])
 
   // ---------------------------------------------------------
   // LOAD PRESCRIPTIONS for the selected hospital
@@ -379,34 +388,22 @@ function Prescription() {
   // ---------------------------------------------------------
   // ACTIONS on an existing prescription
   // ---------------------------------------------------------
-  const handleDispense = (record) => {
+  const handleDispense = async (record) => {
     setActionError("")
 
-    const updated = dispensePrescription(record.id, selectedHospital?.id)
-
-    if (!updated) {
-      setActionError("Could not dispense this prescription.")
-      return
+    try {
+      await dispensePrescription(record.id, selectedHospital?.id)
+      setSuccessMessage(`Prescription ${record.id} marked as Dispensed.`)
+    } catch (err) {
+      setActionError(err.message || "Could not dispense this prescription.")
     }
-
-    setSuccessMessage(`Prescription ${record.id} marked as Dispensed.`)
   }
 
   const handleDelete = async (record) => {
     setActionError("")
 
     if (!record.apiId) {
-      setActionError(
-        "This record is only cached locally and cannot be deleted on the server."
-      )
-      return
-    }
-
-    const confirmed = window.confirm(
-      `Delete prescription ${record.id}? This cannot be undone.`
-    )
-
-    if (!confirmed) {
+      setActionError("This record is only cached locally and cannot be deleted on the server.")
       return
     }
 
@@ -418,465 +415,242 @@ function Prescription() {
     }
   }
 
+  const runPending = async () => {
+    if (!pending) return
+    setWorking(true)
+    if (pending.kind === "dispense") await handleDispense(pending.record)
+    else await handleDelete(pending.record)
+    setWorking(false)
+    setPending(null)
+  }
+
+  const header = (
+    <PageHeader
+      title="Prescriptions"
+      description={selectedHospital ? `Write and manage prescriptions at ${selectedHospital.name}.` : "Select a hospital to manage prescriptions."}
+      breadcrumbs={[{ label: "Home", to: "/" }, { label: "Prescriptions" }]}
+      actions={
+        <Button variant="secondary" icon={RefreshCw} onClick={refresh} disabled={!selectedHospital || loading}>
+          Refresh
+        </Button>
+      }
+    />
+  )
+
   // ---------------------------------------------------------
   // Hospital gate
   // ---------------------------------------------------------
   if (!selectedHospital) {
     return (
-      <div className="p-4 md:p-6 space-y-6 bg-slate-50 min-h-screen">
-        <Header
-          hospitalName="No hospital selected"
-          onRefresh={refresh}
-          disabled
-        />
-        <EmptyState text="Select a hospital to manage prescriptions." />
+      <div className="space-y-5">
+        {header}
+        <Card>
+          <EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header to manage prescriptions." />
+        </Card>
       </div>
     )
   }
 
+  const optionList = (options, placeholder) => [
+    <option key="" value="">{placeholder}</option>,
+    ...options.map((option) => (
+      <option key={option.value} value={option.value}>{option.label}</option>
+    )),
+  ]
+
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-slate-50 min-h-screen">
+    <div className="space-y-5">
+      {header}
 
-      {/* =========================
-          Header
-      ========================= */}
-      <Header
-        hospitalName={selectedHospital.name}
-        onRefresh={refresh}
-        disabled={loading}
-      />
-
-      {/* =========================
-          Banners
-      ========================= */}
-      {successMessage && (
-        <Banner tone="success">{successMessage}</Banner>
-      )}
-
+      {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}
       {(error || actionError) && (
-        <Banner tone="error">
+        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={refresh}>Retry</Button>}>
           {actionError || error}
-          <button
-            type="button"
-            onClick={refresh}
-            className="ml-3 underline font-semibold cursor-pointer"
-          >
-            Retry
-          </button>
-        </Banner>
+        </Alert>
       )}
-
       {usingFallback && !error && (
-        <Banner tone="info">
-          Showing cached prescriptions — the server is currently unreachable.
-        </Banner>
+        <Alert tone="warning" title="Server unreachable">
+          The list below may be out of date. Changes cannot be saved until the server reconnects.
+        </Alert>
       )}
 
-      {/* =========================
-          Create form
-      ========================= */}
-      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <h2 className="text-lg font-bold text-slate-800 mb-1">
-          New Prescription
-        </h2>
-        <p className="text-xs text-slate-500 mb-4">
-          Patient → Visit → Doctor → Medicines. Everything is saved to the
-          Django backend.
-        </p>
+      <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,34rem)_minmax(0,1fr)]">
+        {/* New prescription */}
+        {canWrite && (
+        <Card as="form" onSubmit={handleSubmit} className="self-start" noValidate>
+          <CardHeader icon={FilePlus2} title="New prescription" description="Patient, visit and doctor, then one row per medicine." />
+          <div className="space-y-5 px-5 py-4">
+            {formError && <Alert tone="danger" title="Not saved">{formError}</Alert>}
 
-        {formError && (
-          <div className="mb-4 rounded-xl bg-red-50 text-red-600 text-sm px-4 py-2">
-            {formError}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <FieldSelect
-              label="Patient *"
-              value={form.patientId}
-              onChange={(value) => setField("patientId", value)}
-              options={patients}
-              placeholder={
-                loadingOptions ? "Loading…" : "Select patient"
-              }
-            />
-
-            <FieldSelect
-              label="Visit"
-              value={form.visitId}
-              onChange={handleVisitChange}
-              options={visits}
-              placeholder={
-                loadingOptions ? "Loading…" : "Select visit (optional)"
-              }
-            />
-
-            <FieldSelect
-              label="Doctor"
-              value={form.doctorId}
-              onChange={(value) => setField("doctorId", value)}
-              options={doctors}
-              placeholder={
-                loadingOptions ? "Loading…" : "Select doctor (optional)"
-              }
-            />
-
-            <FieldSelect
-              label="Status"
-              value={form.status}
-              onChange={(value) => setField("status", value)}
-              options={PRESCRIPTION_STATUSES.map((status) => ({
-                value: status,
-                label: status,
-              }))}
-            />
-          </div>
-
-          {/* Medicines */}
-          <div className="border-t border-slate-100 pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-700">
-                Medicines
-              </h3>
-              <button
-                type="button"
-                onClick={addMedicineRow}
-                className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-medium cursor-pointer"
-              >
-                + Add Medicine
-              </button>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Patient" required>
+                <Select value={form.patientId} onChange={(e) => setField("patientId", e.target.value)}>
+                  {optionList(patients, loadingOptions ? "Loading…" : "Select patient")}
+                </Select>
+              </Field>
+              <Field label="Visit" hint="Optional; selects its patient">
+                <Select value={form.visitId} onChange={(e) => handleVisitChange(e.target.value)}>
+                  {optionList(visits, loadingOptions ? "Loading…" : "No visit")}
+                </Select>
+              </Field>
+              <Field label="Doctor">
+                <Select value={form.doctorId} onChange={(e) => setField("doctorId", e.target.value)}>
+                  {optionList(doctors, loadingOptions ? "Loading…" : "Not specified")}
+                </Select>
+              </Field>
+              <Field label="Status">
+                <Select value={form.status} onChange={(e) => setField("status", e.target.value)}>
+                  {PRESCRIPTION_STATUSES.map((status) => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </Select>
+              </Field>
             </div>
 
-            <div className="space-y-3">
+            <fieldset className="space-y-3">
+              <legend className="mb-2 flex w-full items-center justify-between text-sm font-semibold text-ink-900">
+                Medicines
+                <span className="text-xs font-normal text-ink-500">{form.medicines.length} item{form.medicines.length === 1 ? "" : "s"}</span>
+              </legend>
               {form.medicines.map((medicine, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end bg-slate-50 rounded-xl p-3"
-                >
-                  <Field
-                    label="Name *"
-                    value={medicine.name}
-                    onChange={(value) =>
-                      setMedicineField(index, "name", value)
-                    }
-                    placeholder="e.g. Paracetamol 500mg"
-                    className="md:col-span-2"
-                  />
-
-                  <Field
-                    label="Dosage"
-                    value={medicine.dosage}
-                    onChange={(value) =>
-                      setMedicineField(index, "dosage", value)
-                    }
-                    placeholder="500 mg"
-                  />
-
-                  <Field
-                    label="Frequency"
-                    value={medicine.frequency}
-                    onChange={(value) =>
-                      setMedicineField(index, "frequency", value)
-                    }
-                    placeholder="1-0-1"
-                  />
-
-                  <Field
-                    label="Duration"
-                    value={medicine.duration}
-                    onChange={(value) =>
-                      setMedicineField(index, "duration", value)
-                    }
-                    placeholder="5 days"
-                  />
-
-                  <div className="flex gap-2 items-end">
-                    <Field
-                      label="Qty *"
-                      type="number"
-                      value={medicine.quantity}
-                      onChange={(value) =>
-                        setMedicineField(index, "quantity", value)
-                      }
-                      className="w-20"
-                    />
-
-                    <button
-                      type="button"
+                <div key={index} className="rounded-xl border border-line bg-ink-50/60 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-ink-500">Medicine {index + 1}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      icon={X}
                       onClick={() => removeMedicineRow(index)}
                       disabled={form.medicines.length === 1}
-                      className="mb-0.5 px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      aria-label={`Remove medicine ${index + 1}`}
                       title="Remove medicine"
-                    >
-                      ✕
-                    </button>
+                    />
                   </div>
-
-                  <Field
-                    label="Instructions"
-                    value={medicine.instructions}
-                    onChange={(value) =>
-                      setMedicineField(index, "instructions", value)
-                    }
-                    placeholder="After food"
-                    className="md:col-span-6"
-                  />
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+                    <Field label="Name" required className="col-span-2 sm:col-span-4">
+                      <Input value={medicine.name} onChange={(e) => setMedicineField(index, "name", e.target.value)} placeholder="Drug and strength" />
+                    </Field>
+                    <Field label="Qty" required className="sm:col-span-2">
+                      <Input type="number" min="1" inputMode="numeric" value={medicine.quantity} onChange={(e) => setMedicineField(index, "quantity", e.target.value)} />
+                    </Field>
+                    <Field label="Dosage" className="sm:col-span-2">
+                      <Input value={medicine.dosage} onChange={(e) => setMedicineField(index, "dosage", e.target.value)} placeholder="500 mg" />
+                    </Field>
+                    <Field label="Frequency" className="sm:col-span-2">
+                      <Input value={medicine.frequency} onChange={(e) => setMedicineField(index, "frequency", e.target.value)} placeholder="1-0-1" />
+                    </Field>
+                    <Field label="Duration" className="col-span-2 sm:col-span-2">
+                      <Input value={medicine.duration} onChange={(e) => setMedicineField(index, "duration", e.target.value)} placeholder="5 days" />
+                    </Field>
+                    <Field label="Instructions" className="col-span-2 sm:col-span-6">
+                      <Input value={medicine.instructions} onChange={(e) => setMedicineField(index, "instructions", e.target.value)} placeholder="After food" />
+                    </Field>
+                  </div>
                 </div>
               ))}
+              <Button variant="subtle" size="sm" icon={Plus} onClick={addMedicineRow}>
+                Add medicine
+              </Button>
+            </fieldset>
+
+            <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
+              <p className="text-xs text-ink-500">There is no automatic drug-interaction check; review the full list before saving.</p>
+              <Button type="submit" loading={saving}>Save prescription</Button>
             </div>
           </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? "Saving…" : "Save Prescription"}
-            </button>
-          </div>
-        </form>
-
-        {/* Additive note — the AI Assisted Prescription card is intentionally
-            kept on the Doctors screen untouched. */}
-        <div className="mt-4 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
-          <p className="text-xs text-slate-500">
-            AI Assisted Prescription remains available on the Doctors screen and
-            is unchanged. Automated AI suggestions are planned as a separate
-            task.
-          </p>
-        </div>
-      </section>
-
-      {/* =========================
-          Existing prescriptions
-      ========================= */}
-      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <h2 className="text-lg font-bold text-slate-800">
-            Prescriptions ({filteredPrescriptions.length})
-          </h2>
-
-          <input
-            type="text"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by ID, patient, doctor…"
-            className="w-full md:w-72 border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {loading && (
-          <p className="text-sm text-slate-500 py-6 text-center">
-            Loading prescriptions…
-          </p>
+        </Card>
         )}
 
-        {!loading && filteredPrescriptions.length === 0 && (
-          <EmptyState
-            text={
-              search
-                ? "No prescriptions match your search."
-                : "No prescriptions for this hospital yet."
-            }
+        {/* Existing prescriptions */}
+        <Card className="self-start overflow-hidden">
+          <CardHeader
+            icon={Pill}
+            title="Prescriptions"
+            description={`${filteredPrescriptions.length} shown`}
+            actions={<SearchInput value={search} onChange={setSearch} placeholder="ID, patient, doctor, status" label="Search prescriptions" className="w-full sm:w-64" />}
           />
-        )}
-
-        <div className="space-y-4">
-          {!loading &&
-            filteredPrescriptions.map((record) => (
-              <article
-                key={record.apiId || record.id}
-                className="border border-slate-200 rounded-2xl p-4"
-              >
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-slate-800">
-                        {record.id}
-                      </h3>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass(
-                          record.status
-                        )}`}
-                      >
-                        {record.status}
-                      </span>
+          {loading ? (
+            <SkeletonRows rows={4} />
+          ) : filteredPrescriptions.length === 0 ? (
+            <EmptyState
+              icon={Pill}
+              title={search ? "No prescriptions match your search" : "No prescriptions yet"}
+              description={search ? undefined : "Saved prescriptions for this hospital appear here."}
+            />
+          ) : (
+            <ul className="divide-y divide-line">
+              {filteredPrescriptions.map((record) => (
+                <li key={record.apiId || record.id} className="px-5 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-ink-900 tabular-nums">{record.id}</p>
+                        <StatusBadge status={record.status} />
+                      </div>
+                      <p className="mt-0.5 text-[13px] text-ink-500">
+                        {record.patientName || "Unknown patient"} · {record.doctor || "No doctor"} · {formatDate(record.createdAt)}
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Patient: {record.patientName || "—"} · Doctor:{" "}
-                      {record.doctor || "—"} · Date:{" "}
-                      {formatDate(record.createdAt)}
-                    </p>
+                    <div className="flex gap-1.5">
+                      {record.status !== "Dispensed" && (
+                        <Button size="sm" variant="subtle" icon={PackageCheck} onClick={() => setPending({ kind: "dispense", record })}>
+                          Dispense
+                        </Button>
+                      )}
+                      {record.apiId && (
+                        <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => setPending({ kind: "delete", record })} aria-label={`Delete prescription ${record.id}`} title="Delete" />
+                      )}
+                    </div>
                   </div>
-
-                  <div className="flex gap-2">
-                    {record.status !== "Dispensed" && (
-                      <button
-                        type="button"
-                        onClick={() => handleDispense(record)}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium cursor-pointer"
-                      >
-                        Dispense
-                      </button>
-                    )}
-
-                    {record.apiId && (
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(record)}
-                        className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs font-medium cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {(record.medicines || []).length > 0 && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                          <th className="py-1 pr-4">Medicine</th>
-                          <th className="py-1 pr-4">Dosage</th>
-                          <th className="py-1 pr-4">Frequency</th>
-                          <th className="py-1 pr-4">Duration</th>
-                          <th className="py-1 pr-4">Qty</th>
-                          <th className="py-1">Instructions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {record.medicines.map((medicine, index) => (
-                          <tr
-                            key={medicine.id || index}
-                            className="border-t border-slate-100 text-slate-700"
-                          >
-                            <td className="py-1.5 pr-4 font-medium">
-                              {medicine.name}
-                            </td>
-                            <td className="py-1.5 pr-4">
-                              {medicine.dosage || "—"}
-                            </td>
-                            <td className="py-1.5 pr-4">
-                              {medicine.frequency || "—"}
-                            </td>
-                            <td className="py-1.5 pr-4">
-                              {medicine.duration || "—"}
-                            </td>
-                            <td className="py-1.5 pr-4">
-                              {medicine.quantity}
-                            </td>
-                            <td className="py-1.5">
-                              {medicine.instructions || "—"}
-                            </td>
+                  {(record.medicines || []).length > 0 && (
+                    <TableWrap className="mt-3 rounded-lg border border-line">
+                      <table className="hms-table text-[13px]">
+                        <thead>
+                          <tr>
+                            <th scope="col">Medicine</th>
+                            <th scope="col">Dosage</th>
+                            <th scope="col">Frequency</th>
+                            <th scope="col">Duration</th>
+                            <th scope="col" className="num">Qty</th>
+                            <th scope="col">Instructions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </article>
-            ))}
-        </div>
-      </section>
-    </div>
-  )
-}
-
-
-// =========================================================
-// PRESENTATIONAL HELPERS
-// =========================================================
-
-function Header({ hospitalName, onRefresh, disabled }) {
-  return (
-    <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">
-          Prescription
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Create and manage prescriptions ·{" "}
-          <span className="font-semibold text-blue-600">
-            {hospitalName}
-          </span>
-        </p>
+                        </thead>
+                        <tbody>
+                          {record.medicines.map((medicine, index) => (
+                            <tr key={medicine.id || index}>
+                              <td className="font-medium text-ink-900">{medicine.name}</td>
+                              <td>{medicine.dosage || "—"}</td>
+                              <td className="tabular-nums">{medicine.frequency || "—"}</td>
+                              <td>{medicine.duration || "—"}</td>
+                              <td className="num">{medicine.quantity}</td>
+                              <td className="text-ink-600">{medicine.instructions || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </TableWrap>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
 
-      <button
-        type="button"
-        onClick={onRefresh}
-        disabled={disabled}
-        className="px-4 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-sm font-medium text-slate-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        ⟳ Refresh
-      </button>
-    </header>
-  )
-}
-
-function Banner({ tone = "info", children }) {
-  const tones = {
-    success: "bg-emerald-50 text-emerald-700",
-    error: "bg-red-50 text-red-600",
-    info: "bg-amber-50 text-amber-700",
-  }
-
-  return (
-    <div
-      className={`rounded-xl px-4 py-2 text-sm ${tones[tone] || tones.info}`}
-    >
-      {children}
-    </div>
-  )
-}
-
-function Field({ label, value, onChange, type = "text", placeholder, className = "" }) {
-  return (
-    <div className={className}>
-      <label className="block text-xs font-semibold text-slate-500 mb-1">
-        {label}
-      </label>
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+      <ConfirmDialog
+        open={Boolean(pending)}
+        onCancel={() => setPending(null)}
+        onConfirm={runPending}
+        loading={working}
+        destructive={pending?.kind === "delete"}
+        title={pending?.kind === "delete" ? "Delete prescription?" : "Mark as dispensed?"}
+        confirmLabel={pending?.kind === "delete" ? "Delete" : "Mark dispensed"}
+        message={
+          pending?.kind === "delete"
+            ? `Prescription ${pending?.record.id} for ${pending?.record.patientName || "this patient"} will be deleted. This cannot be undone.`
+            : `Confirm that every medicine on prescription ${pending?.record.id} has been handed to ${pending?.record.patientName || "the patient"}.`
+        }
       />
-    </div>
-  )
-}
-
-function FieldSelect({ label, value, onChange, options, placeholder }) {
-  return (
-    <div>
-      <label className="block text-xs font-semibold text-slate-500 mb-1">
-        {label}
-      </label>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-      >
-        <option value="">{placeholder || "Select…"}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
-function EmptyState({ text }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-      <p className="text-sm text-slate-500">{text}</p>
     </div>
   )
 }

@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
+import { withoutDemoRows } from "../../utils/demoData.js"
 
 const AppointmentContext = createContext(null)
 
@@ -7,43 +8,17 @@ export function AppointmentProvider({ children }) {
     const saved = localStorage.getItem("hospitalAppointments")
 
     return saved
-      ? JSON.parse(saved)
-      : [
-        {
-          id: "A001",
-          patient: "Rahul Kumar",
-          doctor: "Dr. Sharma",
-          date: "01 Sep 2026",
-          time: "10:30 AM",
-          reason: "General Checkup",
-          status: "Confirmed",
-          tokenNumber: "T-001",
-          hospitalId: 1,
-        },
-        {
-          id: "A002",
-          patient: "Priya Singh",
-          doctor: "Dr. Verma",
-          date: "01 Sep 2026",
-          time: "11:00 AM",
-          reason: "Cardiology",
-          status: "Waiting",
-          tokenNumber: "T-002",
-          hospitalId: 1,
-        },
-        {
-          id: "A003",
-          patient: "Amit Kumar",
-          doctor: "Dr. Singh",
-          date: "01 Sep 2026",
-          time: "11:30 AM",
-          reason: "Follow-up",
-          status: "Completed",
-          tokenNumber: "T-001",
-          hospitalId: 2,
-        },
-      ]
+      ? withoutDemoRows(JSON.parse(saved), "appointments")
+      : []
   })
+
+  // Signing out (or an expired session) drops appointments held in memory;
+  // services/api.js clears the localStorage copy.
+  useEffect(() => {
+    const forgetAppointments = () => setAppointments([])
+    window.addEventListener("auth:logout", forgetAppointments)
+    return () => window.removeEventListener("auth:logout", forgetAppointments)
+  }, [])
 
 
   // =========================

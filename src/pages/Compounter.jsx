@@ -1,7 +1,16 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect, useId } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import api from "../services/api.js"
+import { ChartColumnIcon, ClipboardListIcon, DropletIcon, HeartPulseIcon, HospitalIcon, HouseIcon, NotebookPenIcon, PillIcon, StethoscopeIcon, UserIcon, UsersIcon, WalletIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
+import { Alert, Button, Card, CardHeader, EmptyState, Modal as UiModal, PageHeader as UiPageHeader, Tabs } from "../components/ui"
+import { UserPlus as UserPlusIcon } from "lucide-react"
+import { useConfirm } from "../components/ui"
 
 function Compounder() {
+  const toast = useToast()
+  const [confirm, confirmDialog] = useConfirm()
+
   const { selectedHospital } = usePatient()
 
   // =====================================================
@@ -31,365 +40,80 @@ function Compounder() {
   // =====================================================
 
   const [compounders, setCompounders] =
-    useState([
-      {
-        id: "C001",
-        hospitalId: 1,
-        name: "Rakesh Kumar",
-        department: "General Medicine",
-        shift: "Morning",
-        phone: "9876543210",
-        email: "rakesh@example.com",
-        qualification:
-          "Diploma in Pharmacy",
-        joiningDate: "10 Jan 2025",
-        status: "On Duty",
-      },
-      {
-        id: "C002",
-        hospitalId: 1,
-        name: "Amit Kumar",
-        department: "Emergency",
-        shift: "Evening",
-        phone: "9876543211",
-        email: "amit@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "15 Mar 2025",
-        status: "On Duty",
-      },
-      {
-        id: "C003",
-        hospitalId: 1,
-        name: "Sanjay Singh",
-        department: "Pharmacy",
-        shift: "Night",
-        phone: "9876543212",
-        email: "sanjay@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "20 Apr 2025",
-        status: "Off Duty",
-      },
-      {
-        id: "C004",
-        hospitalId: 2,
-        name: "Rajesh Kumar",
-        department: "General Medicine",
-        shift: "Morning",
-        phone: "9876543213",
-        email: "rajesh@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "02 Feb 2025",
-        status: "On Duty",
-      },
-      {
-        id: "C005",
-        hospitalId: 2,
-        name: "Manoj Singh",
-        department: "Emergency",
-        shift: "Evening",
-        phone: "9876543214",
-        email: "manoj@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "18 May 2025",
-        status: "On Duty",
-      },
-      {
-        id: "C006",
-        hospitalId: 2,
-        name: "Vikash Kumar",
-        department: "Pharmacy",
-        shift: "Night",
-        phone: "9876543215",
-        email: "vikash@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "05 Jun 2025",
-        status: "Off Duty",
-      },
-      {
-        id: "C007",
-        hospitalId: 3,
-        name: "Deepak Kumar",
-        department: "General Medicine",
-        shift: "Morning",
-        phone: "9876543216",
-        email: "deepak@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "12 Jul 2025",
-        status: "On Duty",
-      },
-      {
-        id: "C008",
-        hospitalId: 3,
-        name: "Pankaj Singh",
-        department: "Emergency",
-        shift: "Evening",
-        phone: "9876543217",
-        email: "pankaj@example.com",
-        qualification: "D.Pharm",
-        joiningDate: "22 Aug 2025",
-        status: "Off Duty",
-      },
-    ])
+    useState([])
+
+  useEffect(() => {
+    if (!selectedHospital?.id) return
+    let cancelled = false
+    api.compounder
+      .list(selectedHospital.id)
+      .then((data) => {
+        const results = Array.isArray(data) ? data : data?.results || []
+        if (cancelled || results.length === 0) return
+        setCompounders(
+          results.map((item) => ({
+            id: item.id,
+            hospitalId: item.hospital || selectedHospital.id,
+            name: item.name,
+            department: item.department || item.qualification || "Pharmacy",
+            shift: item.shift || "Morning",
+            phone: item.phone || "",
+            email: item.email || "",
+            qualification: item.qualification || "",
+            joiningDate: item.joining_date || item.joiningDate || "",
+            status: item.status || "On Duty",
+          }))
+        )
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [selectedHospital])
 
   // =====================================================
   // PATIENTS
   // =====================================================
 
-  const [patients] = useState([
-    {
-      id: "P001",
-      hospitalId: 1,
-      name: "Rahul Kumar",
-      age: 42,
-      gender: "Male",
-      department: "General Medicine",
-      doctor: "Dr. Sharma",
-      ward: "Ward A",
-      bed: "A-12",
-      status: "Admitted",
-    },
-    {
-      id: "P002",
-      hospitalId: 1,
-      name: "Priya Singh",
-      age: 35,
-      gender: "Female",
-      department: "Cardiology",
-      doctor: "Dr. Kumar",
-      ward: "Ward B",
-      bed: "B-08",
-      status: "Admitted",
-    },
-    {
-      id: "P003",
-      hospitalId: 1,
-      name: "Amit Kumar",
-      age: 51,
-      gender: "Male",
-      department: "Emergency",
-      doctor: "Dr. Singh",
-      ward: "Emergency",
-      bed: "E-04",
-      status: "Critical",
-    },
-    {
-      id: "P004",
-      hospitalId: 2,
-      name: "Ravi Kumar",
-      age: 29,
-      gender: "Male",
-      department: "General Medicine",
-      doctor: "Dr. Verma",
-      ward: "Ward A",
-      bed: "A-05",
-      status: "Admitted",
-    },
-    {
-      id: "P005",
-      hospitalId: 2,
-      name: "Neha Kumari",
-      age: 46,
-      gender: "Female",
-      department: "ICU",
-      doctor: "Dr. Gupta",
-      ward: "ICU",
-      bed: "ICU-02",
-      status: "Critical",
-    },
-    {
-      id: "P006",
-      hospitalId: 3,
-      name: "Sanjay Singh",
-      age: 38,
-      gender: "Male",
-      department: "Orthopedics",
-      doctor: "Dr. Patel",
-      ward: "Ward C",
-      bed: "C-11",
-      status: "Admitted",
-    },
-  ])
+  const [patients] = useState([])
 
   // =====================================================
   // VITALS
   // =====================================================
 
-  const [vitals, setVitals] = useState([
-    {
-      id: "V001",
-      hospitalId: 1,
-      patientId: "P001",
-      temperature: "98.6",
-      bp: "120/80",
-      pulse: "76",
-      spo2: "98",
-      respiratoryRate: "16",
-      recordedBy: "Rakesh Kumar",
-      time: "10:20 AM",
-    },
-    {
-      id: "V002",
-      hospitalId: 1,
-      patientId: "P002",
-      temperature: "99.1",
-      bp: "128/84",
-      pulse: "82",
-      spo2: "97",
-      respiratoryRate: "18",
-      recordedBy: "Amit Kumar",
-      time: "10:35 AM",
-    },
-    {
-      id: "V003",
-      hospitalId: 1,
-      patientId: "P003",
-      temperature: "101.2",
-      bp: "145/90",
-      pulse: "104",
-      spo2: "91",
-      respiratoryRate: "22",
-      recordedBy: "Rakesh Kumar",
-      time: "10:45 AM",
-    },
-  ])
+  const [vitals, setVitals] = useState([])
 
   // =====================================================
   // ASSESSMENTS
   // =====================================================
 
   const [assessments, setAssessments] =
-    useState([
-      {
-        id: "AS001",
-        hospitalId: 1,
-        patientId: "P001",
-        assessment:
-          "Patient stable. No acute distress.",
-        createdBy: "Rakesh Kumar",
-        date: "02 Sep 2026",
-      },
-      {
-        id: "AS002",
-        hospitalId: 1,
-        patientId: "P002",
-        assessment:
-          "Patient reports mild discomfort.",
-        createdBy: "Amit Kumar",
-        date: "02 Sep 2026",
-      },
-    ])
+    useState([])
 
   // =====================================================
   // NOTES
   // =====================================================
 
-  const [notes, setNotes] = useState([
-    {
-      id: "NOTE001",
-      hospitalId: 1,
-      patientId: "P001",
-      text: "Patient resting comfortably.",
-      createdBy: "Rakesh Kumar",
-      date: "02 Sep 2026",
-    },
-  ])
+  const [notes, setNotes] = useState([])
 
   // =====================================================
   // ORDERS
   // =====================================================
 
-  const [orders] = useState([
-    {
-      id: "ORD001",
-      hospitalId: 1,
-      patientId: "P001",
-      order: "CBC Blood Test",
-      doctor: "Dr. Sharma",
-      status: "Pending",
-    },
-    {
-      id: "ORD002",
-      hospitalId: 1,
-      patientId: "P002",
-      order: "ECG",
-      doctor: "Dr. Kumar",
-      status: "Completed",
-    },
-    {
-      id: "ORD003",
-      hospitalId: 1,
-      patientId: "P003",
-      order: "Emergency Medicine",
-      doctor: "Dr. Singh",
-      status: "Pending",
-    },
-  ])
+  const [orders] = useState([])
 
   // =====================================================
   // MEDICINE / MAR
   // =====================================================
 
-  const [medicines, setMedicines] = useState([
-    {
-      id: "MED001",
-      hospitalId: 1,
-      patientId: "P001",
-      medicine: "Medicine A",
-      dose: "500 mg",
-      route: "Oral",
-      frequency: "1-0-1",
-      quantity: 10,
-      status: "Pending",
-    },
-    {
-      id: "MED002",
-      hospitalId: 1,
-      patientId: "P001",
-      medicine: "Medicine B",
-      dose: "10 mg",
-      route: "Oral",
-      frequency: "0-0-1",
-      quantity: 5,
-      status: "Pending",
-    },
-    {
-      id: "MED003",
-      hospitalId: 1,
-      patientId: "P003",
-      medicine: "Emergency Medicine",
-      dose: "1 dose",
-      route: "IV",
-      frequency: "STAT",
-      quantity: 1,
-      status: "Pending",
-    },
-  ])
+  const [medicines, setMedicines] = useState([])
 
   // =====================================================
   // BLOOD
   // =====================================================
 
   const [bloodRequests, setBloodRequests] =
-    useState([
-      {
-        id: "BL001",
-        hospitalId: 1,
-        patientId: "P003",
-        bloodGroup: "B+",
-        units: 2,
-        urgency: "Urgent",
-        status: "Requested",
-      },
-      {
-        id: "BL002",
-        hospitalId: 1,
-        patientId: "P002",
-        bloodGroup: "O+",
-        units: 1,
-        urgency: "Normal",
-        status: "Available",
-      },
-    ])
+    useState([])
 
   // =====================================================
   // DISCHARGE
@@ -401,22 +125,7 @@ function Compounder() {
   // BILLING
   // =====================================================
 
-  const [billing] = useState([
-    {
-      id: "BILL001",
-      hospitalId: 1,
-      patientId: "P001",
-      amount: 4500,
-      status: "Pending",
-    },
-    {
-      id: "BILL002",
-      hospitalId: 1,
-      patientId: "P002",
-      amount: 7200,
-      status: "Paid",
-    },
-  ])
+  const [billing] = useState([])
 
   // =====================================================
   // HOSPITAL DATA
@@ -554,7 +263,7 @@ function Compounder() {
 
   const saveProfile = () => {
     setEditingProfile(false)
-    alert("Profile updated successfully.")
+    toast.success("Profile updated successfully.")
   }
 
   // =====================================================
@@ -580,21 +289,21 @@ function Compounder() {
     e.preventDefault()
 
     if (!isAdmin) {
-      alert(
+      toast.warning(
         "Only Admin can add a compounder."
       )
       return
     }
 
     if (!selectedHospital) {
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
       return
     }
 
     if (!newCompounder.name.trim()) {
-      alert(
+      toast.warning(
         "Please enter compounder name."
       )
       return
@@ -642,9 +351,9 @@ function Compounder() {
   // REMOVE COMPOUNDER - ADMIN ONLY
   // =====================================================
 
-  const removeCompounder = (compounder) => {
+  const removeCompounder = async (compounder) => {
     if (!isAdmin) {
-      alert(
+      toast.warning(
         "Only Admin can remove a compounder."
       )
       return
@@ -655,16 +364,16 @@ function Compounder() {
       compounder.hospitalId !==
       selectedHospital.id
     ) {
-      alert(
+      toast.warning(
         "You can only remove compounders from the selected hospital."
       )
       return
     }
 
     const confirmed =
-      window.confirm(
+      (await confirm(
         `Remove ${compounder.name}?`
-      )
+      ))
 
     if (!confirmed) return
 
@@ -699,7 +408,7 @@ function Compounder() {
     if (!selectedHospital) return
 
     if (!vitalForm.patientId) {
-      alert("Please select patient.")
+      toast.warning("Please select patient.")
       return
     }
 
@@ -766,7 +475,7 @@ function Compounder() {
       !noteForm.patientId ||
       !noteForm.text.trim()
     ) {
-      alert(
+      toast.warning(
         "Please select patient and enter note."
       )
       return
@@ -820,7 +529,7 @@ function Compounder() {
       !assessmentForm.patientId ||
       !assessmentForm.assessment.trim()
     ) {
-      alert(
+      toast.warning(
         "Please select patient and enter assessment."
       )
       return
@@ -864,7 +573,7 @@ function Compounder() {
       medicine.hospitalId !==
       selectedHospital.id
     ) {
-      alert(
+      toast.error(
         "Invalid hospital access."
       )
       return
@@ -895,7 +604,7 @@ function Compounder() {
       item.hospitalId !==
       selectedHospital.id
     ) {
-      alert(
+      toast.error(
         "Invalid hospital access."
       )
       return
@@ -917,13 +626,13 @@ function Compounder() {
   // DISCHARGE
   // =====================================================
 
-  const dischargePatient = (patient) => {
+  const dischargePatient = async (patient) => {
     if (!selectedHospital) return
 
     const confirmed =
-      window.confirm(
+      (await confirm(
         `Start discharge process for ${patient.name}?`
-      )
+      ))
 
     if (!confirmed) return
 
@@ -945,7 +654,7 @@ function Compounder() {
       ...prev,
     ])
 
-    alert(
+    toast.success(
       "Discharge request created."
     )
   }
@@ -958,62 +667,62 @@ function Compounder() {
     {
       id: "home",
       label: "Home",
-      icon: "🏠",
+      icon: HouseIcon,
     },
     {
       id: "profile",
       label: "My Profile",
-      icon: "👤",
+      icon: UserIcon,
     },
     {
       id: "patients",
       label: "Patients",
-      icon: "🧑‍🤝‍🧑",
+      icon: UsersIcon,
     },
     {
       id: "assessment",
       label: "Assessment",
-      icon: "🩺",
+      icon: StethoscopeIcon,
     },
     {
       id: "vitals",
       label: "Vitals",
-      icon: "❤️",
+      icon: HeartPulseIcon,
     },
     {
       id: "notes",
       label: "Notes",
-      icon: "📝",
+      icon: NotebookPenIcon,
     },
     {
       id: "orders",
       label: "Orders",
-      icon: "📋",
+      icon: ClipboardListIcon,
     },
     {
       id: "mar",
       label: "Medicine / MAR",
-      icon: "💊",
+      icon: PillIcon,
     },
     {
       id: "blood",
       label: "Blood",
-      icon: "🩸",
+      icon: DropletIcon,
     },
     {
       id: "discharge",
       label: "Discharge",
-      icon: "🏥",
+      icon: HospitalIcon,
     },
     {
       id: "billing",
       label: "Billing",
-      icon: "💰",
+      icon: WalletIcon,
     },
     {
       id: "reports",
       label: "Reports",
-      icon: "📊",
+      icon: ChartColumnIcon,
     },
   ]
 
@@ -1023,25 +732,10 @@ function Compounder() {
 
   if (!selectedHospital) {
     return (
-      <div className="p-6">
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-
-          <div className="text-5xl mb-4">
-            🏥
-          </div>
-
-          <h1 className="text-2xl font-bold text-gray-800">
-            Compounder Portal
-          </h1>
-
-          <p className="text-gray-500 mt-2">
-            Please select a hospital to continue.
-          </p>
-
-        </div>
-
-      </div>
+      <>{confirmDialog}<div className="space-y-5">
+        <UiPageHeader title="Compounder" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Compounder" }]} />
+        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to open the compounder workspace." /></Card>
+      </div></>
     )
   }
 
@@ -1050,96 +744,20 @@ function Compounder() {
   // =====================================================
 
   return (
-    <div className="p-6">
+    <>{confirmDialog}<div className="space-y-5">
+      <UiPageHeader
+        title="Compounder"
+        description={`${selectedHospital.name} · signed in as ${profile.name}`}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Compounder" }]}
+        actions={isAdmin && <Button icon={UserPlusIcon} onClick={() => setShowAddCompounder(true)}>Add compounder</Button>}
+      />
 
-      {/* HEADER */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+      <Alert tone="warning" title="Most sections here are not saved">
+        The patient, vitals, notes, orders and medicine sections on this page are not connected to the hospital record yet. Record vitals and
+        notes on the Nursing page, dispense from Pharmacy, and view prescriptions on the Prescriptions page.
+      </Alert>
 
-        <div>
-
-          <h1 className="text-2xl font-bold text-gray-800">
-            Compounder Portal
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            {selectedHospital.name}
-          </p>
-
-        </div>
-
-        <div className="flex items-center gap-3">
-
-          <div className="px-4 py-2 rounded-xl bg-blue-50 border border-blue-200">
-
-            <p className="text-xs text-gray-500">
-              Logged in as
-            </p>
-
-            <p className="font-semibold text-blue-700">
-              {profile.name}
-            </p>
-
-          </div>
-
-          {/* ADMIN ONLY */}
-          {isAdmin && (
-            <button
-              onClick={() =>
-                setShowAddCompounder(
-                  true
-                )
-              }
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-medium"
-            >
-              + Add Compounder
-            </button>
-          )}
-
-        </div>
-
-      </div>
-
-
-      {/* HOSPITAL */}
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
-
-        <p className="text-sm text-gray-500">
-          Selected Hospital
-        </p>
-
-        <p className="font-semibold text-blue-700 mt-1">
-          🏥 {selectedHospital.name}
-        </p>
-
-      </div>
-
-
-      {/* TABS */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-3 mb-6 overflow-x-auto">
-
-        <div className="flex gap-2 min-w-max">
-
-          {tabs.map((tab) => (
-
-            <button
-              key={tab.id}
-              onClick={() =>
-                setActiveTab(tab.id)
-              }
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium ${activeTab === tab.id
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-                }`}
-            >
-              {tab.icon} {tab.label}
-            </button>
-
-          ))}
-
-        </div>
-
-      </div>
-
+      <Tabs tabs={tabs} value={activeTab} onChange={setActiveTab} label="Compounder sections" />
 
       {/* =================================================
           HOME
@@ -1156,7 +774,7 @@ function Compounder() {
               value={
                 hospitalPatients.length
               }
-              icon="🧑‍🤝‍🧑"
+              icon={<UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Hospital patients"
             />
 
@@ -1165,7 +783,7 @@ function Compounder() {
               value={
                 hospitalMedicines.length
               }
-              icon="💊"
+              icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Medicine records"
             />
 
@@ -1178,7 +796,7 @@ function Compounder() {
                     "Pending"
                 ).length
               }
-              icon="📋"
+              icon={<ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Orders waiting"
             />
 
@@ -1187,7 +805,7 @@ function Compounder() {
               value={
                 hospitalBlood.length
               }
-              icon="🩸"
+              icon={<DropletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Blood records"
             />
 
@@ -1311,7 +929,7 @@ function Compounder() {
           <div className="flex flex-col md:flex-row gap-6">
 
             <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center text-5xl">
-              💊
+              <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
             </div>
 
             <div className="flex-1">
@@ -1506,7 +1124,7 @@ function Compounder() {
               )
             }
             placeholder="Search patient..."
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 mb-5 outline-none focus:ring-2 focus:ring-blue-500"
+            className="hms-input w-full mb-5"
           />
 
           <div className="overflow-x-auto">
@@ -2284,7 +1902,7 @@ function Compounder() {
             value={
               hospitalPatients.length
             }
-            icon="🧑‍🤝‍🧑"
+            icon={<UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2292,7 +1910,7 @@ function Compounder() {
             value={
               hospitalVitals.length
             }
-            icon="❤️"
+            icon={<HeartPulseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2300,7 +1918,7 @@ function Compounder() {
             value={
               hospitalAssessments.length
             }
-            icon="🩺"
+            icon={<StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2308,7 +1926,7 @@ function Compounder() {
             value={
               hospitalNotes.length
             }
-            icon="📝"
+            icon={<NotebookPenIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2316,7 +1934,7 @@ function Compounder() {
             value={
               hospitalOrders.length
             }
-            icon="📋"
+            icon={<ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2324,7 +1942,7 @@ function Compounder() {
             value={
               hospitalMedicines.length
             }
-            icon="💊"
+            icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2332,7 +1950,7 @@ function Compounder() {
             value={
               hospitalBlood.length
             }
-            icon="🩸"
+            icon={<DropletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
@@ -2340,7 +1958,7 @@ function Compounder() {
             value={
               hospitalBilling.length
             }
-            icon="💰"
+            icon={<WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
         </div>
@@ -2710,7 +2328,7 @@ function Compounder() {
                   })
                 }
                 placeholder="Enter note..."
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
               />
 
             </div>
@@ -2792,7 +2410,7 @@ function Compounder() {
                   })
                 }
                 placeholder="Enter assessment..."
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
               />
 
             </div>
@@ -2810,289 +2428,86 @@ function Compounder() {
 
       )}
 
-    </div>
+    </div></>
   )
 }
 
 
 // =======================================================
-// DASHBOARD CARD
+// PRESENTATIONAL HELPERS (shared HMS styling)
 // =======================================================
 
-function DashboardCard({
-  title,
-  value,
-  icon,
-  subtitle,
-}) {
+function DashboardCard({ title, value, icon, subtitle }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-
-      <div className="flex items-center justify-between">
-
-        <div>
-
-          <p className="text-sm text-gray-500">
-            {title}
-          </p>
-
-          <p className="text-3xl font-bold text-gray-800 mt-2">
-            {value}
-          </p>
-
-          <p className="text-xs text-gray-400 mt-1">
-            {subtitle}
-          </p>
-
-        </div>
-
-        <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl">
-          {icon}
-        </div>
-
+    <div className="flex items-start gap-3.5 rounded-2xl border border-line bg-white p-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-xl text-brand-700">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-ink-500">{title}</p>
+        <p className="mt-0.5 text-2xl font-semibold leading-8 tracking-tight text-ink-900 tabular-nums">{value}</p>
+        {subtitle && <p className="mt-0.5 text-xs text-ink-500">{subtitle}</p>}
       </div>
-
     </div>
   )
 }
 
-
-// =======================================================
-// SECTION CARD
-// =======================================================
-
-function SectionCard({
-  title,
-  subtitle,
-  action,
-  children,
-}) {
+function SectionCard({ title, subtitle, action, children }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-
-      <div className="p-6 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
-        <div>
-
-          <h2 className="text-lg font-semibold text-gray-800">
-            {title}
-          </h2>
-
-          {subtitle && (
-            <p className="text-sm text-gray-500 mt-1">
-              {subtitle}
-            </p>
-          )}
-
-        </div>
-
-        {action}
-
-      </div>
-
-      <div className="p-6">
-        {children}
-      </div>
-
-    </div>
+    <Card>
+      <CardHeader title={title} description={subtitle} actions={action} />
+      <div className="px-5 py-4">{children}</div>
+    </Card>
   )
 }
 
-
-// =======================================================
-// INPUT
-// =======================================================
-
-function Input({
-  label,
-  name,
-  value,
-  onChange,
-  type = "text",
-  placeholder = "",
-  required = false,
-}) {
+function Input({ label, name, value, onChange, type = "text", placeholder = "", required = false }) {
+  const id = useId()
   return (
     <div>
-
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={id} className="hms-label">
         {label}
+        {required && <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>}
       </label>
-
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
-        className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-      />
-
+      <input id={id} type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} required={required} className="hms-input w-full" />
     </div>
   )
 }
 
-
-// =======================================================
-// SELECT
-// =======================================================
-
-function Select({
-  label,
-  value,
-  onChange,
-  options,
-  optionLabels,
-}) {
+function Select({ label, value, onChange, options, optionLabels }) {
+  const id = useId()
   return (
     <div>
-
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={id} className="hms-label">
         {label}
+        <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>
       </label>
-
-      <select
-        value={value}
-        onChange={onChange}
-        className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-        required
-      >
-
-        <option value="">
-          Select {label}
-        </option>
-
-        {options.map(
-          (option, index) => (
-
-            <option
-              key={option}
-              value={option}
-            >
-              {optionLabels
-                ? optionLabels[index]
-                : option}
-            </option>
-
-          )
-        )}
-
+      <select id={id} value={value} onChange={onChange} className="hms-input w-full" required>
+        <option value="">Select {String(label).toLowerCase()}</option>
+        {options.map((option, index) => (
+          <option key={option} value={option}>{optionLabels ? optionLabels[index] : option}</option>
+        ))}
       </select>
-
     </div>
   )
 }
 
-
-// =======================================================
-// INFO
-// =======================================================
-
-function Info({
-  label,
-  value,
-}) {
+function Info({ label, value }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-4">
-
-      <p className="text-xs text-gray-500">
-        {label}
-      </p>
-
-      <p className="font-medium text-gray-800 mt-1">
-        {value || "-"}
-      </p>
-
+    <div className="rounded-xl bg-ink-50 px-4 py-3">
+      <p className="text-xs font-medium text-ink-500">{label}</p>
+      <p className="mt-0.5 font-medium text-ink-900">{value || "—"}</p>
     </div>
   )
 }
 
-
-// =======================================================
-// REPORT CARD
-// =======================================================
-
-function ReportCard({
-  title,
-  value,
-  icon,
-}) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-
-      <div className="flex items-center justify-between">
-
-        <div>
-
-          <p className="text-sm text-gray-500">
-            {title}
-          </p>
-
-          <p className="text-3xl font-bold text-gray-800 mt-2">
-            {value}
-          </p>
-
-        </div>
-
-        <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl">
-          {icon}
-        </div>
-
-      </div>
-
-    </div>
-  )
+function ReportCard({ title, value, icon }) {
+  return <DashboardCard title={title} value={value} icon={icon} />
 }
 
-
-// =======================================================
-// MODAL
-// =======================================================
-
-function Modal({
-  title,
-  subtitle,
-  onClose,
-  children,
-}) {
+function Modal({ title, subtitle, onClose, children }) {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-
-        <div className="flex items-center justify-between px-6 py-5 border-b">
-
-          <div>
-
-            <h2 className="text-xl font-semibold text-gray-800">
-              {title}
-            </h2>
-
-            {subtitle && (
-              <p className="text-sm text-gray-500 mt-1">
-                {subtitle}
-              </p>
-            )}
-
-          </div>
-
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 text-2xl"
-          >
-            ×
-          </button>
-
-        </div>
-
-        <div className="p-6">
-          {children}
-        </div>
-
-      </div>
-
-    </div>
+    <UiModal open onClose={onClose} title={title} description={subtitle}>
+      {children}
+    </UiModal>
   )
 }
 

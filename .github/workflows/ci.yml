@@ -1,0 +1,284 @@
+# CI/CD Pipeline for Hospital Management System
+# Runs on every push and pull request
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: [master, main, develop]
+
+env:
+  DJANGO_SETTINGS_MODULE: config.settings.testing
+  PYTHON_VERSION: '3.12'
+  # Vitest 5 / jsdom need Node 22.22+.
+  NODE_VERSION: '24'
+
+jobs:
+  # ============================================================
+  # Backend Linting & Code Quality
+  # ============================================================
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Ruff
+        run: |
+          pip install ruff
+
+      # Errors that are bugs, not style: syntax errors and undefined names.
+      # The full style rule set (and black/isort) reports ~1,500 pre-existing
+      # findings across 284 files; enable it once the code is reformatted.
+      - name: Run Ruff (correctness rules)
+        run: |
+          ruff check backend/ --select E9,F63,F7,F82 --exclude 'backend/*/migrations/*'
+
+  # ============================================================
+  # Frontend Linting & Build
+  # ============================================================
+  frontend-lint:
+    name: Frontend Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: |
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          npm run lint
+        timeout-minutes: 5
+
+      - name: Run frontend tests
+        run: |
+          npm test
+
+      - name: Build production bundle
+        run: |
+          npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+          retention-days: 7
+
+  # ============================================================
+  # Backend Tests
+  # ============================================================
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: hms_test
+          POSTGRES_USER: hms_test
+          POSTGRES_PASSWORD: hms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hms_test -d hms_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements-lock.txt
+
+      # Tests use Django's runner: the suite is unittest-style (tests.py and
+      # test_*.py), and pytest without configuration would skip tests.py files.
+      - name: Run Django system checks
+        run: |
+          cd backend
+          python manage.py check
+
+      - name: Check for missing migrations
+        run: |
+          cd backend
+          python manage.py makemigrations --check --dry-run
+
+      - name: Run backend tests (SQLite)
+        run: |
+          cd backend
+          python manage.py test --noinput
+
+      - name: Run backend tests (PostgreSQL 16)
+        env:
+          TEST_DATABASE_URL: postgres://hms_test:hms_test@localhost:5432/hms_test
+        run: |
+          cd backend
+          python manage.py test --noinput
+
+  # ============================================================
+  # Security Scanning
+  # ============================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        # TODO(security): pin to a reviewed commit SHA; a moving ref can be re-pointed.
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      # Report only: Bandit has not been triaged for this codebase yet.
+      - name: Run Bandit (Python security, report only)
+        run: |
+          pip install bandit
+          bandit -r backend/ -x backend/venv -f json -o bandit-results.json || true
+
+      - name: Run pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements-lock.txt
+
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=high
+
+  # ============================================================
+  # Docker Build Test
+  # ============================================================
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    needs: [backend-lint, frontend-lint, backend-tests, security-scan]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          target: runtime
+          load: true
+          tags: hms-backend:test
+          build-args: |
+            DJANGO_SECRET_KEY=test-secret-key-for-ci-only
+            ALLOWED_HOSTS=localhost,127.0.0.1
+            CORS_ALLOWED_ORIGINS=http://localhost:5173
+            REDIS_URL=redis://localhost:6379/0
+            DATABASE_URL=postgres://user:pass@localhost:5432/db
+            EMAIL_HOST_USER=test
+            EMAIL_HOST_PASSWORD=test
+            GOOGLE_CLIENT_ID=test
+            AI_SCRIBE_API_KEY=test
+            JWT_SECRET_KEY=test-jwt-secret
+            AI_SCRIBE_ENABLED=False
+            FHIR_ENABLED=False
+            HL7_ENABLED=False
+            ABDM_ENABLED=False
+            MONITORING_ENABLED=False
+            BACKUP_ENABLED=False
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.frontend
+          target: runtime
+          load: true
+          tags: hms-frontend:test
+
+      - name: Test backend image
+        run: |
+          docker run --rm \
+            -e DJANGO_SETTINGS_MODULE=config.settings.testing \
+            hms-backend:test python manage.py check
+
+  # ============================================================
+  # Deploy to Staging (on develop branch)
+  # ============================================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [backend-lint, frontend-lint, backend-tests, security-scan, docker-build]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploy to staging environment"
+          # Add deployment steps here (kubectl, docker-compose, etc.)
+
+  # ============================================================
+  # Deploy to Production (on main branch with tag)
+  # ============================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [backend-lint, frontend-lint, backend-tests, security-scan, docker-build]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "Deploy to production environment"
+          # Add deployment steps here
+          # Requires manual approval in GitHub Environments

@@ -1,76 +1,21 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import api from "../services/api.js"
+import { CreditCardIcon, HospitalIcon, MapPinIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
+import { Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
+import { Plus as PlusIcon } from "lucide-react"
 
 function Billing() {
+  const toast = useToast()
+  const [confirm, confirmDialog] = useConfirm()
+
 
   const { selectedHospital } = usePatient()
 
-  const [bills, setBills] = useState([
-    {
-      id: "INV001",
-      patient: "Rahul Kumar",
-      patientId: "P001",
-      hospitalId: 1,
-      date: "01 Sep 2026",
-      services: [
-        { name: "Doctor Consultation", amount: 500 },
-        { name: "Complete Blood Count", amount: 350 },
-        { name: "Medicines", amount: 400 },
-      ],
-      discount: 0,
-      paid: 1250,
-      payment: "UPI",
-      status: "Paid",
-    },
-
-    {
-      id: "INV002",
-      patient: "Priya Singh",
-      patientId: "P002",
-      hospitalId: 1,
-      date: "01 Sep 2026",
-      services: [
-        { name: "Doctor Consultation", amount: 500 },
-        { name: "Blood Sugar Test", amount: 350 },
-      ],
-      discount: 0,
-      paid: 500,
-      payment: "Cash",
-      status: "Partial",
-    },
-
-    {
-      id: "INV003",
-      patient: "Amit Kumar",
-      patientId: "P003",
-      hospitalId: 2,
-      date: "01 Sep 2026",
-      services: [
-        { name: "Cardiology Consultation", amount: 1500 },
-      ],
-      discount: 0,
-      paid: 0,
-      payment: "Pending",
-      status: "Pending",
-    },
-
-    {
-      id: "INV004",
-      patient: "Ravi Sharma",
-      patientId: "P004",
-      hospitalId: 3,
-      date: "01 Sep 2026",
-      services: [
-        { name: "Doctor Consultation", amount: 700 },
-        { name: "Medicines", amount: 300 },
-      ],
-      discount: 0,
-      paid: 0,
-      payment: "Pending",
-      status: "Pending",
-    },
-  ])
-
+  const [bills, setBills] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState("")
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("All Status")
@@ -92,6 +37,73 @@ function Billing() {
     paid: "",
     payment: "Cash",
   })
+
+
+  // =========================
+  // Load bills from API
+  // =========================
+
+  useEffect(() => {
+    if (!selectedHospital) {
+      setBills([])
+      setLoadError("")
+      return
+    }
+
+    let cancelled = false
+
+    const loadBills = async () => {
+      setLoading(true)
+      setLoadError("")
+
+      try {
+        const data = await api.billing.invoices.list(selectedHospital.id)
+        const results = Array.isArray(data) ? data : data?.results || []
+
+        if (cancelled) return
+
+        // Map API data to UI format
+        const mappedBills = results.map((inv) => {
+          const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
+            (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
+          
+          const subtotal = inv.items?.reduce((sum, item) => sum + Number(item.subtotal), 0) || 0
+          
+          return {
+            id: inv.invoice_number,
+            apiId: inv.id,
+            patient: inv.patient_name || inv.patient?.name || "Unknown",
+            patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+            hospitalId: inv.hospital,
+            date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+            services: inv.items?.map((item) => ({
+              name: item.description,
+              amount: Number(item.subtotal),
+            })) || [],
+            discount: Number(inv.discount || 0),
+            paid: totalPaid,
+            payment: inv.payments?.[0]?.payment_method || "Cash",
+            status: inv.status,
+            // Keep API fields for update/delete
+            apiInvoice: inv,
+          }
+        })
+
+        setBills(mappedBills)
+      } catch (error) {
+        if (cancelled) return
+        setLoadError(error.message || "Failed to load billing data")
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    loadBills()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedHospital])
 
 
   // =========================
@@ -356,14 +368,14 @@ function Billing() {
   // Submit New Bill
   // =========================
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
 
     e.preventDefault()
 
 
     if (!selectedHospital) {
 
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
 
@@ -379,7 +391,7 @@ function Billing() {
       services.length === 0
     ) {
 
-      alert(
+      toast.warning(
         "Please enter at least one service amount."
       )
 
@@ -417,7 +429,7 @@ function Billing() {
 
     if (paid > total) {
 
-      alert(
+      toast.error(
         "Paid amount cannot be greater than total amount."
       )
 
@@ -425,56 +437,75 @@ function Billing() {
     }
 
 
-    const newBill = {
+    // Get patient from the system
+    const patientsRes = await api.patients.list(selectedHospital.id)
+    const patients = Array.isArray(patientsRes) ? patientsRes : patientsRes?.results || []
+    const patient = patients.find(p => 
+      p.name?.toLowerCase() === formData.patient?.toLowerCase() ||
+      `P${String(p.id).padStart(3, "0")}` === formData.patientId
+    )
 
-      id:
-        `INV${String(
-          bills.length + 1
-        ).padStart(3, "0")}`,
-
-      patient:
-        formData.patient,
-
-      patientId:
-        formData.patientId,
-
-      hospitalId:
-        selectedHospital.id,
-
-      date:
-        new Date().toLocaleDateString(
-          "en-IN",
-          {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }
-        ),
-
-      services,
-
-      discount,
-
-      paid,
-
-      payment:
-        formData.payment,
-
-      status:
-        getStatus(
-          total,
-          paid
-        ),
+    if (!patient) {
+      toast.error("Patient not found in this hospital. Please check the name/ID.")
+      return
     }
 
+    // Totals, tax and status are calculated by the server from these lines.
+    const payload = {
+      hospital: selectedHospital.id,
+      patient: patient.id,
+      discount: discount,
+      items_data: services.map((s) => ({
+        description: s.name,
+        quantity: 1,
+        unit_price: s.amount,
+      })),
+    }
 
-    setBills([
-      ...bills,
-      newBill,
-    ])
+    try {
+      const created = await api.billing.invoices.create(payload)
 
+      // Also create payment record if paid > 0
+      if (paid > 0) {
+        await api.billing.payments.create({
+          invoice: created.id,
+          amount: Number(paid).toFixed(2),
+          payment_method: formData.payment,
+          idempotency_key: `${created.id}-initial`,
+        })
+      }
 
-    resetForm()
+      // Reload bills
+      const data = await api.billing.invoices.list(selectedHospital.id)
+      const results = Array.isArray(data) ? data : data?.results || []
+      const mappedBills = results.map((inv) => {
+        const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
+          (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
+        
+        return {
+          id: inv.invoice_number,
+          apiId: inv.id,
+          patient: inv.patient_name || inv.patient?.name || "Unknown",
+          patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+          hospitalId: inv.hospital,
+          date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+          services: inv.items?.map((item) => ({
+            name: item.description,
+            amount: Number(item.subtotal),
+          })) || [],
+          discount: Number(inv.discount || 0),
+          paid: totalPaid,
+          payment: inv.payments?.[0]?.payment_method || "Cash",
+          status: inv.status,
+        }
+      })
+      setBills(mappedBills)
+
+      resetForm()
+      toast.success("Invoice created successfully!")
+    } catch (error) {
+      toast.error(error.message || "Failed to create invoice")
+    }
   }
 
 
@@ -574,9 +605,7 @@ function Billing() {
   // Update Bill
   // =========================
 
-  const handleUpdate = (
-    e
-  ) => {
+  const handleUpdate = async (e) => {
 
     e.preventDefault()
 
@@ -589,7 +618,7 @@ function Billing() {
       services.length === 0
     ) {
 
-      alert(
+      toast.warning(
         "Please enter at least one service amount."
       )
 
@@ -627,7 +656,7 @@ function Billing() {
 
     if (paid > total) {
 
-      alert(
+      toast.error(
         "Paid amount cannot be greater than total amount."
       )
 
@@ -635,49 +664,73 @@ function Billing() {
     }
 
 
-    const updatedBills =
-      bills.map(
-        (bill) =>
+    if (!selectedBill?.apiInvoice?.id) {
+      toast.error("Cannot update: missing server record ID")
+      return
+    }
 
-          bill.id ===
-            selectedBill.id
+    // Payments are permanent records: an edit can only add money received.
+    // Lowering the paid amount needs a refund; line items are fixed once paid.
+    const alreadyPaid = Number(selectedBill.apiInvoice.total_paid || 0)
+    const additional = Math.round((Number(paid) - alreadyPaid) * 100) / 100
+    if (additional < 0) {
+      toast.info(`₹${alreadyPaid} has already been received. To return money, record a refund instead of lowering the paid amount.`)
+      return
+    }
+    const hasPayments = alreadyPaid > 0 || (selectedBill.apiInvoice.payments || []).length > 0
 
-            ? {
+    try {
+      const payload = { discount: discount }
+      if (!hasPayments) {
+        payload.items_data = services.map((s) => ({
+          description: s.name,
+          quantity: 1,
+          unit_price: s.amount,
+        }))
+      }
 
-              ...bill,
+      await api.billing.invoices.update(selectedBill.apiInvoice.id, payload)
 
-              patient:
-                formData.patient,
+      if (additional > 0) {
+        await api.billing.payments.create({
+          invoice: selectedBill.apiInvoice.id,
+          amount: additional.toFixed(2),
+          payment_method: formData.payment,
+          idempotency_key: `${selectedBill.apiInvoice.id}-${Date.now()}`,
+        })
+      }
 
-              patientId:
-                formData.patientId,
+      // Reload bills
+      const data = await api.billing.invoices.list(selectedHospital.id)
+      const results = Array.isArray(data) ? data : data?.results || []
+      const mappedBills = results.map((inv) => {
+        const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
+          (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
+        
+        return {
+          id: inv.invoice_number,
+          apiId: inv.id,
+          patient: inv.patient_name || inv.patient?.name || "Unknown",
+          patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+          hospitalId: inv.hospital,
+          date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+          services: inv.items?.map((item) => ({
+            name: item.description,
+            amount: Number(item.subtotal),
+          })) || [],
+          discount: Number(inv.discount || 0),
+          paid: totalPaid,
+          payment: inv.payments?.[0]?.payment_method || "Cash",
+          status: inv.status,
+        }
+      })
+      setBills(mappedBills)
 
-              services,
-
-              discount,
-
-              paid,
-
-              payment:
-                formData.payment,
-
-              status:
-                getStatus(
-                  total,
-                  paid
-                ),
-            }
-
-            : bill
-      )
-
-
-    setBills(
-      updatedBills
-    )
-
-
-    resetForm()
+      resetForm()
+      toast.success("Invoice updated successfully!")
+    } catch (error) {
+      toast.error(error.message || "Failed to update invoice")
+    }
   }
 
 
@@ -685,27 +738,59 @@ function Billing() {
   // Delete
   // =========================
 
-  const handleDelete = (
+  const handleDelete = async (
     id
   ) => {
 
     const confirmed =
-      window.confirm(
+      (await confirm(
         "Are you sure you want to delete this bill?"
-      )
+      ))
 
 
     if (!confirmed) {
       return
     }
 
+    const bill = bills.find(b => b.id === id)
+    if (!bill?.apiInvoice?.id) {
+      toast.error("Cannot delete: missing server record ID")
+      return
+    }
 
-    setBills(
-      bills.filter(
-        (bill) =>
-          bill.id !== id
-      )
-    )
+    try {
+      await api.billing.invoices.delete(bill.apiInvoice.id)
+      
+      // Reload bills
+      const data = await api.billing.invoices.list(selectedHospital.id)
+      const results = Array.isArray(data) ? data : data?.results || []
+      const mappedBills = results.map((inv) => {
+        const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
+          (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
+        
+        return {
+          id: inv.invoice_number,
+          apiId: inv.id,
+          patient: inv.patient_name || inv.patient?.name || "Unknown",
+          patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+          hospitalId: inv.hospital,
+          date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
+          services: inv.items?.map((item) => ({
+            name: item.description,
+            amount: Number(item.subtotal),
+          })) || [],
+          discount: Number(inv.discount || 0),
+          paid: totalPaid,
+          payment: inv.payments?.[0]?.payment_method || "Cash",
+          status: inv.status,
+        }
+      })
+      setBills(mappedBills)
+
+      toast.success("Invoice deleted successfully!")
+    } catch (error) {
+      toast.error(error.message || "Failed to delete invoice")
+    }
   }
 
 
@@ -827,169 +912,38 @@ function Billing() {
 
   return (
 
-    <div>
+    <>{confirmDialog}<div>
 
 
       {/* =========================
           Normal Billing Page
       ========================= */}
 
-      <div className="print:hidden">
+      <div className="space-y-6 print:hidden">
 
 
-        {/* Header */}
-
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-
-          <div>
-
-            <p className="text-blue-600 font-semibold text-sm">
-              FINANCE & BILLING
-            </p>
-
-            <h1 className="text-3xl font-bold text-gray-800 mt-1">
-              Billing
-            </h1>
-
-            <p className="text-gray-500 mt-1">
-              Manage invoices, payments and hospital charges
-            </p>
-
-          </div>
-
-
-          <button
-
-            onClick={() => {
-
-              if (
-                !selectedHospital
-              ) {
-
-                alert(
-                  "Please select a hospital first."
-                )
-
-                return
-              }
-
-
-              setSelectedBill(
-                null
-              )
-
-
-              setFormData({
-
-                patient: "",
-
-                patientId: "",
-
-                consultation: "",
-
-                laboratory: "",
-
-                pharmacy: "",
-
-                other: "",
-
-                discount: "",
-
-                paid: "",
-
-                payment: "Cash",
-              })
-
-
-              setShowForm(
-                true
-              )
-            }}
-
-            className="bg-blue-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-blue-700"
-          >
-
-            + Create Bill
-
-          </button>
-
-        </div>
-
-
-        {/* =========================
-            Current Hospital
-        ========================= */}
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-
-          {selectedHospital ? (
-
-            <div className="flex items-center gap-4">
-
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-                🏥
-              </div>
-
-
-              <div>
-
-                <p className="text-xs text-gray-500">
-                  Current Hospital
-                </p>
-
-                <h2 className="font-bold text-gray-800">
-                  {selectedHospital.name}
-                </h2>
-
-                <p className="text-sm text-gray-500">
-                  📍 {selectedHospital.address}
-                </p>
-
-              </div>
-
-            </div>
-
-          ) : (
-
-            <div>
-
-              <p className="font-semibold text-orange-600">
-                ⚠️ No hospital selected
-              </p>
-
-              <p className="text-sm text-gray-500 mt-1">
-                Select a hospital from the header first.
-              </p>
-
-            </div>
-
-          )}
-
-        </div>
-
-
-        {/* =========================
-            No Hospital Selected
-        ========================= */}
+        <PageHeader
+          title="Billing"
+          description={selectedHospital ? `Invoices, payments and refunds at ${selectedHospital.name}.` : "Select a hospital from the header to view billing."}
+          breadcrumbs={[{ label: "Home", to: "/" }, { label: "Billing" }]}
+          actions={
+            selectedHospital && (
+              <Button
+                icon={PlusIcon}
+                onClick={() => {
+                  setSelectedBill(null)
+                  setFormData({ patient: "", patientId: "", consultation: "", laboratory: "", pharmacy: "", other: "", discount: "", paid: "", payment: "Cash" })
+                  setShowForm(true)
+                }}
+              >
+                Create invoice
+              </Button>
+            )
+          }
+        />
 
         {!selectedHospital ? (
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-
-            <div className="text-5xl mb-4">
-              💳
-            </div>
-
-            <h2 className="text-xl font-bold text-gray-800">
-              Select a Hospital
-            </h2>
-
-            <p className="text-gray-500 mt-2">
-              Select a hospital from the header to view billing data.
-            </p>
-
-          </div>
-
+          <Card><EmptyState icon={CreditCardIcon} title="Select a hospital" description="Choose a hospital in the header to view its invoices." /></Card>
         ) : (
 
           <>
@@ -1078,7 +1032,7 @@ function Billing() {
 
                   placeholder="Search patient, patient ID or invoice..."
 
-                  className="border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="hms-input"
 
                 />
 
@@ -1095,7 +1049,7 @@ function Billing() {
                     )
                   }
 
-                  className="border border-gray-300 rounded-xl px-4 py-3"
+                  className="hms-input"
 
                 >
 
@@ -1201,7 +1155,7 @@ function Billing() {
                         >
 
                           <div className="text-4xl mb-3">
-                            💳
+                            <CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                           </div>
 
                           No bills found for this hospital.
@@ -1498,7 +1452,7 @@ function Billing() {
 
                     placeholder="Rahul Kumar"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1529,7 +1483,7 @@ function Billing() {
 
                     placeholder="P001"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1568,7 +1522,7 @@ function Billing() {
 
                     placeholder="Doctor Consultation ₹"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1591,7 +1545,7 @@ function Billing() {
 
                     placeholder="Laboratory Charges ₹"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1614,7 +1568,7 @@ function Billing() {
 
                     placeholder="Pharmacy / Medicines ₹"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1637,7 +1591,7 @@ function Billing() {
 
                     placeholder="Other Charges ₹"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1672,7 +1626,7 @@ function Billing() {
 
                   placeholder="₹ 0"
 
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                  className="hms-input w-full"
 
                 />
 
@@ -1708,7 +1662,7 @@ function Billing() {
 
                     placeholder="₹ 0"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -1733,7 +1687,7 @@ function Billing() {
                       handleChange
                     }
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   >
 
@@ -1835,7 +1789,7 @@ function Billing() {
                     <div className="flex items-center gap-3">
 
                       <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-                        🏥
+                        <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                       </div>
 
                       <div>
@@ -2176,7 +2130,7 @@ function Billing() {
                   className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
 
                 >
-                  🖨️ Print Bill
+                  <PrinterIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Print Bill
                 </button>
 
               </div>
@@ -2188,7 +2142,7 @@ function Billing() {
 
         )}
 
-    </div>
+    </div></>
   )
 }
 

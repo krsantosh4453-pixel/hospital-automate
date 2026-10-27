@@ -1,0 +1,1 @@
+"""Consent Module - Placeholder for future implementation."""

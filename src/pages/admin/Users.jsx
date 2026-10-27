@@ -1,647 +1,328 @@
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { usePatient } from "../../assets/context/PatientContext.jsx"
+import api from "../../services/api.js"
+import { Alert, PageHeader, useConfirm } from "../../components/ui"
 
+// Roles a hospital membership can hold (users.models.StaffRole).
+const ROLES = [
+  "Admin",
+  "Hospital Manager",
+  "Doctor",
+  "Nurse",
+  "Receptionist",
+  "Pharmacist",
+  "Compounder",
+  "Lab Staff",
+  "Billing Staff",
+  "Inventory Staff",
+  "Blood Bank Staff",
+]
+
+// Staff of the selected hospital, managed through /api/users/. New staff
+// register themselves (Create Account) and are approved here; the backend
+// only lets this hospital's Admin or Hospital Manager make these changes.
 function Users() {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: "Rahul Kumar",
-      email: "rahul@gmail.com",
-      mobile: "9876543210",
-      role: "Patient",
-      hospital: "City Hospital Begusarai",
-      status: "Active",
-    },
-    {
-      id: 2,
-      name: "Dr. Sharma",
-      email: "sharma@hospital.com",
-      mobile: "9876543211",
-      role: "Doctor",
-      hospital: "City Hospital Begusarai",
-      status: "Active",
-    },
-    {
-      id: 3,
-      name: "Priya Singh",
-      email: "priya@hospital.com",
-      mobile: "9876543212",
-      role: "Nurse",
-      hospital: "Sadar Hospital Begusarai",
-      status: "Active",
-    },
-    {
-      id: 4,
-      name: "Amit Kumar",
-      email: "amit@hospital.com",
-      mobile: "9876543213",
-      role: "Compounder",
-      hospital: "Medicare Hospital Begusarai",
-      status: "Inactive",
-    },
-  ])
+  const [confirm, confirmDialog] = useConfirm()
 
+  const { selectedHospital } = usePatient()
+  const [staff, setStaff] = useState([])
+  const [pending, setPending] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
+  const [busyId, setBusyId] = useState(null)
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("All")
   const [statusFilter, setStatusFilter] = useState("All")
+  const [approveRoles, setApproveRoles] = useState({})
+  const [departments, setDepartments] = useState([])
 
-  const [showModal, setShowModal] = useState(false)
-  const [editingUser, setEditingUser] = useState(null)
+  const load = useCallback(async () => {
+    if (!selectedHospital) return
+    setLoading(true)
+    setError("")
+    try {
+      const [data, deptData] = await Promise.all([
+        api.users.list(),
+        // The staff list still loads if departments cannot be read.
+        api.departments.list(selectedHospital.id).catch(() => []),
+      ])
+      setStaff(data.staff || [])
+      setPending(data.pending || [])
+      setDepartments(Array.isArray(deptData) ? deptData : deptData?.results || [])
+    } catch (err) {
+      setStaff([])
+      setPending([])
+      setError(err.message || "Could not load staff.")
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedHospital])
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    mobile: "",
-    role: "Patient",
-    hospital: "",
-    status: "Active",
-  })
+  useEffect(() => {
+    load()
+  }, [load])
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      email: "",
-      mobile: "",
-      role: "Patient",
-      hospital: "",
-      status: "Active",
+  const run = async (userId, action, success) => {
+    setBusyId(userId)
+    setError("")
+    setNotice("")
+    try {
+      await action()
+      setNotice(success)
+      await load()
+    } catch (err) {
+      setError(err.message || "The change was not saved.")
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const changeRole = (member, role) =>
+    run(member.id, () => api.users.updateMembership(member.id, { role }), `${member.name} is now ${role}.`)
+
+  // A Receptionist or Nurse with a department sees only that department's queue.
+  const changeDepartment = (member, departmentId) => {
+    const name = departments.find((d) => String(d.id) === departmentId)?.name
+    run(
+      member.id,
+      () => api.users.updateMembership(member.id, { department: departmentId ? Number(departmentId) : null }),
+      name ? `${member.name} now works in ${name}.` : `${member.name} now works across all departments.`,
+    )
+  }
+
+  const toggleActive = async (member) => {
+    const active = !member.membership?.is_active
+    if (!active && !(await confirm(`Remove ${member.name}'s access to this hospital?`))) return
+    run(
+      member.id,
+      () => api.users.updateMembership(member.id, { is_active: active }),
+      active ? `${member.name} can sign in to this hospital again.` : `${member.name}'s access was removed.`,
+    )
+  }
+
+  const approve = (applicant) => {
+    const role = approveRoles[applicant.id] || applicant.requested_role
+    run(applicant.id, () => api.users.approve(applicant.id, { role }), `${applicant.name} approved as ${role}.`)
+  }
+
+  const filteredStaff = useMemo(() => {
+    const text = search.toLowerCase().trim()
+    return staff.filter((member) => {
+      const matchesSearch =
+        !text ||
+        [member.name, member.username, member.email, member.employee_id]
+          .filter(Boolean)
+          .some((value) => value.toLowerCase().includes(text))
+      const matchesRole = roleFilter === "All" || member.membership?.role === roleFilter
+      const isActive = Boolean(member.membership?.is_active)
+      const matchesStatus =
+        statusFilter === "All" || (statusFilter === "Active" ? isActive : !isActive)
+      return matchesSearch && matchesRole && matchesStatus
     })
+  }, [staff, search, roleFilter, statusFilter])
 
-    setEditingUser(null)
-  }
-
-  const openAddModal = () => {
-    resetForm()
-    setShowModal(true)
-  }
-
-  const openEditModal = (user) => {
-    setEditingUser(user)
-
-    setFormData({
-      name: user.name,
-      email: user.email,
-      mobile: user.mobile,
-      role: user.role,
-      hospital: user.hospital,
-      status: user.status,
-    })
-
-    setShowModal(true)
-  }
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-
-    if (!formData.name.trim()) {
-      alert("Please enter user name")
-      return
-    }
-
-    if (!formData.email.trim()) {
-      alert("Please enter email")
-      return
-    }
-
-    if (formData.mobile.length !== 10) {
-      alert("Please enter valid 10 digit mobile number")
-      return
-    }
-
-    if (editingUser) {
-      setUsers(
-        users.map((user) =>
-          user.id === editingUser.id
-            ? {
-              ...user,
-              ...formData,
-            }
-            : user
-        )
-      )
-    } else {
-      const newUser = {
-        id: Date.now(),
-        ...formData,
-      }
-
-      setUsers([newUser, ...users])
-    }
-
-    setShowModal(false)
-    resetForm()
-  }
-
-  const deleteUser = (id) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this user?"
-    )
-
-    if (!confirmDelete) return
-
-    setUsers(
-      users.filter((user) => user.id !== id)
-    )
-  }
-
-  const toggleStatus = (id) => {
-    setUsers(
-      users.map((user) =>
-        user.id === id
-          ? {
-            ...user,
-            status:
-              user.status === "Active"
-                ? "Inactive"
-                : "Active",
-          }
-          : user
-      )
-    )
-  }
-
-  const filteredUsers = users.filter((user) => {
-    const searchText = search.toLowerCase()
-
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchText) ||
-      user.email.toLowerCase().includes(searchText) ||
-      user.mobile.includes(searchText)
-
-    const matchesRole =
-      roleFilter === "All" ||
-      user.role === roleFilter
-
-    const matchesStatus =
-      statusFilter === "All" ||
-      user.status === statusFilter
-
-    return (
-      matchesSearch &&
-      matchesRole &&
-      matchesStatus
-    )
-  })
+  const activeCount = staff.filter((member) => member.membership?.is_active).length
 
   return (
-    <div className="p-6">
+    <>{confirmDialog}<div className="space-y-5">
+      <PageHeader
+        title="Users"
+        description={`Staff of ${selectedHospital?.name || "the selected hospital"}. New staff create an account and are approved here.`}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Users" }]}
+      />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      {error && <Alert tone="danger">{error}</Alert>}
+      {notice && !error && <Alert tone="success">{notice}</Alert>}
 
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">
-            Users
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Manage all hospital system users
-          </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="rounded-2xl border border-line bg-white p-5">
+          <p className="text-gray-500 text-sm">Total Staff</p>
+          <h2 className="text-3xl font-bold mt-2">{staff.length}</h2>
         </div>
-
-        <button
-          onClick={openAddModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium"
-        >
-          + Add User
-        </button>
-
+        <div className="rounded-2xl border border-line bg-white p-5">
+          <p className="text-gray-500 text-sm">Active</p>
+          <h2 className="text-3xl font-bold text-green-600 mt-2">{activeCount}</h2>
+        </div>
+        <div className="rounded-2xl border border-line bg-white p-5">
+          <p className="text-gray-500 text-sm">Awaiting Approval</p>
+          <h2 className="text-3xl font-bold text-orange-600 mt-2">{pending.length}</h2>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-sm">
-            Total Users
-          </p>
-
-          <h2 className="text-3xl font-bold mt-2">
-            {users.length}
-          </h2>
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-sm">
-            Active Users
-          </p>
-
-          <h2 className="text-3xl font-bold text-green-600 mt-2">
-            {
-              users.filter(
-                (user) => user.status === "Active"
-              ).length
-            }
-          </h2>
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-sm">
-            Doctors
-          </p>
-
-          <h2 className="text-3xl font-bold text-blue-600 mt-2">
-            {
-              users.filter(
-                (user) => user.role === "Doctor"
-              ).length
-            }
-          </h2>
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-sm">
-            Staff
-          </p>
-
-          <h2 className="text-3xl font-bold text-purple-600 mt-2">
-            {
-              users.filter(
-                (user) =>
-                  user.role === "Nurse" ||
-                  user.role === "Compounder"
-              ).length
-            }
-          </h2>
-        </div>
-
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow p-4 mb-6">
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-          <input
-            type="text"
-            placeholder="Search name, email or mobile..."
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-            className="border rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-          />
-
-          <select
-            value={roleFilter}
-            onChange={(e) =>
-              setRoleFilter(e.target.value)
-            }
-            className="border rounded-lg px-4 py-2.5"
-          >
-            <option value="All">All Roles</option>
-            <option value="Admin">Admin</option>
-            <option value="Doctor">Doctor</option>
-            <option value="Nurse">Nurse</option>
-            <option value="Compounder">Compounder</option>
-            <option value="Reception">Reception</option>
-            <option value="Patient">Patient</option>
-          </select>
-
-          <select
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(e.target.value)
-            }
-            className="border rounded-lg px-4 py-2.5"
-          >
-            <option value="All">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-
-        </div>
-
-      </div>
-
-      {/* Users Table */}
-      <div className="bg-white rounded-xl shadow overflow-x-auto">
-
-        <table className="w-full min-w-[1000px]">
-
-          <thead className="bg-gray-100">
-
-            <tr>
-              <th className="p-4 text-left">
-                User
-              </th>
-
-              <th className="p-4 text-left">
-                Mobile
-              </th>
-
-              <th className="p-4 text-left">
-                Role
-              </th>
-
-              <th className="p-4 text-left">
-                Hospital
-              </th>
-
-              <th className="p-4 text-left">
-                Status
-              </th>
-
-              <th className="p-4 text-left">
-                Actions
-              </th>
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {filteredUsers.length === 0 ? (
-
-              <tr>
-                <td
-                  colSpan="6"
-                  className="p-8 text-center text-gray-500"
-                >
-                  No users found
-                </td>
-              </tr>
-
-            ) : (
-
-              filteredUsers.map((user) => (
-
-                <tr
-                  key={user.id}
-                  className="border-t hover:bg-gray-50"
-                >
-
-                  <td className="p-4">
-
-                    <div className="font-medium text-gray-800">
-                      {user.name}
-                    </div>
-
-                    <div className="text-sm text-gray-500">
-                      {user.email}
-                    </div>
-
-                  </td>
-
-                  <td className="p-4">
-                    {user.mobile}
-                  </td>
-
-                  <td className="p-4">
-
-                    <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm">
-                      {user.role}
-                    </span>
-
-                  </td>
-
-                  <td className="p-4">
-                    {user.hospital || "—"}
-                  </td>
-
-                  <td className="p-4">
-
-                    <button
-                      onClick={() =>
-                        toggleStatus(user.id)
-                      }
-                      className={
-                        user.status === "Active"
-                          ? "text-green-600 font-medium"
-                          : "text-red-600 font-medium"
-                      }
-                    >
-                      {user.status}
-                    </button>
-
-                  </td>
-
-                  <td className="p-4">
-
-                    <button
-                      onClick={() =>
-                        openEditModal(user)
-                      }
-                      className="text-blue-600 mr-4"
-                    >
-                      Edit
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        deleteUser(user.id)
-                      }
-                      className="text-red-600"
-                    >
-                      Delete
-                    </button>
-
-                  </td>
-
+      {pending.length > 0 && (
+        <div className="bg-white rounded-xl shadow p-5 mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">Pending Registrations</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b">
+                  <th className="py-2 pr-4">Name</th>
+                  <th className="py-2 pr-4">Email / Mobile</th>
+                  <th className="py-2 pr-4">Requested Role</th>
+                  <th className="py-2 pr-4">Approve As</th>
+                  <th className="py-2"></th>
                 </tr>
-
-              ))
-
-            )}
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-      {/* Add / Edit Modal */}
-      {showModal && (
-
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-
-            <div className="p-6 border-b">
-
-              <div className="flex justify-between items-center">
-
-                <h2 className="text-xl font-bold">
-                  {editingUser
-                    ? "Edit User"
-                    : "Add User"}
-                </h2>
-
-                <button
-                  onClick={() => {
-                    setShowModal(false)
-                    resetForm()
-                  }}
-                  className="text-gray-500 text-2xl"
-                >
-                  ×
-                </button>
-
-              </div>
-
-            </div>
-
-            <form
-              onSubmit={handleSubmit}
-              className="p-6 space-y-4"
-            >
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Full Name
-                </label>
-
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
-                  placeholder="Enter full name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Email
-                </label>
-
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
-                  placeholder="Enter email"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Mobile Number
-                </label>
-
-                <input
-                  type="tel"
-                  name="mobile"
-                  value={formData.mobile}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      mobile: e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 10),
-                    })
-                  }
-                  className="w-full border rounded-lg px-4 py-2.5"
-                  placeholder="10 digit mobile number"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Role
-                </label>
-
-                <select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
-                >
-                  <option>Admin</option>
-                  <option>Doctor</option>
-                  <option>Nurse</option>
-                  <option>Compounder</option>
-                  <option>Reception</option>
-                  <option>Patient</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Hospital
-                </label>
-
-                <select
-                  name="hospital"
-                  value={formData.hospital}
-                  onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
-                >
-                  <option value="">
-                    Select Hospital
-                  </option>
-
-                  <option>
-                    City Hospital Begusarai
-                  </option>
-
-                  <option>
-                    Sadar Hospital Begusarai
-                  </option>
-
-                  <option>
-                    Medicare Hospital Begusarai
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Status
-                </label>
-
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className="w-full border rounded-lg px-4 py-2.5"
-                >
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false)
-                    resetForm()
-                  }}
-                  className="px-5 py-2.5 border rounded-lg"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-lg"
-                >
-                  {editingUser
-                    ? "Update User"
-                    : "Add User"}
-                </button>
-
-              </div>
-
-            </form>
-
+              </thead>
+              <tbody>
+                {pending.map((applicant) => (
+                  <tr key={applicant.id} className="border-b last:border-0">
+                    <td className="py-3 pr-4 font-medium text-gray-800">{applicant.name}</td>
+                    <td className="py-3 pr-4 text-gray-600">
+                      {applicant.email || "—"}
+                      <br />
+                      {applicant.phone || ""}
+                    </td>
+                    <td className="py-3 pr-4">{applicant.requested_role}</td>
+                    <td className="py-3 pr-4">
+                      <select
+                        aria-label={`Role for ${applicant.name}`}
+                        value={approveRoles[applicant.id] || applicant.requested_role}
+                        onChange={(e) => setApproveRoles({ ...approveRoles, [applicant.id]: e.target.value })}
+                        className="hms-input"
+                      >
+                        {ROLES.map((role) => (
+                          <option key={role}>{role}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="py-3 text-right">
+                      <button
+                        onClick={() => approve(applicant)}
+                        disabled={busyId === applicant.id}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50"
+                      >
+                        Approve
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-
         </div>
-
       )}
 
-    </div>
+      <div className="rounded-2xl border border-line bg-white p-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <input
+            type="text"
+            aria-label="Search staff"
+            placeholder="Search by name, username, email or employee ID"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="hms-input"
+          />
+          <select
+            aria-label="Filter by role"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="hms-input"
+          >
+            <option value="All">All Roles</option>
+            {ROLES.map((role) => (
+              <option key={role}>{role}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="hms-input"
+          >
+            <option value="All">All Status</option>
+            <option>Active</option>
+            <option>Inactive</option>
+          </select>
+        </div>
+
+        {loading ? (
+          <p className="text-gray-500 text-sm" role="status">Loading staff…</p>
+        ) : filteredStaff.length === 0 ? (
+          <p className="text-gray-500 text-sm">No staff match.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b">
+                  <th className="py-2 pr-4">Name</th>
+                  <th className="py-2 pr-4">Username</th>
+                  <th className="py-2 pr-4">Contact</th>
+                  <th className="py-2 pr-4">Role</th>
+                  <th className="py-2 pr-4">Department</th>
+                  <th className="py-2 pr-4">Status</th>
+                  <th className="py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStaff.map((member) => {
+                  const active = Boolean(member.membership?.is_active)
+                  return (
+                    <tr key={member.id} className="border-b last:border-0">
+                      <td className="py-3 pr-4 font-medium text-gray-800">
+                        {member.name}
+                        {member.employee_id && (
+                          <span className="block text-xs text-gray-400">{member.employee_id}</span>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-gray-600">{member.username}</td>
+                      <td className="py-3 pr-4 text-gray-600">
+                        {member.email || "—"}
+                        <br />
+                        {member.phone || ""}
+                      </td>
+                      <td className="py-3 pr-4">
+                        <select
+                          aria-label={`Role of ${member.name}`}
+                          value={member.membership?.role || ""}
+                          disabled={busyId === member.id}
+                          onChange={(e) => changeRole(member, e.target.value)}
+                          className="hms-input"
+                        >
+                          {ROLES.map((role) => (
+                            <option key={role}>{role}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <select
+                          aria-label={`Department of ${member.name}`}
+                          value={member.membership?.department ? String(member.membership.department) : ""}
+                          disabled={busyId === member.id}
+                          onChange={(e) => changeDepartment(member, e.target.value)}
+                          className="hms-input"
+                        >
+                          <option value="">All departments</option>
+                          {departments.map((dept) => (
+                            <option key={dept.id} value={dept.id}>{dept.name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}
+                        >
+                          {active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          onClick={() => toggleActive(member)}
+                          disabled={busyId === member.id}
+                          className={`px-4 py-2 rounded-lg text-sm disabled:opacity-50 ${active ? "bg-red-50 text-red-700 hover:bg-red-100" : "bg-green-50 text-green-700 hover:bg-green-100"}`}
+                        >
+                          {active ? "Remove Access" : "Restore Access"}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div></>
   )
 }
 

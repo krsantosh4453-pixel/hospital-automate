@@ -1,11 +1,13 @@
 from decimal import Decimal
 
 from django.test import TestCase
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from clinical.models import Prescription
 from hospital.models import Hospital
 from patients.models import Patient
+from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 
 from .models import Medicine, Sale
 
@@ -18,12 +20,35 @@ def results(response):
     return data
 
 
+User = get_user_model()
+
+
 class PharmacyAPITests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
         self.hospital_a = Hospital.objects.create(name="Hospital A")
         self.hospital_b = Hospital.objects.create(name="Hospital B")
+
+        # Create a staff user with hospital A membership
+        self.user = User.objects.create_user(
+            username="testpharmacist",
+            password="testpass123",
+            email="pharmacist@hospital.com",
+        )
+
+        self.staff_profile = StaffProfile.objects.create(
+            user=self.user,
+            role=StaffRole.PHARMACIST,
+            is_active_staff=True,
+        )
+
+        StaffHospitalMembership.objects.create(
+            staff=self.staff_profile,
+            hospital=self.hospital_a,
+            role=StaffRole.PHARMACIST,
+            is_active=True,
+        )
 
         self.patient = Patient.objects.create(
             name="Test Patient",
@@ -49,6 +74,9 @@ class PharmacyAPITests(TestCase):
             quantity=50,
             price=Decimal("6.00"),
         )
+
+        # Authenticate the client
+        self.client.force_authenticate(user=self.user)
 
     # 1. Medicine CRUD still works.
     def test_medicine_crud(self):
@@ -82,12 +110,28 @@ class PharmacyAPITests(TestCase):
         self.assertEqual(update.status_code, 200, update.data)
         self.assertEqual(update.data["quantity"], 40)
 
-        # Delete
-        delete = self.client.delete(f"/api/pharmacy/{medicine_id}/")
-        self.assertEqual(delete.status_code, 204)
-        self.assertFalse(
-            Medicine.objects.filter(pk=medicine_id).exists()
+        # Every stock change above is in the ledger.
+        from procurement.models import StockTransaction
+        kinds = list(
+            StockTransaction.objects.filter(medicine_id=medicine_id)
+            .order_by("id").values_list("transaction_type", flat=True)
         )
+        self.assertEqual(kinds, [StockTransaction.TYPE_IN, StockTransaction.TYPE_ADJUST])
+
+        # A medicine with stock history cannot be hard-deleted.
+        delete = self.client.delete(f"/api/pharmacy/{medicine_id}/")
+        self.assertEqual(delete.status_code, 400)
+        self.assertTrue(Medicine.objects.filter(pk=medicine_id).exists())
+
+        # One without history can.
+        empty = self.client.post(
+            "/api/pharmacy/",
+            {"name": "Unused", "hospital": self.hospital_a.id, "quantity": 0, "price": "1.00"},
+            format="json",
+        )
+        self.assertEqual(empty.status_code, 201, empty.data)
+        delete = self.client.delete(f"/api/pharmacy/{empty.data['id']}/")
+        self.assertEqual(delete.status_code, 204)
 
     # 2. Medicine can be filtered by hospital.
     def test_medicine_filter_by_hospital(self):

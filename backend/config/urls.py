@@ -1,22 +1,28 @@
 """
-URL configuration for config project.
+URL configuration for Hospital Management System.
+
+Includes API endpoints, admin, health checks, and API documentation.
 """
 
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
-# =========================
-# OLD APP VIEWS
-# =========================
-
+# Import existing viewsets
 from patients.views import PatientViewSet, PatientHospitalViewSet
 from doctors.views import DoctorViewSet
 from appointments.views import AppointmentViewSet
-from nurses.views import NurseViewSet
 from compounder.views import CompounderViewSet
 from pharmacy.views import MedicineViewSet, SaleViewSet
 from laboratory.views import LabTestViewSet
+
+# Import schema views
+from config.schema import SchemaAPIView, SwaggerUIView, RedocView
+
+# Import health check views
+from config.health import HealthCheckView
 
 
 # =========================
@@ -25,7 +31,7 @@ from laboratory.views import LabTestViewSet
 
 router = DefaultRouter()
 
-# Old APIs
+# Core APIs
 router.register("patients", PatientViewSet, basename="patients")
 router.register(
     "patient-hospitals",
@@ -34,7 +40,6 @@ router.register(
 )
 router.register("doctors", DoctorViewSet, basename="doctors")
 router.register("appointments", AppointmentViewSet, basename="appointments")
-router.register("nurses", NurseViewSet, basename="nurses")
 router.register("compounder", CompounderViewSet, basename="compounder")
 router.register("pharmacy", MedicineViewSet, basename="pharmacy")
 router.register(
@@ -50,17 +55,39 @@ router.register("laboratory", LabTestViewSet, basename="laboratory")
 # =========================
 
 urlpatterns = [
-    path("api/auth/", include("users.urls")),
-    # Django Admin
-    path("admin/", admin.site.urls),
+    # Health Checks (no auth required)
+    path("health/", HealthCheckView.as_view(), name="health-check"),
+    path("health/live/", HealthCheckView.as_view(), name="health-live"),
+    path("health/ready/", HealthCheckView.as_view(), name="health-ready"),
 
-    # Old APIs + Patient-Hospital API
+    # API Documentation
+    path("api/schema/", SchemaAPIView.as_view(), name="schema"),
+    path("api/docs/", SwaggerUIView.as_view(url_name="schema"), name="swagger-ui"),
+    path("api/redoc/", RedocView.as_view(url_name="schema"), name="redoc"),
+
+    # Authentication
+    path("api/auth/", include("users.urls")),
+
+    # Hospital staff administration
+    path("api/users/", include("users.staff_urls")),
+
+    # Django Admin
+    path(settings.ADMIN_URL, admin.site.urls),
+
+    # Laboratory sub-resources (must precede the root router; see laboratory/urls.py)
+    path("api/laboratory/", include("laboratory.urls")),
+
+    # Core APIs
     path("api/", include(router.urls)),
 
     # Home Dashboard API
     path("api/home/", include("home.urls")),
 
-    # New APIs
+    # Nursing APIs (includes all nurse-related endpoints: nurses, assessments, notes, care-tasks, mar, etc.)
+    path("api/nurses/", include("nurses.urls")),
+
+
+    # Hospital Management APIs
     path("api/hospital/", include("hospital.urls")),
     path("api/encounters/", include("encounters.urls")),
     path("api/clinical/", include("clinical.urls")),
@@ -71,6 +98,45 @@ urlpatterns = [
     path("api/notifications/", include("notifications.urls")),
     path("api/audit/", include("audit.urls")),
 
-    # Pharmacy procurement / purchase / GRN
+    # Pharmacy Procurement
     path("api/procurement/", include("procurement.urls")),
+
+    # AI Medical Scribe
+    path("api/ai/", include("ai_scribe.urls")),
+
+    # Reports
+    path("api/reports/", include("reports.urls")),
+
+    # FHIR Interoperability (not implemented)
+    # path("api/fhir/", include("fhir.urls")),
+
+    # HL7 Messaging (not implemented)
+    # path("api/hl7/", include("hl7.urls")),
+
+    # ABDM/ABHA Integration (not implemented)
+    # path("api/abdm/", include("abdm.urls")),
+
+    # Reports (not implemented)
+    # path("api/reports/", include("reports.urls")),
+
+    # Documents
+    path("api/documents/", include("documents.urls")),
+
+    # Consent
+    path("api/consent/", include("consent.urls")),
+
+# Monitoring (if enabled)
+    # path("metrics/", include("config.monitoring.metrics_view")),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# Debug toolbar
+if settings.DEBUG and 'debug_toolbar' in settings.INSTALLED_APPS:
+    import debug_toolbar
+    urlpatterns = [
+        path('__debug__/', include(debug_toolbar.urls)),
+    ] + urlpatterns

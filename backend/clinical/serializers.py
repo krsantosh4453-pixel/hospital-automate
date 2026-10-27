@@ -23,12 +23,18 @@ def _patient_belongs_to_hospital(patient, hospital):
     if not (patient and hospital):
         return True
 
+    # Callers pass either a Hospital or a raw id from request data.
+    try:
+        hospital_id = int(getattr(hospital, "id", hospital))
+    except (TypeError, ValueError):
+        return False
+
     has_membership = patient.hospital_memberships.filter(
-        hospital=hospital,
+        hospital_id=hospital_id,
         is_active=True
     ).exists()
 
-    has_direct_link = getattr(patient, "hospital_id", None) == hospital.id
+    has_direct_link = getattr(patient, "hospital_id", None) == hospital_id
 
     return has_membership or has_direct_link
 
@@ -36,43 +42,107 @@ def _patient_belongs_to_hospital(patient, hospital):
 class VitalSignSerializer(serializers.ModelSerializer):
     class Meta:
         model = VitalSign
-        fields = "__all__"
+        fields = [
+            "id",
+            "visit",
+            "weight",
+            "height",
+            "systolic_bp",
+            "diastolic_bp",
+            "temperature",
+            "respiratory_rate",
+            "heart_rate",
+            "blood_sugar",
+            "spo2",
+            "comments",
+            "recorded_at",
+        ]
+        read_only_fields = ["id", "recorded_at"]
 
 
 class AllergySerializer(serializers.ModelSerializer):
     class Meta:
         model = Allergy
-        fields = "__all__"
+        fields = [
+            "id",
+            "patient",
+            "name",
+            "reaction",
+            "severity",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
 
 
 class ClinicalNoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicalNote
-        fields = "__all__"
+        fields = [
+            "id",
+            "visit",
+            "doctor",
+            "note",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
 
 
 class DiagnosisSerializer(serializers.ModelSerializer):
     class Meta:
         model = Diagnosis
-        fields = "__all__"
+        fields = [
+            "recorded_by",
+            "id",
+            "visit",
+            "name",
+            "icd10_code",
+            "diagnosis_type",
+            "remarks",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at", "recorded_by"]
 
 
 class ServiceOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceOrder
-        fields = "__all__"
+        fields = [
+            "id",
+            "visit",
+            "service_name",
+            "quantity",
+            "status",
+            "remarks",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
 
 
 class ProcedureSerializer(serializers.ModelSerializer):
     class Meta:
         model = Procedure
-        fields = "__all__"
+        fields = [
+            "id",
+            "visit",
+            "name",
+            "description",
+            "status",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
 
 
 class MedicalRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = MedicalRecord
-        fields = "__all__"
+        fields = [
+            "id",
+            "patient",
+            "visit",
+            "summary",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
 
 
 class PrescriptionItemSerializer(serializers.ModelSerializer):
@@ -105,7 +175,22 @@ class PrescriptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Prescription
-        fields = "__all__"
+        fields = [
+            "id",
+            "hospital",
+            "patient",
+            "doctor",
+            "visit",
+            "status",
+            "dispensed_at",
+            "created_at",
+            "items",
+            "patient_name",
+            "doctor_name",
+            "hospital_name",
+            "visit_label",
+        ]
+        read_only_fields = ["id", "created_at", "dispensed_at"]
 
     def get_visit_label(self, obj):
         return f"Visit #{obj.visit_id}" if obj.visit_id else ""
@@ -150,6 +235,18 @@ class PrescriptionSerializer(serializers.ModelSerializer):
                 })
 
         return attrs
+
+    def validate_hospital(self, value):
+        """Ensure user has access to the hospital."""
+        request = self.context.get("request")
+        if request and value:
+            from users.permissions import get_user_hospital_ids
+            user_hospital_ids = get_user_hospital_ids(request.user)
+            if value.id not in user_hospital_ids:
+                raise serializers.ValidationError(
+                    "You do not have access to this hospital."
+                )
+        return value
 
     @transaction.atomic
     def create(self, validated_data):

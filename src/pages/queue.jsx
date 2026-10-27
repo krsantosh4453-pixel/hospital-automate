@@ -1,1811 +1,460 @@
 import { useEffect, useState } from "react"
+import { CircleCheck, Hospital, ListOrdered, Megaphone, PhoneCall, SkipForward, Stethoscope, Ticket } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useAppointment } from "../assets/context/AppointmentContext.jsx"
 import api from "../services/api.js"
+import {
+  Alert,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  PageHeader,
+  SearchInput,
+  Select,
+  SkeletonRows,
+  StatTile,
+  StatusBadge,
+  TableWrap,
+  Tabs,
+  Toolbar,
+} from "../components/ui"
+
+const QUEUE_STATUSES = ["Waiting", "In Consultation", "Completed", "Skipped"]
 
 function Queue() {
-
-  // =====================================
-  // SELECTED HOSPITAL
-  // =====================================
-
   const { selectedHospital } = usePatient()
+  const { updateAppointment } = useAppointment()
 
-  // =====================================
-  // APPOINTMENT CONTEXT
-  // =====================================
+  // Live queue records from Django (encounters.QueueToken).
+  const [queue, setQueue] = useState([])
+  // Booked appointments from Django, so any desk can issue their tokens
+  // (not only the browser that booked them).
+  const [serverAppointments, setServerAppointments] = useState([])
 
-  const {
-    appointments: appointmentList,
-    updateAppointment,
-  } = useAppointment()
+  const [departmentFilter, setDepartmentFilter] = useState("All Departments")
+  const [statusFilter, setStatusFilter] = useState("All Status")
+  const [search, setSearch] = useState("")
 
-
-  // =====================================
-  // QUEUE DATA
-  // =====================================
-
-  // Offline / demo seed data — kept so the page still works (exactly as
-  // before) when the Django queue API is unreachable.
-  const fallbackQueue = [
-
-    {
-      token: 24,
-      patient: "Rahul Kumar",
-      village: "Rajaur",
-      contact: "9876543210",
-      doctor: "Dr. Sharma",
-      department: "General Medicine",
-      type: "Consultation",
-      waiting: "14 min",
-      status: "Waiting",
-      hospitalId: 1,
-    },
-
-    {
-      token: 25,
-      patient: "Priya Singh",
-      village: "Begusarai",
-      contact: "9876543211",
-      doctor: "Dr. Sharma",
-      department: "General Medicine",
-      type: "Follow-up",
-      waiting: "10 min",
-      status: "Waiting",
-      hospitalId: 1,
-    },
-
-    {
-      token: 26,
-      patient: "Amit Kumar",
-      village: "Barauni",
-      contact: "9876543212",
-      doctor: "Dr. Verma",
-      department: "Cardiology",
-      type: "Consultation",
-      waiting: "6 min",
-      status: "Waiting",
-      hospitalId: 2,
-    },
-
-    {
-      token: 27,
-      patient: "Neha Singh",
-      village: "Bihat",
-      contact: "9876543213",
-      doctor: "Dr. Verma",
-      department: "Cardiology",
-      type: "Consultation",
-      waiting: "2 min",
-      status: "In Consultation",
-      hospitalId: 2,
-    },
-
-    {
-      token: 28,
-      patient: "Ravi Sharma",
-      village: "Teghra",
-      contact: "9876543214",
-      doctor: "Dr. Gupta",
-      department: "Orthopedics",
-      type: "Consultation",
-      waiting: "18 min",
-      status: "Waiting",
-      hospitalId: 3,
-    },
-
-  ]
-
-  // Live queue records. Seeded with the demo data above and replaced by
-  // records from Django (encounters.QueueToken) once the API responds.
-  const [queue, setQueue] = useState(fallbackQueue)
-
-
-  // =====================================
-  // FILTER STATES
-  // =====================================
-
-  const [departmentFilter, setDepartmentFilter] =
-    useState("All Departments")
-
-  const [statusFilter, setStatusFilter] =
-    useState("All Status")
-
-  const [search, setSearch] =
-    useState("")
-
-
-  // =====================================
-  // API STATE (loading / error / retry / feedback)
-  // =====================================
-
-  const [loading, setLoading] =
-    useState(false)
-
-  const [loadError, setLoadError] =
-    useState("")
-
-  const [offlineMode, setOfflineMode] =
-    useState(false)
-
-  const [actionError, setActionError] =
-    useState("")
-
-  const [successMessage, setSuccessMessage] =
-    useState("")
-
-  const [reloadToken, setReloadToken] =
-    useState(0)
-
+  // API state (loading / error / retry / feedback)
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState("")
+  const [offlineMode, setOfflineMode] = useState(false)
+  const [actionError, setActionError] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
+  const [reloadToken, setReloadToken] = useState(0)
+  const [busy, setBusy] = useState("")
 
   // =====================================
   // DJANGO QUEUETOKEN → QUEUE ROW
   // =====================================
 
   const mapQueueFromApi = (record) => ({
-
-    token:
-      record.token_number,
-
-    patient:
-      record.patient_name ||
-      "Patient",
-
-    village:
-      "",
-
-    contact:
-      record.patient_phone ||
-      "",
-
-    doctor:
-      record.doctor_name ||
-      "",
-
-    department:
-      record.department ||
-      "General",
-
-    type:
-      record.visit_type ||
-      "OPD",
-
-    waiting:
-      String(record.status || "")
-        .toLowerCase() === "waiting"
-        ? `${record.waiting_minutes ?? 0} min`
-        : "Now",
-
-    status:
-      record.status ||
-      "Waiting",
-
-    hospitalId:
-      record.hospital,
-
-    appointmentId:
-      record.appointment
-        ? `A${String(record.appointment).padStart(3, "0")}`
-        : undefined,
-
-    appointmentApiId:
-      record.appointment,
-
-    apiId:
-      record.id,
+    token: record.token_number,
+    patient: record.patient_name || "Patient",
+    village: "",
+    contact: record.patient_phone || "",
+    doctor: record.doctor_name || "",
+    department: record.department || "General",
+    type: record.visit_type || "OPD",
+    waiting: String(record.status || "").toLowerCase() === "waiting" ? `${record.waiting_minutes ?? 0} min` : "Now",
+    status: record.status || "Waiting",
+    hospitalId: record.hospital,
+    appointmentId: record.appointment ? `A${String(record.appointment).padStart(3, "0")}` : undefined,
+    appointmentApiId: record.appointment,
+    apiId: record.id,
   })
-
 
   // =====================================
   // LOAD QUEUE FROM DJANGO
   // =====================================
 
   useEffect(() => {
-
     let cancelled = false
 
     const loadQueue = async () => {
-
-      if (!selectedHospital) {
-        return
-      }
-
+      if (!selectedHospital) return
       setLoading(true)
       setLoadError("")
-
       try {
-
-        const data =
-          await api.queue.list(
-            selectedHospital.id
-          )
-
-        if (cancelled) {
-          return
-        }
-
-        const records = Array.isArray(data)
-          ? data
-          : data?.results || []
-
-        setQueue(
-          records.map(mapQueueFromApi)
+        const [data, appointmentData] = await Promise.all([
+          api.queue.list(selectedHospital.id),
+          api.appointments.list(selectedHospital.id),
+        ])
+        if (cancelled) return
+        const records = Array.isArray(data) ? data : data?.results || []
+        setQueue(records.map(mapQueueFromApi))
+        const appointments = Array.isArray(appointmentData) ? appointmentData : appointmentData?.results || []
+        setServerAppointments(
+          appointments.map((appointment) => ({
+            apiId: appointment.id,
+            hospitalId: appointment.hospital,
+            status: appointment.status,
+            patient: appointment.patient_name,
+          })),
         )
-
         setOfflineMode(false)
-
       } catch (error) {
-
-        if (cancelled) {
-          return
-        }
-
-        // Keep the existing (demo/context) rows visible and fall back to
-        // offline behaviour instead of breaking the page.
-        setLoadError(
-          error.message ||
-          "Failed to load the queue."
-        )
-
+        if (cancelled) return
+        // Keep existing rows visible and fall back to offline behaviour.
+        setLoadError(error.message || "Failed to load the queue.")
         setOfflineMode(true)
-
       } finally {
-
-        if (!cancelled) {
-          setLoading(false)
-        }
-
+        if (!cancelled) setLoading(false)
       }
     }
 
     loadQueue()
-
     return () => {
       cancelled = true
     }
-
   }, [selectedHospital, reloadToken])
-
 
   // =====================================
   // GENERATE TOKEN (Appointment → Visit → QueueToken)
   // =====================================
 
   // Appointments that are ready to be issued a queue token but do not have
-  // one yet (API-backed only, i.e. they carry a real backend id).
-  const issueableAppointments = (
-    appointmentList || []
-  ).filter(
+  // one yet, as stored on the server for this hospital.
+  const issueableAppointments = serverAppointments.filter(
     (appointment) =>
       appointment.apiId &&
+      String(appointment.hospitalId) === String(selectedHospital?.id) &&
       appointment.status !== "Cancelled" &&
       appointment.status !== "Completed" &&
-      !queue.some(
-        (item) =>
-          String(item.appointmentApiId) ===
-          String(appointment.apiId)
-      )
+      !queue.some((item) => String(item.appointmentApiId) === String(appointment.apiId)),
   )
 
-
   const generateToken = async () => {
-
     setActionError("")
     setSuccessMessage("")
 
     if (offlineMode) {
-
-      setActionError(
-        "Cannot generate tokens while offline."
-      )
-
+      setActionError("Cannot generate tokens while offline.")
       return
-
     }
-
     if (issueableAppointments.length === 0) {
-
-      alert(
-        "No appointment is waiting for a token."
-      )
-
+      setActionError("No booked appointment is waiting for a token.")
       return
-
     }
 
-    const nextAppointment =
-      issueableAppointments[0]
-
+    const nextAppointment = issueableAppointments[0]
+    setBusy("generate")
     try {
-
       // One server-side call: Appointment → (reused/created) Visit →
       // QueueToken with a token_number allocated by Django.
-      const token =
-        await api.queue.issue(
-          nextAppointment.apiId
-        )
-
-      setSuccessMessage(
-        `Token #${token.token_number} generated for ${nextAppointment.patient || "patient"}.`
-      )
-
-      setReloadToken(
-        (value) => value + 1
-      )
-
+      const token = await api.queue.issue(nextAppointment.apiId)
+      setSuccessMessage(`Token #${token.token_number} generated for ${nextAppointment.patient || "patient"}.`)
+      setReloadToken((value) => value + 1)
     } catch (error) {
-
-      setActionError(
-        error.message ||
-        "Failed to generate a token."
-      )
-
+      setActionError(error.message || "Failed to generate a token.")
+    } finally {
+      setBusy("")
     }
   }
 
-
-  // =====================================
-  // APPOINTMENTS → QUEUE
-  // =====================================
-
-  const appointmentQueue = appointmentList
-    .filter(
-      (appointment) =>
-        appointment.status !== "Cancelled" &&
-        appointment.status !== "Completed"
-    )
-    .map((appointment) => {
-
-      let queueStatus = "Waiting"
-
-      if (
-        appointment.status ===
-        "In Consultation"
-      ) {
-        queueStatus = "In Consultation"
-      }
-
-      if (
-        appointment.status ===
-        "Skipped"
-      ) {
-        queueStatus = "Skipped"
-      }
-
-      return {
-        token:
-          appointment.tokenNumber ||
-          appointment.id,
-
-        patient:
-          appointment.patient ||
-          appointment.patientName ||
-          "Patient",
-
-        village:
-          appointment.village ||
-          "",
-
-        contact:
-          appointment.contact ||
-          "",
-
-        doctor:
-          appointment.doctor ||
-          "",
-
-        department:
-          appointment.department ||
-          appointment.reason ||
-          "General",
-
-        type:
-          "Appointment",
-
-        waiting:
-          queueStatus ===
-            "Waiting"
-            ? "Waiting"
-            : "Now",
-
-        status:
-          queueStatus,
-
-        hospitalId:
-          appointment.hospitalId,
-
-        appointmentId:
-          appointment.id,
-      }
-    })
-
-
-  // =====================================
-  // COMBINE OLD QUEUE + APPOINTMENT QUEUE
-  // =====================================
-
-  const allQueue = [
-    ...queue,
-
-    ...appointmentQueue.filter(
-      (appointmentItem) =>
-        !queue.some(
-          (queueItem) =>
-            String(queueItem.token) ===
-            String(appointmentItem.token) &&
-            String(queueItem.hospitalId) ===
-            String(appointmentItem.hospitalId)
-        )
-    ),
-  ]
-
-
-  // =====================================
-  // HOSPITAL QUEUE
-  // =====================================
+  // The queue is the server's QueueTokens only. Appointments kept in this
+  // browser used to be merged in with made-up token numbers ("A001"), which
+  // other desks never saw; booked appointments now get real tokens above.
+  const allQueue = queue
 
   const hospitalQueue = selectedHospital
-    ? allQueue.filter(
-      (item) =>
-        String(item.hospitalId) ===
-        String(selectedHospital.id)
-    )
+    ? allQueue.filter((item) => String(item.hospitalId) === String(selectedHospital.id))
     : []
 
+  // Departments actually present in this queue.
+  const departments = Array.from(new Set(hospitalQueue.map((i) => i.department).filter(Boolean))).sort()
 
-  // =====================================
-  // SEARCH + FILTER
-  // =====================================
+  const baseFiltered = hospitalQueue.filter((item) => {
+    const searchText = search.toLowerCase()
+    const matchesSearch =
+      String(item.patient || "").toLowerCase().includes(searchText) ||
+      String(item.doctor || "").toLowerCase().includes(searchText) ||
+      String(item.token || "").toLowerCase().includes(searchText)
+    const matchesDepartment = departmentFilter === "All Departments" || item.department === departmentFilter
+    return matchesSearch && matchesDepartment
+  })
+  const filteredQueue = baseFiltered.filter((item) => statusFilter === "All Status" || item.status === statusFilter)
 
-  const filteredQueue =
-    hospitalQueue.filter(
-      (item) => {
+  // Statistics
+  const countOf = (status) => hospitalQueue.filter((item) => item.status === status).length
+  const waitingCount = countOf("Waiting")
+  const consultationCount = countOf("In Consultation")
+  const completedCount = countOf("Completed")
+  const skippedCount = countOf("Skipped")
 
-        const searchText =
-          search.toLowerCase()
-
-
-        const matchesSearch =
-
-          String(item.patient || "")
-            .toLowerCase()
-            .includes(searchText)
-
-          ||
-
-          String(item.doctor || "")
-            .toLowerCase()
-            .includes(searchText)
-
-          ||
-
-          String(item.token || "")
-            .toLowerCase()
-            .includes(searchText)
-
-
-        const matchesDepartment =
-
-          departmentFilter ===
-          "All Departments"
-
-          ||
-
-          item.department ===
-          departmentFilter
-
-
-        const matchesStatus =
-
-          statusFilter ===
-          "All Status"
-
-          ||
-
-          item.status ===
-          statusFilter
-
-
-        return (
-          matchesSearch &&
-          matchesDepartment &&
-          matchesStatus
-        )
-
-      }
-    )
-
-
-  // =====================================
-  // STATISTICS
-  // =====================================
-
-  const waitingCount =
-    hospitalQueue.filter(
-      (item) =>
-        item.status ===
-        "Waiting"
-    ).length
-
-
-  const consultationCount =
-    hospitalQueue.filter(
-      (item) =>
-        item.status ===
-        "In Consultation"
-    ).length
-
-
-  const completedCount =
-    hospitalQueue.filter(
-      (item) =>
-        item.status ===
-        "Completed"
-    ).length
-
-
-  const skippedCount =
-    hospitalQueue.filter(
-      (item) =>
-        item.status ===
-        "Skipped"
-    ).length
-
-
-  // =====================================
-  // CURRENT TOKEN
-  // =====================================
-
-  const currentPatient =
-    hospitalQueue.find(
-      (item) =>
-        item.status ===
-        "In Consultation"
-    )
-
+  const currentPatient = hospitalQueue.find((item) => item.status === "In Consultation")
+  const nextWaiting = hospitalQueue.find((item) => item.status === "Waiting")
 
   // =====================================
   // UPDATE APPOINTMENT STATUS
   // =====================================
 
-  const updateRelatedAppointment = (
-    queueItem,
-    status
-  ) => {
-
+  const updateRelatedAppointment = (queueItem, status) => {
     // Keep the shared AppointmentContext in sync (existing behaviour).
-    if (queueItem.appointmentId) {
-
-      updateAppointment(
-        queueItem.appointmentId,
-        {
-          status: status,
-        }
-      )
-
-    }
+    if (queueItem.appointmentId) updateAppointment(queueItem.appointmentId, { status })
 
     // Also persist the status on the Django appointment when the queue row
     // is backed by a real record. Failures here are non-fatal: the queue
     // itself (QueueToken) is the source of truth for this page.
     if (queueItem.appointmentApiId) {
-
-      api.appointments
-        .patch(
-          queueItem.appointmentApiId,
-          {
-            status: status,
-          }
-        )
-        .catch(() => { })
-
+      api.appointments.patch(queueItem.appointmentApiId, { status }).catch(() => {})
     }
   }
 
+  const setLocalStatus = (token, patch) =>
+    setQueue((prevQueue) =>
+      prevQueue.map((item) =>
+        String(item.token) === String(token) && String(item.hospitalId) === String(selectedHospital.id) ? { ...item, ...patch } : item,
+      ),
+    )
 
   // =====================================
   // CALL NEXT PATIENT
   // =====================================
 
   const callNextPatient = async () => {
-
-    const nextPatient =
-      hospitalQueue.find(
-        (item) =>
-          item.status ===
-          "Waiting"
-      )
-
-
+    const nextPatient = hospitalQueue.find((item) => item.status === "Waiting")
     if (!nextPatient) {
-
-      alert(
-        "No waiting patient in the queue."
-      )
-
+      setActionError("No patient is waiting in the queue.")
       return
-
     }
-
 
     setActionError("")
     setSuccessMessage("")
-
+    setBusy("next")
 
     // Ask Django to advance the queue (completes the token currently being
     // served and calls the next waiting token, persisted server-side).
     if (!offlineMode) {
-
       try {
-
-        await api.queue.callNext(
-          selectedHospital.id
-        )
-
-        setSuccessMessage(
-          `Called token #${nextPatient.token}.`
-        )
-
+        await api.queue.callNext(selectedHospital.id)
+        setSuccessMessage(`Called token #${nextPatient.token}.`)
       } catch (error) {
-
-        setActionError(
-          error.message ||
-          "Failed to call the next patient."
-        )
-
+        setActionError(error.message || "Failed to call the next patient.")
       }
-
     }
 
-
-    setQueue((prevQueue) =>
-
-      prevQueue.map(
-        (item) =>
-
-          String(item.token) ===
-            String(nextPatient.token) &&
-            String(item.hospitalId) ===
-            String(selectedHospital.id)
-
-            ? {
-              ...item,
-              status:
-                "In Consultation",
-              waiting:
-                "Now",
-            }
-
-            : item
-      )
-
-    )
-
-    updateRelatedAppointment(
-      nextPatient,
-      "In Consultation"
-    )
-
-
-    setReloadToken(
-      (value) => value + 1
-    )
+    setLocalStatus(nextPatient.token, { status: "In Consultation", waiting: "Now" })
+    updateRelatedAppointment(nextPatient, "In Consultation")
+    setBusy("")
+    setReloadToken((value) => value + 1)
   }
 
+  // Shared handler for per-row call / complete / skip.
+  const rowAction = async (token, kind) => {
+    const config = {
+      call: { apiCall: api.queue.call, status: "In Consultation", patch: { status: "In Consultation", waiting: "Now" }, done: "called", fail: "Failed to call this patient." },
+      complete: { apiCall: api.queue.complete, status: "Completed", patch: { status: "Completed" }, done: "completed", fail: "Failed to complete this patient." },
+      skip: { apiCall: api.queue.skip, status: "Skipped", patch: { status: "Skipped" }, done: "skipped", fail: "Failed to skip this patient." },
+    }[kind]
 
-  // =====================================
-  // CALL SPECIFIC PATIENT
-  // =====================================
-
-  const callPatient = async (token) => {
-
-    const selectedQueuePatient =
-      hospitalQueue.find(
-        (item) =>
-          String(item.token) ===
-          String(token)
-      )
-
-
+    const selectedQueuePatient = hospitalQueue.find((item) => String(item.token) === String(token))
     setActionError("")
     setSuccessMessage("")
+    setBusy(`${kind}-${token}`)
 
-
-    // Persist the "called" status on the QueueToken when this row is a real
-    // API record. Demo/context rows still update locally below.
-    if (
-      selectedQueuePatient &&
-      selectedQueuePatient.apiId &&
-      !offlineMode
-    ) {
-
+    // Persist on the QueueToken when this row is a real API record.
+    if (selectedQueuePatient && selectedQueuePatient.apiId && !offlineMode) {
       try {
-
-        await api.queue.call(
-          selectedQueuePatient.apiId
-        )
-
-        setSuccessMessage(
-          `Token #${token} called.`
-        )
-
+        await config.apiCall(selectedQueuePatient.apiId)
+        setSuccessMessage(`Token #${token} ${config.done}.`)
       } catch (error) {
-
-        setActionError(
-          error.message ||
-          "Failed to call this patient."
-        )
-
+        setActionError(error.message || config.fail)
       }
-
     }
 
-
-    setQueue((prevQueue) =>
-
-      prevQueue.map(
-        (item) =>
-
-          String(item.token) ===
-            String(token) &&
-            String(item.hospitalId) ===
-            String(selectedHospital.id)
-
-            ? {
-              ...item,
-              status:
-                "In Consultation",
-              waiting:
-                "Now",
-            }
-
-            : item
-      )
-
-    )
-
-
-    if (selectedQueuePatient) {
-
-      updateRelatedAppointment(
-        selectedQueuePatient,
-        "In Consultation"
-      )
-
-    }
-
-
-    setReloadToken(
-      (value) => value + 1
-    )
+    setLocalStatus(token, config.patch)
+    if (selectedQueuePatient) updateRelatedAppointment(selectedQueuePatient, config.status)
+    setBusy("")
+    setReloadToken((value) => value + 1)
   }
-
-
-  // =====================================
-  // COMPLETE PATIENT
-  // =====================================
-
-  const completePatient = async (
-    token
-  ) => {
-
-    const selectedQueuePatient =
-      hospitalQueue.find(
-        (item) =>
-          String(item.token) ===
-          String(token)
-      )
-
-
-    setActionError("")
-    setSuccessMessage("")
-
-
-    if (
-      selectedQueuePatient &&
-      selectedQueuePatient.apiId &&
-      !offlineMode
-    ) {
-
-      try {
-
-        await api.queue.complete(
-          selectedQueuePatient.apiId
-        )
-
-        setSuccessMessage(
-          `Token #${token} completed.`
-        )
-
-      } catch (error) {
-
-        setActionError(
-          error.message ||
-          "Failed to complete this patient."
-        )
-
-      }
-
-    }
-
-
-    setQueue((prevQueue) =>
-
-      prevQueue.map(
-        (item) =>
-
-          String(item.token) ===
-            String(token) &&
-            String(item.hospitalId) ===
-            String(selectedHospital.id)
-
-            ? {
-              ...item,
-              status:
-                "Completed",
-            }
-
-            : item
-      )
-
-    )
-
-
-    if (selectedQueuePatient) {
-
-      updateRelatedAppointment(
-        selectedQueuePatient,
-        "Completed"
-      )
-
-    }
-
-
-    setReloadToken(
-      (value) => value + 1
-    )
-  }
-
-
-  // =====================================
-  // SKIP PATIENT
-  // =====================================
-
-  const skipPatient = async (
-    token
-  ) => {
-
-    const selectedQueuePatient =
-      hospitalQueue.find(
-        (item) =>
-          String(item.token) ===
-          String(token)
-      )
-
-
-    setActionError("")
-    setSuccessMessage("")
-
-
-    if (
-      selectedQueuePatient &&
-      selectedQueuePatient.apiId &&
-      !offlineMode
-    ) {
-
-      try {
-
-        await api.queue.skip(
-          selectedQueuePatient.apiId
-        )
-
-        setSuccessMessage(
-          `Token #${token} skipped.`
-        )
-
-      } catch (error) {
-
-        setActionError(
-          error.message ||
-          "Failed to skip this patient."
-        )
-
-      }
-
-    }
-
-
-    setQueue((prevQueue) =>
-
-      prevQueue.map(
-        (item) =>
-
-          String(item.token) ===
-            String(token) &&
-            String(item.hospitalId) ===
-            String(selectedHospital.id)
-
-            ? {
-              ...item,
-              status:
-                "Skipped",
-            }
-
-            : item
-      )
-
-    )
-
-
-    if (selectedQueuePatient) {
-
-      updateRelatedAppointment(
-        selectedQueuePatient,
-        "Skipped"
-      )
-
-    }
-
-
-    setReloadToken(
-      (value) => value + 1
-    )
-  }
-
-
-  // =====================================
-  // STATUS COLOR
-  // =====================================
-
-  const getStatusClass = (
-    status
-  ) => {
-
-    if (
-      status ===
-      "Waiting"
-    ) {
-
-      return "bg-orange-100 text-orange-700"
-
-    }
-
-
-    if (
-      status ===
-      "In Consultation"
-    ) {
-
-      return "bg-blue-100 text-blue-700"
-
-    }
-
-
-    if (
-      status ===
-      "Completed"
-    ) {
-
-      return "bg-green-100 text-green-700"
-
-    }
-
-
-    if (
-      status ===
-      "Skipped"
-    ) {
-
-      return "bg-gray-100 text-gray-700"
-
-    }
-
-
-    return "bg-gray-100 text-gray-700"
-
-  }
-
-
-  // =====================================
-  // NO HOSPITAL SELECTED
-  // =====================================
 
   if (!selectedHospital) {
-
     return (
-
-      <div className="space-y-6">
-
-        <div>
-
-          <p className="text-blue-600 font-semibold text-sm">
-            QUEUE MANAGEMENT
-          </p>
-
-          <h1 className="text-3xl font-bold text-gray-800 mt-1">
-            Queue Management
-          </h1>
-
-        </div>
-
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-
-          <div className="text-5xl mb-4">
-            🏥
-          </div>
-
-          <h2 className="text-xl font-bold text-gray-800">
-            Select a Hospital
-          </h2>
-
-          <p className="text-gray-500 mt-2">
-            Select a hospital from the header to view its patient queue.
-          </p>
-
-        </div>
-
+      <div className="space-y-5">
+        <PageHeader title="Queue" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Queue" }]} />
+        <Card>
+          <EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header to see its patient queue." />
+        </Card>
       </div>
-
     )
   }
 
+  const statusTabs = [
+    { id: "All Status", label: "All", count: baseFiltered.length },
+    ...QUEUE_STATUSES.map((s) => ({ id: s, label: s, count: baseFiltered.filter((i) => i.status === s).length })),
+  ]
 
   return (
+    <div className="space-y-5">
+      <PageHeader
+        title="OPD queue"
+        description={`Tokens and consultation flow at ${selectedHospital.name}.`}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Queue" }]}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              icon={Ticket}
+              onClick={generateToken}
+              loading={busy === "generate"}
+              title={issueableAppointments.length ? `${issueableAppointments.length} booked appointment(s) without a token` : "No booked appointment is waiting for a token"}
+            >
+              Issue token{issueableAppointments.length ? ` (${issueableAppointments.length})` : ""}
+            </Button>
+            <Button icon={Megaphone} onClick={callNextPatient} loading={busy === "next"} disabled={!nextWaiting}>
+              Call next patient
+            </Button>
+          </>
+        }
+      />
 
-    <div>
-
-
-      {/* =====================================
-          HEADER
-      ===================================== */}
-
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-
-        <div>
-
-          <p className="text-blue-600 font-semibold text-sm">
-            QUEUE MANAGEMENT
-          </p>
-
-          <h1 className="text-3xl font-bold text-gray-800 mt-1">
-            Queue Management
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Manage patient tokens and consultation queue.
-          </p>
-
-        </div>
-
-
-        <div className="flex items-center gap-3">
-
-          <button
-            onClick={
-              generateToken
-            }
-            className="bg-emerald-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-emerald-700 transition"
-          >
-            🎟️ Generate Token
-          </button>
-
-
-          <button
-            onClick={
-              callNextPatient
-            }
-            className="bg-blue-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-blue-700 transition"
-          >
-            📢 Call Next Patient
-          </button>
-
-        </div>
-
-      </div>
-
-
-      {/* =====================================
-          SELECTED HOSPITAL
-      ===================================== */}
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-
-        <div className="flex items-center gap-4">
-
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-            🏥
-          </div>
-
-          <div>
-
-            <p className="text-xs text-gray-500">
-              Current Hospital
-            </p>
-
-            <h2 className="font-bold text-gray-800">
-              {selectedHospital.name}
-            </h2>
-
-            <p className="text-sm text-gray-500">
-              📍 {selectedHospital.address}
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      {/* =====================================
-          API STATUS FEEDBACK
-      ===================================== */}
-
-      {successMessage && (
-
-        <div className="bg-green-50 border border-green-200 text-green-700 rounded-2xl p-4 mb-6 flex items-center justify-between">
-
-          <span className="font-medium">
-            {successMessage}
-          </span>
-
-          <button
-            onClick={() =>
-              setSuccessMessage("")
-            }
-            className="text-green-700 text-sm"
-          >
-            Dismiss
-          </button>
-
-        </div>
-
-      )}
-
-
-      {actionError && (
-
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 mb-6 flex items-center justify-between">
-
-          <span className="font-medium">
-            {actionError}
-          </span>
-
-          <button
-            onClick={() =>
-              setActionError("")
-            }
-            className="text-red-700 text-sm"
-          >
-            Dismiss
-          </button>
-
-        </div>
-
-      )}
-
-
+      {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}
+      {actionError && <Alert tone="danger" onDismiss={() => setActionError("")}>{actionError}</Alert>}
       {offlineMode && (
-
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-2xl p-4 mb-6 flex items-center justify-between">
-
-          <span className="font-medium">
-
-            {loadError ||
-              "Could not reach the server. Showing saved queue data."}
-
-          </span>
-
-          <button
-            onClick={() =>
-              setReloadToken(
-                (value) => value + 1
-              )
-            }
-            className="bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-          >
-            Retry
-          </button>
-
-        </div>
-
+        <Alert
+          tone="warning"
+          title="Server unreachable"
+          action={<Button size="sm" variant="secondary" onClick={() => setReloadToken((value) => value + 1)}>Retry</Button>}
+        >
+          {loadError || "Could not reach the server. Showing saved queue data."}
+        </Alert>
       )}
 
-
-      {loading && (
-
-        <div className="bg-white border border-gray-100 text-gray-500 rounded-2xl p-4 mb-6 text-center">
-
-          Loading queue from server...
-
-        </div>
-
-      )}
-
-
-      {/* =====================================
-          STATISTICS
-      ===================================== */}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
-
-
-        {/* Current Token */}
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-
-          <p className="text-sm text-gray-500">
-            Current Token
-          </p>
-
-          <div className="flex items-center justify-between mt-3">
-
-            <h2 className="text-3xl font-bold text-blue-600">
-
-              {currentPatient
-                ? `#${currentPatient.token}`
-                : "--"}
-
-            </h2>
-
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-xl">
-              🎫
-            </div>
-
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+        {/* Now serving */}
+        <Card className="flex flex-col justify-between overflow-hidden">
+          <div className="bg-brand-900 px-5 py-5 text-white">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-200">Now serving</p>
+            <p className="mt-2 text-5xl font-semibold tracking-tight tabular-nums" aria-live="polite">
+              {currentPatient ? `#${currentPatient.token}` : "—"}
+            </p>
+            <p className="mt-2 truncate text-[15px] font-medium text-brand-50">{currentPatient ? currentPatient.patient : "No patient in consultation"}</p>
+            {currentPatient && (
+              <p className="mt-0.5 truncate text-[13px] text-brand-200">
+                {[currentPatient.doctor, currentPatient.department].filter(Boolean).join(" · ")}
+              </p>
+            )}
           </div>
-
-        </div>
-
-
-        {/* Waiting */}
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-
-          <p className="text-sm text-gray-500">
-            Waiting Patients
-          </p>
-
-          <div className="flex items-center justify-between mt-3">
-
-            <h2 className="text-3xl font-bold text-orange-500">
-              {waitingCount}
-            </h2>
-
-            <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-xl">
-              ⏳
+          <div className="flex items-center justify-between gap-3 px-5 py-4">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-ink-500">Next in line</p>
+              <p className="truncate text-sm font-semibold text-ink-900">
+                {nextWaiting ? `#${nextWaiting.token} · ${nextWaiting.patient}` : "Nobody waiting"}
+              </p>
             </div>
-
+            {currentPatient && (
+              <Button
+                size="sm"
+                variant="subtle"
+                icon={CircleCheck}
+                loading={busy === `complete-${currentPatient.token}`}
+                onClick={() => rowAction(currentPatient.token, "complete")}
+              >
+                Complete
+              </Button>
+            )}
           </div>
+        </Card>
 
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <StatTile icon={ListOrdered} tone="warning" label="Waiting" value={waitingCount} onClick={() => setStatusFilter("Waiting")} />
+          <StatTile icon={Stethoscope} label="In consultation" value={consultationCount} onClick={() => setStatusFilter("In Consultation")} />
+          <StatTile icon={CircleCheck} tone="success" label="Completed" value={completedCount} onClick={() => setStatusFilter("Completed")} />
+          <StatTile icon={SkipForward} tone="neutral" label="Skipped" value={skippedCount} onClick={() => setStatusFilter("Skipped")} />
         </div>
-
-
-        {/* Consultation */}
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-
-          <p className="text-sm text-gray-500">
-            In Consultation
-          </p>
-
-          <div className="flex items-center justify-between mt-3">
-
-            <h2 className="text-3xl font-bold text-blue-600">
-              {consultationCount}
-            </h2>
-
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-xl">
-              👨‍⚕️
-            </div>
-
-          </div>
-
-        </div>
-
-
-        {/* Completed */}
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-
-          <p className="text-sm text-gray-500">
-            Completed
-          </p>
-
-          <div className="flex items-center justify-between mt-3">
-
-            <h2 className="text-3xl font-bold text-green-600">
-              {completedCount}
-            </h2>
-
-            <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-xl">
-              ✓
-            </div>
-
-          </div>
-
-        </div>
-
       </div>
 
-
-      {/* =====================================
-          CURRENT QUEUE HIGHLIGHT
-      ===================================== */}
-
-      {currentPatient && (
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-
-            <div>
-
-              <p className="text-sm text-gray-500">
-                Currently Serving
-              </p>
-
-              <h2 className="text-4xl font-bold text-blue-600 mt-2">
-                Token #{currentPatient.token}
-              </h2>
-
-              <p className="text-gray-700 font-medium mt-2">
-                {currentPatient.patient}
-              </p>
-
-              <p className="text-sm text-gray-500">
-                {currentPatient.doctor}
-                {" • "}
-                {currentPatient.department}
-              </p>
-
-            </div>
-
-
-            <div className="bg-blue-50 rounded-2xl p-6 text-center">
-
-              <p className="text-sm text-gray-500">
-                Status
-              </p>
-
-              <p className="text-blue-700 font-bold mt-1">
-                In Consultation
-              </p>
-
-            </div>
-
-          </div>
-
+      <Card className="overflow-hidden">
+        <CardHeader
+          title="Patient queue"
+          description={`${filteredQueue.length} of ${hospitalQueue.length} token${hospitalQueue.length === 1 ? "" : "s"}`}
+        />
+        <div className="px-4 pt-1">
+          <Tabs tabs={statusTabs} value={statusFilter} onChange={setStatusFilter} label="Filter by status" />
         </div>
+        <Toolbar>
+          <SearchInput value={search} onChange={setSearch} placeholder="Patient, doctor or token" label="Search queue" className="w-full sm:max-w-xs" />
+          <Select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} aria-label="Filter by department" className="w-full sm:w-56">
+            <option>All Departments</option>
+            {departments.map((d) => (
+              <option key={d}>{d}</option>
+            ))}
+          </Select>
+        </Toolbar>
 
-      )}
-
-
-      {/* =====================================
-          FILTERS
-      ===================================== */}
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-
-          <input
-            type="text"
-            placeholder="Search patient, doctor or token..."
-            value={search}
-            onChange={(e) =>
-              setSearch(
-                e.target.value
-              )
-            }
-            className="border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+        {loading && hospitalQueue.length === 0 ? (
+          <SkeletonRows rows={5} />
+        ) : filteredQueue.length === 0 ? (
+          <EmptyState
+            icon={Ticket}
+            title={hospitalQueue.length ? "No tokens match these filters" : "The queue is empty"}
+            description={hospitalQueue.length ? "Change the status or department filter." : "Issue a token from a booked appointment to start the queue."}
           />
-
-
-          <select
-            value={
-              departmentFilter
-            }
-            onChange={(e) =>
-              setDepartmentFilter(
-                e.target.value
-              )
-            }
-            className="border border-gray-300 rounded-xl px-4 py-3"
-          >
-
-            <option>
-              All Departments
-            </option>
-
-            <option>
-              General Medicine
-            </option>
-
-            <option>
-              Cardiology
-            </option>
-
-            <option>
-              Orthopedics
-            </option>
-
-            <option>
-              Neurology
-            </option>
-
-          </select>
-
-
-          <select
-            value={
-              statusFilter
-            }
-            onChange={(e) =>
-              setStatusFilter(
-                e.target.value
-              )
-            }
-            className="border border-gray-300 rounded-xl px-4 py-3"
-          >
-
-            <option>
-              All Status
-            </option>
-
-            <option>
-              Waiting
-            </option>
-
-            <option>
-              In Consultation
-            </option>
-
-            <option>
-              Completed
-            </option>
-
-            <option>
-              Skipped
-            </option>
-
-          </select>
-
-        </div>
-
-      </div>
-
-
-      {/* =====================================
-          QUEUE TABLE
-      ===================================== */}
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-
-        <div className="p-6 border-b">
-
-          <h2 className="text-xl font-bold text-gray-800">
-            {selectedHospital.name} Patient Queue
-          </h2>
-
-          <p className="text-sm text-gray-500 mt-1">
-            {filteredQueue.length} patient(s) in queue
-          </p>
-
-        </div>
-
-
-        <div className="overflow-x-auto">
-
-          <table className="w-full">
-
-            <thead className="bg-gray-50">
-
-              <tr>
-
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                  Token
-                </th>
-
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                  Patient
-                </th>
-
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                  Village
-                </th>
-
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                  Contact
-                </th>
-
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                  Doctor
-                </th>
-
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                  Department
-                </th>
-
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                  Type
-                </th>
-
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                  Waiting
-                </th>
-
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                  Status
-                </th>
-
-                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                  Actions
-                </th>
-
-              </tr>
-
-            </thead>
-
-
-            <tbody>
-
-              {filteredQueue.length === 0 ? (
-
+        ) : (
+          <TableWrap>
+            <table className="hms-table">
+              <caption className="sr-only">Patient queue at {selectedHospital.name}</caption>
+              <thead>
                 <tr>
-
-                  <td
-                    colSpan="10"
-                    className="text-center py-12 text-gray-500"
-                  >
-
-                    <div className="text-4xl mb-3">
-                      🎫
-                    </div>
-
-                    <p className="font-semibold">
-                      No patients found
-                    </p>
-
-                    <p className="text-sm mt-1">
-                      No matching patients in {selectedHospital.name}.
-                    </p>
-
-                  </td>
-
+                  <th scope="col">Token</th>
+                  <th scope="col">Patient</th>
+                  <th scope="col">Doctor</th>
+                  <th scope="col">Department</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Waiting</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span className="sr-only">Actions</span></th>
                 </tr>
-
-              ) : (
-
-                filteredQueue.map(
-                  (item, index) => (
-
-                    <tr
-                      key={`${item.token}-${item.hospitalId}-${index}`}
-                      className="border-t hover:bg-gray-50 transition"
-                    >
-
-
-                      {/* Token */}
-
-                      <td className="px-6 py-4">
-
-                        <span className="font-bold text-blue-600">
-                          #{item.token}
-                        </span>
-
-                      </td>
-
-
-                      {/* Patient */}
-
-                      <td className="px-6 py-4">
-
-                        <p className="font-semibold text-gray-800">
-                          {item.patient}
-                        </p>
-
-                      </td>
-
-
-                      {/* Village */}
-
-                      <td className="px-6 py-4 text-gray-600">
-                        {item.village || "—"}
-                      </td>
-
-
-                      {/* Contact */}
-
-                      <td className="px-6 py-4 text-gray-600">
-                        {item.contact || "—"}
-                      </td>
-
-
-                      {/* Doctor */}
-
-                      <td className="px-6 py-4 text-gray-600">
-                        {item.doctor}
-                      </td>
-
-
-                      {/* Department */}
-
-                      <td className="px-6 py-4 text-gray-600">
-                        {item.department}
-                      </td>
-
-
-                      {/* Type */}
-
-                      <td className="px-6 py-4 text-gray-600">
-                        {item.type}
-                      </td>
-
-
-                      {/* Waiting */}
-
-                      <td className="px-6 py-4 text-gray-600">
-                        {item.waiting}
-                      </td>
-
-
-                      {/* Status */}
-
-                      <td className="px-6 py-4">
-
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusClass(
-                            item.status
-                          )}`}
-                        >
-
-                          {item.status}
-
-                        </span>
-
-                      </td>
-
-
-                      {/* Actions */}
-
-                      <td className="px-6 py-4">
-
-                        <div className="flex gap-2 flex-wrap">
-
-
-                          {item.status ===
-                            "Waiting" && (
-
-                              <button
-                                onClick={() =>
-                                  callPatient(
-                                    item.token
-                                  )
-                                }
-                                className="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
-                              >
-                                Call
-                              </button>
-
-                            )}
-
-
-                          {item.status ===
-                            "In Consultation" && (
-
-                              <button
-                                onClick={() =>
-                                  completePatient(
-                                    item.token
-                                  )
-                                }
-                                className="px-3 py-2 text-sm bg-green-50 text-green-700 rounded-lg hover:bg-green-100"
-                              >
-                                Complete
-                              </button>
-
-                            )}
-
-
-                          {item.status ===
-                            "Waiting" && (
-
-                              <button
-                                onClick={() =>
-                                  skipPatient(
-                                    item.token
-                                  )
-                                }
-                                className="px-3 py-2 text-sm bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100"
-                              >
-                                Skip
-                              </button>
-
-                            )}
-
-                        </div>
-
-                      </td>
-
-                    </tr>
-
-                  )
-                )
-
-              )}
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </div>
-
-
-      {/* =====================================
-          QUEUE SUMMARY
-      ===================================== */}
-
-      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mt-6">
-
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-
-          <div>
-
-            <p className="font-semibold text-blue-800">
-              Queue Summary
-            </p>
-
-            <p className="text-sm text-blue-600 mt-1">
-              {selectedHospital.name}
-            </p>
-
-          </div>
-
-
-          <div className="flex gap-5 text-sm flex-wrap">
-
-            <span className="text-orange-600">
-              Waiting:{" "}
-              <strong>
-                {waitingCount}
-              </strong>
-            </span>
-
-            <span className="text-blue-600">
-              Consulting:{" "}
-              <strong>
-                {consultationCount}
-              </strong>
-            </span>
-
-            <span className="text-green-600">
-              Completed:{" "}
-              <strong>
-                {completedCount}
-              </strong>
-            </span>
-
-            <span className="text-gray-600">
-              Skipped:{" "}
-              <strong>
-                {skippedCount}
-              </strong>
-            </span>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
+              </thead>
+              <tbody>
+                {filteredQueue.map((item, index) => (
+                  <tr key={`${item.token}-${item.hospitalId}-${index}`} className={item.status === "In Consultation" ? "[&>td]:bg-brand-50/60" : ""}>
+                    <td>
+                      <span className="inline-flex min-w-12 items-center justify-center rounded-md bg-ink-100 px-2 py-1 text-sm font-semibold text-ink-900 tabular-nums">
+                        #{item.token}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="block font-medium text-ink-900">{item.patient}</span>
+                      {(item.contact || item.village) && (
+                        <span className="block text-xs text-ink-500 tabular-nums">{[item.contact, item.village].filter(Boolean).join(" · ")}</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap">{item.doctor || <span className="text-ink-400">—</span>}</td>
+                    <td>{item.department}</td>
+                    <td className="text-ink-600">{item.type}</td>
+                    <td className="whitespace-nowrap tabular-nums text-ink-600">{item.waiting}</td>
+                    <td><StatusBadge status={item.status} /></td>
+                    <td>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {item.status === "Waiting" && (
+                          <>
+                            <Button size="sm" variant="subtle" icon={PhoneCall} loading={busy === `call-${item.token}`} onClick={() => rowAction(item.token, "call")}>
+                              Call
+                            </Button>
+                            <Button size="sm" variant="ghost" icon={SkipForward} loading={busy === `skip-${item.token}`} onClick={() => rowAction(item.token, "skip")}>
+                              Skip
+                            </Button>
+                          </>
+                        )}
+                        {item.status === "In Consultation" && (
+                          <Button size="sm" variant="subtle" icon={CircleCheck} loading={busy === `complete-${item.token}`} onClick={() => rowAction(item.token, "complete")}>
+                            Complete
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
+        )}
+      </Card>
     </div>
   )
 }
-
 
 export default Queue

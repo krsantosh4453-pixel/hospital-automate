@@ -13,45 +13,6 @@ const OFFLINE_CACHE_KEY = "hospitalPrescriptions"
 
 
 // =====================================
-// DEMO SEED (offline fallback only)
-// =====================================
-//
-// The original UI shipped with a single hardcoded demo record and no
-// persistence. It is kept verbatim as the offline fallback so the
-// Prescription / Pharmacy / Home / Reports screens never render blank when
-// the Django backend is unreachable. This is NOT the source of truth once
-// the API responds.
-
-const DEMO_SEED = [
-  {
-    id: "RX-2026-001",
-    hospitalId: 1,
-    patientId: "P001",
-    patientName: "Rahul Kumar",
-    doctor: "Dr. Sharma",
-    status: "Confirmed",
-    medicines: [
-      {
-        name: "Paracetamol 500mg",
-        dosage: "500 mg",
-        frequency: "1-0-1",
-        duration: "5 days",
-        quantity: 10,
-      },
-      {
-        name: "Amoxicillin 500mg",
-        dosage: "500 mg",
-        frequency: "0-0-1",
-        duration: "5 days",
-        quantity: 5,
-      },
-    ],
-    createdAt: "01/09/2026",
-  },
-]
-
-
-// =====================================
 // API -> UI MAPPING
 // =====================================
 //
@@ -92,36 +53,25 @@ const mapPrescriptionFromApi = (record) => ({
   })),
 })
 
-const loadCachedPrescriptions = () => {
+// Prescriptions are not cached in the browser: they contain patient data and
+// hospital PCs are shared. The list always comes from the API.
+const clearLegacyCache = () => {
   try {
-    const cached = localStorage.getItem(OFFLINE_CACHE_KEY)
-
-    if (cached) {
-      const parsed = JSON.parse(cached)
-
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed
-      }
-    }
-  } catch {
-    // Corrupt cache should never break the app.
-  }
-
-  return DEMO_SEED
-}
-
-const cachePrescriptions = (list) => {
-  try {
-    localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(list))
+    localStorage.removeItem(OFFLINE_CACHE_KEY)
   } catch {
     // Storage may be unavailable (private mode); safe to ignore.
   }
 }
 
+const cachePrescriptions = () => {}
+
 
 export function PrescriptionProvider({ children }) {
 
-  const [prescriptions, setPrescriptions] = useState(loadCachedPrescriptions)
+  const [prescriptions, setPrescriptions] = useState(() => {
+    clearLegacyCache()
+    return []
+  })
 
   const [loading, setLoading] = useState(false)
 
@@ -273,7 +223,9 @@ export function PrescriptionProvider({ children }) {
   // present we also best-effort persist in the background without ever
   // blocking or throwing into the caller.
 
-  const addPrescription = (prescription) => {
+  // Creates the prescription on the server and returns the saved record.
+  // Throws when the server rejects it; nothing is kept locally on failure.
+  const addPrescription = async (prescription) => {
 
     if (!prescription.hospitalId) {
       throw new Error(
@@ -298,70 +250,21 @@ export function PrescriptionProvider({ children }) {
       )
     }
 
-
-    const newPrescription = {
-
-      ...prescription,
-
-      id: `RX-2026-${String(
-        prescriptions.length + 1
-      ).padStart(3, "0")}`,
-
+    return createPrescription({
+      hospital: Number(prescription.hospitalId),
+      patient: Number(prescription.patientId),
+      doctor: prescription.doctorId || null,
+      visit: prescription.visitId || null,
       status: "Confirmed",
-
-      createdAt:
-        new Date().toLocaleDateString(
-          "en-IN"
-        ),
-
-    }
-
-
-    setPrescriptions((prev) => {
-
-      const next = [...prev, newPrescription]
-
-      cachePrescriptions(next)
-
-      return next
-
+      items: prescription.medicines.map((medicine) => ({
+        name: medicine.name,
+        dosage: medicine.dosage || "",
+        frequency: medicine.frequency || "",
+        duration: medicine.duration || "",
+        quantity: medicine.quantity || 1,
+        instructions: medicine.instructions || "",
+      })),
     })
-
-
-    // Best-effort persistence. Only attempted when we have real numeric
-    // foreign keys (the demo AI card passes placeholder ids such as
-    // "P001", which the backend correctly rejects). Failure is silent by
-    // design so the existing demo flow is unaffected offline.
-    const hasRealFks =
-      Number.isInteger(prescription.patientId) &&
-      Number.isInteger(prescription.hospitalId)
-
-    if (hasRealFks) {
-
-      api.prescriptions
-        .create({
-          hospital: prescription.hospitalId,
-          patient: prescription.patientId,
-          doctor: prescription.doctorId || null,
-          visit: prescription.visitId || null,
-          status: "Confirmed",
-          items: prescription.medicines.map((medicine) => ({
-            name: medicine.name,
-            dosage: medicine.dosage || "",
-            frequency: medicine.frequency || "",
-            duration: medicine.duration || "",
-            quantity: medicine.quantity || 1,
-            instructions: medicine.instructions || "",
-          })),
-        })
-        .catch(() => {
-          // Offline / rejected demo payload — keep the local record.
-        })
-
-    }
-
-
-    return newPrescription
   }
 
 
@@ -411,77 +314,37 @@ export function PrescriptionProvider({ children }) {
   // the backend status. NOTE: stock deduction is intentionally NOT done
   // here — that belongs to a future Pharmacy task.
 
-  const dispensePrescription = (
+  // Marks the prescription Dispensed on the server, then in the list.
+  // Throws if it is unknown here or the server refuses. Stock is deducted
+  // by the pharmacy sale, not here.
+  const dispensePrescription = async (
     id,
     hospitalId = null
   ) => {
 
-    let updatedPrescription = null
+    const record = prescriptions.find(
+      (prescription) =>
+        String(prescription.id) === String(id) &&
+        (hospitalId === null || String(prescription.hospitalId) === String(hospitalId))
+    )
 
-
-    setPrescriptions((prev) => {
-
-      const next = prev.map(
-        (prescription) => {
-
-          const idMatch =
-            String(prescription.id) === String(id)
-
-
-          const hospitalMatch =
-            hospitalId === null ||
-            String(prescription.hospitalId) ===
-            String(hospitalId)
-
-
-          if (
-            idMatch &&
-            hospitalMatch
-          ) {
-
-            updatedPrescription = {
-
-              ...prescription,
-
-              status:
-                "Dispensed",
-
-              dispensedAt:
-                new Date().toLocaleDateString(
-                  "en-IN"
-                ),
-
-            }
-
-
-            return updatedPrescription
-          }
-
-
-          return prescription
-        }
-      )
-
-      cachePrescriptions(next)
-
-      return next
-
-    })
-
-
-    if (updatedPrescription?.apiId) {
-
-      api.prescriptions
-        .patch(updatedPrescription.apiId, {
-          status: "Dispensed",
-          dispensed_at: new Date().toISOString(),
-        })
-        .catch(() => {
-          // Offline — the local status stays Dispensed.
-        })
-
+    if (!record?.apiId) {
+      throw new Error("Prescription not found on the server.")
     }
 
+    await api.prescriptions.patch(record.apiId, { status: "Dispensed" })
+
+    const updatedPrescription = {
+      ...record,
+      status: "Dispensed",
+      dispensedAt: new Date().toLocaleDateString("en-IN"),
+    }
+
+    setPrescriptions((prev) =>
+      prev.map((prescription) =>
+        prescription.apiId === record.apiId ? updatedPrescription : prescription
+      )
+    )
 
     return updatedPrescription
   }

@@ -1,8 +1,25 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
+import { Briefcase, Clock, FileText, Hospital, Pencil, Phone, Stethoscope, Trash2, UserPlus } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
-import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import api from "../services/api.js"
-
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  ConfirmDialog,
+  DescriptionList,
+  EmptyState,
+  Field,
+  Input,
+  Modal,
+  PageHeader,
+  SearchInput,
+  SegmentedControl,
+  Select,
+  StatusBadge,
+} from "../components/ui"
 
 // =====================================================
 // Helpers — keep the existing (flat, display-oriented) UI
@@ -10,1464 +27,439 @@ import api from "../services/api.js"
 // =====================================================
 
 // The directory UI only knows "Available" / "On Leave".
-// Any other backend value is normalised so the pills and
-// the statistics cards keep working.
-const DOCTOR_STATUSES = [
-  "Available",
-  "On Leave",
-]
+// Any other backend value is kept as-is.
+const DOCTOR_STATUSES = ["Available", "On Leave"]
 
 const normaliseDoctorStatus = (status) => {
-  if (!status) {
-    return "Available"
-  }
-
-  const match = DOCTOR_STATUSES.find(
-    (item) =>
-      item.toLowerCase() ===
-      String(status).toLowerCase()
-  )
-
+  if (!status) return "Available"
+  const match = DOCTOR_STATUSES.find((item) => item.toLowerCase() === String(status).toLowerCase())
   return match || status
 }
 
-// Map a Django Doctor record to the flat shape the existing
-// table / modals expect. `apiId` keeps the real database id
-// (used for update/delete) while `id` stays the readable
-// display id so nothing else in the UI changes.
+// Map a Django Doctor record to the flat shape the UI expects. `apiId` keeps
+// the real database id (used for update/delete); `id` is the display id.
 const mapDoctorFromApi = (record) => ({
   apiId: record.id,
   id: `D${String(record.id).padStart(3, "0")}`,
   name: record.name || "",
   specialization: record.specialization || "",
   phone: record.phone || "",
+  email: record.email || "",
+  loginLinked: Boolean(record.user),
   experience: record.experience || "",
   status: normaliseDoctorStatus(record.status),
   availability: record.availability || "",
   hospitalId: record.hospital,
 })
 
+const EMPTY_FORM = { name: "", specialization: "", phone: "", email: "", experience: "", status: "Available", availability: "" }
+
 function Doctors() {
-
-  // ==============================
-  // HOSPITAL
-  // ==============================
-
   const { selectedHospital } = usePatient()
 
-
-  // ==============================
-  // PRESCRIPTION
-  // ==============================
-
-  const { addPrescription } = usePrescription()
-
-
-  // ==============================
-  // CREATE PRESCRIPTION
-  // ==============================
-
-  const createPrescription = ({
-    patientId,
-    patientName,
-    medicines,
-  }) => {
-
-    if (!selectedHospital) {
-      alert("Please select a hospital first.")
-      return
-    }
-
-    if (!patientId || !patientName) {
-      alert("Please select a patient.")
-      return
-    }
-
-    if (!medicines || medicines.length === 0) {
-      alert("Please add at least one medicine.")
-      return
-    }
-
-    const prescription = addPrescription({
-
-      hospitalId:
-        selectedHospital.id,
-
-      patientId,
-
-      patientName,
-
-      doctor:
-        "Dr. Sharma",
-
-      medicines,
-    })
-
-
-    alert(
-      `Prescription created successfully!\n\nPrescription ID: ${prescription.id}`
-    )
-  }
-
-
-  // ==============================
-  // EXISTING DOCTORS CODE
-  // ==============================
-
-  // Offline / demo seed data — kept so the page still works
-  // (exactly as before) when the Django API is unreachable.
-  const fallbackDoctors = [
-
-    {
-      id: "D001",
-      name: "Dr. Sharma",
-      specialization: "Cardiology",
-      phone: "9876500001",
-      experience: "12 Years",
-      status: "Available",
-      availability: "Mon - Sat, 10 AM - 2 PM",
-      hospitalId: 1,
-    },
-
-    {
-      id: "D002",
-      name: "Dr. Verma",
-      specialization: "General Medicine",
-      phone: "9876500002",
-      experience: "8 Years",
-      status: "Available",
-      availability: "Mon - Fri, 9 AM - 1 PM",
-      hospitalId: 1,
-    },
-
-    {
-      id: "D003",
-      name: "Dr. Singh",
-      specialization: "Neurology",
-      phone: "9876500003",
-      experience: "10 Years",
-      status: "On Leave",
-      availability: "Currently unavailable",
-      hospitalId: 2,
-    },
-
-  ]
-
-  const [doctors, setDoctors] = useState(
-    fallbackDoctors
-  )
+  const [doctors, setDoctors] = useState([])
 
   // API / UX states.
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState("")
+  const [formError, setFormError] = useState("")
   const [offlineMode, setOfflineMode] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
 
-
-  const [search, setSearch] =
-    useState("")
-
-  const [showForm, setShowForm] =
-    useState(false)
-
-  const [selectedDoctor, setSelectedDoctor] =
-    useState(null)
-
-
-  const [formData, setFormData] =
-    useState({
-
-      name: "",
-      specialization: "",
-      phone: "",
-      experience: "",
-      status: "Available",
-      availability: "",
-
-    })
-
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [showForm, setShowForm] = useState(false)
+  const [selectedDoctor, setSelectedDoctor] = useState(null)
+  const [formData, setFormData] = useState(EMPTY_FORM)
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   // ==============================
   // LOAD DOCTORS FROM DJANGO
   // ==============================
 
   useEffect(() => {
-
     if (!selectedHospital) {
       setDoctors([])
       setLoadError("")
       setOfflineMode(false)
-      return
+      return undefined
     }
 
     let cancelled = false
 
     const loadDoctors = async () => {
-
       setLoading(true)
       setLoadError("")
-
       try {
-
-        const data = await api.doctors.list(
-          selectedHospital.id
-        )
-
-        const results = Array.isArray(data)
-          ? data
-          : data?.results || []
-
-        if (cancelled) {
-          return
-        }
-
-        setDoctors(
-          results.map(mapDoctorFromApi)
-        )
-
+        const data = await api.doctors.list(selectedHospital.id)
+        const results = Array.isArray(data) ? data : data?.results || []
+        if (cancelled) return
+        setDoctors(results.map(mapDoctorFromApi))
         setOfflineMode(false)
-
       } catch (error) {
-
-        if (cancelled) {
-          return
-        }
-
-        // Fall back to the demo seed data so the
-        // existing behaviour keeps working.
-        setDoctors(
-          fallbackDoctors.filter(
-            (doctor) =>
-              String(doctor.hospitalId) ===
-              String(selectedHospital.id)
-          )
-        )
-
+        if (cancelled) return
+        setDoctors([])
         setOfflineMode(true)
-        setLoadError(
-          error.message ||
-          "Unable to reach the server. Showing demo doctors."
-        )
-
+        setLoadError(error.message || "Unable to reach the server.")
       } finally {
-
-        if (!cancelled) {
-          setLoading(false)
-        }
+        if (!cancelled) setLoading(false)
       }
     }
 
     loadDoctors()
-
     return () => {
       cancelled = true
     }
-
   }, [selectedHospital, reloadToken])
 
-
   // Auto-dismiss the success message.
-
   useEffect(() => {
-
-    if (!successMessage) {
-      return
-    }
-
-    const timer = setTimeout(
-      () => setSuccessMessage(""),
-      3000
-    )
-
+    if (!successMessage) return undefined
+    const timer = setTimeout(() => setSuccessMessage(""), 3000)
     return () => clearTimeout(timer)
-
   }, [successMessage])
 
-
   // ==============================
-  // HOSPITAL FILTER
-  // ==============================
-
-  const hospitalDoctors =
-    selectedHospital
-      ? doctors.filter(
-        (doctor) =>
-          doctor.hospitalId ===
-          selectedHospital.id
-      )
-      : []
-
-
-  // ==============================
-  // SEARCH
+  // FILTERS
   // ==============================
 
-  const filteredDoctors =
-    hospitalDoctors.filter(
-      (doctor) =>
-        doctor.name
-          .toLowerCase()
-          .includes(
-            search.toLowerCase()
-          ) ||
+  const hospitalDoctors = selectedHospital ? doctors.filter((doctor) => String(doctor.hospitalId) === String(selectedHospital.id)) : []
 
-        doctor.specialization
-          .toLowerCase()
-          .includes(
-            search.toLowerCase()
-          ) ||
+  const filteredDoctors = hospitalDoctors.filter((doctor) => {
+    const q = search.toLowerCase()
+    const matches =
+      doctor.name.toLowerCase().includes(q) || doctor.specialization.toLowerCase().includes(q) || doctor.id.toLowerCase().includes(q)
+    const statusOk = statusFilter === "all" || (statusFilter === "available" ? doctor.status === "Available" : doctor.status !== "Available")
+    return matches && statusOk
+  })
 
-        doctor.id
-          .toLowerCase()
-          .includes(
-            search.toLowerCase()
-          )
-    )
-
+  const availableDoctors = hospitalDoctors.filter((doctor) => doctor.status === "Available").length
+  const onLeaveDoctors = hospitalDoctors.filter((doctor) => doctor.status === "On Leave").length
 
   // ==============================
-  // FORM CHANGE
+  // FORM
   // ==============================
 
   const handleChange = (e) => {
-
-    const {
-      name,
-      value,
-    } = e.target
-
-    setFormData({
-      ...formData,
-      [name]: value,
-    })
+    const { name, value } = e.target
+    setFormData({ ...formData, [name]: value })
   }
 
-
-  // ==============================
-  // RESET
-  // ==============================
-
   const resetForm = () => {
-
-    setFormData({
-
-      name: "",
-      specialization: "",
-      phone: "",
-      experience: "",
-      status: "Available",
-      availability: "",
-
-    })
-
+    setFormData(EMPTY_FORM)
     setSelectedDoctor(null)
+    setFormError("")
     setShowForm(false)
   }
 
-
-  // ==============================
-  // ADD DOCTOR
-  // ==============================
+  const openNew = () => {
+    setSelectedDoctor(null)
+    setFormData(EMPTY_FORM)
+    setFormError("")
+    setShowForm(true)
+  }
 
   const handleSubmit = async (e) => {
-
     e.preventDefault()
-
-
-    if (!selectedHospital) {
-
-      alert(
-        "Please select a hospital before adding a doctor."
-      )
-
-      return
-    }
-
-    if (saving) {
-      return
-    }
-
+    if (!selectedHospital || saving) return
 
     const payload = {
       name: formData.name,
       specialization: formData.specialization,
       phone: formData.phone,
+      email: formData.email,
       experience: formData.experience,
       availability: formData.availability,
       status: formData.status || "Available",
       hospital: selectedHospital.id,
     }
 
-
     setSaving(true)
-
+    setFormError("")
     try {
-
-      const created =
-        await api.doctors.create(payload)
-
-      const mapped =
-        mapDoctorFromApi(created)
-
-      setDoctors([
-        ...doctors,
-        mapped,
-      ])
-
-      setSuccessMessage(
-        "Doctor saved successfully."
-      )
-
+      const created = await api.doctors.create(payload)
+      setDoctors([...doctors, mapDoctorFromApi(created)])
+      setSuccessMessage("Doctor added.")
       resetForm()
-
     } catch (error) {
-
-      // Keep the previous behaviour: save locally so nothing
-      // the user typed is lost, but be honest about it.
-      const newDoctor = {
-
-        id:
-          `D${String(
-            doctors.length + 1
-          ).padStart(3, "0")}`,
-
-        ...formData,
-
-        hospitalId:
-          selectedHospital.id,
-
-      }
-
-      setDoctors([
-        ...doctors,
-        newDoctor,
-      ])
-
-      setOfflineMode(true)
-      setSuccessMessage(
-        "Saved locally. The server could not be reached."
-      )
-
-      resetForm()
-
+      // A doctor that is not on the server cannot be booked or linked, so
+      // nothing is kept locally: show why and keep the form open.
+      setFormError(error.isNetworkError ? "The server could not be reached. Nothing was saved." : error.message)
     } finally {
-
       setSaving(false)
     }
   }
 
-
-  // ==============================
-  // EDIT
-  // ==============================
-
   const handleEdit = (doctor) => {
-
-    setSelectedDoctor(
-      doctor
-    )
-
-
+    setSelectedDoctor(doctor)
     setFormData({
-
-      name:
-        doctor.name,
-
-      specialization:
-        doctor.specialization,
-
-      phone:
-        doctor.phone,
-
-      experience:
-        doctor.experience,
-
-      status:
-        doctor.status,
-
-      availability:
-        doctor.availability,
-
+      name: doctor.name,
+      specialization: doctor.specialization,
+      phone: doctor.phone,
+      email: doctor.email,
+      experience: doctor.experience,
+      status: doctor.status,
+      availability: doctor.availability,
     })
-
-
+    setFormError("")
     setShowForm(true)
   }
 
-
-  // ==============================
-  // UPDATE
-  // ==============================
-
   const handleUpdate = async (e) => {
-
     e.preventDefault()
-
-
-    if (!selectedDoctor || saving) {
-      return
-    }
-
+    if (!selectedDoctor || saving) return
 
     const payload = {
       name: formData.name,
       specialization: formData.specialization,
       phone: formData.phone,
+      email: formData.email,
       experience: formData.experience,
       availability: formData.availability,
       status: formData.status || "Available",
-      hospital:
-        selectedHospital?.id ??
-        selectedDoctor.hospitalId,
+      hospital: selectedHospital?.id ?? selectedDoctor.hospitalId,
     }
 
-
     setSaving(true)
-
+    setFormError("")
     try {
-
-      // Only rows loaded from Django carry `apiId`. Demo /
-      // offline rows are updated locally, exactly as before.
-      if (selectedDoctor.apiId) {
-
-        await api.doctors.update(
-          selectedDoctor.apiId,
-          payload
-        )
-
-        setSuccessMessage(
-          "Doctor updated successfully."
-        )
-
-      }
-
-      const updatedDoctors =
-        doctors.map(
-          (doctor) =>
-            String(doctor.id) ===
-              String(selectedDoctor.id)
-
-              ? {
-                ...doctor,
-                ...formData,
-              }
-
-              : doctor
-        )
-
-      setDoctors(
-        updatedDoctors
-      )
-
+      if (selectedDoctor.apiId) await api.doctors.update(selectedDoctor.apiId, payload)
+      setDoctors(doctors.map((doctor) => (String(doctor.id) === String(selectedDoctor.id) ? { ...doctor, ...formData } : doctor)))
+      setSuccessMessage("Doctor updated.")
       resetForm()
-
     } catch (error) {
-
-      const updatedDoctors =
-        doctors.map(
-          (doctor) =>
-            String(doctor.id) ===
-              String(selectedDoctor.id)
-
-              ? {
-                ...doctor,
-                ...formData,
-              }
-
-              : doctor
-        )
-
-      setDoctors(
-        updatedDoctors
-      )
-
-      setOfflineMode(true)
-      setSuccessMessage(
-        "Saved locally. The server could not be reached."
-      )
-
-      resetForm()
-
+      setFormError(error.isNetworkError ? "The server could not be reached. Nothing was saved." : error.message)
     } finally {
-
       setSaving(false)
     }
   }
 
-
-  // ==============================
-  // DELETE
-  // ==============================
-
-  const handleDelete = async (id) => {
-
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to delete this doctor?"
-      )
-
-
-    if (!confirmed) {
-      return
-    }
-
-
-    const target =
-      doctors.find(
-        (doctor) =>
-          String(doctor.id) === String(id)
-      )
-
-
+  const confirmDelete = async () => {
+    const target = pendingDelete
+    if (!target) return
+    setDeleting(true)
     try {
-
-      // Only rows loaded from Django carry `apiId`.
-      if (target?.apiId) {
-
-        await api.doctors.delete(
-          target.apiId
-        )
-      }
-
-      setDoctors(
-        doctors.filter(
-          (doctor) =>
-            String(doctor.id) !== String(id)
-        )
-      )
-
-      setSuccessMessage(
-        "Doctor deleted."
-      )
-
+      if (target.apiId) await api.doctors.delete(target.apiId)
+      setDoctors(doctors.filter((doctor) => String(doctor.id) !== String(target.id)))
+      setSuccessMessage("Doctor deleted.")
     } catch (error) {
-
-      setOfflineMode(true)
-      setSuccessMessage(
-        "The server could not be reached. Please try again."
-      )
+      setLoadError(error.isNetworkError ? "The server could not be reached. Please try again." : `Not deleted: ${error.message}`)
+    } finally {
+      setDeleting(false)
+      setPendingDelete(null)
+      setSelectedDoctor(null)
     }
   }
-
-
-  // ==============================
-  // VIEW
-  // ==============================
-
-  const handleView = (
-    doctor
-  ) => {
-
-    setSelectedDoctor(
-      doctor
-    )
-  }
-
-
-  // ==============================
-  // STATISTICS
-  // ==============================
-
-  const availableDoctors =
-    hospitalDoctors.filter(
-      (doctor) =>
-        doctor.status ===
-        "Available"
-    ).length
-
-
-  const onLeaveDoctors =
-    hospitalDoctors.filter(
-      (doctor) =>
-        doctor.status ===
-        "On Leave"
-    ).length
-
 
   return (
-
-    <div>
-
-
-      {/* ==============================
-          HEADER
-      ============================== */}
-
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-
-        <div>
-
-          <p className="text-blue-600 font-semibold text-sm">
-            DOCTOR MANAGEMENT
-          </p>
-
-          <h1 className="text-3xl font-bold text-gray-800">
-            Doctors
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Manage doctors, specializations and availability
-          </p>
-
-        </div>
-
-
-        <button
-          onClick={() => {
-
-            if (!selectedHospital) {
-
-              alert(
-                "Please select a hospital first."
-              )
-
-              return
-            }
-
-
-            setSelectedDoctor(null)
-
-
-            setFormData({
-
-              name: "",
-              specialization: "",
-              phone: "",
-              experience: "",
-              status: "Available",
-              availability: "",
-
-            })
-
-
-            setShowForm(true)
-
-          }}
-
-          className="bg-blue-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-blue-700 transition"
-        >
-
-          + Add Doctor
-
-        </button>
-
-      </div>
-
-
-      {/* ==============================
-          STATUS / ERROR BANNERS
-      ============================== */}
-
-      {successMessage && (
-
-        <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4">
-
-          <p className="text-sm font-medium text-green-700">
-            ✅ {successMessage}
-          </p>
-
-        </div>
-
-      )}
-
-      {loadError && (
-
-        <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-
-          <p className="text-sm font-medium text-orange-700">
-            ⚠️ {loadError}
-            {offlineMode ? " (offline mode)" : ""}
-          </p>
-
-          <button
-            onClick={() =>
-              setReloadToken(
-                (token) => token + 1
-              )
-            }
-            className="self-start px-4 py-2 text-sm bg-orange-600 text-white rounded-lg"
-          >
-            Retry
-          </button>
-
-        </div>
-
-      )}
-
-
-      {/* ==============================
-          CURRENT HOSPITAL
-      ============================== */}
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-
-        {selectedHospital ? (
-
-          <div className="flex items-center gap-4">
-
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl">
-              🏥
-            </div>
-
-
-            <div>
-
-              <p className="text-xs text-gray-500">
-                Current Hospital
-              </p>
-
-              <h2 className="font-bold text-gray-800">
-                {selectedHospital.name}
-              </h2>
-
-              <p className="text-sm text-gray-500">
-                📍 {selectedHospital.address}
-              </p>
-
-            </div>
-
-          </div>
-
-        ) : (
-
-          <div>
-
-            <p className="font-semibold text-orange-600">
-              ⚠️ No hospital selected
-            </p>
-
-            <p className="text-sm text-gray-500 mt-1">
-              Select a hospital from the header to view doctors.
-            </p>
-
-          </div>
-
-        )}
-
-      </div>
-
-
-      {/* ==============================
-          DOCTORS CONTENT
-      ============================== */}
-
-      {selectedHospital && (
-
-        <>
-
-          {/* STATISTICS */}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-
-              <p className="text-sm text-gray-500">
-                Total Doctors
-              </p>
-
-              <h2 className="text-3xl font-bold text-gray-800 mt-3">
-                {loading
-                  ? "…"
-                  : hospitalDoctors.length}
-              </h2>
-
-            </div>
-
-
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-
-              <p className="text-sm text-gray-500">
-                Available Doctors
-              </p>
-
-              <h2 className="text-3xl font-bold text-green-600 mt-3">
-                {availableDoctors}
-              </h2>
-
-            </div>
-
-
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-
-              <p className="text-sm text-gray-500">
-                On Leave
-              </p>
-
-              <h2 className="text-3xl font-bold text-orange-500 mt-3">
-                {onLeaveDoctors}
-              </h2>
-            </div>
-
-          </div>
-          {/* SEARCH */}
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-
-            <input
-
-              type="text"
-
-              value={search}
-
-              onChange={(e) =>
-                setSearch(
-                  e.target.value
-                )
-              }
-
-              placeholder="Search by doctor name, specialization or ID..."
-
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-
-            />
-
-          </div>
-
-
-          {loading && (
-
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
-
-              <p className="text-sm text-gray-500">
-                Loading doctors…
-              </p>
-
-            </div>
-
-          )}
-
-
-          {/* DOCTOR TABLE */}
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-
-            <div className="p-6 border-b">
-
-              <h2 className="text-xl font-bold text-gray-800">
-                Doctor Directory
-              </h2>
-
-              <p className="text-sm text-gray-500 mt-1">
-                {filteredDoctors.length} doctor(s) found
-              </p>
-
-            </div>
-
-
-            <div className="overflow-x-auto">
-
-              <table className="w-full">
-
-                <thead className="bg-gray-50">
-
-                  <tr>
-
-                    <th className="text-left px-6 py-4">
-                      ID
-                    </th>
-
-                    <th className="text-left px-6 py-4">
-                      Doctor
-                    </th>
-
-                    <th className="text-left px-6 py-4">
-                      Specialization
-                    </th>
-
-                    <th className="text-left px-6 py-4">
-                      Phone
-                    </th>
-
-                    <th className="text-left px-6 py-4">
-                      Experience
-                    </th>
-
-                    <th className="text-left px-6 py-4">
-                      Status
-                    </th>
-
-                    <th className="text-left px-6 py-4">
-                      Actions
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-
-                <tbody>
-
-                  {filteredDoctors.map(
-                    (doctor) => (
-
-                      <tr
-                        key={doctor.id}
-                        className="border-t hover:bg-gray-50"
-                      >
-
-                        <td className="px-6 py-4 font-semibold text-blue-600">
-                          {doctor.id}
-                        </td>
-
-
-                        <td className="px-6 py-4">
-
-                          <div className="flex items-center gap-3">
-
-                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                              👨‍⚕️
-                            </div>
-
-                            <div>
-
-                              <p className="font-semibold text-gray-800">
-                                {doctor.name}
-                              </p>
-
-                              <p className="text-xs text-gray-500">
-                                Hospital Staff
-                              </p>
-
-                            </div>
-
-                          </div>
-
-                        </td>
-
-
-                        <td className="px-6 py-4">
-                          {doctor.specialization}
-                        </td>
-
-
-                        <td className="px-6 py-4">
-                          {doctor.phone}
-                        </td>
-
-
-                        <td className="px-6 py-4">
-                          {doctor.experience}
-                        </td>
-
-
-                        <td className="px-6 py-4">
-
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs ${doctor.status ===
-                              "Available"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-orange-100 text-orange-700"
-                              }`}
-                          >
-                            {doctor.status}
-                          </span>
-
-                        </td>
-
-
-                        <td className="px-6 py-4">
-
-                          <div className="flex gap-2">
-
-                            <button
-                              onClick={() =>
-                                handleView(
-                                  doctor
-                                )
-                              }
-                              className="px-3 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg"
-                            >
-                              View
-                            </button>
-
-
-                            <button
-                              onClick={() =>
-                                handleEdit(
-                                  doctor
-                                )
-                              }
-                              className="px-3 py-2 text-sm text-green-600 bg-green-50 rounded-lg"
-                            >
-                              Edit
-                            </button>
-
-
-                            <button
-                              onClick={() =>
-                                handleDelete(
-                                  doctor.id
-                                )
-                              }
-                              className="px-3 py-2 text-sm text-red-600 bg-red-50 rounded-lg"
-                            >
-                              Delete
-                            </button>
-
-                          </div>
-
-                        </td>
-
-                      </tr>
-
-                    )
-                  )}
-
-
-                  {!loading &&
-                    filteredDoctors.length === 0 && (
-
-                      <tr>
-
-                        <td
-                          colSpan="7"
-                          className="px-6 py-10 text-center text-gray-500"
-                        >
-
-                          {hospitalDoctors.length === 0
-                            ? "No doctors yet. Use “Add Doctor” to create one."
-                            : "No doctors match your search."}
-
-                        </td>
-
-                      </tr>
-
-                    )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-          </div>
-
-
-          {/* ==============================
-              PRESCRIPTION SECTION
-          ============================== */}
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mt-6">
-
-            <div>
-
-              <p className="text-blue-600 font-semibold text-sm">
-                AI ASSISTED PRESCRIPTION
-              </p>
-
-              <h2 className="text-xl font-bold text-gray-800 mt-1">
-                Doctor Prescription
-              </h2>
-
-              <p className="text-sm text-gray-500 mt-1">
-                Confirm the patient's medicines after doctor review.
-              </p>
-
-            </div>
-
-
-            <div className="mt-5 p-4 bg-blue-50 rounded-xl">
-
-              <p className="text-sm text-gray-600">
-                Current Hospital
-              </p>
-
-              <p className="font-bold text-gray-800">
-                {selectedHospital.name}
-              </p>
-
-            </div>
-
-
-            <button
-
-              onClick={() =>
-                createPrescription({
-
-                  patientId: "P001",
-
-                  patientName:
-                    "Rahul Kumar",
-
-                  medicines: [
-
-                    {
-                      name:
-                        "Medicine A",
-
-                      dosage:
-                        "500 mg",
-
-                      frequency:
-                        "1-0-1",
-
-                      duration:
-                        "5 days",
-
-                      quantity:
-                        10,
-                    },
-
-                  ],
-
-                })
-              }
-
-              className="mt-5 bg-blue-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-blue-700"
-
+    <div className="space-y-5">
+      <PageHeader
+        title="Doctors"
+        description={selectedHospital ? `Doctors, specialities and availability at ${selectedHospital.name}.` : "Select a hospital from the header to view doctors."}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Doctors" }]}
+        actions={
+          <>
+            <Link
+              to="/prescription"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-line-strong bg-white px-4 text-sm font-medium text-ink-800 shadow-sm hover:bg-ink-50"
             >
+              <FileText size={17} aria-hidden="true" /> Write prescription
+            </Link>
+            <Button icon={UserPlus} onClick={openNew} disabled={!selectedHospital}>
+              Add doctor
+            </Button>
+          </>
+        }
+      />
 
-              ✓ Confirm Prescription
-
-            </button>
-
-          </div>
-
-
-          {/* ==============================
-              ADD / EDIT MODAL
-          ============================== */}
-
-          {showForm && (
-
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-
-              <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl">
-
-                <div className="flex justify-between items-center p-6 border-b">
-
-                  <h2 className="text-xl font-bold">
-                    {selectedDoctor
-                      ? "Edit Doctor"
-                      : "Add New Doctor"}
-                  </h2>
-
-                  <button
-                    onClick={
-                      resetForm
-                    }
-                    className="text-2xl"
-                  >
-                    ×
-                  </button>
-
-                </div>
-
-
-                <form
-
-                  onSubmit={
-                    selectedDoctor
-                      ? handleUpdate
-                      : handleSubmit
-                  }
-
-                  className="p-6 space-y-4"
-
-                >
-
-                  <input
-                    type="text"
-                    name="name"
-                    value={
-                      formData.name
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Doctor Name"
-                    required
-                    className="w-full border rounded-xl px-4 py-3"
-                  />
-
-
-                  <input
-                    type="text"
-                    name="specialization"
-                    value={
-                      formData.specialization
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Specialization"
-                    required
-                    className="w-full border rounded-xl px-4 py-3"
-                  />
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={
-                      formData.phone
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Phone"
-                    required
-                    className="w-full border rounded-xl px-4 py-3"
-                  />
-                  <input
-                    type="text"
-                    name="experience"
-                    value={
-                      formData.experience
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Experience"
-                    required
-                    className="w-full border rounded-xl px-4 py-3"
-                  />
-                  <select
-                    name="status"
-                    value={
-                      formData.status
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    className="w-full border rounded-xl px-4 py-3"
-                  >
-                    <option>
-                      Available
-                    </option>
-
-                    <option>
-                      On Leave
-                    </option>
-                  </select>
-                  <input
-                    type="text"
-                    name="availability"
-                    value={
-                      formData.availability
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="Availability"
-                    required
-                    className="w-full border rounded-xl px-4 py-3"
-                  />
-                  <div className="flex justify-end gap-3 pt-4">
-
-                    <button
-                      type="button"
-                      onClick={
-                        resetForm
-                      }
-                      className="px-5 py-3 border rounded-xl"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="px-5 py-3 bg-blue-600 text-white rounded-xl disabled:opacity-60"
-                    >
-                      {saving
-                        ? "Saving…"
-                        : selectedDoctor
-                          ? "Save Changes"
-                          : "Save Doctor"}
-                    </button>
-                  </div>
-                </form>
-
-              </div>
-
-            </div>
-
-          )}
-          {/* ==============================
-              VIEW DOCTOR
-          ============================== */}
-
-          {selectedDoctor &&
-            !showForm && (
-
-              <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-
-                <div className="bg-white w-full max-w-md rounded-2xl shadow-xl">
-
-                  <div className="p-6 border-b flex justify-between">
-
-                    <h2 className="text-xl font-bold">
-                      Doctor Details
-                    </h2>
-
-                    <button
-                      onClick={() =>
-                        setSelectedDoctor(
-                          null
-                        )
-                      }
-                      className="text-2xl"
-                    >
-                      ×
-                    </button>
-
-                  </div>
-
-
-                  <div className="p-6 space-y-4">
-
-                    <div className="text-4xl">
-                      👨‍⚕️
-                    </div>
-
-                    <h3 className="text-xl font-bold">
-                      {selectedDoctor.name}
-                    </h3>
-
-                    <p className="text-gray-500">
-                      {selectedDoctor.specialization}
-                    </p>
-
-                    <p>
-                      📞 {selectedDoctor.phone}
-                    </p>
-
-                    <p>
-                      💼 {selectedDoctor.experience}
-                    </p>
-
-                    <p>
-                      🕒 {selectedDoctor.availability}
-                    </p>
-
-                  </div>
-
-
-                  <div className="p-6 border-t">
-
-                    <button
-                      onClick={() =>
-                        setSelectedDoctor(
-                          null
-                        )
-                      }
-                      className="px-5 py-3 bg-gray-800 text-white rounded-xl"
-                    >
-                      Close
-                    </button>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            )}
-
-        </>
-
+      {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}
+      {loadError && (
+        <Alert
+          tone={offlineMode ? "warning" : "danger"}
+          title={offlineMode ? "Server unreachable" : undefined}
+          action={<Button size="sm" variant="secondary" onClick={() => setReloadToken((token) => token + 1)}>Retry</Button>}
+        >
+          {loadError}
+        </Alert>
       )}
 
+      {!selectedHospital ? (
+        <Card>
+          <EmptyState icon={Hospital} title="No hospital selected" description="Choose a hospital in the header to see its doctors." />
+        </Card>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Name, speciality or ID"
+              label="Search doctors"
+              className="w-full sm:max-w-sm"
+            />
+            <SegmentedControl
+              label="Availability"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: "all", label: `All (${hospitalDoctors.length})` },
+                { value: "available", label: `Available (${availableDoctors})` },
+                { value: "away", label: `On leave (${onLeaveDoctors})` },
+              ]}
+            />
+          </div>
+
+          {loading && hospitalDoctors.length === 0 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-40 rounded-2xl" />)}
+            </div>
+          ) : filteredDoctors.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={Stethoscope}
+                title={hospitalDoctors.length === 0 ? "No doctors yet" : "No doctors match"}
+                description={hospitalDoctors.length === 0 ? "Add the doctors who practise at this hospital." : "Try a different name, speciality or filter."}
+                action={hospitalDoctors.length === 0 && <Button icon={UserPlus} onClick={openNew}>Add doctor</Button>}
+              />
+            </Card>
+          ) : (
+            <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filteredDoctors.map((doctor) => (
+                <li key={doctor.id}>
+                  <Card className="flex h-full flex-col">
+                    <button type="button" onClick={() => setSelectedDoctor(doctor)} className="flex items-start gap-3 px-5 pt-5 text-left">
+                      <Avatar name={doctor.name} size="lg" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold text-ink-900 hover:text-brand-700">{doctor.name}</span>
+                        <span className="block truncate text-[13px] text-ink-600">{doctor.specialization || "Speciality not set"}</span>
+                        <span className="mt-0.5 block text-xs text-ink-400 tabular-nums">{doctor.id}</span>
+                      </span>
+                      <StatusBadge status={doctor.status === "Available" ? "available" : doctor.status} label={doctor.status} />
+                    </button>
+                    <dl className="mt-4 grid grid-cols-1 gap-1.5 px-5 text-[13px] text-ink-600">
+                      <div className="flex items-center gap-2"><dt className="sr-only">Availability</dt><Clock size={14} className="text-ink-400" aria-hidden="true" /><dd className="truncate">{doctor.availability || "Hours not set"}</dd></div>
+                      <div className="flex items-center gap-2"><dt className="sr-only">Phone</dt><Phone size={14} className="text-ink-400" aria-hidden="true" /><dd className="tabular-nums">{doctor.phone || "—"}</dd></div>
+                      <div className="flex items-center gap-2"><dt className="sr-only">Experience</dt><Briefcase size={14} className="text-ink-400" aria-hidden="true" /><dd className="truncate">{doctor.experience || "—"}</dd></div>
+                    </dl>
+                    <div className="mt-auto flex justify-end gap-1 border-t border-line px-3 py-2 pt-2">
+                      <Button size="sm" variant="ghost" icon={Pencil} onClick={() => handleEdit(doctor)}>Edit</Button>
+                      <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => setPendingDelete(doctor)} aria-label={`Delete ${doctor.name}`} title="Delete" />
+                    </div>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+
+      {/* Add / Edit */}
+      <Modal
+        open={showForm}
+        onClose={resetForm}
+        title={selectedDoctor ? `Edit ${selectedDoctor.name}` : "Add doctor"}
+        description={selectedHospital ? `At ${selectedHospital.name}` : undefined}
+        footer={
+          <>
+            <Button variant="secondary" onClick={resetForm} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="doctor-form" loading={saving}>{selectedDoctor ? "Save changes" : "Add doctor"}</Button>
+          </>
+        }
+      >
+        <form id="doctor-form" onSubmit={selectedDoctor ? handleUpdate : handleSubmit} className="space-y-4">
+          {formError && <Alert tone="danger" title="Not saved">{formError}</Alert>}
+          <Field label="Full name" required>
+            <Input name="name" value={formData.name} onChange={handleChange} placeholder="Dr. …" />
+          </Field>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Speciality" required>
+              <Input name="specialization" value={formData.specialization} onChange={handleChange} />
+            </Field>
+            <Field label="Phone" required>
+              <Input type="tel" name="phone" value={formData.phone} onChange={handleChange} />
+            </Field>
+            <Field
+              label="Login email"
+              hint={
+                selectedDoctor?.loginLinked
+                  ? "Linked to this doctor's staff login."
+                  : "The doctor's staff login email. Links the login so the doctor sees their own patients."
+              }
+            >
+              <Input type="email" name="email" value={formData.email} onChange={handleChange} />
+            </Field>
+            <Field label="Experience" required hint="e.g. 8 years">
+              <Input name="experience" value={formData.experience} onChange={handleChange} />
+            </Field>
+            <Field label="Status">
+              <Select name="status" value={formData.status} onChange={handleChange}>
+                {DOCTOR_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                {!DOCTOR_STATUSES.includes(formData.status) && <option>{formData.status}</option>}
+              </Select>
+            </Field>
+          </div>
+          <Field label="OPD hours" required hint="e.g. Mon–Sat, 10:00–14:00">
+            <Input name="availability" value={formData.availability} onChange={handleChange} />
+          </Field>
+        </form>
+      </Modal>
+
+      {/* Details */}
+      <Modal
+        open={Boolean(selectedDoctor) && !showForm && !pendingDelete}
+        onClose={() => setSelectedDoctor(null)}
+        title="Doctor details"
+        footer={
+          selectedDoctor && (
+            <>
+              <Button variant="danger-ghost" icon={Trash2} onClick={() => setPendingDelete(selectedDoctor)} className="mr-auto">Delete</Button>
+              <Button variant="secondary" onClick={() => setSelectedDoctor(null)}>Close</Button>
+              <Button icon={Pencil} onClick={() => handleEdit(selectedDoctor)}>Edit</Button>
+            </>
+          )
+        }
+      >
+        {selectedDoctor && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-3">
+              <Avatar name={selectedDoctor.name} size="lg" />
+              <div>
+                <p className="text-base font-semibold text-ink-900">{selectedDoctor.name}</p>
+                <p className="text-[13px] text-ink-500">{selectedDoctor.specialization}</p>
+              </div>
+              <StatusBadge status={selectedDoctor.status === "Available" ? "available" : selectedDoctor.status} label={selectedDoctor.status} className="ml-auto" />
+            </div>
+            <DescriptionList
+              items={[
+                { label: "Doctor ID", value: selectedDoctor.id },
+                { label: "Phone", value: selectedDoctor.phone },
+                { label: "Experience", value: selectedDoctor.experience },
+                { label: "OPD hours", value: selectedDoctor.availability },
+              ]}
+            />
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+        loading={deleting}
+        destructive
+        title="Delete doctor?"
+        confirmLabel="Delete doctor"
+        message={
+          <>
+            Deleting <strong className="font-semibold text-ink-900">{pendingDelete?.name}</strong> also permanently deletes all of their
+            appointments and schedules. This cannot be undone. To stop new bookings while keeping history, edit the doctor and set the status to
+            <strong className="font-semibold text-ink-900"> On Leave</strong> instead.
+          </>
+        }
+      />
     </div>
   )
 }

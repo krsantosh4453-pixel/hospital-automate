@@ -20,14 +20,15 @@ from datetime import date
 from decimal import Decimal
 from unittest import mock
 
-from django.contrib.auth.models import User
-from django.db import IntegrityError
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from rest_framework import serializers as drf_serializers
 from rest_framework.test import APIClient
 
 from hospital.models import Hospital
 from pharmacy.models import Medicine
+from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 
 from .models import (
     GoodsReceipt,
@@ -48,21 +49,51 @@ def results(response):
     return data
 
 
+def error_details(response):
+    """Extract field errors from custom exception handler format.
+
+    The custom handler wraps errors as:
+    {"error": True, "status_code": 400, "message": "...", "details": {"field": [...], ...}}
+    OR (older format):
+    {"error": {"code": "...", "message": "...", "details": {"field": [...], ...}}}
+    """
+    data = response.data
+    if isinstance(data, dict) and "error" in data:
+        error_obj = data["error"]
+        if isinstance(error_obj, dict):
+            return error_obj.get("details", {})
+        elif error_obj is True:
+            return data.get("details", {})
+    return data
+
+
 class ProcurementAPITests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-        # The project has session-based auth but no API token flow.
-        # Writes require an authenticated user, so authenticate the
-        # shared client for the write-heavy tests below.
-        self.user = User.objects.create_user(
+        # Create a staff user with INVENTORY_STAFF role and hospital membership
+        self.user = get_user_model().objects.create_user(
             username="procurement-tester",
             password="test-pass-123",
+            email="procurement@hospital.com",
         )
-        self.client.force_authenticate(user=self.user)
-
+        self.staff_profile = StaffProfile.objects.create(
+            user=self.user,
+            role=StaffRole.INVENTORY_STAFF,
+            employee_id="EMP-INV-001",
+            is_active_staff=True,
+        )
         self.hospital_a = Hospital.objects.create(name="Hospital A")
         self.hospital_b = Hospital.objects.create(name="Hospital B")
+
+        StaffHospitalMembership.objects.create(
+            staff=self.staff_profile,
+            hospital=self.hospital_a,
+            role=StaffRole.INVENTORY_STAFF,
+            is_active=True,
+        )
+
+        self.client.force_authenticate(user=self.user)
 
         self.supplier_a = Supplier.objects.create(
             name="Acme Pharma",
@@ -221,15 +252,16 @@ class ProcurementAPITests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("hospital", response.data)
+        self.assertIn("hospital", error_details(response))
 
     def test_supplier_name_unique_per_hospital(self):
         # Same name in the same hospital is rejected at the DB level.
-        with self.assertRaises(IntegrityError):
-            Supplier.objects.create(
-                name="Acme Pharma",
-                hospital=self.hospital_a,
-            )
+        with transaction.atomic():
+            with self.assertRaises(IntegrityError):
+                Supplier.objects.create(
+                    name="Acme Pharma",
+                    hospital=self.hospital_a,
+                )
 
         # Same name in a different hospital is fine.
         other = Supplier.objects.create(
@@ -317,7 +349,7 @@ class ProcurementAPITests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("supplier", response.data)
+        self.assertIn("supplier", error_details(response))
 
     def test_purchase_rejects_medicine_from_other_hospital(self):
         payload = self.purchase_payload(
@@ -333,7 +365,7 @@ class ProcurementAPITests(TestCase):
             self.purchases_url(), payload, format="json"
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("items", response.data)
+        self.assertIn("items", error_details(response))
 
     def test_purchase_list_filter_by_hospital(self):
         self.client.post(
@@ -375,7 +407,7 @@ class ProcurementAPITests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("medicine", response.data)
+        self.assertIn("medicine", error_details(response))
 
     def test_purchase_reference_unique_per_hospital(self):
         PurchaseOrder.objects.create(
@@ -386,13 +418,14 @@ class ProcurementAPITests(TestCase):
         )
 
         # Same reference + same hospital -> DB error.
-        with self.assertRaises(IntegrityError):
-            PurchaseOrder.objects.create(
-                hospital=self.hospital_a,
-                supplier=self.supplier_a,
-                reference="PO-UNI",
-                purchase_date=date(2026, 9, 14),
-            )
+        with transaction.atomic():
+            with self.assertRaises(IntegrityError):
+                PurchaseOrder.objects.create(
+                    hospital=self.hospital_a,
+                    supplier=self.supplier_a,
+                    reference="PO-UNI",
+                    purchase_date=date(2026, 9, 14),
+                )
 
         # Same reference in another hospital is allowed.
         other = PurchaseOrder.objects.create(
@@ -644,7 +677,7 @@ class ProcurementAPITests(TestCase):
             format="json",
         )
         self.assertEqual(second.status_code, 400)
-        self.assertIn("items", second.data)
+        self.assertIn("items", error_details(second))
 
         # Stock only reflects the first successful receipt.
         self.assertEqual(
@@ -662,7 +695,7 @@ class ProcurementAPITests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("reference", response.data)
+        self.assertIn("reference", error_details(response))
 
         # No stock movement, no receipt.
         self.assertEqual(
@@ -713,7 +746,7 @@ class ProcurementAPITests(TestCase):
             self.receive_url(order), payload, format="json"
         )
         self.assertEqual(second.status_code, 400)
-        self.assertIn("reference", second.data)
+        self.assertIn("reference", error_details(second))
 
         self.assertEqual(
             Medicine.objects.get(pk=self.medicine_a.pk).quantity,
@@ -759,7 +792,7 @@ class ProcurementAPITests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("items", response.data)
+        self.assertIn("items", error_details(response))
 
         self.assertEqual(
             Medicine.objects.get(pk=self.medicine_a.pk).quantity, before
@@ -799,7 +832,7 @@ class ProcurementAPITests(TestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 403)
 
         # Defence in depth: the service itself rejects a mismatched scope.
         with self.assertRaises(drf_serializers.ValidationError):
@@ -876,7 +909,7 @@ class ProcurementAPITests(TestCase):
             self.purchases_url(), payload, format="json"
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("items", response.data)
+        self.assertIn("items", error_details(response))
 
     # ------------------------------------------------------------------
     # Object-level scoping (no IDOR) + authentication
@@ -886,14 +919,14 @@ class ProcurementAPITests(TestCase):
         response = self.client.get(
             f"/api/procurement/suppliers/{self.supplier_a.id}/"
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 403)
 
         # Same rule for a purchase order detail.
         order, _ = self.make_order_with_item()
         detail = self.client.get(
             f"/api/procurement/purchases/{order.id}/"
         )
-        self.assertEqual(detail.status_code, 404)
+        self.assertEqual(detail.status_code, 403)
 
     def test_list_without_hospital_param_is_empty(self):
         response = self.client.get("/api/procurement/suppliers/")
@@ -907,7 +940,7 @@ class ProcurementAPITests(TestCase):
             {"phone": "111"},
             format="json",
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 403)
         self.supplier_b.refresh_from_db()
         self.assertEqual(self.supplier_b.phone, "")
 
@@ -917,7 +950,7 @@ class ProcurementAPITests(TestCase):
             f"/api/procurement/suppliers/{self.supplier_b.id}/"
             f"?hospital={self.hospital_a.id}"
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 403)
 
     def test_writes_require_authentication(self):
         anon = APIClient()
@@ -930,9 +963,9 @@ class ProcurementAPITests(TestCase):
         )
         self.assertIn(create.status_code, (401, 403))
 
-        # Read-only (safe) endpoints still allow anonymous reads.
+        # Procurement data is not public: anonymous reads are rejected too.
         listed = anon.get(self.suppliers_url())
-        self.assertEqual(listed.status_code, 200)
+        self.assertIn(listed.status_code, (401, 403))
 
         # The stock-mutating receive action is not publicly writable.
         order, item = self.make_order_with_item(quantity=5)
@@ -985,24 +1018,49 @@ class ProcurementAPITests(TestCase):
         self.assertEqual(ledger.status_code, 200)
         self.assertEqual(len(results(ledger)), 1)
 
-        # Write verbs are not exposed on append-only resources.
-        self.assertEqual(
-            self.client.post(
-                "/api/procurement/grns/", {}, format="json"
-            ).status_code,
-            405,
+        # Write verbs are not exposed on append-only resources (403 or 405 both acceptable).
+        for url in [
+            "/api/procurement/grns/",
+            "/api/procurement/grn-items/",
+            "/api/procurement/stock-transactions/",
+        ]:
+            response = self.client.post(url, {}, format="json")
+            self.assertIn(response.status_code, (403, 405), f"URL {url} returned {response.status_code}")
+
+
+class StockAdjustAPITests(TestCase):
+    """POST /stock-transactions/adjust/: the store may correct its own hospital's stock."""
+
+    setUp = ProcurementAPITests.setUp
+    URL = "/api/procurement/stock-transactions/adjust/"
+
+    def adjust(self, medicine, quantity=10, kind="add"):
+        return self.client.post(
+            f"{self.URL}?hospital={medicine.hospital_id}",
+            {"medicine": medicine.id, "type": kind, "quantity": quantity, "reason": "Count correction"},
+            format="json",
         )
-        self.assertEqual(
-            self.client.post(
-                "/api/procurement/grn-items/", {}, format="json"
-            ).status_code,
-            405,
+
+    def test_inventory_staff_adjusts_own_hospital_stock(self):
+        response = self.adjust(self.medicine_a, quantity=10)
+        self.assertEqual(response.status_code, 201, response.content)
+        self.medicine_a.refresh_from_db()
+        self.assertEqual(self.medicine_a.quantity, 110)
+        self.assertEqual(StockTransaction.objects.filter(medicine=self.medicine_a).count(), 1)
+
+    def test_cannot_adjust_another_hospitals_stock(self):
+        response = self.client.post(
+            f"{self.URL}?hospital={self.hospital_a.id}",
+            {"medicine": self.medicine_b.id, "type": "add", "quantity": 10},
+            format="json",
         )
-        self.assertEqual(
-            self.client.post(
-                "/api/procurement/stock-transactions/",
-                {},
-                format="json",
-            ).status_code,
-            405,
-        )
+        self.assertIn(response.status_code, (400, 403))
+        self.medicine_b.refresh_from_db()
+        self.assertEqual(self.medicine_b.quantity, 50)
+        self.assertFalse(StockTransaction.objects.filter(medicine=self.medicine_b).exists())
+
+    def test_pharmacist_may_read_but_not_adjust(self):
+        StaffHospitalMembership.objects.filter(staff=self.staff_profile).update(role=StaffRole.PHARMACIST)
+        self.assertEqual(self.adjust(self.medicine_a).status_code, 403)
+        self.medicine_a.refresh_from_db()
+        self.assertEqual(self.medicine_a.quantity, 100)

@@ -1,0 +1,1 @@
+"""FHIR Interoperability Module - Placeholder for future implementation."""

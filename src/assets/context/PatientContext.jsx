@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
+import { withoutDemoRows } from "../../utils/demoData.js"
 
 const PatientContext = createContext()
 
@@ -42,59 +43,8 @@ export function PatientProvider({ children }) {
       localStorage.getItem("hospitalPatients")
 
     return savedPatients
-      ? JSON.parse(savedPatients)
-      : [
-        {
-          id: 1,
-          name: "Rahul Kumar",
-          age: 32,
-          gender: "Male",
-          phone: "9876543210",
-          village: "Rajaur",
-          hospitalId: 1,
-          condition: "General Checkup",
-        },
-        {
-          id: 2,
-          name: "Priya Singh",
-          age: 28,
-          gender: "Female",
-          phone: "9876543211",
-          village: "Begusarai",
-          hospitalId: 1,
-          condition: "Fever",
-        },
-        {
-          id: 3,
-          name: "Amit Kumar",
-          age: 45,
-          gender: "Male",
-          phone: "9876543212",
-          village: "Barauni",
-          hospitalId: 2,
-          condition: "Diabetes",
-        },
-        {
-          id: 4,
-          name: "Neha Kumari",
-          age: 36,
-          gender: "Female",
-          phone: "9876543213",
-          village: "Begusarai",
-          hospitalId: 2,
-          condition: "Follow-up",
-        },
-        {
-          id: 5,
-          name: "Ravi Sharma",
-          age: 51,
-          gender: "Male",
-          phone: "9876543214",
-          village: "Rajaur",
-          hospitalId: 3,
-          condition: "Blood Pressure",
-        },
-      ]
+      ? withoutDemoRows(JSON.parse(savedPatients), "patients")
+      : []
   })
 
 
@@ -122,6 +72,19 @@ export function PatientProvider({ children }) {
     return localStorage.getItem("patientToken") || null
 
   })
+
+
+  // Signing out (or an expired session) drops patient rows held in memory;
+  // services/api.js clears their localStorage copies.
+  useEffect(() => {
+    const forgetPatients = () => {
+      setPatients([])
+      setPatient(null)
+      setAppointment(null)
+    }
+    window.addEventListener("auth:logout", forgetPatients)
+    return () => window.removeEventListener("auth:logout", forgetPatients)
+  }, [])
 
 
   // =====================================================

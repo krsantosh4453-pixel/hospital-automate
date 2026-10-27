@@ -1,94 +1,65 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Eye, Hospital, Pencil, Phone, Trash2, UserPlus, UsersRound } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
+import Pagination from "../components/Pagination.jsx"
+import {
+  Alert,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  ConfirmDialog,
+  DescriptionList,
+  EmptyState,
+  Field,
+  Input,
+  Modal,
+  PageHeader,
+  SearchInput,
+  Select,
+  SkeletonRows,
+  TableWrap,
+  Toolbar,
+} from "../components/ui"
+
+const EMPTY_FORM = { name: "", age: "", gender: "", phone: "", condition: "" }
 
 function Patients() {
-  const {
-    selectedHospital,
-    getHospitalPatients,
-    addPatient: addLocalPatient,
-    updatePatient: updateLocalPatient,
-    deletePatient: deleteLocalPatient,
-  } = usePatient()
+  // Only the front desk registers patients; a Hospital Manager only views them.
+  const { canAdd, canEdit } = useRole()
+  const { selectedHospital } = usePatient()
 
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalRecords, setTotalRecords] = useState(0)
+  const pageSizeRef = useRef(50)
 
-  // Display list. Loaded from the Django API when reachable, otherwise it
-  // falls back to the localStorage-backed PatientContext data.
+  // Display list, always loaded from the Django API. Nothing is kept in the
+  // browser: a patient exists only once the server has saved it.
   const [patients, setPatients] = useState([])
 
   // Request + feedback state
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
-  const [offlineMode, setOfflineMode] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
 
   // Add / Edit form state
   const [showForm, setShowForm] = useState(false)
   const [editingPatient, setEditingPatient] = useState(null)
-  const [formData, setFormData] = useState({
-    name: "",
-    age: "",
-    gender: "",
-    phone: "",
-    condition: "",
-  })
+  const [formData, setFormData] = useState(EMPTY_FORM)
   const [formErrors, setFormErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
-  // Read-only "View" modal state
+  // Read-only "View" and delete confirmation
   const [viewPatient, setViewPatient] = useState(null)
-
-  // Last-resort demo dataset so the UI still renders something when both
-  // the API and localStorage are empty.
-  const fallbackPatients = [
-    {
-      id: 1,
-      name: "Rahul Kumar",
-      age: 32,
-      gender: "Male",
-      phone: "9876543210",
-      hospitalId: 1,
-      condition: "General Checkup",
-    },
-    {
-      id: 2,
-      name: "Priya Singh",
-      age: 28,
-      gender: "Female",
-      phone: "9876543211",
-      hospitalId: 1,
-      condition: "Fever",
-    },
-    {
-      id: 3,
-      name: "Amit Kumar",
-      age: 45,
-      gender: "Male",
-      phone: "9876543212",
-      hospitalId: 2,
-      condition: "Diabetes",
-    },
-    {
-      id: 4,
-      name: "Neha Kumari",
-      age: 36,
-      gender: "Female",
-      phone: "9876543213",
-      hospitalId: 2,
-      condition: "Follow-up",
-    },
-    {
-      id: 5,
-      name: "Ravi Sharma",
-      age: 51,
-      gender: "Male",
-      phone: "9876543214",
-      hospitalId: 3,
-      condition: "Blood Pressure",
-    },
-  ]
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState("")
 
   // Maps a Django Patient record into the shape this UI already uses.
   const mapFromApi = (record) => ({
@@ -108,36 +79,36 @@ function Patients() {
   // strings, so "PAT-PAT-..." never happens.
   const formatPatientId = (patient) => {
     const value = String(patient?.id ?? "")
-    return value.toUpperCase().startsWith("PAT-")
-      ? value
-      : `PAT-${value}`
-  }
-
-  const showSuccess = (message) => {
-    setSuccessMessage(message)
+    return value.toUpperCase().startsWith("PAT-") ? value : `PAT-${value}`
   }
 
   // Auto-hide the success banner after a few seconds.
   useEffect(() => {
-    if (!successMessage) {
-      return
-    }
-
-    const timer = setTimeout(
-      () => setSuccessMessage(""),
-      4000
-    )
-
+    if (!successMessage) return undefined
+    const timer = setTimeout(() => setSuccessMessage(""), 4000)
     return () => clearTimeout(timer)
   }, [successMessage])
 
-  // Load patients from the Django API whenever the hospital changes.
+  // Search runs on the server (name / phone); wait for typing to pause.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim())
+      setCurrentPage(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  // Back to page 1 when the hospital changes.
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedHospital?.id])
+
+  // Load patients from the Django API whenever the hospital, page or search changes.
   useEffect(() => {
     if (!selectedHospital) {
       setPatients([])
       setLoadError("")
-      setOfflineMode(false)
-      return
+      return undefined
     }
 
     let cancelled = false
@@ -147,51 +118,28 @@ function Patients() {
       setLoadError("")
 
       try {
-        const data = await api.patients.list(
-          selectedHospital.id
-        )
-
-        const results = Array.isArray(data)
-          ? data
-          : data?.results || []
-
-        if (cancelled) {
-          return
-        }
+        const data = await api.patients.list(selectedHospital.id, currentPage, debouncedSearch)
+        const results = Array.isArray(data) ? data : data?.results || []
+        if (cancelled) return
 
         setPatients(results.map(mapFromApi))
-        setOfflineMode(false)
+
+        if (data && !Array.isArray(data)) {
+          const count = data.count ?? results.length
+          setTotalRecords(count)
+          // The page size is set server-side; a page that has a next page is full.
+          if (data.next && results.length > 0) pageSizeRef.current = results.length
+          setTotalPages(data.next || data.previous ? Math.max(Math.ceil(count / pageSizeRef.current), currentPage) : 1)
+        } else {
+          setTotalRecords(results.length)
+          setTotalPages(1)
+        }
       } catch (error) {
-        if (cancelled) {
-          return
-        }
-
-        // Fall back to localStorage so existing behaviour keeps working.
-        const localPatients = getHospitalPatients(
-          selectedHospital.id
-        )
-
-        const demoPatients = fallbackPatients.filter(
-          (patient) =>
-            String(patient.hospitalId) ===
-            String(selectedHospital.id)
-        )
-
-        setPatients(
-          localPatients.length > 0
-            ? localPatients
-            : demoPatients
-        )
-
-        setOfflineMode(true)
-        setLoadError(
-          error.message ||
-          "Unable to reach the server. Showing locally saved patients."
-        )
+        if (cancelled) return
+        setPatients([])
+        setLoadError(error.message || "Unable to reach the server. Patients could not be loaded.")
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
+        if (!cancelled) setLoading(false)
       }
     }
 
@@ -201,54 +149,32 @@ function Patients() {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedHospital, reloadToken])
+  }, [selectedHospital, reloadToken, currentPage, debouncedSearch])
 
-  // Selected hospital ke patients
+  // Selected hospital's patients
   const hospitalPatients = useMemo(() => {
-    if (!selectedHospital) {
-      return []
-    }
-
-    return patients.filter(
-      (patient) =>
-        String(patient.hospitalId) ===
-        String(selectedHospital.id)
-    )
+    if (!selectedHospital) return []
+    return patients.filter((patient) => String(patient.hospitalId) === String(selectedHospital.id))
   }, [patients, selectedHospital])
 
-  // Search
-  const filteredPatients = hospitalPatients.filter(
-    (patient) =>
-      `${patient.name || ""} ${patient.phone || ""} ${patient.condition || ""
-        }`
-        .toLowerCase()
-        .includes(search.toLowerCase())
-  )
+  // The server already applied the search.
+  const filteredPatients = hospitalPatients
 
   // =====================================================
   // FORM HELPERS + VALIDATION
   // =====================================================
 
   const resetForm = () => {
-    setFormData({
-      name: "",
-      age: "",
-      gender: "",
-      phone: "",
-      condition: "",
-    })
+    setFormData(EMPTY_FORM)
     setFormErrors({})
     setEditingPatient(null)
   }
 
   const openAddForm = () => {
     if (!selectedHospital) {
-      setLoadError(
-        "Select a hospital before adding a patient."
-      )
+      setLoadError("Select a hospital before adding a patient.")
       return
     }
-
     resetForm()
     setShowForm(true)
   }
@@ -263,6 +189,7 @@ function Patients() {
       condition: patient.condition || "",
     })
     setFormErrors({})
+    setViewPatient(null)
     setShowForm(true)
   }
 
@@ -273,43 +200,25 @@ function Patients() {
 
   const handleFormChange = (event) => {
     const { name, value } = event.target
-
-    setFormData({
-      ...formData,
-      [name]: value,
-    })
+    setFormData({ ...formData, [name]: value })
   }
 
   const validateForm = () => {
     const errors = {}
 
-    if (!formData.name.trim()) {
-      errors.name = "Patient name is required."
-    }
+    if (!formData.name.trim()) errors.name = "Patient name is required."
 
     const ageValue = Number(formData.age)
-
-    if (
-      formData.age === "" ||
-      Number.isNaN(ageValue) ||
-      ageValue < 0 ||
-      ageValue > 130
-    ) {
+    if (formData.age === "" || Number.isNaN(ageValue) || ageValue < 0 || ageValue > 130) {
       errors.age = "Enter an age between 0 and 130."
     }
 
-    if (!formData.gender) {
-      errors.gender = "Please select a gender."
-    }
+    if (!formData.gender) errors.gender = "Please select a gender."
 
     const digits = String(formData.phone).replace(/\D/g, "")
-
-    if (digits.length < 10) {
-      errors.phone = "Phone number must have at least 10 digits."
-    }
+    if (digits.length < 10) errors.phone = "Phone number must have at least 10 digits."
 
     setFormErrors(errors)
-
     return Object.keys(errors).length === 0
   }
 
@@ -319,10 +228,7 @@ function Patients() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
 
     const payload = {
       name: formData.name.trim(),
@@ -338,80 +244,25 @@ function Patients() {
 
     try {
       if (editingPatient) {
-        const updated = await api.patients.update(
-          editingPatient.id,
-          payload
-        )
-
+        const updated = await api.patients.update(editingPatient.id, payload)
         setPatients((prev) =>
-          prev.map((patient) =>
-            String(patient.id) === String(editingPatient.id)
-              ? mapFromApi(updated)
-              : patient
-          )
+          prev.map((patient) => (String(patient.id) === String(editingPatient.id) ? mapFromApi(updated) : patient)),
         )
-
-        showSuccess("Patient updated successfully.")
+        setSuccessMessage("Patient updated successfully.")
       } else {
         const created = await api.patients.create(payload)
-
-        setPatients((prev) => [
-          mapFromApi(created),
-          ...prev,
-        ])
-
-        showSuccess("Patient added successfully.")
+        setPatients((prev) => [mapFromApi(created), ...prev])
+        setTotalRecords((n) => n + 1)
+        setSuccessMessage("Patient added successfully.")
       }
 
-      setOfflineMode(false)
       closeForm()
     } catch (error) {
-      // Backend unavailable: keep the feature working through the
-      // localStorage-backed PatientContext (temporary compatibility).
-      if (editingPatient) {
-        updateLocalPatient(editingPatient.id, {
-          ...payload,
-          hospitalId: selectedHospital?.id,
-        })
-
-        setPatients((prev) =>
-          prev.map((patient) =>
-            String(patient.id) === String(editingPatient.id)
-              ? {
-                ...patient,
-                ...payload,
-                hospitalId:
-                  selectedHospital?.id ?? patient.hospitalId,
-              }
-              : patient
-          )
-        )
-
-        setLoadError(
-          `Saved locally, but the server update failed: ${error.message}`
-        )
-      } else {
-        const localPatient = addLocalPatient({
-          ...payload,
-          hospitalId: selectedHospital?.id,
-        })
-
-        setPatients((prev) => [
-          {
-            ...localPatient,
-            hospitalId:
-              localPatient.hospitalId ?? selectedHospital?.id,
-          },
-          ...prev,
-        ])
-
-        setLoadError(
-          `Saved locally, but the server save failed: ${error.message}`
-        )
-      }
-
-      setOfflineMode(true)
-      closeForm()
+      // Refused, unreachable or timed out: keep the form open and say so.
+      // Nothing is saved in the browser. After a timeout the server may
+      // already have saved it, so the list is reloaded to show the truth.
+      setFormErrors((prev) => ({ ...prev, _server: `Not saved: ${error.message}` }))
+      if (error.isTimeout) setReloadToken((value) => value + 1)
     } finally {
       setSaving(false)
     }
@@ -421,717 +272,316 @@ function Patients() {
   // DELETE
   // =====================================================
 
-  const handleDelete = async (patient) => {
-    const confirmed = window.confirm(
-      `Delete patient "${patient.name}"? This cannot be undone.`
-    )
-
-    if (!confirmed) {
-      return
-    }
-
+  const confirmDelete = async () => {
+    const patient = pendingDelete
+    if (!patient) return
+    setDeleting(true)
     setLoadError("")
 
     try {
       await api.patients.delete(patient.id)
-
-      showSuccess("Patient deleted successfully.")
-      setOfflineMode(false)
+      setSuccessMessage("Patient deleted successfully.")
+      setTotalRecords((n) => Math.max(n - 1, 0))
     } catch (error) {
-      // Remove locally so the UI stays consistent while offline.
-      deleteLocalPatient(patient.id)
-      setOfflineMode(true)
-      setLoadError(
-        `Removed locally, but the server delete failed: ${error.message}`
-      )
+      // Refused or unreachable: the patient still exists on the server.
+      setLoadError(`Not deleted: ${error.message}`)
+      setDeleting(false)
+      setPendingDelete(null)
+      if (error.isTimeout) setReloadToken((value) => value + 1)
+      return
     }
 
-    setPatients((prev) =>
-      prev.filter(
-        (item) => String(item.id) !== String(patient.id)
-      )
-    )
+    setPatients((prev) => prev.filter((item) => String(item.id) !== String(patient.id)))
+    setDeleting(false)
+    setPendingDelete(null)
+    setDeleteConfirmText("")
+    setViewPatient(null)
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <PageHeader
+        title="Patients"
+        description={
+          selectedHospital
+            ? `Patients registered at ${selectedHospital.name}.`
+            : "Select a hospital from the header to see its patients."
+        }
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Patients" }]}
+        actions={
+          canAdd("Patients") && (
+            <Button icon={UserPlus} onClick={openAddForm} disabled={!selectedHospital}>
+              Register patient
+            </Button>
+          )
+        }
+      />
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
-        <div>
-
-          <p className="text-blue-600 font-semibold text-sm">
-            PATIENT MANAGEMENT
-          </p>
-
-          <h1 className="text-3xl font-bold text-gray-800 mt-1">
-            Patients
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Manage patients for the selected hospital.
-          </p>
-
-        </div>
-
-
-        <button
-          onClick={openAddForm}
-          className="px-5 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700"
-        >
-          + Add Patient
-        </button>
-
-      </div>
-
-
-      {/* Feedback banners */}
       {successMessage && (
-
-        <div className="bg-green-50 border border-green-200 text-green-700 rounded-2xl px-5 py-3 flex items-center justify-between gap-4">
-
-          <span className="text-sm font-medium">
-            ✅ {successMessage}
-          </span>
-
-          <button
-            onClick={() => setSuccessMessage("")}
-            className="text-green-700 hover:text-green-900 text-sm font-semibold"
-          >
-            ✕
-          </button>
-
-        </div>
-
+        <Alert tone="success" onDismiss={() => setSuccessMessage("")}>
+          {successMessage}
+        </Alert>
       )}
 
       {loadError && (
+        <Alert
+          tone="danger"
+          action={
+            <Button size="sm" variant="secondary" onClick={() => setReloadToken((value) => value + 1)}>
+              Retry
+            </Button>
+          }
+        >
+          {loadError}
+        </Alert>
+      )}
 
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
-          <span className="text-sm font-medium">
-            {offlineMode ? "⚠️ " : "❌ "}
-            {loadError}
-          </span>
-
-          <button
-            onClick={() => setReloadToken((value) => value + 1)}
-            className="px-4 py-2 bg-white border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 self-start"
+      {!selectedHospital ? (
+        <Card>
+          <EmptyState icon={Hospital} title="No hospital selected" description="Choose a hospital in the header to manage its patients." />
+        </Card>
+      ) : (
+        <Card className="overflow-hidden">
+          <Toolbar
+            actions={
+              <p className="text-[13px] text-ink-500">
+                <span className="font-semibold text-ink-800 tabular-nums">{totalRecords}</span>{" "}
+                {debouncedSearch ? "matching" : "registered"} patient{totalRecords === 1 ? "" : "s"}
+              </p>
+            }
           >
-            Retry
-          </button>
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Search by name or phone"
+              label="Search patients"
+              className="w-full sm:max-w-sm"
+            />
+          </Toolbar>
 
-        </div>
-
-      )}
-
-
-      {/* Hospital */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
-
-        {selectedHospital ? (
-
-          <div className="flex items-center gap-4">
-
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-              🏥
-            </div>
-
-            <div>
-
-              <p className="text-xs text-gray-500">
-                Current Hospital
-              </p>
-
-              <h2 className="font-bold text-gray-800">
-                {selectedHospital.name}
-              </h2>
-
-              <p className="text-sm text-gray-500">
-                📍 {selectedHospital.address}
-              </p>
-
-            </div>
-
-          </div>
-
-        ) : (
-
-          <div className="text-orange-600">
-
-            <p className="font-semibold">
-              ⚠️ No hospital selected
-            </p>
-
-            <p className="text-sm mt-1">
-              Select a hospital from the header first.
-            </p>
-
-          </div>
-
-        )}
-
-      </div>
-
-
-      {/* Search + Stats */}
-      {selectedHospital && (
-
-        <>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-
-              <p className="text-sm text-gray-500">
-                Total Patients
-              </p>
-
-              <p className="text-3xl font-bold text-gray-800 mt-2">
-                {hospitalPatients.length}
-              </p>
-
-            </div>
-
-
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-
-              <p className="text-sm text-gray-500">
-                Today's Patients
-              </p>
-
-              <p className="text-3xl font-bold text-blue-600 mt-2">
-                {hospitalPatients.length}
-              </p>
-
-            </div>
-
-
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-
-              <p className="text-sm text-gray-500">
-                Search Results
-              </p>
-
-              <p className="text-3xl font-bold text-green-600 mt-2">
-                {filteredPatients.length}
-              </p>
-
-            </div>
-
-          </div>
-
-
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
-
-            <div className="flex flex-col md:flex-row gap-4">
-
-              <input
-                type="text"
-                value={search}
-                onChange={(e) =>
-                  setSearch(e.target.value)
-                }
-                placeholder="Search patient by name, phone or condition..."
-                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-              />
-
-              <button
-                onClick={() => setSearch("")}
-                className="px-5 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200"
-              >
-                Clear
-              </button>
-
-            </div>
-
-          </div>
-
-
-          {/* Patient Table */}
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-
-            <div className="p-5 border-b border-gray-100">
-
-              <h2 className="text-lg font-bold text-gray-800">
-                Hospital Patients
-              </h2>
-
-            </div>
-
-
-            {loading ? (
-
-              <div className="p-12 text-center">
-
-                <div className="text-4xl mb-3 animate-pulse">
-                  ⏳
-                </div>
-
-                <h3 className="font-bold text-gray-800">
-                  Loading patients...
-                </h3>
-
-                <p className="text-sm text-gray-500 mt-1">
-                  Fetching patient records from the server.
-                </p>
-
-              </div>
-
-            ) : filteredPatients.length > 0 ? (
-
-              <div className="overflow-x-auto">
-
-                <table className="w-full">
-
-                  <thead className="bg-gray-50">
-
+          {loading && filteredPatients.length === 0 ? (
+            <SkeletonRows rows={6} />
+          ) : filteredPatients.length > 0 ? (
+            <>
+              {/* Desktop / tablet table */}
+              <TableWrap className="hidden md:block">
+                <table className="hms-table" aria-busy={loading}>
+                  <caption className="sr-only">Patients at {selectedHospital.name}</caption>
+                  <thead>
                     <tr>
-
-                      <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">
-                        Patient
+                      <th scope="col">Patient</th>
+                      <th scope="col" className="num">Age</th>
+                      <th scope="col">Gender</th>
+                      <th scope="col">Phone</th>
+                      <th scope="col">Reason for visit</th>
+                      <th scope="col">
+                        <span className="sr-only">Actions</span>
                       </th>
-
-                      <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">
-                        Age
-                      </th>
-
-                      <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">
-                        Gender
-                      </th>
-
-                      <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">
-                        Phone
-                      </th>
-
-                      <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">
-                        Condition
-                      </th>
-
-                      <th className="text-left px-5 py-4 text-sm font-semibold text-gray-600">
-                        Action
-                      </th>
-
                     </tr>
-
                   </thead>
-
-
                   <tbody>
-
-                    {filteredPatients.map(
-                      (patient) => (
-
-                        <tr
-                          key={patient.id}
-                          className="border-t border-gray-100 hover:bg-gray-50"
-                        >
-
-                          <td className="px-5 py-4">
-
-                            <div className="flex items-center gap-3">
-
-                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                👤
-                              </div>
-
-                              <div>
-
-                                <p className="font-semibold text-gray-800">
-                                  {patient.name}
-                                </p>
-
-                                <p className="text-xs text-gray-500">
-                                  ID: {formatPatientId(patient)}
-                                </p>
-
-                              </div>
-
-                            </div>
-
-                          </td>
-
-
-                          <td className="px-5 py-4 text-sm text-gray-700">
-                            {patient.age}
-                          </td>
-
-
-                          <td className="px-5 py-4 text-sm text-gray-700">
-                            {patient.gender}
-                          </td>
-
-
-                          <td className="px-5 py-4 text-sm text-gray-700">
-                            {patient.phone}
-                          </td>
-
-
-                          <td className="px-5 py-4">
-
-                            <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-                              {patient.condition}
+                    {filteredPatients.map((patient) => (
+                      <tr key={patient.id}>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => setViewPatient(patient)}
+                            className="flex items-center gap-3 text-left"
+                          >
+                            <Avatar name={patient.name} size="sm" />
+                            <span>
+                              <span className="block font-medium text-ink-900 hover:text-brand-700">{patient.name}</span>
+                              <span className="block text-xs text-ink-500 tabular-nums">{formatPatientId(patient)}</span>
                             </span>
-
-                          </td>
-
-
-                          <td className="px-5 py-4">
-
-                            <div className="flex items-center gap-3">
-
-                              <button
-                                onClick={() => setViewPatient(patient)}
-                                className="text-blue-600 font-medium text-sm hover:text-blue-800"
-                              >
-                                View
-                              </button>
-
-                              <button
-                                onClick={() => openEditForm(patient)}
-                                className="text-amber-600 font-medium text-sm hover:text-amber-800"
-                              >
-                                Edit
-                              </button>
-
-                              <button
-                                onClick={() => handleDelete(patient)}
-                                className="text-red-600 font-medium text-sm hover:text-red-800"
-                              >
-                                Delete
-                              </button>
-
-                            </div>
-
-                          </td>
-
-                        </tr>
-
-                      )
-                    )}
-
+                          </button>
+                        </td>
+                        <td className="num tabular-nums">{patient.age}</td>
+                        <td>{patient.gender}</td>
+                        <td className="tabular-nums whitespace-nowrap">{patient.phone}</td>
+                        <td className="max-w-[16rem]">
+                          {patient.condition ? (
+                            <span className="line-clamp-1">{patient.condition}</span>
+                          ) : (
+                            <span className="text-ink-400">—</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => setViewPatient(patient)} aria-label={`View ${patient.name}`} title="View" />
+                            {canEdit("Patients") && <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => openEditForm(patient)} aria-label={`Edit ${patient.name}`} title="Edit" />}
+                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setPendingDelete(patient)} aria-label={`Delete ${patient.name}`} title="Delete" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
-
                 </table>
+              </TableWrap>
 
-              </div>
+              {/* Phone: stacked rows keep name, ID and phone visible */}
+              <ul className="divide-y divide-ink-100 md:hidden">
+                {filteredPatients.map((patient) => (
+                  <li key={patient.id} className="flex items-center gap-3 px-4 py-3">
+                    <Avatar name={patient.name} size="sm" />
+                    <button type="button" onClick={() => setViewPatient(patient)} className="min-w-0 flex-1 text-left">
+                      <span className="block truncate font-medium text-ink-900">{patient.name}</span>
+                      <span className="block text-xs text-ink-500 tabular-nums">
+                        {formatPatientId(patient)} · {patient.age} y · {patient.gender}
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-1 text-xs text-ink-600 tabular-nums">
+                        <Phone size={12} aria-hidden="true" /> {patient.phone}
+                      </span>
+                    </button>
+                    {canEdit("Patients") && <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => openEditForm(patient)} aria-label={`Edit ${patient.name}`} />}
+                  </li>
+                ))}
+              </ul>
 
-            ) : (
-
-              <div className="p-12 text-center">
-
-                <div className="text-4xl mb-3">
-                  👤
-                </div>
-
-                <h3 className="font-bold text-gray-800">
-                  No patients found
-                </h3>
-
-                <p className="text-sm text-gray-500 mt-1">
-                  There are no matching patients in this hospital.
-                </p>
-
-              </div>
-
-            )}
-
-          </div>
-
-        </>
-
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalRecords={totalRecords}
+                  onPageChange={setCurrentPage}
+                />
+              )}
+            </>
+          ) : (
+            <EmptyState
+              icon={UsersRound}
+              title={search ? "No patients match your search" : "No patients registered yet"}
+              description={search ? "Try a different name or phone number." : "Registered patients for this hospital will appear here."}
+              action={
+                search ? (
+                  <Button variant="secondary" onClick={() => setSearch("")}>Clear search</Button>
+                ) : (
+                  canAdd("Patients") && <Button icon={UserPlus} onClick={openAddForm}>Register patient</Button>
+                )
+              }
+            />
+          )}
+        </Card>
       )}
 
-
-      {/* Add / Edit Patient Modal */}
-      {showForm && (
-
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-
-              <h2 className="text-lg font-bold text-gray-800">
-                {editingPatient ? "Edit Patient" : "Add Patient"}
-              </h2>
-
-              <button
-                onClick={closeForm}
-                className="text-gray-400 hover:text-gray-700 text-xl font-semibold"
-              >
-                ✕
-              </button>
-
-            </div>
-
-
-            <form
-              onSubmit={handleSubmit}
-              className="p-5 space-y-4"
-            >
-
-              <div>
-
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Full Name
-                </label>
-
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleFormChange}
-                  placeholder="Enter patient name"
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-
-                {formErrors.name && (
-                  <p className="text-xs text-red-600 mt-1">
-                    {formErrors.name}
-                  </p>
-                )}
-
-              </div>
-
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                <div>
-
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Age
-                  </label>
-
-                  <input
-                    type="number"
-                    name="age"
-                    value={formData.age}
-                    onChange={handleFormChange}
-                    placeholder="Age"
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-
-                  {formErrors.age && (
-                    <p className="text-xs text-red-600 mt-1">
-                      {formErrors.age}
-                    </p>
-                  )}
-
-                </div>
-
-
-                <div>
-
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Gender
-                  </label>
-
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleFormChange}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-
-                  {formErrors.gender && (
-                    <p className="text-xs text-red-600 mt-1">
-                      {formErrors.gender}
-                    </p>
-                  )}
-
-                </div>
-
-              </div>
-
-
-              <div>
-
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Phone
-                </label>
-
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleFormChange}
-                  placeholder="10-digit mobile number"
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-
-                {formErrors.phone && (
-                  <p className="text-xs text-red-600 mt-1">
-                    {formErrors.phone}
-                  </p>
-                )}
-
-              </div>
-
-
-              <div>
-
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Condition
-                </label>
-
-                <input
-                  type="text"
-                  name="condition"
-                  value={formData.condition}
-                  onChange={handleFormChange}
-                  placeholder="Reason for visit"
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-
-              </div>
-
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-
-                <button
-                  type="button"
-                  onClick={closeForm}
-                  className="px-5 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {saving
-                    ? "Saving..."
-                    : editingPatient
-                      ? "Update Patient"
-                      : "Add Patient"}
-                </button>
-
-              </div>
-
-            </form>
-
+      {/* Add / Edit Patient */}
+      <Modal
+        open={showForm}
+        onClose={closeForm}
+        title={editingPatient ? "Edit patient" : "Register patient"}
+        description={selectedHospital ? `At ${selectedHospital.name}` : undefined}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeForm} disabled={saving}>Cancel</Button>
+            <Button type="submit" form="patient-form" loading={saving}>
+              {editingPatient ? "Save changes" : "Register patient"}
+            </Button>
+          </>
+        }
+      >
+        <form id="patient-form" onSubmit={handleSubmit} noValidate className="space-y-4">
+          {formErrors._server && <Alert tone="danger" title="Not saved">{formErrors._server}</Alert>}
+          <Field label="Full name" required error={formErrors.name}>
+            <Input name="name" value={formData.name} onChange={handleFormChange} placeholder="As on ID document" autoComplete="off" />
+          </Field>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Age (years)" required error={formErrors.age}>
+              <Input type="number" inputMode="numeric" min="0" max="130" name="age" value={formData.age} onChange={handleFormChange} />
+            </Field>
+            <Field label="Gender" required error={formErrors.gender}>
+              <Select name="gender" value={formData.gender} onChange={handleFormChange}>
+                <option value="">Select</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </Select>
+            </Field>
           </div>
+          <Field label="Mobile number" required error={formErrors.phone} hint="10-digit number; used for appointment and token updates.">
+            <Input type="tel" inputMode="tel" name="phone" value={formData.phone} onChange={handleFormChange} autoComplete="off" />
+          </Field>
+          <Field label="Reason for visit">
+            <Input name="condition" value={formData.condition} onChange={handleFormChange} placeholder="e.g. fever for 3 days" />
+          </Field>
+        </form>
+      </Modal>
 
-        </div>
-
-      )}
-
-
-      {/* View Patient Modal */}
-      {viewPatient && (
-
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-
-              <h2 className="text-lg font-bold text-gray-800">
-                Patient Details
-              </h2>
-
-              <button
-                onClick={() => setViewPatient(null)}
-                className="text-gray-400 hover:text-gray-700 text-xl font-semibold"
-              >
-                ✕
-              </button>
-
-            </div>
-
-
-            <div className="p-5 space-y-4">
-
-              <div className="flex items-center gap-3">
-
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl">
-                  👤
-                </div>
-
-                <div>
-
-                  <p className="font-bold text-gray-800">
-                    {viewPatient.name}
-                  </p>
-
-                  <p className="text-xs text-gray-500">
-                    ID: {formatPatientId(viewPatient)}
-                  </p>
-
-                </div>
-
+      {/* Patient details */}
+      <Modal
+        open={Boolean(viewPatient)}
+        onClose={() => setViewPatient(null)}
+        title="Patient details"
+        footer={
+          viewPatient && (
+            <>
+              <Button variant="danger-ghost" icon={Trash2} onClick={() => setPendingDelete(viewPatient)} className="mr-auto">
+                Delete
+              </Button>
+              <Button variant="secondary" onClick={() => setViewPatient(null)}>Close</Button>
+              {canEdit("Patients") && <Button icon={Pencil} onClick={() => openEditForm(viewPatient)}>Edit</Button>}
+            </>
+          )
+        }
+      >
+        {viewPatient && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-3">
+              <Avatar name={viewPatient.name} size="lg" />
+              <div>
+                <p className="text-base font-semibold text-ink-900">{viewPatient.name}</p>
+                <p className="text-[13px] text-ink-500 tabular-nums">{formatPatientId(viewPatient)}</p>
               </div>
-
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-
-                <div>
-
-                  <p className="text-gray-500">Age</p>
-
-                  <p className="font-semibold text-gray-800">
-                    {viewPatient.age}
-                  </p>
-
-                </div>
-
-                <div>
-
-                  <p className="text-gray-500">Gender</p>
-
-                  <p className="font-semibold text-gray-800">
-                    {viewPatient.gender}
-                  </p>
-
-                </div>
-
-                <div>
-
-                  <p className="text-gray-500">Phone</p>
-
-                  <p className="font-semibold text-gray-800">
-                    {viewPatient.phone}
-                  </p>
-
-                </div>
-
-                <div>
-
-                  <p className="text-gray-500">Condition</p>
-
-                  <p className="font-semibold text-gray-800">
-                    {viewPatient.condition || "-"}
-                  </p>
-
-                </div>
-
-              </div>
-
-
-              <button
-                onClick={() => setViewPatient(null)}
-                className="w-full px-5 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200"
-              >
-                Close
-              </button>
-
+              {viewPatient.source !== "api" && <Badge tone="warning" className="ml-auto">Saved locally only</Badge>}
             </div>
-
+            <DescriptionList
+              items={[
+                { label: "Age", value: viewPatient.age !== "" ? `${viewPatient.age} years` : "" },
+                { label: "Gender", value: viewPatient.gender },
+                { label: "Mobile", value: viewPatient.phone },
+                { label: "Reason for visit", value: viewPatient.condition },
+              ]}
+            />
           </div>
+        )}
+      </Modal>
 
-        </div>
-
-      )}
-
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        onCancel={() => {
+          setPendingDelete(null)
+          setDeleteConfirmText("")
+        }}
+        onConfirm={confirmDelete}
+        loading={deleting}
+        destructive
+        title="Permanently delete patient?"
+        confirmLabel="Delete patient and records"
+        confirmDisabled={
+          pendingDelete?.source === "api" &&
+          deleteConfirmText.trim().toLowerCase() !== String(pendingDelete?.name || "").trim().toLowerCase()
+        }
+        message={
+          <>
+            Deleting <strong className="font-semibold text-ink-900">{pendingDelete?.name}</strong> (
+            {pendingDelete && formatPatientId(pendingDelete)}) also permanently deletes their visits, clinical notes, prescriptions, medication
+            records, lab tests, admissions, invoices and consent records. This cannot be undone. Use it only for a registration made in error.
+          </>
+        }
+      >
+        {pendingDelete?.source === "api" && (
+          <div className="mt-4">
+            <label htmlFor="confirm-patient-name" className="hms-label">
+              Type the patient&apos;s name to confirm
+            </label>
+            <input
+              id="confirm-patient-name"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              autoComplete="off"
+              className="hms-input w-full"
+            />
+          </div>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }

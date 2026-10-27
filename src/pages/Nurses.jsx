@@ -1,421 +1,209 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect, useId } from "react"
+
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useAuth } from "../assets/context/AuthContext.jsx"
+import api from "../services/api.js"
+import { ChartColumnIcon, ClipboardListIcon, DropletIcon, HeartPulseIcon, HospitalIcon, HouseIcon, NotebookPenIcon, PillIcon, StethoscopeIcon, UserIcon, UserRoundIcon, UsersIcon, WalletIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
+import { Alert, Button, Card, CardHeader, EmptyState, Modal as UiModal, PageHeader as UiPageHeader, Tabs } from "../components/ui"
+import { UserPlus as UserPlusIcon } from "lucide-react"
+import { useConfirm } from "../components/ui"
 
 function Nurses() {
+  const toast = useToast()
+  const [confirm, confirmDialog] = useConfirm()
+
   const { selectedHospital } = usePatient()
 
   // =====================================================
-  // CURRENT USER
+  // CURRENT USER (the signed-in staff member)
   // =====================================================
 
+  const { user: authUser } = useAuth()
+  const staff = authUser?.user || authUser || {}
+  const staffRoles = staff.roles || authUser?.roles || []
   const currentUser = {
-    id: "N001",
-    name: "Sunita Kumari",
-    role: "Nurse",
-    hospitalId: selectedHospital?.id || 1,
-    department: "General Medicine",
-    shift: "Morning",
-    phone: "9876543201",
-    email: "sunita@example.com",
-    qualification: "B.Sc Nursing",
-    joiningDate: "10 Jan 2025",
+    id: staff.id,
+    name:
+      [staff.first_name, staff.last_name].filter(Boolean).join(" ") ||
+      staff.full_name ||
+      staff.username ||
+      "Staff member",
+    role: staff.staff_role || staffRoles[0] || "",
+    hospitalId: selectedHospital?.id,
+    department: staff.department || "",
+    shift: "",
+    phone: staff.phone || "",
+    email: staff.email || "",
+    qualification: "",
+    joiningDate: "",
     status: "On Duty",
   }
 
-  const isAdmin = currentUser.role === "Admin"
-  const isNurse = currentUser.role === "Nurse"
+  // Admin and Hospital Manager manage the nurse roster (the backend enforces this too).
+  const isAdmin = staffRoles.includes("Admin") || staffRoles.includes("Hospital Manager")
+  const isNurse = staffRoles.includes("Nurse")
 
   // =====================================================
-  // NURSES
+  // STATE - loaded from the API only (no demo data)
   // =====================================================
 
-  const [nurses, setNurses] = useState([
-    {
-      id: "N001",
-      hospitalId: 1,
-      name: "Sunita Kumari",
-      department: "General Medicine",
-      shift: "Morning",
-      phone: "9876543201",
-      email: "sunita@example.com",
-      qualification: "B.Sc Nursing",
-      joiningDate: "10 Jan 2025",
-      status: "On Duty",
-    },
-    {
-      id: "N002",
-      hospitalId: 1,
-      name: "Pooja Singh",
-      department: "Emergency",
-      shift: "Evening",
-      phone: "9876543202",
-      email: "pooja@example.com",
-      qualification: "GNM",
-      joiningDate: "15 Mar 2025",
-      status: "On Duty",
-    },
-    {
-      id: "N003",
-      hospitalId: 1,
-      name: "Anita Kumari",
-      department: "ICU",
-      shift: "Night",
-      phone: "9876543203",
-      email: "anita@example.com",
-      qualification: "B.Sc Nursing",
-      joiningDate: "20 Apr 2025",
-      status: "Off Duty",
-    },
-    {
-      id: "N004",
-      hospitalId: 2,
-      name: "Neha Singh",
-      department: "General Medicine",
-      shift: "Morning",
-      phone: "9876543204",
-      email: "neha@example.com",
-      qualification: "GNM",
-      joiningDate: "02 Feb 2025",
-      status: "On Duty",
-    },
-    {
-      id: "N005",
-      hospitalId: 2,
-      name: "Kavita Kumari",
-      department: "Emergency",
-      shift: "Evening",
-      phone: "9876543205",
-      email: "kavita@example.com",
-      qualification: "B.Sc Nursing",
-      joiningDate: "18 May 2025",
-      status: "On Duty",
-    },
-    {
-      id: "N006",
-      hospitalId: 2,
-      name: "Rani Devi",
-      department: "ICU",
-      shift: "Night",
-      phone: "9876543206",
-      email: "rani@example.com",
-      qualification: "GNM",
-      joiningDate: "05 Jun 2025",
-      status: "Off Duty",
-    },
-    {
-      id: "N007",
-      hospitalId: 3,
-      name: "Shweta Kumari",
-      department: "General Medicine",
-      shift: "Morning",
-      phone: "9876543207",
-      email: "shweta@example.com",
-      qualification: "B.Sc Nursing",
-      joiningDate: "12 Jul 2025",
-      status: "On Duty",
-    },
-    {
-      id: "N008",
-      hospitalId: 3,
-      name: "Meena Singh",
-      department: "Emergency",
-      shift: "Evening",
-      phone: "9876543208",
-      email: "meena@example.com",
-      qualification: "GNM",
-      joiningDate: "22 Aug 2025",
-      status: "Off Duty",
-    },
-  ])
+  const [nurses, setNurses] = useState([])
+  const [patients, setPatients] = useState([])
+  const [vitals, setVitals] = useState([])
+  const [assessments, setAssessments] = useState([])
+  const [notes, setNotes] = useState([])
+  const [orders] = useState([])
+  const [mar, setMar] = useState([])
+  const [bloodRequests, setBloodRequests] = useState([])
+  const [discharges] = useState([])
+  const [billing, setBilling] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [saving, setSaving] = useState(false)
 
-  // =====================================================
-  // PATIENTS
-  // =====================================================
+  const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
+  const fmtTime = (value) =>
+    value ? new Date(value).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : ""
+  const fmtDate = (value) => (value ? new Date(value).toLocaleDateString("en-IN") : "")
 
-  const [patients] = useState([
-    {
-      id: "P001",
-      hospitalId: 1,
-      name: "Rahul Kumar",
-      age: 42,
-      gender: "Male",
-      department: "General Medicine",
-      doctor: "Dr. Sharma",
-      ward: "Ward A",
-      bed: "A-12",
-      status: "Admitted",
-    },
-    {
-      id: "P002",
-      hospitalId: 1,
-      name: "Priya Singh",
-      age: 35,
-      gender: "Female",
-      department: "Cardiology",
-      doctor: "Dr. Kumar",
-      ward: "Ward B",
-      bed: "B-08",
-      status: "Admitted",
-    },
-    {
-      id: "P003",
-      hospitalId: 1,
-      name: "Amit Kumar",
-      age: 51,
-      gender: "Male",
-      department: "Emergency",
-      doctor: "Dr. Singh",
-      ward: "Emergency",
-      bed: "E-04",
-      status: "Critical",
-    },
-    {
-      id: "P004",
-      hospitalId: 2,
-      name: "Ravi Kumar",
-      age: 29,
-      gender: "Male",
-      department: "General Medicine",
-      doctor: "Dr. Verma",
-      ward: "Ward A",
-      bed: "A-05",
-      status: "Admitted",
-    },
-    {
-      id: "P005",
-      hospitalId: 2,
-      name: "Neha Kumari",
-      age: 46,
-      gender: "Female",
-      department: "ICU",
-      doctor: "Dr. Gupta",
-      ward: "ICU",
-      bed: "ICU-02",
-      status: "Critical",
-    },
-    {
-      id: "P006",
-      hospitalId: 3,
-      name: "Sanjay Singh",
-      age: 38,
-      gender: "Male",
-      department: "Orthopedics",
-      doctor: "Dr. Patel",
-      ward: "Ward C",
-      bed: "C-11",
-      status: "Admitted",
-    },
-  ])
+  const loadData = async () => {
+    if (!selectedHospital) return
+    const hospitalId = selectedHospital.id
+    setLoading(true)
+    setError(null)
+    const sources = [
+      ["nurses", api.nurses.list(hospitalId)],
+      ["admitted patients", api.ipd.admissions.list(hospitalId)],
+      ["assessments", api.nurses.assessments.list(hospitalId)],
+      ["notes", api.nurses.notes.list(hospitalId)],
+      ["medication schedule", api.nurses.mar.dueMedications(hospitalId)],
+      ["blood requests", api.bloodbank.requests.list(hospitalId)],
+      ["bills", api.billing.invoices.list(hospitalId)],
+    ]
+    const results = await Promise.allSettled(sources.map(([, promise]) => promise))
+    const failed = []
+    const value = (index) => {
+      const result = results[index]
+      if (result.status === "fulfilled") return rows(result.value)
+      failed.push(`${sources[index][0]} (${result.reason?.message || "error"})`)
+      return []
+    }
 
-  // =====================================================
-  // VITALS
-  // =====================================================
+    setNurses(value(0).map((n) => ({
+      id: n.id,
+      hospitalId: n.hospital,
+      name: n.name,
+      department: n.department || "",
+      shift: n.shift || "",
+      phone: n.phone || "",
+      email: n.email || "",
+      qualification: n.qualification || "",
+      joiningDate: n.joining_date || "",
+      status: n.status || "",
+    })))
 
-  const [vitals, setVitals] = useState([
-    {
-      id: "V001",
-      hospitalId: 1,
-      patientId: "P001",
-      temperature: "98.6",
-      bp: "120/80",
-      pulse: "76",
-      spo2: "98",
-      respiratoryRate: "16",
-      recordedBy: "Sunita Kumari",
-      time: "10:20 AM",
-    },
-    {
-      id: "V002",
-      hospitalId: 1,
-      patientId: "P002",
-      temperature: "99.1",
-      bp: "128/84",
-      pulse: "82",
-      spo2: "97",
-      respiratoryRate: "18",
-      recordedBy: "Pooja Singh",
-      time: "10:35 AM",
-    },
-    {
-      id: "V003",
-      hospitalId: 1,
-      patientId: "P003",
-      temperature: "101.2",
-      bp: "145/90",
-      pulse: "104",
-      spo2: "91",
-      respiratoryRate: "22",
-      recordedBy: "Sunita Kumari",
-      time: "10:45 AM",
-    },
-  ])
+    const admissions = value(1).filter((a) => a.status === "Admitted" || a.status === "Discharge Initiated")
+    setPatients(admissions.map((a) => ({
+      id: a.patient,
+      admissionId: a.id,
+      hospitalId: a.hospital,
+      name: a.patient_name || `Patient #${a.patient}`,
+      age: a.patient_age ?? "",
+      ward: a.current_bed?.ward_name || "",
+      bed: a.current_bed?.bed_number || "",
+      doctor: a.admitting_doctor_name || "",
+      department: "",
+      status: a.status,
+    })))
 
-  // =====================================================
-  // ASSESSMENTS
-  // =====================================================
+    // Vitals are recorded as nursing "Focused" assessments with a vitals record.
+    const assessmentRows = value(2)
+    setVitals(assessmentRows.filter((a) => a.vitals && Object.keys(a.vitals).length > 0).map((a) => ({
+      id: a.id,
+      hospitalId: a.hospital,
+      patientId: a.patient,
+      patientName: a.patient_name,
+      temperature: a.vitals.temperature ?? "",
+      bp: a.vitals.bp ?? "",
+      pulse: a.vitals.pulse ?? "",
+      spo2: a.vitals.spo2 ?? "",
+      respiratoryRate: a.vitals.respiratory_rate ?? "",
+      recordedBy: a.nurse_name || a.recorded_by_name || "",
+      time: fmtTime(a.assessed_at),
+    })))
+    setAssessments(assessmentRows.filter((a) => a.plan_of_care).map((a) => ({
+      id: a.id,
+      hospitalId: a.hospital,
+      patientId: a.patient,
+      patientName: a.patient_name,
+      assessment: a.plan_of_care,
+      nurse: a.nurse_name || "",
+      date: fmtDate(a.assessed_at),
+    })))
 
-  const [assessments, setAssessments] = useState([
-    {
-      id: "AS001",
-      hospitalId: 1,
-      patientId: "P001",
-      assessment:
-        "Patient stable. No acute distress.",
-      nurse: "Sunita Kumari",
-      date: "02 Sep 2026",
-    },
-    {
-      id: "AS002",
-      hospitalId: 1,
-      patientId: "P002",
-      assessment:
-        "Patient reports mild chest discomfort.",
-      nurse: "Pooja Singh",
-      date: "02 Sep 2026",
-    },
-  ])
+    setNotes(value(3).map((n) => ({
+      id: n.id,
+      hospitalId: n.hospital,
+      patientId: n.patient,
+      text: n.note,
+      createdBy: n.nurse_name || "",
+      date: fmtDate(n.created_at),
+    })))
 
-  // =====================================================
-  // NOTES
-  // =====================================================
+    setMar(value(4).map((d) => ({
+      id: d.id,
+      hospitalId: d.hospital,
+      patientId: d.patient,
+      patientName: d.patient_name,
+      medicine: d.medicine_name,
+      dose: d.dose,
+      route: d.route,
+      frequency: d.frequency,
+      time: fmtTime(d.scheduled_time),
+      status: d.status === "Scheduled" ? (d.is_delayed ? "Delayed" : "Due") : d.status,
+    })))
 
-  const [notes, setNotes] = useState([
-    {
-      id: "NOTE001",
-      hospitalId: 1,
-      patientId: "P001",
-      text: "Patient resting comfortably.",
-      createdBy: "Sunita Kumari",
-      date: "02 Sep 2026",
-    },
-  ])
+    setBloodRequests(value(5).map((b) => ({
+      id: b.id,
+      hospitalId: b.hospital,
+      patientId: b.patient,
+      patientName: b.patient_name,
+      bloodGroup: b.blood_group,
+      units: b.units,
+      urgency: b.priority || b.urgency || "",
+      status: b.status,
+    })))
 
-  // =====================================================
-  // ORDERS
-  // =====================================================
+    setBilling(value(6).map((bill) => ({
+      id: bill.id,
+      hospitalId: bill.hospital,
+      patientId: bill.patient,
+      amount: bill.total_amount ?? bill.total,
+      status: bill.status,
+    })))
 
-  const [orders] = useState([
-    {
-      id: "ORD001",
-      hospitalId: 1,
-      patientId: "P001",
-      order: "CBC Blood Test",
-      doctor: "Dr. Sharma",
-      status: "Pending",
-    },
-    {
-      id: "ORD002",
-      hospitalId: 1,
-      patientId: "P002",
-      order: "ECG",
-      doctor: "Dr. Kumar",
-      status: "Completed",
-    },
-    {
-      id: "ORD003",
-      hospitalId: 1,
-      patientId: "P003",
-      order: "Emergency Blood Test",
-      doctor: "Dr. Singh",
-      status: "Pending",
-    },
-  ])
+    if (failed.length > 0) {
+      setError(`Could not load: ${failed.join("; ")}`)
+    }
+    setLoading(false)
+  }
 
-  // =====================================================
-  // MAR - MEDICINE ADMINISTRATION
-  // =====================================================
+  useEffect(() => {
+    loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedHospital?.id])
 
-  const [mar, setMar] = useState([
-    {
-      id: "MAR001",
-      hospitalId: 1,
-      patientId: "P001",
-      medicine: "Medicine A",
-      dose: "500 mg",
-      route: "Oral",
-      frequency: "1-0-1",
-      time: "08:00 AM",
-      status: "Given",
-      givenBy: "Sunita Kumari",
-    },
-    {
-      id: "MAR002",
-      hospitalId: 1,
-      patientId: "P001",
-      medicine: "Medicine B",
-      dose: "10 mg",
-      route: "Oral",
-      frequency: "0-0-1",
-      time: "08:00 PM",
-      status: "Pending",
-      givenBy: "",
-    },
-    {
-      id: "MAR003",
-      hospitalId: 1,
-      patientId: "P003",
-      medicine: "Emergency Medicine",
-      dose: "1 dose",
-      route: "IV",
-      frequency: "STAT",
-      time: "10:00 AM",
-      status: "Pending",
-      givenBy: "",
-    },
-  ])
-
-  // =====================================================
-  // BLOOD
-  // =====================================================
-
-  const [bloodRequests, setBloodRequests] =
-    useState([
-      {
-        id: "BL001",
-        hospitalId: 1,
-        patientId: "P003",
-        bloodGroup: "B+",
-        units: 2,
-        urgency: "Urgent",
-        status: "Requested",
-      },
-      {
-        id: "BL002",
-        hospitalId: 1,
-        patientId: "P002",
-        bloodGroup: "O+",
-        units: 1,
-        urgency: "Normal",
-        status: "Available",
-      },
-    ])
-
-  // =====================================================
-  // DISCHARGE
-  // =====================================================
-
-  const [discharges, setDischarges] = useState([])
-
-  // =====================================================
-  // BILLING
-  // =====================================================
-
-  const [billing] = useState([
-    {
-      id: "BILL001",
-      hospitalId: 1,
-      patientId: "P001",
-      amount: 4500,
-      status: "Pending",
-    },
-    {
-      id: "BILL002",
-      hospitalId: 1,
-      patientId: "P002",
-      amount: 7200,
-      status: "Paid",
-    },
-  ])
+  // Data shown on the page is exactly what the API returned.
+  const nursesData = nurses
+  const patientsData = patients
+  const vitalsData = vitals
+  const assessmentsData = assessments
+  const notesData = notes
+  const ordersData = orders
+  const marData = mar
+  const bloodData = bloodRequests
+  const billingData = billing
 
   // =====================================================
   // REPORTS
@@ -435,43 +223,43 @@ function Nurses() {
     }
 
     return {
-      patients: patients.filter(
+      patients: patientsData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      vitals: vitals.filter(
+      vitals: vitalsData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      assessments: assessments.filter(
+      assessments: assessmentsData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      orders: orders.filter(
+      orders: ordersData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      mar: mar.filter(
+      mar: marData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      blood: bloodRequests.filter(
+      blood: bloodData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
       ).length,
 
-      billing: billing.filter(
+      billing: billingData.filter(
         (item) =>
           item.hospitalId ===
           selectedHospital.id
@@ -479,14 +267,14 @@ function Nurses() {
     }
   }, [
     selectedHospital,
-    patients,
-    vitals,
-    assessments,
-    orders,
-    mar,
-    bloodRequests,
-    billing,
-  ])
+    patientsData,
+    vitalsData,
+    assessmentsData,
+    ordersData,
+    marData,
+    bloodData,
+    billingData,
+  ]);
 
   // =====================================================
   // SELECTED HOSPITAL DATA
@@ -622,9 +410,11 @@ function Nurses() {
     }))
   }
 
+  // Staff profiles are maintained by the hospital administrator; nothing here
+  // is sent to the server, so do not claim it was saved.
   const saveProfile = () => {
     setEditingProfile(false)
-    alert("Profile updated successfully.")
+    toast.error("Profile changes are not saved here. Ask your hospital administrator to update your staff record.")
   }
 
   // =====================================================
@@ -647,55 +437,53 @@ function Nurses() {
       status: "On Duty",
     })
 
-  const handleAddNurse = (e) => {
+  const handleAddNurse = async (e) => {
     e.preventDefault()
 
     if (!isAdmin) {
-      alert(
+      toast.warning(
         "Only Admin can add a nurse."
       )
       return
     }
 
     if (!selectedHospital) {
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
       return
     }
 
-    const count =
-      nurses.filter(
-        (nurse) =>
-          nurse.hospitalId ===
-          selectedHospital.id
-      ).length + 1
-
-    const nurse = {
-      ...newNurse,
-      id: `N${selectedHospital.id}${String(
-        count
-      ).padStart(2, "0")}`,
-      hospitalId: selectedHospital.id,
+    setSaving(true)
+    try {
+      await api.nurses.create({
+        hospital: selectedHospital.id,
+        name: newNurse.name,
+        department: newNurse.department,
+        shift: newNurse.shift,
+        phone: newNurse.phone,
+        email: newNurse.email,
+        qualification: newNurse.qualification,
+        joining_date: newNurse.joiningDate || null,
+        status: newNurse.status,
+      })
+      setNewNurse({
+        name: "",
+        department: "General Medicine",
+        shift: "Morning",
+        phone: "",
+        email: "",
+        qualification: "GNM",
+        joiningDate: "",
+        status: "On Duty",
+      })
+      setShowAddNurse(false)
+      await loadData()
+    } catch (err) {
+      toast.error(`Could not add nurse: ${err.message}`)
+    } finally {
+      setSaving(false)
     }
-
-    setNurses((prev) => [
-      ...prev,
-      nurse,
-    ])
-
-    setNewNurse({
-      name: "",
-      department: "General Medicine",
-      shift: "Morning",
-      phone: "",
-      email: "",
-      qualification: "GNM",
-      joiningDate: "",
-      status: "On Duty",
-    })
-
-    setShowAddNurse(false)
   }
 
   // =====================================================
@@ -703,9 +491,9 @@ function Nurses() {
   // ADMIN ONLY
   // =====================================================
 
-  const removeNurse = (nurse) => {
+  const removeNurse = async (nurse) => {
     if (!isAdmin) {
-      alert(
+      toast.warning(
         "Only Admin can remove a nurse."
       )
       return
@@ -716,25 +504,25 @@ function Nurses() {
       nurse.hospitalId !==
       selectedHospital.id
     ) {
-      alert(
+      toast.warning(
         "You can only remove nurses from the selected hospital."
       )
       return
     }
 
     const confirmRemove =
-      window.confirm(
+      (await confirm(
         `Remove ${nurse.name}?`
-      )
+      ))
 
     if (!confirmRemove) return
 
-    setNurses((prev) =>
-      prev.filter(
-        (item) =>
-          item.id !== nurse.id
-      )
-    )
+    try {
+      await api.nurses.delete(nurse.id)
+      await loadData()
+    } catch (err) {
+      toast.error(`Could not remove nurse: ${err.message}`)
+    }
   }
 
   // =====================================================
@@ -754,51 +542,43 @@ function Nurses() {
       respiratoryRate: "",
     })
 
-  const saveVitals = (e) => {
+  const saveVitals = async (e) => {
     e.preventDefault()
 
     if (!selectedHospital) return
 
     const patient =
       hospitalPatients.find(
-        (item) =>
-          item.id ===
-          vitalForm.patientId
+        (item) => String(item.id) === String(vitalForm.patientId)
       )
 
     if (!patient) {
-      alert("Select a patient.")
+      toast.warning("Select a patient.")
       return
     }
 
-    const newVital = {
-      id: `V-${Date.now()}`,
-      hospitalId:
-        selectedHospital.id,
-      patientId:
-        vitalForm.patientId,
-      temperature:
-        vitalForm.temperature,
-      bp: vitalForm.bp,
-      pulse: vitalForm.pulse,
-      spo2: vitalForm.spo2,
-      respiratoryRate:
-        vitalForm.respiratoryRate,
-      recordedBy: profile.name,
-      time:
-        new Date().toLocaleTimeString(
-          "en-IN",
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        ),
+    setSaving(true)
+    try {
+      await api.nurses.assessments.create({
+        hospital: selectedHospital.id,
+        patient: patient.id,
+        admission: patient.admissionId,
+        assessment_type: "Focused",
+        vitals: {
+          temperature: vitalForm.temperature,
+          bp: vitalForm.bp,
+          pulse: vitalForm.pulse,
+          spo2: vitalForm.spo2,
+          respiratory_rate: vitalForm.respiratoryRate,
+        },
+      })
+    } catch (err) {
+      toast.error(`Vitals were not saved: ${err.message}`)
+      setSaving(false)
+      return
     }
-
-    setVitals((prev) => [
-      newVital,
-      ...prev,
-    ])
+    setSaving(false)
+    await loadData()
 
     setVitalForm({
       patientId: "",
@@ -825,7 +605,7 @@ function Nurses() {
       text: "",
     })
 
-  const saveNote = (e) => {
+  const saveNote = async (e) => {
     e.preventDefault()
 
     if (!selectedHospital) return
@@ -834,29 +614,29 @@ function Nurses() {
       !noteForm.patientId ||
       !noteForm.text.trim()
     ) {
-      alert(
+      toast.warning(
         "Please select patient and enter note."
       )
       return
     }
 
-    const newNote = {
-      id: `NOTE-${Date.now()}`,
-      hospitalId:
-        selectedHospital.id,
-      patientId:
-        noteForm.patientId,
-      text: noteForm.text.trim(),
-      createdBy: profile.name,
-      date: new Date().toLocaleDateString(
-        "en-IN"
-      ),
+    const notePatient = hospitalPatients.find((item) => String(item.id) === String(noteForm.patientId))
+    setSaving(true)
+    try {
+      await api.nurses.notes.create({
+        hospital: selectedHospital.id,
+        patient: noteForm.patientId,
+        admission: notePatient?.admissionId,
+        note_type: "Progress",
+        note: noteForm.text.trim(),
+      })
+    } catch (err) {
+      toast.error(`Note was not saved: ${err.message}`)
+      setSaving(false)
+      return
     }
-
-    setNotes((prev) => [
-      newNote,
-      ...prev,
-    ])
+    setSaving(false)
+    await loadData()
 
     setNoteForm({
       patientId: "",
@@ -879,7 +659,7 @@ function Nurses() {
       assessment: "",
     })
 
-  const saveAssessment = (e) => {
+  const saveAssessment = async (e) => {
     e.preventDefault()
 
     if (!selectedHospital) return
@@ -888,30 +668,29 @@ function Nurses() {
       !assessmentForm.patientId ||
       !assessmentForm.assessment.trim()
     ) {
-      alert(
+      toast.warning(
         "Please select patient and enter assessment."
       )
       return
     }
 
-    const newAssessment = {
-      id: `AS-${Date.now()}`,
-      hospitalId:
-        selectedHospital.id,
-      patientId:
-        assessmentForm.patientId,
-      assessment:
-        assessmentForm.assessment.trim(),
-      nurse: profile.name,
-      date: new Date().toLocaleDateString(
-        "en-IN"
-      ),
+    const assessedPatient = hospitalPatients.find((item) => String(item.id) === String(assessmentForm.patientId))
+    setSaving(true)
+    try {
+      await api.nurses.assessments.create({
+        hospital: selectedHospital.id,
+        patient: assessmentForm.patientId,
+        admission: assessedPatient?.admissionId,
+        assessment_type: "Shift",
+        plan_of_care: assessmentForm.assessment.trim(),
+      })
+    } catch (err) {
+      toast.error(`Assessment was not saved: ${err.message}`)
+      setSaving(false)
+      return
     }
-
-    setAssessments((prev) => [
-      newAssessment,
-      ...prev,
-    ])
+    setSaving(false)
+    await loadData()
 
     setAssessmentForm({
       patientId: "",
@@ -925,86 +704,62 @@ function Nurses() {
   // MAR - GIVE MEDICINE
   // =====================================================
 
-  const administerMedicine = (item) => {
+  const administerMedicine = async (item) => {
     if (!selectedHospital) return
 
     if (
       item.hospitalId !==
       selectedHospital.id
     ) {
-      alert(
+      toast.info(
         "Invalid hospital access."
       )
       return
     }
 
-    setMar((prev) =>
-      prev.map((medicine) =>
-        medicine.id === item.id
-          ? {
-            ...medicine,
-            status: "Given",
-            givenBy: profile.name,
-          }
-          : medicine
-      )
-    )
+    if (!(await confirm(`Record ${item.medicine} ${item.dose} as given to ${item.patientName || "this patient"} now?`))) return
+
+    try {
+      await api.nurses.marAdministrations.administer(item.id, {})
+      await loadData()
+    } catch (err) {
+      toast.error(`Dose was not recorded: ${err.message}`)
+    }
   }
 
   // =====================================================
   // BLOOD REQUEST
   // =====================================================
 
-  const requestBlood = (item) => {
-    if (!selectedHospital) return
-
-    setBloodRequests((prev) =>
-      prev.map((blood) =>
-        blood.id === item.id
-          ? {
-            ...blood,
-            status: "Requested",
-          }
-          : blood
-      )
-    )
+  // Blood requests are raised and tracked on the Blood Bank page; this list
+  // shows their live status.
+  const requestBlood = () => {
+    window.location.assign("/blood-bank")
   }
 
   // =====================================================
   // DISCHARGE
   // =====================================================
 
-  const dischargePatient = (patient) => {
+  const dischargePatient = async (patient) => {
     if (!selectedHospital) return
 
     const confirmed =
-      window.confirm(
+      (await confirm(
         `Start discharge process for ${patient.name}?`
-      )
+      ))
 
     if (!confirmed) return
 
-    const discharge = {
-      id: `DIS-${Date.now()}`,
-      hospitalId:
-        selectedHospital.id,
-      patientId: patient.id,
-      patientName: patient.name,
-      date: new Date().toLocaleDateString(
-        "en-IN"
-      ),
-      preparedBy: profile.name,
-      status: "Discharge Requested",
+    try {
+      await api.ipd.admissions.initiateDischarge(patient.admissionId)
+      await loadData()
+      toast.success(
+        "Discharge initiated. A doctor must finalize the discharge summary before discharge can be completed."
+      )
+    } catch (err) {
+      toast.error(`Discharge was not started: ${err.message}`)
     }
-
-    setDischarges((prev) => [
-      discharge,
-      ...prev,
-    ])
-
-    alert(
-      "Discharge request created."
-    )
   }
 
   // =====================================================
@@ -1015,62 +770,62 @@ function Nurses() {
     {
       id: "home",
       label: "Home",
-      icon: "🏠",
+      icon: HouseIcon,
     },
     {
       id: "profile",
       label: "My Profile",
-      icon: "👤",
+      icon: UserIcon,
     },
     {
       id: "patients",
       label: "Patients",
-      icon: "🧑‍🤝‍🧑",
+      icon: UsersIcon,
     },
     {
       id: "assessment",
       label: "Assessment",
-      icon: "🩺",
+      icon: StethoscopeIcon,
     },
     {
       id: "vitals",
       label: "Vitals",
-      icon: "❤️",
+      icon: HeartPulseIcon,
     },
     {
       id: "notes",
       label: "Notes",
-      icon: "📝",
+      icon: NotebookPenIcon,
     },
     {
       id: "orders",
       label: "Orders",
-      icon: "📋",
+      icon: ClipboardListIcon,
     },
     {
       id: "mar",
       label: "MAR",
-      icon: "💊",
+      icon: PillIcon,
     },
     {
       id: "blood",
       label: "Blood",
-      icon: "🩸",
+      icon: DropletIcon,
     },
     {
       id: "discharge",
       label: "Discharge",
-      icon: "🏥",
+      icon: HospitalIcon,
     },
     {
       id: "billing",
       label: "Billing",
-      icon: "💰",
+      icon: WalletIcon,
     },
     {
       id: "reports",
       label: "Reports",
-      icon: "📊",
+      icon: ChartColumnIcon,
     },
   ]
 
@@ -1080,25 +835,10 @@ function Nurses() {
 
   if (!selectedHospital) {
     return (
-      <div className="p-6">
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-
-          <div className="text-5xl mb-4">
-            🏥
-          </div>
-
-          <h1 className="text-2xl font-bold text-gray-800">
-            Nurse Portal
-          </h1>
-
-          <p className="text-gray-500 mt-2">
-            Please select a hospital to continue.
-          </p>
-
-        </div>
-
-      </div>
+      <>{confirmDialog}<div className="space-y-5">
+        <UiPageHeader title="Nursing" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Nursing" }]} />
+        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to open the nursing workspace." /></Card>
+      </div></>
     )
   }
 
@@ -1107,102 +847,22 @@ function Nurses() {
   // =====================================================
 
   return (
-    <div className="p-6">
+    <>{confirmDialog}<div className="space-y-5">
+      <UiPageHeader
+        title="Nursing"
+        description={`Ward work for ${selectedHospital.name} · signed in as ${profile.name}`}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Nursing" }]}
+        actions={isAdmin && <Button icon={UserPlusIcon} onClick={() => setShowAddNurse(true)}>Add nurse</Button>}
+      />
 
-      {/* =================================================
-          HEADER
-      ================================================= */}
+      {error && (
+        <Alert tone="warning" title="Some ward data did not load" action={<Button size="sm" variant="secondary" onClick={loadData}>Retry</Button>}>
+          {error}
+        </Alert>
+      )}
+      {loading && <p className="text-sm text-ink-500" role="status">Loading ward data…</p>}
 
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-
-        <div>
-
-          <h1 className="text-2xl font-bold text-gray-800">
-            Nurse Portal
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            {selectedHospital.name}
-          </p>
-
-        </div>
-
-        <div className="flex items-center gap-3">
-
-          <div className="px-4 py-2 rounded-xl bg-blue-50 border border-blue-200">
-
-            <p className="text-xs text-gray-500">
-              Logged in as
-            </p>
-
-            <p className="font-semibold text-blue-700">
-              {profile.name}
-            </p>
-
-          </div>
-
-          {isAdmin && (
-            <button
-              onClick={() =>
-                setShowAddNurse(true)
-              }
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-medium"
-            >
-              + Add Nurse
-            </button>
-          )}
-
-        </div>
-
-      </div>
-
-
-      {/* =================================================
-          HOSPITAL BANNER
-      ================================================= */}
-
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
-
-        <p className="text-sm text-gray-500">
-          Selected Hospital
-        </p>
-
-        <p className="font-semibold text-blue-700 mt-1">
-          🏥 {selectedHospital.name}
-        </p>
-
-      </div>
-
-
-      {/* =================================================
-          NAVIGATION
-      ================================================= */}
-
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-3 mb-6 overflow-x-auto">
-
-        <div className="flex gap-2 min-w-max">
-
-          {tabs.map((tab) => (
-
-            <button
-              key={tab.id}
-              onClick={() =>
-                setActiveTab(tab.id)
-              }
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition ${activeTab === tab.id
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-                }`}
-            >
-              {tab.icon} {tab.label}
-            </button>
-
-          ))}
-
-        </div>
-
-      </div>
-
+      <Tabs tabs={tabs} value={activeTab} onChange={setActiveTab} label="Nursing sections" />
 
       {/* =================================================
           HOME
@@ -1219,7 +879,7 @@ function Nurses() {
               value={
                 hospitalPatients.length
               }
-              icon="🧑‍🤝‍🧑"
+              icon={<UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Hospital patients"
             />
 
@@ -1228,8 +888,8 @@ function Nurses() {
               value={
                 hospitalVitals.length
               }
-              icon="❤️"
-              subtitle="Today's records"
+              icon={<HeartPulseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
+              subtitle="All recorded"
             />
 
             <DashboardCard
@@ -1241,7 +901,7 @@ function Nurses() {
                     "Pending"
                 ).length
               }
-              icon="📋"
+              icon={<ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Orders waiting"
             />
 
@@ -1250,11 +910,10 @@ function Nurses() {
               value={
                 hospitalMAR.filter(
                   (item) =>
-                    item.status ===
-                    "Pending"
+                    item.status === "Due" || item.status === "Delayed"
                 ).length
               }
-              icon="💊"
+              icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
               subtitle="Medicine doses"
             />
 
@@ -1311,8 +970,7 @@ function Nurses() {
               {hospitalMAR
                 .filter(
                   (item) =>
-                    item.status ===
-                    "Pending"
+                    item.status === "Due" || item.status === "Delayed"
                 )
                 .map((item) => {
 
@@ -1380,7 +1038,7 @@ function Nurses() {
           <div className="flex flex-col md:flex-row gap-6">
 
             <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center text-5xl">
-              👩‍⚕️
+              <UserRoundIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
             </div>
 
             <div className="flex-1">
@@ -1569,7 +1227,7 @@ function Nurses() {
                 )
               }
               placeholder="Search patient..."
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="hms-input w-full"
             />
 
           </div>
@@ -2109,10 +1767,11 @@ function Nurses() {
                         <td className="px-5 py-4">
 
                           <span
-                            className={`px-3 py-1 rounded-full text-xs ${item.status ===
-                                "Given"
+                            className={`px-3 py-1 rounded-full text-xs ${item.status === "Administered"
                                 ? "bg-green-100 text-green-700"
-                                : "bg-yellow-100 text-yellow-700"
+                                : item.status === "Delayed"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-yellow-100 text-yellow-700"
                               }`}
                           >
                             {item.status}
@@ -2122,8 +1781,7 @@ function Nurses() {
 
                         <td className="px-5 py-4 text-right">
 
-                          {item.status ===
-                            "Pending" ? (
+                          {item.status === "Due" || item.status === "Delayed" ? (
 
                             <button
                               onClick={() =>
@@ -2477,43 +2135,43 @@ function Nurses() {
           <ReportCard
             title="Patients"
             value={reports.patients}
-            icon="🧑‍🤝‍🧑"
+            icon={<UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="Vitals"
             value={reports.vitals}
-            icon="❤️"
+            icon={<HeartPulseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="Assessments"
             value={reports.assessments}
-            icon="🩺"
+            icon={<StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="Orders"
             value={reports.orders}
-            icon="📋"
+            icon={<ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="MAR Records"
             value={reports.mar}
-            icon="💊"
+            icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="Blood Records"
             value={reports.blood}
-            icon="🩸"
+            icon={<DropletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
             title="Billing Records"
             value={reports.billing}
-            icon="💰"
+            icon={<WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
         </div>
@@ -2866,7 +2524,7 @@ function Nurses() {
                   })
                 }
                 placeholder="Enter nursing note..."
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
               />
 
             </div>
@@ -2948,7 +2606,7 @@ function Nurses() {
                   })
                 }
                 placeholder="Enter patient assessment..."
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input w-full"
               />
 
             </div>
@@ -2966,289 +2624,86 @@ function Nurses() {
 
       )}
 
-    </div>
+    </div></>
   )
 }
 
 
 // =======================================================
-// DASHBOARD CARD
+// PRESENTATIONAL HELPERS (shared HMS styling)
 // =======================================================
 
-function DashboardCard({
-  title,
-  value,
-  icon,
-  subtitle,
-}) {
+function DashboardCard({ title, value, icon, subtitle }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-
-      <div className="flex items-center justify-between">
-
-        <div>
-
-          <p className="text-sm text-gray-500">
-            {title}
-          </p>
-
-          <p className="text-3xl font-bold text-gray-800 mt-2">
-            {value}
-          </p>
-
-          <p className="text-xs text-gray-400 mt-1">
-            {subtitle}
-          </p>
-
-        </div>
-
-        <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl">
-          {icon}
-        </div>
-
+    <div className="flex items-start gap-3.5 rounded-2xl border border-line bg-white p-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-xl text-brand-700">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-ink-500">{title}</p>
+        <p className="mt-0.5 text-2xl font-semibold leading-8 tracking-tight text-ink-900 tabular-nums">{value}</p>
+        {subtitle && <p className="mt-0.5 text-xs text-ink-500">{subtitle}</p>}
       </div>
-
     </div>
   )
 }
 
-
-// =======================================================
-// SECTION CARD
-// =======================================================
-
-function SectionCard({
-  title,
-  subtitle,
-  action,
-  children,
-}) {
+function SectionCard({ title, subtitle, action, children }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-
-      <div className="p-6 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
-        <div>
-
-          <h2 className="text-lg font-semibold text-gray-800">
-            {title}
-          </h2>
-
-          {subtitle && (
-            <p className="text-sm text-gray-500 mt-1">
-              {subtitle}
-            </p>
-          )}
-
-        </div>
-
-        {action}
-
-      </div>
-
-      <div className="p-6">
-        {children}
-      </div>
-
-    </div>
+    <Card>
+      <CardHeader title={title} description={subtitle} actions={action} />
+      <div className="px-5 py-4">{children}</div>
+    </Card>
   )
 }
 
-
-// =======================================================
-// INPUT
-// =======================================================
-
-function Input({
-  label,
-  name,
-  value,
-  onChange,
-  type = "text",
-  placeholder = "",
-  required = false,
-}) {
+function Input({ label, name, value, onChange, type = "text", placeholder = "", required = false }) {
+  const id = useId()
   return (
     <div>
-
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={id} className="hms-label">
         {label}
+        {required && <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>}
       </label>
-
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
-        className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-      />
-
+      <input id={id} type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} required={required} className="hms-input w-full" />
     </div>
   )
 }
 
-
-// =======================================================
-// SELECT
-// =======================================================
-
-function Select({
-  label,
-  value,
-  onChange,
-  options,
-  optionLabels,
-}) {
+function Select({ label, value, onChange, options, optionLabels }) {
+  const id = useId()
   return (
     <div>
-
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={id} className="hms-label">
         {label}
+        <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>
       </label>
-
-      <select
-        value={value}
-        onChange={onChange}
-        className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-        required
-      >
-
-        <option value="">
-          Select {label}
-        </option>
-
-        {options.map(
-          (option, index) => (
-
-            <option
-              key={option}
-              value={option}
-            >
-              {optionLabels
-                ? optionLabels[index]
-                : option}
-            </option>
-
-          )
-        )}
-
+      <select id={id} value={value} onChange={onChange} className="hms-input w-full" required>
+        <option value="">Select {String(label).toLowerCase()}</option>
+        {options.map((option, index) => (
+          <option key={option} value={option}>{optionLabels ? optionLabels[index] : option}</option>
+        ))}
       </select>
-
     </div>
   )
 }
 
-
-// =======================================================
-// INFO
-// =======================================================
-
-function Info({
-  label,
-  value,
-}) {
+function Info({ label, value }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-4">
-
-      <p className="text-xs text-gray-500">
-        {label}
-      </p>
-
-      <p className="font-medium text-gray-800 mt-1">
-        {value || "-"}
-      </p>
-
+    <div className="rounded-xl bg-ink-50 px-4 py-3">
+      <p className="text-xs font-medium text-ink-500">{label}</p>
+      <p className="mt-0.5 font-medium text-ink-900">{value || "—"}</p>
     </div>
   )
 }
 
-
-// =======================================================
-// REPORT CARD
-// =======================================================
-
-function ReportCard({
-  title,
-  value,
-  icon,
-}) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-
-      <div className="flex items-center justify-between">
-
-        <div>
-
-          <p className="text-sm text-gray-500">
-            {title}
-          </p>
-
-          <p className="text-3xl font-bold text-gray-800 mt-2">
-            {value}
-          </p>
-
-        </div>
-
-        <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl">
-          {icon}
-        </div>
-
-      </div>
-
-    </div>
-  )
+function ReportCard({ title, value, icon }) {
+  return <DashboardCard title={title} value={value} icon={icon} />
 }
 
-
-// =======================================================
-// MODAL
-// =======================================================
-
-function Modal({
-  title,
-  subtitle,
-  onClose,
-  children,
-}) {
+function Modal({ title, subtitle, onClose, children }) {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-
-        <div className="flex items-center justify-between px-6 py-5 border-b">
-
-          <div>
-
-            <h2 className="text-xl font-semibold text-gray-800">
-              {title}
-            </h2>
-
-            {subtitle && (
-              <p className="text-sm text-gray-500 mt-1">
-                {subtitle}
-              </p>
-            )}
-
-          </div>
-
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 text-2xl"
-          >
-            ×
-          </button>
-
-        </div>
-
-        <div className="p-6">
-          {children}
-        </div>
-
-      </div>
-
-    </div>
+    <UiModal open onClose={onClose} title={title} description={subtitle}>
+      {children}
+    </UiModal>
   )
 }
 

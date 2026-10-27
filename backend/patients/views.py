@@ -1,32 +1,200 @@
 from django.db.models import Q
-from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import NotFound, PermissionDenied
 
-from .models import Patient, PatientHospital
+from .models import Patient, PatientDocument, PatientHospital
 from .serializers import PatientSerializer, PatientHospitalSerializer
+from audit.services import record_audit
+from users.care_scope import limit_to_patients_in_care
+from users.viewsets import HospitalScopedViewSet
+from users.permissions import (
+    IsReceptionist,
+    IsDoctor,
+    IsNurse,
+    IsAdmin,
+    IsHospitalManager,
+    IsHospitalManagerReadOnly,
+    IsPatientReadOnly,
+    IsLinkedPatient,
+    get_linked_patient,
+    get_user_hospital_ids,
+    is_active_staff,
+    parse_hospital_id,
+)
 
 
-class PatientViewSet(viewsets.ModelViewSet):
+class PatientViewSet(HospitalScopedViewSet):
+    queryset = Patient.objects.select_related("hospital")
     serializer_class = PatientSerializer
+    permission_classes = [IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsPatientReadOnly | IsHospitalManagerReadOnly]
+
+    def get_permissions(self):
+        action_name = getattr(self, "action", None)
+        if action_name == "delete_document":
+            # Clinical documents are evidence; only an administrator removes them.
+            return [(IsAdmin | IsHospitalManager)()]
+        if action_name == "documents":
+            return [(IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
+        return super().get_permissions()
+
+    def _document_payload(self, document):
+        # Files are private; they are fetched through the audited documents API.
+        file_url = None
+        if document.file:
+            file_url = self.request.build_absolute_uri(f"/api/documents/{document.id}/download/")
+        return {
+            "id": document.id,
+            "patient": document.patient_id,
+            "title": document.title,
+            "folder": document.folder,
+            "file": file_url,
+            "uploaded_at": document.uploaded_at,
+        }
+
+    @action(
+        detail=True,
+        methods=["get", "post"],
+        url_path="documents",
+        parser_classes=[MultiPartParser, FormParser, JSONParser],
+    )
+    def documents(self, request, pk=None):
+        patient = self.get_object()
+        if request.method == "GET":
+            rows = self._document_scope(patient).order_by("-uploaded_at")
+            return Response([self._document_payload(row) for row in rows])
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"error": "A file is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        from documents.views import validate_file_upload
+
+        is_valid, error = validate_file_upload(upload)
+        if not is_valid:
+            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+        hospital_id = self.get_object_hospital_id(patient)
+        if hospital_id is None:
+            raise PermissionDenied("Select the hospital this document belongs to.")
+        document = PatientDocument.objects.create(
+            patient=patient,
+            hospital_id=hospital_id,
+            title=(request.data.get("title") or upload.name)[:150],
+            folder=(request.data.get("folder") or "")[:100],
+            file=upload,
+        )
+        record_audit(request, "documents.document.upload", document, hospital=hospital_id)
+        return Response(self._document_payload(document), status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["delete"], url_path=r"documents/(?P<doc_id>[0-9]+)")
+    def delete_document(self, request, doc_id=None):
+        try:
+            document = PatientDocument.objects.select_related("patient").get(pk=doc_id)
+        except PatientDocument.DoesNotExist:
+            raise NotFound("Document not found.")
+        patient = self.get_queryset().filter(pk=document.patient_id).first()
+        if patient is None or not self._document_scope(patient).filter(pk=document.pk).exists():
+            raise NotFound("Document not found.")
+        record_audit(request, "documents.document.delete", document, hospital=document.hospital_id)
+        document.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def destroy(self, request, *args, **kwargs):
+        patient = self.get_object()
+        own_hospital = self.get_object_hospital_id(patient)
+        if self._used_by_other_hospital(patient, own_hospital):
+            # Visits, prescriptions, lab results and invoices cascade from
+            # Patient, so deleting here would erase another hospital's records.
+            return Response(
+                {"error": "This patient is registered or has records at another hospital and cannot be deleted."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        self.perform_destroy(patient)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def _used_by_other_hospital(self, patient, own_hospital):
+        from users.viewsets import resolve_hospital_lookup
+
+        if patient.hospital_id not in (None, own_hospital):
+            return True
+        for relation in patient._meta.related_objects:
+            if not relation.one_to_many and not relation.one_to_one:
+                continue
+            lookup = resolve_hospital_lookup(relation.related_model)
+            if not lookup:
+                continue
+            rows = relation.related_model._default_manager.filter(**{relation.field.name: patient})
+            if rows.exclude(**{lookup: own_hospital}).exclude(**{f"{lookup}__isnull": True}).exists():
+                return True
+        return False
+
+    def _document_scope(self, patient):
+        """Documents of this patient that belong to the acting hospitals."""
+        rows = patient.documents.all()
+        if get_linked_patient(self.request.user) and not is_active_staff(self.request.user):
+            return rows
+        return rows.filter(hospital_id__in=self.get_acting_hospital_ids())
+
+    def get_object_hospital_id(self, obj):
+        hospital_ids = self.get_acting_hospital_ids()
+        if obj.hospital_id in hospital_ids:
+            return obj.hospital_id
+        return (
+            obj.hospital_memberships.filter(is_active=True, hospital_id__in=hospital_ids)
+            .values_list("hospital_id", flat=True)
+            .first()
+        )
 
     def get_queryset(self):
-        hospital_id = self.request.query_params.get("hospital")
+        queryset = self._base_queryset()
+        linked_patient = get_linked_patient(self.request.user)
+        if linked_patient and not is_active_staff(self.request.user):
+            return queryset.filter(pk=linked_patient.pk)
 
-        if hospital_id:
-            # Preserve the existing membership-based scoping AND support
-            # the direct hospital field used by the Patients UI form.
-            return Patient.objects.filter(
-                Q(hospital_id=hospital_id)
-                | Q(
-                    hospital_memberships__hospital_id=hospital_id,
-                    hospital_memberships__is_active=True,
-                )
-            ).distinct()
+        # A patient is a shared identity: visible to a hospital that
+        # registered them directly or holds an active membership for them.
+        hospital_ids = self.get_acting_hospital_ids()
+        if not hospital_ids:
+            return queryset.none()
+        def in_hospitals(ids):
+            ids = list(ids)
+            return Q(hospital_id__in=ids) | Q(
+                hospital_memberships__hospital_id__in=ids,
+                hospital_memberships__is_active=True,
+            )
 
-        return Patient.objects.all()
+        queryset = queryset.filter(in_hospitals(hospital_ids))
+        # A Doctor sees only the patients in their own care.
+        queryset = limit_to_patients_in_care(
+            queryset, self.request.user, hospital_ids, in_hospitals
+        ).distinct()
+
+        # Search filter
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(phone__icontains=search) | Q(condition__icontains=search)
+            )
+
+        # Status filter
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        return queryset
 
     def create(self, request, *args, **kwargs):
+        # Validate hospital access
+        hospital_id = parse_hospital_id(request.data.get("hospital"))
+        if hospital_id:
+            user_hospital_ids = get_user_hospital_ids(request.user)
+            if hospital_id not in user_hospital_ids:
+                raise PermissionDenied("You do not have access to this hospital.")
+        
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -52,6 +220,16 @@ class PatientViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class PatientHospitalViewSet(viewsets.ModelViewSet):
+class PatientHospitalViewSet(HospitalScopedViewSet):
     queryset = PatientHospital.objects.all()
     serializer_class = PatientHospitalSerializer
+    permission_classes = [IsReceptionist | IsAdmin]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        hospital_id = self.request.query_params.get("hospital")
+        if hospital_id:
+            queryset = queryset.filter(hospital_id=hospital_id)
+
+        return queryset

@@ -20,7 +20,8 @@ def _recompute_purchase_status(purchase):
 
     Returns one of Ordered / Partial / Received.
     """
-    items = list(purchase.items.all())
+    # Use a fresh queryset to avoid prefetch cache issues
+    items = list(PurchaseItem.objects.filter(purchase=purchase))
     if not items:
         return PurchaseOrder.STATUS_ORDERED
 
@@ -262,3 +263,88 @@ def receive_purchase(purchase, payload, scoped_hospital=None):
     purchase.save(update_fields=["status"])
 
     return receipt
+
+
+@transaction.atomic
+def adjust_stock(medicine, hospital, payload, scoped_hospital=None):
+    """Atomically adjust stock for a medicine (manual adjustment).
+
+    This is used for stock corrections, returns, write-offs, etc.
+    Creates a StockTransaction ledger entry and updates Medicine.quantity.
+    """
+    # 1. Validate hospital scoping.
+    if scoped_hospital is not None and medicine.hospital_id != scoped_hospital.pk:
+        raise serializers.ValidationError(
+            {"medicine": "Medicine does not belong to the selected hospital."}
+        )
+
+    if medicine.hospital_id != hospital.pk:
+        raise serializers.ValidationError(
+            {"medicine": "Medicine does not belong to this hospital."}
+        )
+
+    # 2. Validate input.
+    adjustment_type = payload.get("type")  # "add" or "remove"
+    quantity = payload.get("quantity")
+    reason = payload.get("reason", "")
+    reference = payload.get("reference", "")
+
+    if adjustment_type not in ("add", "remove"):
+        raise serializers.ValidationError(
+            {"type": "Adjustment type must be 'add' or 'remove'."}
+        )
+
+    if quantity is None or quantity <= 0:
+        raise serializers.ValidationError(
+            {"quantity": "Quantity must be greater than 0."}
+        )
+
+    # 3. Check stock for removal.
+    if adjustment_type == "remove":
+        if medicine.quantity < quantity:
+            raise serializers.ValidationError(
+                {
+                    "quantity": (
+                        f"Insufficient stock. Available: {medicine.quantity}."
+                    )
+                }
+            )
+
+    # 4. Atomic stock update.
+    if adjustment_type == "add":
+        updated = Medicine.objects.filter(
+            pk=medicine.pk,
+            hospital=hospital,
+        ).update(quantity=F("quantity") + quantity)
+        transaction_type = StockTransaction.TYPE_IN
+    else:
+        updated = Medicine.objects.filter(
+            pk=medicine.pk,
+            hospital=hospital,
+            quantity__gte=quantity,
+        ).update(quantity=F("quantity") - quantity)
+        transaction_type = StockTransaction.TYPE_OUT
+
+    if not updated:
+        medicine.refresh_from_db(fields=["quantity"])
+        raise serializers.ValidationError(
+            {
+                "quantity": (
+                    f"Failed to update stock. Current: {medicine.quantity}."
+                )
+            }
+        )
+
+    medicine.refresh_from_db(fields=["quantity"])
+
+    # 5. Append-only ledger row.
+    StockTransaction.objects.create(
+        medicine=medicine,
+        hospital=hospital,
+        transaction_type=transaction_type,
+        quantity=quantity,
+        reason=reason or "Manual stock adjustment",
+        reference=reference or f"ADJ-{timezone.now().strftime('%Y%m%d%H%M%S')}",
+    )
+
+    return medicine

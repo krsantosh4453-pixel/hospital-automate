@@ -7,6 +7,7 @@ from .views import (
     WardViewSet,
     RoomViewSet,
     BedViewSet,
+    HospitalDirectoryView,
 )
 
 router = DefaultRouter()
@@ -18,5 +19,6 @@ router.register(r"rooms", RoomViewSet, basename="room")
 router.register(r"beds", BedViewSet, basename="bed")
 
 urlpatterns = [
+    path("directory/", HospitalDirectoryView.as_view(), name="hospital-directory"),
     path("", include(router.urls)),
 ]

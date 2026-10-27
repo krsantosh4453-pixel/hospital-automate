@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { useAuth } from "./AuthContext.jsx"
+import { getAuthenticatedStaffRole } from "../../utils/roleRouting.js"
 
 const RoleContext = createContext(null)
 
@@ -17,6 +19,10 @@ export const ALL_MODULES = [
   "Inventory",
   "Prescriptions",
   "Reports",
+  "Emergency",
+  "BloodBank",
+  "IPD",
+  "AIScribe",
   "Users",
   "Roles",
   "Hospitals",
@@ -43,6 +49,10 @@ export const DEFAULT_ROLES = [
       Inventory: ["View", "Add", "Edit", "Delete"],
       Prescriptions: ["View", "Add", "Edit", "Delete"],
       Reports: ["View", "Add", "Edit", "Delete"],
+      Emergency: ["View", "Add", "Edit", "Delete"],
+      BloodBank: ["View", "Add", "Edit", "Delete"],
+      IPD: ["View", "Add", "Edit", "Delete"],
+      AIScribe: ["View", "Add", "Edit", "Delete"],
       Users: ["View", "Add", "Edit", "Delete"],
       Roles: ["View", "Add", "Edit", "Delete"],
       Hospitals: ["View", "Add", "Edit", "Delete"],
@@ -61,8 +71,12 @@ export const DEFAULT_ROLES = [
       Queue: ["View"],
       Doctors: ["View"],
       Prescriptions: ["View", "Add", "Edit"],
-      Laboratory: ["View"],
+      Laboratory: ["View", "Add"],
       Reports: ["View"],
+      IPD: ["View", "Add", "Edit"],
+      Emergency: ["View", "Add", "Edit"],
+      BloodBank: ["View", "Add"],
+      AIScribe: ["View", "Add", "Edit"],
     },
   },
   {
@@ -76,6 +90,11 @@ export const DEFAULT_ROLES = [
       Queue: ["View", "Edit"],
       Nurses: ["View", "Edit"],
       Prescriptions: ["View"],
+      IPD: ["View", "Edit"],
+      Reports: ["View"],
+      Laboratory: ["View", "Edit"],
+      Emergency: ["View", "Add", "Edit"],
+      BloodBank: ["View"],
     },
   },
   {
@@ -85,14 +104,15 @@ export const DEFAULT_ROLES = [
     permissions: {
       Dashboard: ["View"],
       Compounders: ["View", "Edit"],
-      Prescriptions: ["View", "Edit"],
+      Prescriptions: ["View"],
       Pharmacy: ["View", "Add", "Edit"],
-      Inventory: ["View"],
+      Inventory: ["View", "Edit"],
+      Reports: ["View"],
     },
   },
   {
     id: 5,
-    name: "Reception",
+    name: "Receptionist",
     description: "Patient registration, token generation, appointments, and billing",
     permissions: {
       Dashboard: ["View"],
@@ -101,10 +121,89 @@ export const DEFAULT_ROLES = [
       Queue: ["View", "Edit"],
       Billing: ["View", "Add"],
       Doctors: ["View"],
+      Reports: ["View"],
     },
   },
   {
     id: 6,
+    name: "Pharmacist",
+    description: "Manage pharmacy inventory, sales, and dispensing",
+    permissions: {
+      Dashboard: ["View"],
+      Pharmacy: ["View", "Add", "Edit"],
+      Prescriptions: ["View", "Edit"],
+      Compounders: ["View"],
+      Inventory: ["View", "Edit"],
+      Reports: ["View"],
+    },
+  },
+  {
+    id: 7,
+    name: "Lab Staff",
+    description: "Manage laboratory tests and results",
+    permissions: {
+      Dashboard: ["View"],
+      Laboratory: ["View", "Add", "Edit"],
+      Reports: ["View"],
+    },
+  },
+  {
+    id: 8,
+    name: "Blood Bank Staff",
+    description: "Manage blood inventory, requests, and transactions",
+    permissions: {
+      Dashboard: ["View"],
+      BloodBank: ["View", "Add", "Edit"],
+      Reports: ["View"],
+    },
+  },
+  {
+    id: 9,
+    name: "Billing Staff",
+    description: "Manage invoices, payments, and insurance claims",
+    permissions: {
+      Dashboard: ["View"],
+      Billing: ["View", "Add", "Edit"],
+      Reports: ["View"],
+    },
+  },
+  {
+    id: 10,
+    name: "Inventory Staff",
+    description: "Manage procurement and stock",
+    permissions: {
+      Dashboard: ["View"],
+      Inventory: ["View", "Add", "Edit"],
+      Reports: ["View"],
+    },
+  },
+  {
+    id: 11,
+    name: "Hospital Manager",
+    description: "Hospital-level administration and oversight",
+    permissions: {
+      Dashboard: ["View"],
+      Patients: ["View"],
+      Appointments: ["View", "Add", "Edit"],
+      Queue: ["View"],
+      Doctors: ["View", "Add", "Edit"],
+      Nurses: ["View", "Add", "Edit"],
+      Compounders: ["View"],
+      Pharmacy: ["View", "Add", "Edit"],
+      Laboratory: ["View"],
+      Billing: ["View", "Add", "Edit"],
+      Inventory: ["View", "Add", "Edit"],
+      Reports: ["View", "Add", "Edit"],
+      Emergency: ["View"],
+      BloodBank: ["View", "Add", "Edit"],
+      IPD: ["View"],
+      Users: ["View"],
+      Hospitals: ["View"],
+      Departments: ["View", "Add", "Edit"],
+    },
+  },
+  {
+    id: 12,
     name: "Patient",
     description: "View personal appointments, queue status, lab tests and invoices",
     permissions: {
@@ -118,13 +217,46 @@ export const DEFAULT_ROLES = [
   },
 ]
 
+export function backendRoleCanView(roleName, moduleName) {
+  if (!moduleName) return Boolean(roleName)
+  const role = DEFAULT_ROLES.find((item) => item.name === roleName)
+  if (!role) return false
+  if (role.name === "Admin") return true
+  return (role.permissions?.[moduleName] || []).includes("View")
+}
+
+/** Staff roles allowed to open a module, for "only for …" messages. */
+export function eligibleRolesFor(moduleName) {
+  return DEFAULT_ROLES.filter((role) => role.name !== "Patient" && backendRoleCanView(role.name, moduleName)).map(
+    (role) => role.name,
+  )
+}
+
 export function RoleProvider({ children }) {
+  const { isStaff, isPatient, user } = useAuth()
   // Load roles & permissions from localStorage or defaults
   const [roles, setRoles] = useState(() => {
+    const extraAdminPerms = {
+      Emergency: ["View", "Add", "Edit", "Delete"],
+      BloodBank: ["View", "Add", "Edit", "Delete"],
+      IPD: ["View", "Add", "Edit", "Delete"],
+      AIScribe: ["View", "Add", "Edit", "Delete"],
+    }
     const saved = localStorage.getItem("hms_role_permissions")
     if (saved) {
       try {
-        return JSON.parse(saved)
+        const parsed = JSON.parse(saved)
+        return parsed.map((role) => {
+          const name = role.name === "Reception" ? "Receptionist" : role.name
+          if (name !== "Admin") {
+            return { ...role, name }
+          }
+          return {
+            ...role,
+            name,
+            permissions: { ...extraAdminPerms, ...(role.permissions || {}) },
+          }
+        })
       } catch (e) {
         console.error("Failed to parse saved role permissions:", e)
       }
@@ -132,31 +264,38 @@ export function RoleProvider({ children }) {
     return DEFAULT_ROLES
   })
 
-  // Active role (e.g. "Admin", "Doctor", "Nurse", "Compounder", "Reception", "Patient")
-  const [activeRoleName, setActiveRoleName] = useState(() => {
-    return localStorage.getItem("hms_active_role") || "Admin"
-  })
+  const authenticatedRoles = (() => {
+    if (isPatient && !isStaff) return ["Patient"]
+    if (!isStaff) return []
+    const raw = user?.user?.roles || user?.roles || []
+    const mapped = raw.map((role) => {
+      if (role === "Reception") return "Receptionist"
+      return role
+    })
+    const primary = getAuthenticatedStaffRole(user)
+    if (primary && !mapped.includes(primary)) mapped.unshift(primary)
+    return mapped.filter(Boolean)
+  })()
+
+  const [chosenRole, setChosenRole] = useState(null)
+  const activeRoleName = authenticatedRoles.includes(chosenRole)
+    ? chosenRole
+    : authenticatedRoles[0] || null
 
   // Save roles whenever changed
   useEffect(() => {
     localStorage.setItem("hms_role_permissions", JSON.stringify(roles))
   }, [roles])
 
-  // Save active role whenever changed
-  useEffect(() => {
-    localStorage.setItem("hms_active_role", activeRoleName)
-  }, [activeRoleName])
+  // Current active role object comes from the authenticated backend role.
+  const activeRole = DEFAULT_ROLES.find((role) => role.name === activeRoleName) || null
 
-  // Current active role object
-  const activeRole = roles.find((r) => r.name === activeRoleName) || roles[0]
-
-  // Switch the active user role
-  const switchRole = (roleName) => {
-    const found = roles.find((r) => r.name.toLowerCase() === roleName.toLowerCase())
-    if (found) {
-      setActiveRoleName(found.name)
-    }
-  }
+  // Switch only among roles the backend actually assigned.
+  const switchRole = useCallback((roleName) => {
+    const requested = roleName === "Reception" ? "Receptionist" : roleName
+    if (!authenticatedRoles.includes(requested)) return
+    setChosenRole(requested)
+  }, [authenticatedRoles])
 
   // Update permissions for a specific role
   const updateRolePermissions = (roleId, newPermissions) => {
@@ -169,11 +308,9 @@ export function RoleProvider({ children }) {
 
   // Permission checks
   const hasPermission = (moduleName, action = "View") => {
-    if (!activeRole) return false
-    // Admin has superuser access
-    if (activeRole.name === "Admin") return true
-
-    const rolePerms = activeRole.permissions || {}
+    if (!activeRoleName) return false
+    if (activeRoleName === "Admin") return true
+    const rolePerms = activeRole?.permissions || {}
     const modulePerms = rolePerms[moduleName] || []
     return modulePerms.includes(action)
   }

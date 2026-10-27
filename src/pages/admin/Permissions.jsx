@@ -1,4 +1,7 @@
+import { useState } from "react"
 import { useRole, ALL_MODULES } from "../../assets/context/RoleContext.jsx"
+import { CrownIcon, HospitalIcon, StethoscopeIcon, UserCogIcon, UserIcon, UserRoundIcon } from "lucide-react"
+import { Alert, PageHeader } from "../../components/ui"
 
 function Permissions() {
   const modules = ALL_MODULES
@@ -77,36 +80,26 @@ function Permissions() {
   const { activeRoleName, switchRole } = useRole()
 
   const roleIcons = {
-    Admin: "👑",
-    Doctor: "👨‍⚕️",
-    Nurse: "👩‍⚕️",
-    Compounder: "🧑‍💼",
-    Reception: "🏥",
-    Patient: "👤",
+    Admin: <CrownIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+    Doctor: <StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+    Nurse: <UserRoundIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+    Compounder: <UserCogIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+    Reception: <HospitalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
+    Patient: <UserIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />,
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
+    <div className="space-y-5">
+      <PageHeader
+        title="Permissions"
+        description="Choose which menu items each role sees in this browser."
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Permissions" }]}
+        meta={<span className="inline-flex items-center gap-1.5 rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">{roleIcons[activeRoleName] || <UserIcon size="1em" aria-hidden="true" />} Your role: {activeRoleName}</span>}
+      />
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-            Permissions & Role Access
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Control exact modules and actions for each hospital role
-          </p>
-        </div>
-
-        {/* Current Active Role Badge & Switcher */}
-        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow-xs border border-gray-200">
-          <span className="text-xs text-gray-500 font-medium">Your Current Role:</span>
-          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-            {roleIcons[activeRoleName] || "👤"} {activeRoleName}
-          </span>
-        </div>
-      </div>
+      <Alert tone="warning" title="Navigation only">
+        These settings change which menu items appear on this device. What each role can read or change is enforced by the server — see Roles.
+      </Alert>
 
       {/* Role Selection Tabs & Controls */}
       <div className="bg-white rounded-2xl shadow-xs border border-gray-100 p-5 space-y-4">
@@ -130,7 +123,7 @@ function Permissions() {
                       : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200"
                   }`}
                 >
-                  <span className="text-sm">{roleIcons[role.name] || "👤"}</span>
+                  <span className="text-sm">{roleIcons[role.name] || <UserIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}</span>
                   <span className="font-semibold">{role.name}</span>
                   {isCurrent && (
                     <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full font-bold">
@@ -161,7 +154,7 @@ function Permissions() {
               onClick={() => switchRole(selectedRole.name)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition cursor-pointer shadow-sm"
             >
-              <span>Switch App to "{selectedRole.name}" View</span>
+              <span>Switch App to &quot;{selectedRole.name}&quot; View</span>
             </button>
           )}
         </div>

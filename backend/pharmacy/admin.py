@@ -34,3 +34,9 @@ class SaleAdmin(admin.ModelAdmin):
     list_filter = ("hospital",)
     search_fields = ("patient_name", "medicine__name")
     readonly_fields = ("created_at",)
+
+
+# Every other pharmacy table, with default columns (config/admin_registry.py).
+from config.admin_registry import register_app_models  # noqa: E402
+
+register_app_models("pharmacy")

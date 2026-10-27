@@ -1,7 +1,12 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
+import { LoadingSpinner } from "../components/LoadingSpinner.jsx"
+import { AlarmClockIcon, CheckIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, SearchIcon, TrendingDownIcon, TriangleAlertIcon } from "lucide-react"
+import { useToast } from "../components/Toast.jsx"
+import { Alert, Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
+import { Plus as PlusIcon } from "lucide-react"
 
 // Convert "MM/YYYY" (UI) to "YYYY-MM-01" (API DateField). Returns null if invalid.
 const toApiDate = (value) => {
@@ -16,15 +21,47 @@ const toApiDate = (value) => {
   return `${String(yearNum).padStart(4, "0")}-${String(monthNum).padStart(2, "0")}-01`
 }
 
+const formatExpiry = (value) => {
+  if (!value) return ""
+  const parts = String(value).split("-")
+  if (parts.length < 2) return value
+  const [year, month] = parts
+  return `${month}/${year}`
+}
+
+const parseExpiry = (value) => {
+  if (!value) return null
+  const parts = String(value).split("/")
+  if (parts.length < 2) return null
+  const [month, year] = parts
+  return new Date(Number(year), Number(month) - 1, 1)
+}
+
 function Pharmacy() {
+  const toast = useToast()
+  const [confirm, confirmDialog] = useConfirm()
+
   const {
-    addSale,
     loadMedicines,
     createMedicine,
     updateMedicine,
     deleteMedicine,
     loadSales,
     createSale,
+    loadSuppliers,
+    createSupplier,
+    updateSupplier,
+    deleteSupplier,
+    loadPurchases,
+    createPurchase,
+    receivePurchase,
+    loadGRNs,
+    loadStockTransactions,
+    adjustStock,
+    suppliers,
+    purchaseOrders,
+    grns,
+    stockTransactions,
   } = usePharmacy()
 
   const { selectedHospital } = usePatient()
@@ -34,70 +71,44 @@ function Pharmacy() {
     dispensePrescription,
   } = usePrescription()
 
-
   // =========================
-  // MEDICINES
-  // =========================
-
-  const [medicines, setMedicines] = useState([
-    {
-      id: "M001",
-      name: "Paracetamol 500mg",
-      category: "Tablet",
-      batch: "PCM2026A",
-      stock: 250,
-      expiry: "12/2027",
-      price: 2.5,
-      status: "In Stock",
-      hospitalId: 1,
-    },
-
-    {
-      id: "M002",
-      name: "Amoxicillin 500mg",
-      category: "Capsule",
-      batch: "AMX2026B",
-      stock: 85,
-      expiry: "08/2027",
-      price: 6,
-      status: "In Stock",
-      hospitalId: 1,
-    },
-
-    {
-      id: "M003",
-      name: "Azithromycin 500mg",
-      category: "Tablet",
-      batch: "AZI2026C",
-      stock: 18,
-      expiry: "05/2027",
-      price: 12,
-      status: "Low Stock",
-      hospitalId: 2,
-    },
-
-    {
-      id: "M004",
-      name: "Insulin",
-      category: "Injection",
-      batch: "INS2026D",
-      stock: 5,
-      expiry: "02/2027",
-      price: 450,
-      status: "Low Stock",
-      hospitalId: 3,
-    },
-  ])
-
-
-  // =========================
-  // SALES
+  // STATE
   // =========================
 
+  const [medicines, setMedicines] = useState([])
   const [sales, setSales] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState("")
 
+  const [showForm, setShowForm] = useState(false)
+  const [showView, setShowView] = useState(false)
+  const [showIssue, setShowIssue] = useState(false)
+  const [showSales, setShowSales] = useState(false)
+
+  const [selectedMedicine, setSelectedMedicine] = useState(null)
+
+  const [formData, setFormData] = useState({
+    name: "",
+    category: "",
+    batch: "",
+    stock: "",
+    expiry: "",
+    price: "",
+  })
+
+  const [issueData, setIssueData] = useState({
+    medicineId: "",
+    patient: "",
+    quantity: "",
+  })
+
+  const [prescriptionId, setPrescriptionId] = useState("")
+  const [foundPrescription, setFoundPrescription] = useState(null)
 
   // =========================
+  // EXPIRY & LOW STOCK ALERTS
+  // =========================
+
   // SEARCH / FILTER
   // =========================
 
@@ -110,73 +121,6 @@ function Pharmacy() {
   const [stockFilter, setStockFilter] =
     useState("All Stock")
 
-
-  // =========================
-  // MODALS
-  // =========================
-
-  const [showForm, setShowForm] =
-    useState(false)
-
-  const [showView, setShowView] =
-    useState(false)
-
-  const [showIssue, setShowIssue] =
-    useState(false)
-
-  const [showSales, setShowSales] =
-    useState(false)
-
-
-  const [selectedMedicine, setSelectedMedicine] =
-    useState(null)
-
-
-  // =========================
-  // FORM DATA
-  // =========================
-
-  const [formData, setFormData] = useState({
-    name: "",
-    category: "",
-    batch: "",
-    stock: "",
-    expiry: "",
-    price: "",
-  })
-
-
-  // =========================
-  // ISSUE DATA
-  // =========================
-
-  const [issueData, setIssueData] = useState({
-    medicineId: "",
-    patient: "",
-    quantity: "",
-  })
-
-
-  // =========================
-  // PRESCRIPTION SEARCH
-  // =========================
-
-  const [prescriptionId, setPrescriptionId] =
-    useState("")
-
-  const [foundPrescription, setFoundPrescription] =
-    useState(null)
-
-
-  // =========================
-  // LOADING / ERROR
-  // =========================
-
-  const [loading, setLoading] =
-    useState(false)
-
-  const [loadError, setLoadError] =
-    useState("")
 
   const reloadPharmacyData = async () => {
     if (!selectedHospital) return
@@ -218,14 +162,41 @@ function Pharmacy() {
   // HOSPITAL FILTER
   // =========================
 
-  const hospitalMedicines =
-    selectedHospital
-      ? medicines.filter(
-        (medicine) =>
-          medicine.hospitalId ===
-          selectedHospital.id
-      )
-      : []
+  const hospitalMedicines = useMemo(
+    () =>
+      selectedHospital
+        ? medicines.filter(
+          (medicine) =>
+            medicine.hospitalId ===
+            selectedHospital.id
+        )
+        : [],
+    [medicines, selectedHospital]
+  )
+
+  // Expiry and low-stock alerts (must follow hospitalMedicines: the hook
+  // dependency arrays read it during render).
+
+  const expiredMedicines = useMemo(() => {
+    const now = new Date()
+    return hospitalMedicines.filter((m) => {
+      const exp = parseExpiry(m.expiry)
+      return exp && exp < now && m.stock > 0
+    })
+  }, [hospitalMedicines])
+
+  const expiringSoonMedicines = useMemo(() => {
+    const now = new Date()
+    const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+    return hospitalMedicines.filter((m) => {
+      const exp = parseExpiry(m.expiry)
+      return exp && exp >= now && exp <= thirtyDaysLater && m.stock > 0
+    })
+  }, [hospitalMedicines])
+
+  const lowStockMedicines = useMemo(() =>
+    hospitalMedicines.filter((m) => m.stock > 0 && m.stock <= 20), [hospitalMedicines])
+
 
 
   const hospitalSales =
@@ -386,7 +357,7 @@ function Pharmacy() {
 
     if (!selectedHospital) {
 
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
 
@@ -429,7 +400,7 @@ function Pharmacy() {
 
     } catch (error) {
 
-      alert(
+      toast.error(
         error?.message ||
         "Unable to add medicine."
       )
@@ -531,7 +502,7 @@ function Pharmacy() {
 
     } catch (error) {
 
-      alert(
+      toast.error(
         error?.message ||
         "Unable to update medicine."
       )
@@ -549,9 +520,9 @@ function Pharmacy() {
   ) => {
 
     const confirmed =
-      window.confirm(
+      (await confirm(
         "Are you sure you want to delete this medicine?"
-      )
+      ))
 
 
     if (!confirmed) {
@@ -567,7 +538,7 @@ function Pharmacy() {
 
     } catch (error) {
 
-      alert(
+      toast.error(
         error?.message ||
         "Unable to delete medicine."
       )
@@ -634,7 +605,7 @@ function Pharmacy() {
 
     if (!selectedHospital) {
 
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
 
@@ -652,7 +623,7 @@ function Pharmacy() {
 
     if (!medicine) {
 
-      alert(
+      toast.warning(
         "Please select a medicine."
       )
 
@@ -664,7 +635,7 @@ function Pharmacy() {
       !issueData.patient.trim()
     ) {
 
-      alert(
+      toast.warning(
         "Please enter the patient name."
       )
 
@@ -680,7 +651,7 @@ function Pharmacy() {
 
     if (quantity <= 0) {
 
-      alert(
+      toast.warning(
         "Quantity must be greater than 0."
       )
 
@@ -693,7 +664,7 @@ function Pharmacy() {
       medicine.stock
     ) {
 
-      alert(
+      toast.warning(
         `Only ${medicine.stock} units are available.`
       )
 
@@ -722,7 +693,7 @@ function Pharmacy() {
       await reloadPharmacyData()
 
 
-      alert(
+      toast.success(
         `${quantity} ${medicine.name} issued successfully.`
       )
 
@@ -734,7 +705,7 @@ function Pharmacy() {
       await reloadPharmacyData()
 
 
-      alert(
+      toast.error(
         error?.message ||
         "Unable to issue medicine."
       )
@@ -751,7 +722,7 @@ function Pharmacy() {
 
     if (!selectedHospital) {
 
-      alert(
+      toast.warning(
         "Please select a hospital first."
       )
 
@@ -763,7 +734,7 @@ function Pharmacy() {
       !prescriptionId.trim()
     ) {
 
-      alert(
+      toast.warning(
         "Please enter Prescription ID."
       )
 
@@ -794,7 +765,7 @@ function Pharmacy() {
         null
       )
 
-      alert(
+      toast.error(
         "Prescription not found for this hospital."
       )
 
@@ -827,7 +798,7 @@ function Pharmacy() {
       "Dispensed"
     ) {
 
-      alert(
+      toast.info(
         "This prescription has already been dispensed."
       )
 
@@ -843,7 +814,7 @@ function Pharmacy() {
       prescribedMedicines.length === 0
     ) {
 
-      alert(
+      toast.info(
         "This prescription has no medicines to dispense."
       )
 
@@ -858,7 +829,7 @@ function Pharmacy() {
       prescribedMedicines.length > 1
     ) {
 
-      alert(
+      toast.error(
         "This prescription contains multiple medicines. Automatic dispensing is not supported yet — please issue each medicine from the Issue Medicine section."
       )
 
@@ -883,7 +854,7 @@ function Pharmacy() {
 
     if (!inventoryMedicine) {
 
-      alert(
+      toast.error(
         `${prescriptionMedicine.name} is not available in ${selectedHospital.name} pharmacy stock.`
       )
 
@@ -904,7 +875,7 @@ function Pharmacy() {
       quantity
     ) {
 
-      alert(
+      toast.info(
         `Insufficient stock for ${prescriptionMedicine.name}. Available: ${inventoryMedicine.stock}`
       )
 
@@ -936,7 +907,7 @@ function Pharmacy() {
       await reloadPharmacyData()
 
 
-      dispensePrescription(
+      await dispensePrescription(
         foundPrescription.id
       )
 
@@ -951,7 +922,7 @@ function Pharmacy() {
       })
 
 
-      alert(
+      toast.success(
         `Prescription ${foundPrescription.id} dispensed successfully.`
       )
 
@@ -960,7 +931,7 @@ function Pharmacy() {
       await reloadPharmacyData()
 
 
-      alert(
+      toast.error(
         error?.message ||
         "Unable to dispense prescription."
       )
@@ -992,219 +963,48 @@ function Pharmacy() {
 
   return (
 
-    <div>
-
-
-      {/* =========================
-          HEADER
-      ========================= */}
-
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-
-        <div>
-
-          <p className="text-blue-600 font-semibold text-sm">
-            PHARMACY MANAGEMENT
-          </p>
-
-          <h1 className="text-3xl font-bold text-gray-800">
-            Pharmacy
-          </h1>
-
-          <p className="text-gray-500 mt-1">
-            Manage medicines, stock, prescriptions and pharmacy sales
-          </p>
-
-        </div>
-
-
-        <div className="flex flex-wrap gap-3">
-
-          <button
-
-            onClick={() => {
-
-              if (!selectedHospital) {
-
-                alert(
-                  "Please select a hospital first."
-                )
-
-                return
-              }
-
-              setShowSales(true)
-
-            }}
-
-            className="px-5 py-3 border border-gray-300 rounded-xl font-medium hover:bg-gray-50"
-          >
-            🧾 Sales History
-          </button>
-
-
-          <button
-
-            onClick={() => {
-
-              if (!selectedHospital) {
-
-                alert(
-                  "Please select a hospital first."
-                )
-
-                return
-              }
-
-              setIssueData({
-
-                medicineId: "",
-                patient: "",
-                quantity: "",
-
-              })
-
-              setShowIssue(true)
-
-            }}
-
-            className="px-5 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700"
-          >
-            💊 Issue Medicine
-          </button>
-
-
-          <button
-
-            onClick={() => {
-
-              if (!selectedHospital) {
-
-                alert(
-                  "Please select a hospital first."
-                )
-
-                return
-              }
-
-              setSelectedMedicine(
-                null
-              )
-
-              setFormData({
-
-                name: "",
-                category: "",
-                batch: "",
-                stock: "",
-                expiry: "",
-                price: "",
-
-              })
-
-              setShowForm(true)
-
-            }}
-
-            className="px-5 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
-          >
-            + Add Medicine
-          </button>
-
-        </div>
-
-      </div>
-
-
-      {/* =========================
-          CURRENT HOSPITAL
-      ========================= */}
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-
-        {selectedHospital ? (
-
-          <div className="flex items-center gap-4">
-
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-              🏥
-            </div>
-
-            <div>
-
-              <p className="text-xs text-gray-500">
-                Current Hospital
-              </p>
-
-              <h2 className="font-bold text-gray-800">
-                {selectedHospital.name}
-              </h2>
-
-              <p className="text-sm text-gray-500">
-                📍 {selectedHospital.address}
-              </p>
-
-            </div>
-
-          </div>
-
-        ) : (
-
-          <div>
-
-            <p className="font-semibold text-orange-600">
-              ⚠️ No hospital selected
-            </p>
-
-            <p className="text-sm text-gray-500 mt-1">
-              Select a hospital from the header first.
-            </p>
-
-          </div>
-
-        )}
-
-      </div>
-
+    <>{confirmDialog}<div className="space-y-6">
+      <PageHeader
+        title="Pharmacy"
+        description={selectedHospital ? `Medicines, dispensing and sales at ${selectedHospital.name}.` : "Select a hospital from the header to view pharmacy data."}
+        breadcrumbs={[{ label: "Home", to: "/" }, { label: "Pharmacy" }]}
+        actions={
+          selectedHospital && (
+            <>
+              <Button variant="secondary" icon={ReceiptIcon} onClick={() => setShowSales(true)}>Sales history</Button>
+              <Button
+                variant="secondary"
+                icon={PillIcon}
+                onClick={() => {
+                  setIssueData({ medicineId: "", patient: "", quantity: "" })
+                  setShowIssue(true)
+                }}
+              >
+                Issue medicine
+              </Button>
+              <Button
+                icon={PlusIcon}
+                onClick={() => {
+                  setSelectedMedicine(null)
+                  setFormData({ name: "", category: "", batch: "", stock: "", expiry: "", price: "" })
+                  setShowForm(true)
+                }}
+              >
+                Add medicine
+              </Button>
+            </>
+          )
+        }
+      />
 
       {loadError && (
-
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
-
-          <p className="text-sm">
-            ⚠️ {loadError}
-          </p>
-
-          <button
-            onClick={reloadPharmacyData}
-            className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700"
-          >
-            Retry
-          </button>
-
-        </div>
-
+        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={reloadPharmacyData}>Retry</Button>}>
+          {loadError}
+        </Alert>
       )}
 
-
       {!selectedHospital ? (
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-
-          <div className="text-5xl mb-4">
-            💊
-          </div>
-
-          <h2 className="text-xl font-bold text-gray-800">
-            Select a Hospital
-          </h2>
-
-          <p className="text-gray-500 mt-2">
-            Select a hospital from the header to view pharmacy data.
-          </p>
-
-        </div>
-
+        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to view pharmacy data." /></Card>
       ) : (
 
         <>
@@ -1247,7 +1047,7 @@ function Pharmacy() {
 
                 placeholder="RX-2026-001"
 
-                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input flex-1"
 
               />
 
@@ -1261,7 +1061,7 @@ function Pharmacy() {
                 className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
 
               >
-                🔎 Search Prescription
+                <SearchIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Search Prescription
               </button>
 
             </div>
@@ -1501,7 +1301,7 @@ function Pharmacy() {
 
                       <div className="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 text-sm">
 
-                        ⚠️ This prescription has multiple medicines. Automatic one-click dispensing is not supported yet — please use the Issue Medicine section for each medicine.
+                        <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> This prescription has multiple medicines. Automatic one-click dispensing is not supported yet — please use the Issue Medicine section for each medicine.
 
                       </div>
 
@@ -1522,7 +1322,7 @@ function Pharmacy() {
                         className="mt-6 w-full md:w-auto px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700"
 
                       >
-                        ✓ Dispense Prescription
+                        <CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Dispense Prescription
                       </button>
 
                     )}
@@ -1599,6 +1399,71 @@ function Pharmacy() {
 
           </div>
 
+          {/* =========================
+              ALERTS: EXPIRED / EXPIRING / LOW STOCK
+          ========================= */}
+
+          {(expiredMedicines.length > 0 || expiringSoonMedicines.length > 0 || lowStockMedicines.length > 0) && (
+            <div className="mb-6 space-y-3">
+              {expiredMedicines.length > 0 && (
+                <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
+                  <div>
+                    <p className="font-semibold">Expired Medicines in Stock</p>
+                    <p className="text-sm mt-1">
+                      {expiredMedicines.length} medicine(s) have expired but still have stock:
+                    </p>
+                    <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
+                      {expiredMedicines.slice(0, 10).map((m) => (
+                        <li key={m.id}>{m.name} (Batch: {m.batch || "N/A"}, Expiry: {m.expiry}, Stock: {m.stock})</li>
+                      ))}
+                      {expiredMedicines.length > 10 && (
+                        <li>+{expiredMedicines.length - 10} more...</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              {expiringSoonMedicines.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl"><AlarmClockIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
+                  <div>
+                    <p className="font-semibold">Expiring Soon (within 30 days)</p>
+                    <p className="text-sm mt-1">
+                      {expiringSoonMedicines.length} medicine(s) expiring soon:
+                    </p>
+                    <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
+                      {expiringSoonMedicines.slice(0, 10).map((m) => (
+                        <li key={m.id}>{m.name} (Batch: {m.batch || "N/A"}, Expiry: {m.expiry}, Stock: {m.stock})</li>
+                      ))}
+                      {expiringSoonMedicines.length > 10 && (
+                        <li>+{expiringSoonMedicines.length - 10} more...</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              {lowStockMedicines.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 text-orange-800 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl"><TrendingDownIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
+                  <div>
+                    <p className="font-semibold">Low Stock Alert</p>
+                    <p className="text-sm mt-1">
+                      {lowStockMedicines.length} medicine(s) at or below reorder level (≤20 units):
+                    </p>
+                    <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
+                      {lowStockMedicines.slice(0, 10).map((m) => (
+                        <li key={m.id}>{m.name} (Stock: {m.stock})</li>
+                      ))}
+                      {lowStockMedicines.length > 10 && (
+                        <li>+{lowStockMedicines.length - 10} more...</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* =========================
               SEARCH FILTER
@@ -1625,7 +1490,7 @@ function Pharmacy() {
 
                 placeholder="Search medicine, category or batch..."
 
-                className="border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                className="hms-input"
 
               />
 
@@ -1642,7 +1507,7 @@ function Pharmacy() {
                   )
                 }
 
-                className="border border-gray-300 rounded-xl px-4 py-3"
+                className="hms-input"
 
               >
 
@@ -1681,7 +1546,7 @@ function Pharmacy() {
                   )
                 }
 
-                className="border border-gray-300 rounded-xl px-4 py-3"
+                className="hms-input"
 
               >
 
@@ -1730,7 +1595,7 @@ function Pharmacy() {
               <div className="p-12 text-center">
 
                 <div className="text-4xl mb-3">
-                  💊
+                  <PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                 </div>
 
                 <h3 className="font-bold text-gray-800">
@@ -2066,7 +1931,7 @@ function Pharmacy() {
 
                     placeholder="Medicine Name"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2085,7 +1950,7 @@ function Pharmacy() {
 
                     required
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   >
 
@@ -2130,7 +1995,7 @@ function Pharmacy() {
 
                     placeholder="Batch Number"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2155,7 +2020,7 @@ function Pharmacy() {
 
                     placeholder="Stock Quantity"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2205,7 +2070,7 @@ function Pharmacy() {
 
                     required
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2232,7 +2097,7 @@ function Pharmacy() {
 
                     placeholder="Price"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2541,7 +2406,7 @@ function Pharmacy() {
 
                     required
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   >
 
@@ -2602,7 +2467,7 @@ function Pharmacy() {
 
                     placeholder="Patient Name"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2627,7 +2492,7 @@ function Pharmacy() {
 
                     placeholder="Quantity"
 
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    className="hms-input w-full"
 
                   />
 
@@ -2722,7 +2587,7 @@ function Pharmacy() {
                   <div className="p-12 text-center text-gray-500">
 
                     <div className="text-4xl mb-3">
-                      🧾
+                      <ReceiptIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                     </div>
 
                     No medicine sales yet.
@@ -2893,7 +2758,7 @@ function Pharmacy() {
 
       )}
 
-    </div>
+    </div></>
   )
 }
 

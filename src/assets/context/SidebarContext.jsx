@@ -1,20 +1,36 @@
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
 
 const SidebarContext = createContext(null)
 
+/**
+ * isSidebarOpen: desktop sidebar expanded (true) or collapsed to an icon rail
+ * (false); remembered per browser. isMobileOpen: the off-canvas drawer on
+ * screens narrower than lg; never remembered.
+ */
 export function SidebarProvider({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    const saved = localStorage.getItem("sidebarOpen")
-    return saved !== null ? saved === "true" : true
+    try {
+      const saved = localStorage.getItem("sidebarOpen")
+      return saved !== null ? saved === "true" : true
+    } catch {
+      return true
+    }
   })
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem("sidebarOpen", String(isSidebarOpen))
+    try {
+      localStorage.setItem("sidebarOpen", String(isSidebarOpen))
+    } catch {
+      // storage unavailable (private mode); the preference just isn't kept
+    }
   }, [isSidebarOpen])
 
-  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev)
-  const openSidebar = () => setIsSidebarOpen(true)
-  const closeSidebar = () => setIsSidebarOpen(false)
+  const toggleSidebar = useCallback(() => setIsSidebarOpen((prev) => !prev), [])
+  const openSidebar = useCallback(() => setIsSidebarOpen(true), [])
+  const closeSidebar = useCallback(() => setIsSidebarOpen(false), [])
+  const openMobile = useCallback(() => setIsMobileOpen(true), [])
+  const closeMobile = useCallback(() => setIsMobileOpen(false), [])
 
   return (
     <SidebarContext.Provider
@@ -23,6 +39,9 @@ export function SidebarProvider({ children }) {
         toggleSidebar,
         openSidebar,
         closeSidebar,
+        isMobileOpen,
+        openMobile,
+        closeMobile,
       }}
     >
       {children}
