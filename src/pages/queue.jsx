@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { CircleCheck, Hospital, ListOrdered, Megaphone, PhoneCall, SkipForward, Stethoscope, Ticket } from "lucide-react"
+import { BellRing, CircleCheck, Hospital, ListOrdered, Megaphone, PhoneCall, RotateCcw, SkipForward, Stethoscope, Ticket, UserX } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import {
@@ -19,7 +19,24 @@ import {
   Toolbar,
 } from "../components/ui"
 
-const QUEUE_STATUSES = ["Waiting", "In Consultation", "Completed", "Skipped"]
+// Every status a QueueToken can have on the server (encounters.QueueToken.Status).
+const QUEUE_STATUSES = ["Waiting", "Called", "Acknowledged", "Ready", "In Consultation", "Completed", "Skipped", "No Show", "Cancelled"]
+// Called, then (optionally) acknowledged or ready: on the way to the doctor.
+const CALLED_STATUSES = ["Called", "Acknowledged", "Ready"]
+// Shown as a tab even when empty; the others appear once a token has them.
+const CORE_TABS = ["Waiting", "Called", "In Consultation", "Completed"]
+const isCalled = (status) => CALLED_STATUSES.includes(status)
+
+// Per-row actions, as the server allows them (encounters/views.py).
+// appointment: the appointment status set once the token change is saved.
+const ROW_ACTIONS = {
+  call: { apiCall: (id) => api.queue.call(id), done: "called", fail: "Failed to call this patient." },
+  start: { apiCall: (id) => api.queue.startConsultation(id), appointment: "In Consultation", done: "sent in to the doctor", fail: "Failed to start the consultation." },
+  complete: { apiCall: (id) => api.queue.complete(id), appointment: "Completed", done: "completed", fail: "Failed to complete this patient." },
+  skip: { apiCall: (id) => api.queue.skip(id), done: "skipped", fail: "Failed to skip this patient." },
+  noShow: { apiCall: (id) => api.queue.noShow(id), done: "marked as no-show", fail: "Failed to mark as no-show." },
+  requeue: { apiCall: (id) => api.queue.requeue(id), done: "put back in the queue", fail: "Failed to put the token back in the queue." },
+}
 
 function Queue() {
   const { selectedHospital } = usePatient()
@@ -166,16 +183,19 @@ function Queue() {
     const matchesDepartment = departmentFilter === "All Departments" || item.department === departmentFilter
     return matchesSearch && matchesDepartment
   })
-  const filteredQueue = baseFiltered.filter((item) => statusFilter === "All Status" || item.status === statusFilter)
+  const filteredQueue = baseFiltered.filter((item) => statusFilter === "All Status" || (statusFilter === "Called" ? isCalled(item.status) : item.status === statusFilter))
 
   // Statistics
   const countOf = (status) => hospitalQueue.filter((item) => item.status === status).length
   const waitingCount = countOf("Waiting")
   const consultationCount = countOf("In Consultation")
   const completedCount = countOf("Completed")
-  const skippedCount = countOf("Skipped")
+  const calledCount = hospitalQueue.filter((item) => isCalled(item.status)).length
 
   const currentPatient = hospitalQueue.find((item) => item.status === "In Consultation")
+  // Called and on the way to the doctor, shown when nobody is in consultation.
+  const calledPatient = hospitalQueue.find((item) => isCalled(item.status))
+  const servingPatient = currentPatient || calledPatient
   const nextWaiting = hospitalQueue.find((item) => item.status === "Waiting")
 
   // =====================================
@@ -212,8 +232,7 @@ function Queue() {
     // the next one). The screen changes only from the server's reload.
     try {
       await api.queue.callNext(selectedHospital.id)
-      setSuccessMessage(`Called token #${nextPatient.token}.`)
-      await updateRelatedAppointment(nextPatient, "In Consultation")
+      setSuccessMessage(`Called token #${nextPatient.token}. Start the consultation when the patient comes in.`)
     } catch (error) {
       setActionError(`Not changed: ${error.message || "Failed to call the next patient."}`)
     } finally {
@@ -222,13 +241,9 @@ function Queue() {
     }
   }
 
-  // Shared handler for per-row call / complete / skip.
+  // Shared handler for the per-row queue actions (ROW_ACTIONS).
   const rowAction = async (token, kind) => {
-    const config = {
-      call: { apiCall: api.queue.call, status: "In Consultation", done: "called", fail: "Failed to call this patient." },
-      complete: { apiCall: api.queue.complete, status: "Completed", done: "completed", fail: "Failed to complete this patient." },
-      skip: { apiCall: api.queue.skip, status: "Skipped", done: "skipped", fail: "Failed to skip this patient." },
-    }[kind]
+    const config = ROW_ACTIONS[kind]
 
     const selectedQueuePatient = hospitalQueue.find((item) => String(item.token) === String(token))
     setActionError("")
@@ -239,7 +254,7 @@ function Queue() {
     try {
       await config.apiCall(selectedQueuePatient.apiId)
       setSuccessMessage(`Token #${token} ${config.done}.`)
-      await updateRelatedAppointment(selectedQueuePatient, config.status)
+      if (config.appointment) await updateRelatedAppointment(selectedQueuePatient, config.appointment)
     } catch (error) {
       setActionError(`Not changed: ${error.message || config.fail}`)
     } finally {
@@ -259,9 +274,13 @@ function Queue() {
     )
   }
 
+  // "Called" groups Called, Acknowledged and Ready; the rest are one status each.
+  const inTab = (item, tab) => (tab === "Called" ? isCalled(item.status) : item.status === tab)
   const statusTabs = [
     { id: "All Status", label: "All", count: baseFiltered.length },
-    ...QUEUE_STATUSES.map((s) => ({ id: s, label: s, count: baseFiltered.filter((i) => i.status === s).length })),
+    ...QUEUE_STATUSES.filter((s) => !["Acknowledged", "Ready"].includes(s))
+      .map((s) => ({ id: s, label: s, count: baseFiltered.filter((i) => inTab(i, s)).length }))
+      .filter((tab) => CORE_TABS.includes(tab.id) || tab.count > 0 || tab.id === statusFilter),
   ]
 
   return (
@@ -304,14 +323,16 @@ function Queue() {
         {/* Now serving */}
         <Card className="flex flex-col justify-between overflow-hidden">
           <div className="bg-brand-900 px-5 py-5 text-white">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-200">Now serving</p>
-            <p className="mt-2 text-5xl font-semibold tracking-tight tabular-nums" aria-live="polite">
-              {currentPatient ? `#${currentPatient.token}` : "—"}
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-200">
+              {currentPatient || !calledPatient ? "Now serving" : "Called · on the way"}
             </p>
-            <p className="mt-2 truncate text-[15px] font-medium text-brand-50">{currentPatient ? currentPatient.patient : "No patient in consultation"}</p>
-            {currentPatient && (
+            <p className="mt-2 text-5xl font-semibold tracking-tight tabular-nums" aria-live="polite">
+              {servingPatient ? `#${servingPatient.token}` : "—"}
+            </p>
+            <p className="mt-2 truncate text-[15px] font-medium text-brand-50">{servingPatient ? servingPatient.patient : "No patient in consultation"}</p>
+            {servingPatient && (
               <p className="mt-0.5 truncate text-[13px] text-brand-200">
-                {[currentPatient.doctor, currentPatient.department].filter(Boolean).join(" · ")}
+                {[servingPatient.doctor, servingPatient.department].filter(Boolean).join(" · ")}
               </p>
             )}
           </div>
@@ -322,7 +343,7 @@ function Queue() {
                 {nextWaiting ? `#${nextWaiting.token} · ${nextWaiting.patient}` : "Nobody waiting"}
               </p>
             </div>
-            {currentPatient && (
+            {currentPatient ? (
               <Button
                 size="sm"
                 variant="subtle"
@@ -332,15 +353,25 @@ function Queue() {
               >
                 Complete
               </Button>
+            ) : calledPatient && (
+              <Button
+                size="sm"
+                variant="subtle"
+                icon={Stethoscope}
+                loading={busy === `start-${calledPatient.token}`}
+                onClick={() => rowAction(calledPatient.token, "start")}
+              >
+                Start consultation
+              </Button>
             )}
           </div>
         </Card>
 
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           <StatTile icon={ListOrdered} tone="warning" label="Waiting" value={waitingCount} onClick={() => setStatusFilter("Waiting")} />
+          <StatTile icon={BellRing} label="Called" value={calledCount} onClick={() => setStatusFilter("Called")} />
           <StatTile icon={Stethoscope} label="In consultation" value={consultationCount} onClick={() => setStatusFilter("In Consultation")} />
           <StatTile icon={CircleCheck} tone="success" label="Completed" value={completedCount} onClick={() => setStatusFilter("Completed")} />
-          <StatTile icon={SkipForward} tone="neutral" label="Skipped" value={skippedCount} onClick={() => setStatusFilter("Skipped")} />
         </div>
       </div>
 
@@ -417,9 +448,24 @@ function Queue() {
                             </Button>
                           </>
                         )}
+                        {isCalled(item.status) && (
+                          <>
+                            <Button size="sm" variant="subtle" icon={Stethoscope} loading={busy === `start-${item.token}`} onClick={() => rowAction(item.token, "start")}>
+                              Start consultation
+                            </Button>
+                            <Button size="sm" variant="ghost" icon={UserX} loading={busy === `noShow-${item.token}`} onClick={() => rowAction(item.token, "noShow")}>
+                              No show
+                            </Button>
+                          </>
+                        )}
                         {item.status === "In Consultation" && (
                           <Button size="sm" variant="subtle" icon={CircleCheck} loading={busy === `complete-${item.token}`} onClick={() => rowAction(item.token, "complete")}>
                             Complete
+                          </Button>
+                        )}
+                        {(item.status === "Skipped" || item.status === "No Show") && (
+                          <Button size="sm" variant="ghost" icon={RotateCcw} loading={busy === `requeue-${item.token}`} onClick={() => rowAction(item.token, "requeue")}>
+                            Back to queue
                           </Button>
                         )}
                       </div>

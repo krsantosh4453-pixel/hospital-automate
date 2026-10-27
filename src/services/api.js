@@ -945,6 +945,14 @@ const api = {
         method: 'POST',
       }),
 
+    // A called (or acknowledged / ready) patient goes in to the doctor.
+    startConsultation: async (id) =>
+      request(`${API_BASE_URL}/encounters/queue-tokens/${id}/start-consultation/`, { method: 'POST' }),
+
+    // A skipped or no-show token goes back to Waiting.
+    requeue: async (id) =>
+      request(`${API_BASE_URL}/encounters/queue-tokens/${id}/requeue/`, { method: 'POST' }),
+
     // POST /api/encounters/queue-tokens/{id}/complete/
     complete: async (id) =>
       request(`${API_BASE_URL}/encounters/queue-tokens/${id}/complete/`, {

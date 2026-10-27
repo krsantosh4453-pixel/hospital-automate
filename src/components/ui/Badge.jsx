@@ -46,7 +46,7 @@ const STATUS_TONES = {
     "out of stock", "expired", "rejected", "revoked", "inactive", "no show", "no-show",
     "unpaid", "abnormal", "urgent", "emergency", "vomited", "blocked",
   ],
-  brand: ["called", "in consultation", "admitted", "booked", "checked in", "checked-in", "new", "open"],
+  brand: ["called", "acknowledged", "ready", "in consultation", "admitted", "booked", "checked in", "checked-in", "new", "open"],
   accent: ["ai draft", "ai draft — pending review", "excluded", "prn", "maintenance", "reserved"],
 }
 
