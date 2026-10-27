@@ -131,10 +131,19 @@ class OrganisationStructureTests(TwoHospitalCase):
         cls.reception_a, _ = make_staff("reception_a", cls.hospital_a, role=StaffRole.RECEPTIONIST)
         cls.admin_a, _ = make_staff("org_admin_a", cls.hospital_a, role=StaffRole.ADMIN)
 
-    def test_staff_cannot_create_hospital(self):
-        resp = self.client_for(self.admin_a).post("/api/hospital/hospitals/", {"name": "Rogue"}, format="json")
+    def test_non_admin_staff_cannot_create_hospital(self):
+        resp = self.client_for(self.reception_a).post("/api/hospital/hospitals/", {"name": "Rogue"}, format="json")
         self.assertEqual(resp.status_code, 403)
         self.assertFalse(Hospital.objects.filter(name="Rogue").exists())
+
+    def test_admin_creates_hospital_and_only_gains_that_one(self):
+        # A new hospital is an empty tenant: its creator becomes its Admin and
+        # gets nothing at hospitals they did not already belong to.
+        resp = self.client_for(self.admin_a).post("/api/hospital/hospitals/", {"name": "Branch"}, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        listed = self.client_for(self.admin_a).get("/api/hospital/hospitals/").json()
+        ids = {row["id"] for row in listed.get("results", listed)}
+        self.assertEqual(ids, {self.hospital_a.id, resp.json()["id"]})
 
     def test_staff_only_list_own_hospitals(self):
         resp = self.client_for(self.reception_a).get("/api/hospital/hospitals/")

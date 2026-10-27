@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenVerifyView
 from config.auth_cookie_views import CookieTokenRefreshView, csrf_token
 
 from .dev_login import dev_login
+from .staff_invite import accept_staff_invite
 from .views import (
     google_login,
     patient_email_login,
@@ -41,6 +42,7 @@ urlpatterns = [
     path("staff/login/otp/resend/", staff_otp_resend, name="staff-otp-resend"),
     path("staff/logout/", staff_logout, name="staff-logout"),
     path("staff/me/", staff_me, name="staff-me"),
+    path("staff/invite/<str:uidb64>/<str:token>/", accept_staff_invite, name="staff-invite-accept"),
     path("password/reset/", staff_password_reset_request, name="staff-password-reset"),
     path("password/reset/confirm/", staff_password_reset_confirm, name="staff-password-reset-confirm"),
     path("patient/otp/request/", patient_otp_request, name="patient-otp-request"),

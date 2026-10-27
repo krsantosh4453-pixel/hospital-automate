@@ -41,7 +41,8 @@ const describeAction = (action) => {
 }
 
 const MODULES = [
-  { to: "/admin/users", icon: Users, title: "Users", text: "Approve staff and set roles", module: "Users" },
+  { to: "/admin/setup", icon: Hospital, title: "Hospital setup", text: "New hospital, wards, beds and staff", module: "Users" },
+  { to: "/admin/users", icon: Users, title: "Users", text: "Invite staff and set roles", module: "Users" },
   { to: "/admin/roles", icon: ShieldCheck, title: "Roles", text: "What each role is for", module: "Roles" },
   { to: "/admin/permissions", icon: KeyRound, title: "Permissions", text: "Module access per role", module: "Permissions" },
   { to: "/admin/departments", icon: ClipboardList, title: "Departments", text: "Clinics and their heads", module: "Departments" },

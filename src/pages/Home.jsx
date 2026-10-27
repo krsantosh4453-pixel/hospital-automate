@@ -134,18 +134,25 @@ function Home() {
   if (!isLoggedIn) return <GuestHome />
 
   if (!selectedHospital) {
+    // An Admin account with no hospital yet (registered with the admin code) starts with setup.
+    const memberOf = user?.user?.hospitals || user?.hospitals || []
+    const newAdmin = (user?.user?.staff_role || user?.staff_role) === "Admin" && memberOf.length === 0
     return (
       <Card className="mx-auto mt-10 max-w-lg">
         <EmptyState
           icon={Hospital}
           title={`Welcome${patient?.name ? `, ${patient.name}` : ""}`}
-          description="Select a hospital from the header to see its dashboard."
+          description={
+            newAdmin
+              ? "Add your hospital, its wards and beds, and invite your staff."
+              : "Select a hospital from the header to see its dashboard."
+          }
           action={
             <Link
-              to="/hospital-selection"
+              to={newAdmin ? "/admin/setup" : "/hospital-selection"}
               className="inline-flex h-10 items-center rounded-lg bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
             >
-              Select hospital
+              {newAdmin ? "Set up your hospital" : "Select hospital"}
             </Link>
           }
         />

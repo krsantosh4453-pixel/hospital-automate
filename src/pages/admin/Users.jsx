@@ -1,26 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import api from "../../services/api.js"
-import { Alert, PageHeader, useConfirm } from "../../components/ui"
+import { UserPlus } from "lucide-react"
+import { Alert, Badge, Button, Card, CardBody, CardHeader, PageHeader, useConfirm } from "../../components/ui"
+import InviteStaffForm, { InviteLink } from "../../components/admin/InviteStaffForm.jsx"
+import { STAFF_ROLES as ROLES } from "../../config/staffRoles.js"
 
-// Roles a hospital membership can hold (users.models.StaffRole).
-const ROLES = [
-  "Admin",
-  "Hospital Manager",
-  "Doctor",
-  "Nurse",
-  "Receptionist",
-  "Pharmacist",
-  "Compounder",
-  "Lab Staff",
-  "Billing Staff",
-  "Inventory Staff",
-  "Blood Bank Staff",
-]
-
-// Staff of the selected hospital, managed through /api/users/. New staff
-// register themselves (Create Account) and are approved here; the backend
-// only lets this hospital's Admin or Hospital Manager make these changes.
+// Staff of the selected hospital, managed through /api/users/. Staff are
+// invited here (they set a password from the link) or register themselves
+// and are approved here; the backend only lets this hospital's Admin or
+// Hospital Manager make these changes.
 function Users() {
   const [confirm, confirmDialog] = useConfirm()
 
@@ -36,6 +25,8 @@ function Users() {
   const [statusFilter, setStatusFilter] = useState("All")
   const [approveRoles, setApproveRoles] = useState({})
   const [departments, setDepartments] = useState([])
+  const [showInvite, setShowInvite] = useState(false)
+  const [newLink, setNewLink] = useState(null)
 
   const load = useCallback(async () => {
     if (!selectedHospital) return
@@ -101,6 +92,13 @@ function Users() {
     )
   }
 
+  const resendInvite = (member) =>
+    run(
+      member.id,
+      async () => setNewLink(await api.users.resendInvite(member.id)),
+      `New invitation link for ${member.name} is below.`,
+    )
+
   const approve = (applicant) => {
     const role = approveRoles[applicant.id] || applicant.requested_role
     run(applicant.id, () => api.users.approve(applicant.id, { role }), `${applicant.name} approved as ${role}.`)
@@ -128,12 +126,31 @@ function Users() {
     <>{confirmDialog}<div className="space-y-5">
       <PageHeader
         title="Users"
-        description={`Staff of ${selectedHospital?.name || "the selected hospital"}. New staff create an account and are approved here.`}
+        description={`Staff of ${selectedHospital?.name || "the selected hospital"}. Invite staff with a role, or approve people who created an account.`}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Users" }]}
+        actions={
+          <Button icon={UserPlus} onClick={() => setShowInvite(!showInvite)} aria-expanded={showInvite}>
+            Invite staff
+          </Button>
+        }
       />
 
       {error && <Alert tone="danger">{error}</Alert>}
       {notice && !error && <Alert tone="success">{notice}</Alert>}
+      <InviteLink key={newLink?.invite_url} result={newLink} />
+
+      {showInvite && (
+        <Card>
+          <CardHeader
+            title="Invite staff"
+            icon={UserPlus}
+            description="They get a link to set their password, then sign in with the role you choose."
+          />
+          <CardBody>
+            <InviteStaffForm departments={departments} onInvited={load} />
+          </CardBody>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="rounded-2xl border border-line bg-white p-5">
@@ -304,8 +321,22 @@ function Users() {
                         >
                           {active ? "Active" : "Inactive"}
                         </span>
+                        {member.invite_pending && (
+                          <Badge tone="warning" className="ml-2">Invite pending</Badge>
+                        )}
                       </td>
-                      <td className="py-3 text-right">
+                      <td className="py-3 text-right whitespace-nowrap">
+                        {member.invite_pending && active && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="mr-2"
+                            disabled={busyId === member.id}
+                            onClick={() => resendInvite(member)}
+                          >
+                            New link
+                          </Button>
+                        )}
                         <button
                           onClick={() => toggleActive(member)}
                           disabled={busyId === member.id}

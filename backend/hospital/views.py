@@ -1,6 +1,7 @@
-from django.db import models
+from django.db import models, transaction
 from django.db.models import OuterRef, Subquery
-from rest_framework import viewsets
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -15,26 +16,43 @@ from users.permissions import (
     get_request_hospital_id,
     get_user_hospital_ids,
     get_user_roles,
+    get_user_staff_profile,
 )
 from users.viewsets import HospitalScopedViewSet, hospital_id_of, resolve_hospital_lookup
-from users.models import StaffRole
+from users.models import StaffHospitalMembership, StaffRole
 from .models import Hospital, Department, Ward, Room, Bed
 from .serializers import (
     HospitalSerializer,
     DepartmentSerializer,
     WardSerializer,
+    WardWithBedsSerializer,
     RoomSerializer,
     BedSerializer,
 )
 
-_WRITE_ACTIONS = {"create", "update", "partial_update", "destroy"}
+_WRITE_ACTIONS = {"create", "update", "partial_update", "destroy", "with_beds"}
+
+
+def can_add_hospital(user):
+    """
+    A platform administrator, an Admin of any hospital, or an Admin account
+    that has no hospital yet (registered with the admin invitation code).
+    """
+    if user.is_superuser:
+        return True
+    profile = get_user_staff_profile(user)
+    if profile is None or not profile.is_active_staff:
+        return False
+    if StaffRole.ADMIN in get_user_roles(user):
+        return True
+    return profile.role == StaffRole.ADMIN and not profile.hospital_memberships.exists()
 
 
 class HospitalViewSet(viewsets.ModelViewSet):
     """
-    Staff see the hospitals they belong to. Creating or deleting a hospital
-    is a platform (superuser) action; a hospital's Admin or Manager may edit
-    its configuration.
+    Staff see the hospitals they belong to. An Admin may add a hospital and
+    becomes its Admin; deleting one is a platform (superuser) action. A
+    hospital's Admin or Manager may edit its configuration.
     """
 
     serializer_class = HospitalSerializer
@@ -49,9 +67,17 @@ class HospitalViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_superuser:
             raise PermissionDenied("Only a platform administrator can do this.")
 
+    @transaction.atomic
     def perform_create(self, serializer):
-        self._require_platform_admin()
+        if not can_add_hospital(self.request.user):
+            raise PermissionDenied("Only an Admin can add a hospital.")
         hospital = serializer.save()
+        # The creator administers the new hospital (and can then invite staff).
+        profile = get_user_staff_profile(self.request.user)
+        if profile is not None:
+            StaffHospitalMembership.objects.update_or_create(
+                staff=profile, hospital=hospital, defaults={"role": StaffRole.ADMIN, "is_active": True}
+            )
         record_audit(self.request, "hospital.create", hospital, hospital=hospital)
 
     def perform_update(self, serializer):
@@ -124,6 +150,17 @@ class DepartmentViewSet(_OrgStructureViewSet):
 class WardViewSet(_OrgStructureViewSet):
     queryset = Ward.objects.select_related("hospital").order_by("name")
     serializer_class = WardSerializer
+
+    @action(detail=False, methods=["post"], url_path="with-beds")
+    def with_beds(self, request):
+        """POST {hospital, name, ward_type, rooms: [{room_number, room_type, beds, bed_type}]} — all or nothing."""
+        serializer = WardWithBedsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self._require_manager_of(serializer.validated_data["hospital"].pk)
+        ward = serializer.save()
+        record_audit(request, "hospital.ward.created_with_beds", ward, hospital=ward.hospital_id,
+                     details={"rooms": ward.rooms.count(), "beds": Bed.objects.filter(room__ward=ward).count()})
+        return Response(WardWithBedsSerializer(ward).data, status=status.HTTP_201_CREATED)
 
 
 class RoomViewSet(_OrgStructureViewSet):

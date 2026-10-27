@@ -66,6 +66,8 @@ def _row(profile, membership=None):
         "employee_id": profile.employee_id,
         "requested_role": profile.role,
         "is_active_staff": profile.is_active_staff,
+        # Invited but has not opened the link and set a password yet.
+        "invite_pending": not user.has_usable_password(),
         "membership": None if membership is None else {
             "hospital": membership.hospital_id,
             "role": membership.role,

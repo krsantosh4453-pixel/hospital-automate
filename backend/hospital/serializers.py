@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 from .models import Hospital, Department, Ward, Room, Bed
 
@@ -191,3 +192,67 @@ class BedSerializer(serializers.ModelSerializer):
             "current_patient",
         ]
         read_only_fields = ["id"]
+
+MAX_ROOMS_PER_WARD = 100
+MAX_BEDS_PER_ROOM = 50
+
+
+class RoomWithBedsSerializer(serializers.Serializer):
+    room_number = serializers.CharField(max_length=50)
+    room_type = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    beds = serializers.IntegerField(min_value=1, max_value=MAX_BEDS_PER_ROOM)
+    bed_type = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+
+    def validate_room_number(self, value):
+        return _clean_name(value, "Room number")
+
+
+class WardWithBedsSerializer(serializers.ModelSerializer):
+    """
+    A new ward with its rooms and numbered beds, created together during
+    hospital setup. Beds are named <room>-1, <room>-2, … and start Available.
+    """
+
+    rooms = RoomWithBedsSerializer(many=True, write_only=True)
+    room_count = serializers.SerializerMethodField()
+    bed_count = serializers.SerializerMethodField()
+
+    def get_room_count(self, ward):
+        return ward.rooms.count()
+
+    def get_bed_count(self, ward):
+        return Bed.objects.filter(room__ward=ward).count()
+
+    def validate_name(self, value):
+        return _clean_name(value, "Ward name")
+
+    def validate_rooms(self, rooms):
+        if not rooms:
+            raise serializers.ValidationError("Add at least one room.")
+        if len(rooms) > MAX_ROOMS_PER_WARD:
+            raise serializers.ValidationError(f"A ward can have at most {MAX_ROOMS_PER_WARD} rooms.")
+        numbers = [room["room_number"].lower() for room in rooms]
+        if len(set(numbers)) != len(numbers):
+            raise serializers.ValidationError("Each room number must be different.")
+        return rooms
+
+    def validate(self, attrs):
+        _refuse_duplicate(Ward, "name", attrs["name"], None, "Ward", hospital=attrs["hospital"])
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        rooms = validated_data.pop("rooms")
+        ward = Ward.objects.create(**validated_data)
+        for spec in rooms:
+            room = Room.objects.create(ward=ward, room_number=spec["room_number"], room_type=spec["room_type"])
+            Bed.objects.bulk_create(
+                Bed(room=room, bed_number=f"{room.room_number}-{n}", bed_type=spec["bed_type"], status="Available")
+                for n in range(1, spec["beds"] + 1)
+            )
+        return ward
+
+    class Meta:
+        model = Ward
+        fields = ["id", "hospital", "name", "ward_type", "rooms", "room_count", "bed_count"]
+        read_only_fields = ["id", "room_count", "bed_count"]
