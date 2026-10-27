@@ -133,3 +133,8 @@ backend/db.sqlite3
 test-results/
 playwright-report/
 backend/e2e.sqlite3
+
+# Local AI tool state
+.claude-flow/
+backend/.claude-flow/
+.cursor/
