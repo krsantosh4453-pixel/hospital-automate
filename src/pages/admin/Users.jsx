@@ -6,16 +6,14 @@ import { Alert, Badge, Button, Card, CardBody, CardHeader, PageHeader, useConfir
 import InviteStaffForm, { InviteLink } from "../../components/admin/InviteStaffForm.jsx"
 import { STAFF_ROLES as ROLES } from "../../config/staffRoles.js"
 
-// Staff of the selected hospital, managed through /api/users/. Staff are
-// invited here (they set a password from the link) or register themselves
-// and are approved here; the backend only lets this hospital's Admin or
-// Hospital Manager make these changes.
+// Staff of the selected hospital, managed through /api/users/. Staff join
+// only by invitation from here (they set a password from the link); the
+// backend only lets this hospital's Admin or Hospital Manager make changes.
 function Users() {
   const [confirm, confirmDialog] = useConfirm()
 
   const { selectedHospital } = usePatient()
   const [staff, setStaff] = useState([])
-  const [pending, setPending] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
@@ -23,7 +21,6 @@ function Users() {
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("All")
   const [statusFilter, setStatusFilter] = useState("All")
-  const [approveRoles, setApproveRoles] = useState({})
   const [departments, setDepartments] = useState([])
   const [showInvite, setShowInvite] = useState(false)
   const [newLink, setNewLink] = useState(null)
@@ -39,11 +36,9 @@ function Users() {
         api.departments.list(selectedHospital.id).catch(() => []),
       ])
       setStaff(data.staff || [])
-      setPending(data.pending || [])
       setDepartments(Array.isArray(deptData) ? deptData : deptData?.results || [])
     } catch (err) {
       setStaff([])
-      setPending([])
       setError(err.message || "Could not load staff.")
     } finally {
       setLoading(false)
@@ -99,11 +94,6 @@ function Users() {
       `New invitation link for ${member.name} is below.`,
     )
 
-  const approve = (applicant) => {
-    const role = approveRoles[applicant.id] || applicant.requested_role
-    run(applicant.id, () => api.users.approve(applicant.id, { role }), `${applicant.name} approved as ${role}.`)
-  }
-
   const filteredStaff = useMemo(() => {
     const text = search.toLowerCase().trim()
     return staff.filter((member) => {
@@ -121,12 +111,13 @@ function Users() {
   }, [staff, search, roleFilter, statusFilter])
 
   const activeCount = staff.filter((member) => member.membership?.is_active).length
+  const invitePendingCount = staff.filter((member) => member.invite_pending).length
 
   return (
     <>{confirmDialog}<div className="space-y-5">
       <PageHeader
         title="Users"
-        description={`Staff of ${selectedHospital?.name || "the selected hospital"}. Invite staff with a role, or approve people who created an account.`}
+        description={`Staff of ${selectedHospital?.name || "the selected hospital"}. Staff join by invitation with the role you choose.`}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Users" }]}
         actions={
           <Button icon={UserPlus} onClick={() => setShowInvite(!showInvite)} aria-expanded={showInvite}>
@@ -162,63 +153,10 @@ function Users() {
           <h2 className="text-3xl font-bold text-green-600 mt-2">{activeCount}</h2>
         </div>
         <div className="rounded-2xl border border-line bg-white p-5">
-          <p className="text-gray-500 text-sm">Awaiting Approval</p>
-          <h2 className="text-3xl font-bold text-orange-600 mt-2">{pending.length}</h2>
+          <p className="text-gray-500 text-sm">Invite Pending</p>
+          <h2 className="text-3xl font-bold text-orange-600 mt-2">{invitePendingCount}</h2>
         </div>
       </div>
-
-      {pending.length > 0 && (
-        <div className="bg-white rounded-xl shadow p-5 mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">Pending Registrations</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500 border-b">
-                  <th className="py-2 pr-4">Name</th>
-                  <th className="py-2 pr-4">Email / Mobile</th>
-                  <th className="py-2 pr-4">Requested Role</th>
-                  <th className="py-2 pr-4">Approve As</th>
-                  <th className="py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {pending.map((applicant) => (
-                  <tr key={applicant.id} className="border-b last:border-0">
-                    <td className="py-3 pr-4 font-medium text-gray-800">{applicant.name}</td>
-                    <td className="py-3 pr-4 text-gray-600">
-                      {applicant.email || "—"}
-                      <br />
-                      {applicant.phone || ""}
-                    </td>
-                    <td className="py-3 pr-4">{applicant.requested_role}</td>
-                    <td className="py-3 pr-4">
-                      <select
-                        aria-label={`Role for ${applicant.name}`}
-                        value={approveRoles[applicant.id] || applicant.requested_role}
-                        onChange={(e) => setApproveRoles({ ...approveRoles, [applicant.id]: e.target.value })}
-                        className="hms-input"
-                      >
-                        {ROLES.map((role) => (
-                          <option key={role}>{role}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="py-3 text-right">
-                      <button
-                        onClick={() => approve(applicant)}
-                        disabled={busyId === applicant.id}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg disabled:opacity-50"
-                      >
-                        Approve
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       <div className="rounded-2xl border border-line bg-white p-5">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">

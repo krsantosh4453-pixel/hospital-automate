@@ -597,14 +597,11 @@ def staff_me(request):
 
 SELF_REGISTER_ROLES = {
     "Patient",
-    "Doctor",
-    "Nurse",
-    "Compounder",
-    "Receptionist",
     "Admin",
 }
 
-STAFF_SELF_REGISTER_ROLES = {
+# Staff join a hospital only by its invitation (users/staff_invite.py).
+INVITE_ONLY_ROLES = {
     StaffRole.DOCTOR,
     StaffRole.NURSE,
     StaffRole.COMPOUNDER,
@@ -647,8 +644,9 @@ def register_account(request):
     Public registration. Privileged roles are never granted from the
     frontend selector alone:
     - Patient: self-registration, active immediately
-    - Doctor/Nurse/Compounder/Receptionist: pending staff until approved
-    - Admin: requires ADMIN_INVITE_CODE; otherwise rejected
+    - Doctor/Nurse/Compounder/Receptionist: refused; a hospital invites them
+    - Admin: requires ADMIN_INVITE_CODE; otherwise rejected. A new Admin
+      belongs to no hospital and can only create one.
     """
     data = request.data or {}
     requested_role = str(data.get("role") or "Patient").strip()
@@ -657,6 +655,12 @@ def register_account(request):
     phone = str(data.get("phone") or data.get("mobile") or "").strip()
     password = data.get("password") or ""
     confirm_password = data.get("confirm_password") or data.get("password_confirm") or ""
+
+    if requested_role in INVITE_ONLY_ROLES:
+        return Response(
+            {"error": "Staff accounts are created by your hospital. Ask its administrator for an invitation."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     if requested_role not in SELF_REGISTER_ROLES:
         return Response(
@@ -783,7 +787,7 @@ def register_account(request):
                 )
             else:
                 staff_role = requested_role
-                is_active = requested_role == "Admin"
+                is_active = True  # only Admin reaches here, after the invite-code check
                 employee_id = str(data.get("employee_id") or data.get("staff_id") or "").strip()
                 if not employee_id:
                     employee_id = f"EMP-{uuid.uuid4().hex[:10].upper()}"
@@ -805,14 +809,7 @@ def register_account(request):
                     is_active_staff=is_active,
                 )
 
-                if requested_role == "Admin":
-                    message = "Admin account created. You can now sign in with your username and password."
-                else:
-                    message = (
-                        f"{requested_role} registration received. "
-                        "The account is pending hospital approval and does not have "
-                        f"{requested_role} access until an administrator activates it."
-                    )
+                message = "Admin account created. You can now sign in with your username and password."
 
                 return Response(
                     {

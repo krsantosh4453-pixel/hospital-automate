@@ -132,7 +132,7 @@ See `DEFECT_REGISTER.md` → Remaining (R-01 to R-14). Summary:
 | R-01 | High | auth / frontend | Tokens in `localStorage`; nginx CSP allows inline scripts | httpOnly cookies + CSRF, or formal risk acceptance |
 | R-02 | High | repository | `db.sqlite3` in git history | History rewrite (needs your approval) |
 | R-03 | Medium | clinical, patients | Hard deletes of clinical rows; non-admin delete of single-hospital patients | Policy: soft delete / admin-only |
-| R-04 | Medium | staff admin | Pending applicants visible to all hospitals; Admin via shared invite code | Invite-only per hospital |
+| R-04 | ~~Medium~~ Fixed 2026-10-28 | staff admin | Pending applicants visible to all hospitals; Admin via shared invite code | Done: invite-only staff; Admin code kept as accepted onboarding path |
 | R-05 | Medium | audit | No read auditing; no break-glass | Policy, then build |
 | R-06 | Medium | notifications | SMS/WhatsApp/Voice not implemented; synchronous | Twilio Messaging + Celery |
 | R-07 | Medium | APIView endpoints | Not re-checked for role-union | Probe each endpoint |

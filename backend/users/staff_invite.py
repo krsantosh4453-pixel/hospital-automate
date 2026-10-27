@@ -154,6 +154,10 @@ class StaffInviteView(APIView):
                 raise ValidationError({"email": "This email belongs to a patient account. Use another email."})
             if StaffHospitalMembership.objects.filter(staff=profile, hospital_id=hospital_id).exists():
                 raise ValidationError({"email": "This person is already staff at this hospital."})
+            if not profile.is_active_staff:
+                # An account from the old open staff sign-up: this invitation admits it.
+                profile.is_active_staff = True
+                profile.save(update_fields=["is_active_staff"])
             invited = not existing.has_usable_password()
         else:
             first, _, last = name.partition(" ")
