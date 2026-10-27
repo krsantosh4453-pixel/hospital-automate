@@ -156,7 +156,7 @@ function Register() {
           <p className="mt-1 text-sm text-ink-500">Patients can sign in once their email is verified. Staff accounts wait for an administrator&apos;s approval.</p>
         </div>
 
-        <div className="rounded-2xl border border-line bg-white/95 p-6 shadow-xl shadow-ink-900/5 backdrop-blur-sm sm:p-8">
+        <div className="hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8">
           <div className="mb-6">
             <p id="register-role-label" className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
               Account type

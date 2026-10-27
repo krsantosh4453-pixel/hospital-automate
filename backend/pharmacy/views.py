@@ -14,6 +14,7 @@ from .models import Medicine, Sale
 from .serializers import MedicineSerializer, SaleSerializer
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsCompounder, IsHospitalManager, IsInventoryStaff, IsPharmacist
+from config.hospital_time import hospital_today
 
 
 class MedicineViewSet(HospitalScopedViewSet):
@@ -151,7 +152,7 @@ class SaleViewSet(HospitalScopedViewSet):
                 }
             )
 
-        if medicine.expiry_date and medicine.expiry_date < timezone.localdate():
+        if medicine.expiry_date and medicine.expiry_date < hospital_today():
             raise serializers.ValidationError(
                 {"medicine": f"This batch expired on {medicine.expiry_date}; it cannot be dispensed."}
             )
@@ -204,3 +205,9 @@ class SaleViewSet(HospitalScopedViewSet):
         )
         record_audit(self.request, "pharmacy.sale.create", sale, hospital=hospital.pk,
                      details={"medicine": medicine.pk, "quantity": quantity})
+        # A sale against a prescription means it has been dispensed. Items are
+        # free text, so the first sale marks the whole prescription.
+        if prescription is not None and prescription.dispensed_at is None:
+            type(prescription).objects.filter(pk=prescription.pk, dispensed_at__isnull=True).update(
+                status="Dispensed", dispensed_at=timezone.now()
+            )

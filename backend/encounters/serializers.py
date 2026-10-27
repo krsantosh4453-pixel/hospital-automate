@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
 from .models import Visit, QueueToken, DoctorSchedule
+from config.hospital_time import hospital_today
 
 
 def _patient_belongs_to_hospital(patient, hospital):
@@ -40,7 +41,7 @@ def next_token_number(hospital_id, token_date=None):
     UniqueConstraint(hospital, token_date, token_number) is the final guard
     against duplicates created by concurrent requests.
     """
-    token_date = token_date or timezone.localdate()
+    token_date = token_date or hospital_today()
 
     current_max = (
         QueueToken.objects
@@ -317,7 +318,7 @@ class QueueTokenSerializer(serializers.ModelSerializer):
         against concurrent requests racing for the same number.
         """
         hospital = validated_data.get("hospital")
-        token_date = validated_data.get("token_date") or timezone.localdate()
+        token_date = validated_data.get("token_date") or hospital_today()
         validated_data["token_date"] = token_date
 
         if not validated_data.get("token_number"):

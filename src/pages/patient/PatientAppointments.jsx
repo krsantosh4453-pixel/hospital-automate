@@ -5,6 +5,7 @@ import api from "../../services/api.js"
 import { CalendarDays, CalendarPlus } from "lucide-react"
 import { Alert, Button, Card, EmptyState, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
 import BookAppointmentModal from "./BookAppointmentModal.jsx"
+import { UPCOMING_STATUSES } from "../../config/appointmentStatus.js"
 
 function PatientAppointments() {
   const { patient } = useAuth()
@@ -47,8 +48,8 @@ function PatientAppointments() {
 
   const filteredAppointments = appointments.filter((appt) => {
     if (filter === "all") return true
-    if (filter === "upcoming") return ["Scheduled", "Confirmed", "Waiting"].includes(appt.status)
-    if (filter === "past") return appt.status === "Completed"
+    if (filter === "upcoming") return UPCOMING_STATUSES.includes(appt.status)
+    if (filter === "past") return appt.status === "Completed" || appt.status === "No Show"
     if (filter === "cancelled") return appt.status === "Cancelled"
     return true
   })

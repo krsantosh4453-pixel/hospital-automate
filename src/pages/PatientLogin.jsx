@@ -83,6 +83,7 @@ function PatientLogin() {
       script.src = "https://accounts.google.com/gsi/client"
       script.async = true
       script.defer = true
+      script.onerror = () => setGoogleStatus("Google sign-in could not be loaded. Check the internet connection.")
       document.body.appendChild(script)
     }
 
@@ -151,25 +152,6 @@ function PatientLogin() {
     } finally {
       setGoogleLoading(false)
       setGoogleStatus("")
-    }
-  }
-
-  // Trigger Google Login popup
-  const handleGoogleLogin = () => {
-    if (!window.google?.accounts?.id) {
-      toast.warning("Google Services are loading. Please try again in 2 seconds.")
-      return
-    }
-
-    try {
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed()) {
-          // If prompt blocked by third-party cookies or origin policy
-          console.warn("Google prompt not displayed:", notification.getNotDisplayedReason())
-        }
-      })
-    } catch (err) {
-      console.error("Prompt error:", err)
     }
   }
 
@@ -343,7 +325,7 @@ function PatientLogin() {
         <DevLoginPanel role={selectedRole} onRoleChange={setSelectedRole} afterPatientLogin={afterPatientLogin} />
 
         {/* Main Card */}
-        <div className="rounded-2xl border border-line bg-white/95 p-6 shadow-xl shadow-ink-900/5 backdrop-blur-sm sm:p-8">
+        <div className="hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8">
 
           {/* Mode Switcher Tabs */}
           <div className="mb-6 flex rounded-lg bg-ink-100 p-0.5" role="tablist" aria-label="Sign-in method">
@@ -716,39 +698,8 @@ function PatientLogin() {
           {/* GOOGLE ACCOUNT LOGIN */}
           {/* ==================================================== */}
           <div className="space-y-3">
-            {/* Primary Google Login Button */}
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={googleLoading}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50 h-11"
-            >
-              {/* Google 4-color SVG Icon */}
-              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M21.35 12.23c0-.79-.07-1.55-.23-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 21.6c2.63 0 4.84-.87 6.45-2.35l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.75 9.75 0 0 0 12 21.6z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M6.54 13.69A5.86 5.86 0 0 1 6.23 12c0-.59.1-1.16.31-1.69V7.78H3.3A9.75 9.75 0 0 0 2.25 12c0 1.57.38 3.05 1.05 4.22l3.24-2.53z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 6.28c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.83 3.37 14.63 2.4 12 2.4a9.75 9.75 0 0 0-8.7 5.38l3.24 2.53C7.31 8 9.46 6.28 12 6.28z"
-                />
-              </svg>
-              <span>
-                {googleLoading ? "Connecting to Google..." : "Continue with Google"}
-              </span>
-            </button>
-
-            {/* Google GSI Auto-render container */}
-            <div ref={googleBtnRef} className="flex justify-center" />
+            {/* Google's own sign-in button (opens Google's sign-in window). */}
+            <div ref={googleBtnRef} className="flex min-h-11 justify-center" aria-busy={googleLoading} />
 
             {googleStatus && (
               <p className="text-center text-xs font-medium text-brand-700" role="status">

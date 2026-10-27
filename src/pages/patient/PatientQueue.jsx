@@ -19,7 +19,7 @@ function PatientQueue() {
         const data = await api.queue.list()
         const allTokens = data?.results || data || []
         const patientTokens = allTokens.filter(
-          (t) => String(t.patient) === String(patient.id) && t.status !== "Completed"
+          (t) => String(t.patient) === String(patient.id) && !["Completed", "Cancelled", "No Show"].includes(t.status)
         )
         setQueueTokens(patientTokens)
       } catch (err) {

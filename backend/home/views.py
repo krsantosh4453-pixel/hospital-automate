@@ -16,6 +16,7 @@ from billing.models import Invoice, Payment
 from laboratory.models import LabTest
 from users.care_scope import care_view_of
 from users.permissions import get_user_hospital_ids
+from config.hospital_time import hospital_today
 
 
 def _get_authorized_hospital(request):
@@ -65,7 +66,7 @@ def home_dashboard(request):
     payment_qs = own(Payment.objects.filter(invoice__hospital_id=hospital_id))
     lab_qs = own(LabTest.objects.filter(patient__hospital_id=hospital_id))
 
-    today = timezone.localdate()
+    today = hospital_today()
     
     # Patient stats
     total_patients = patient_qs.count()
@@ -210,7 +211,7 @@ def home_stats_summary(request):
     if not hospital_id:
         return Response({"error": "Hospital parameter required or access denied"}, status=403)
 
-    today = timezone.localdate()
+    today = hospital_today()
     
     # Quick counts only; a Doctor or Nurse counts only their own patients.
     def own(queryset):
@@ -219,7 +220,7 @@ def home_stats_summary(request):
     total_patients = own(Patient.objects.filter(hospital_id=hospital_id)).count()
     today_appointments = own(Appointment.objects.filter(
         hospital_id=hospital_id,
-        appointment_date=timezone.localdate()
+        appointment_date=hospital_today()
     )).count()
     waiting_queue = own(QueueToken.objects.filter(
         hospital_id=hospital_id,

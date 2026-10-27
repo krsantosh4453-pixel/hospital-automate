@@ -255,3 +255,12 @@ if 'test' in os.environ.get('DJANGO_SETTINGS_MODULE', ''):
     ]
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
+# Local development reloads the login pages and dashboards many times an hour
+# from one address (localhost); the base 100/hour anonymous limit then hides
+# the sign-in forms. Raise only the general limits here. Sign-in, OTP and
+# password-reset limits stay as in base; production sets its own rates.
+REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {  # noqa: F405
+    **REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'],  # noqa: F405
+    'anon': '2000/hour',
+    'user': '10000/hour',
+}

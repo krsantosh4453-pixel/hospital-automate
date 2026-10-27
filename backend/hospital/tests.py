@@ -135,3 +135,149 @@ class HospitalAPITests(TestCase):
         bed.save()
         bed.refresh_from_db()
         self.assertEqual(bed.status, "Occupied")
+
+
+class BedSetupAPITests(TestCase):
+    """Adding wards, rooms and beds: only the owning hospital's Admin or Manager."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.hospital_a = Hospital.objects.create(name="Hospital A", is_active=True)
+        self.hospital_b = Hospital.objects.create(name="Hospital B", is_active=True)
+        self.ward_a = Ward.objects.create(hospital=self.hospital_a, name="General")
+        self.room_a = Room.objects.create(ward=self.ward_a, room_number="101")
+        self.ward_b = Ward.objects.create(hospital=self.hospital_b, name="ICU")
+        self.room_b = Room.objects.create(ward=self.ward_b, room_number="201")
+
+        # Manager at A, only a Nurse at B.
+        self.manager = self._staff("manager", [(self.hospital_a, StaffRole.HOSPITAL_MANAGER), (self.hospital_b, StaffRole.NURSE)])
+        self.nurse = self._staff("nurse", [(self.hospital_a, StaffRole.NURSE)])
+
+    def _staff(self, username, memberships):
+        user = User.objects.create_user(username=username, password="testpass123")
+        profile = StaffProfile.objects.create(user=user, role=memberships[0][1], employee_id=f"EMP-{username}", is_active_staff=True)
+        for hospital, role in memberships:
+            StaffHospitalMembership.objects.create(staff=profile, hospital=hospital, role=role, is_active=True)
+        return user
+
+    def _add_bed(self, user, room, hospital, **extra):
+        self.client.force_authenticate(user=user)
+        data = {"room": room.id, "bed_number": "B-1", "bed_type": "General", **extra}
+        return self.client.post(f"/api/hospital/beds/?hospital={hospital.id}", data, format="json")
+
+    def test_manager_adds_an_available_bed(self):
+        resp = self._add_bed(self.manager, self.room_a, self.hospital_a)
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        bed = Bed.objects.get(pk=resp.data["id"])
+        self.assertEqual((bed.room_id, bed.bed_number, bed.status), (self.room_a.id, "B-1", "Available"))
+
+    def test_nurse_cannot_add_a_bed(self):
+        resp = self._add_bed(self.nurse, self.room_a, self.hospital_a)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(Bed.objects.exists())
+
+    def test_manager_role_elsewhere_does_not_allow_adding_beds_where_only_a_nurse(self):
+        resp = self._add_bed(self.manager, self.room_b, self.hospital_a)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(Bed.objects.exists())
+
+    def test_same_bed_number_twice_in_a_room_is_refused(self):
+        Bed.objects.create(room=self.room_a, bed_number="B-1")
+        resp = self._add_bed(self.manager, self.room_a, self.hospital_a, bed_number=" b-1 ")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("bed_number", resp.data.get("details", resp.data))
+        self.assertEqual(Bed.objects.count(), 1)
+
+    def test_new_bed_cannot_start_occupied(self):
+        resp = self._add_bed(self.manager, self.room_a, self.hospital_a, status="Occupied")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Bed.objects.exists())
+
+    def test_unknown_bed_status_is_refused(self):
+        resp = self._add_bed(self.manager, self.room_a, self.hospital_a, status="Broken")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_manager_adds_ward_and_room_and_duplicates_are_refused(self):
+        self.client.force_authenticate(user=self.manager)
+        url = f"?hospital={self.hospital_a.id}"
+        ward = self.client.post(f"/api/hospital/wards/{url}", {"hospital": self.hospital_a.id, "name": "Maternity"}, format="json")
+        self.assertEqual(ward.status_code, status.HTTP_201_CREATED, ward.data)
+        dup_ward = self.client.post(f"/api/hospital/wards/{url}", {"hospital": self.hospital_a.id, "name": "maternity"}, format="json")
+        self.assertEqual(dup_ward.status_code, status.HTTP_400_BAD_REQUEST)
+        room = self.client.post(f"/api/hospital/rooms/{url}", {"ward": ward.data["id"], "room_number": "M1"}, format="json")
+        self.assertEqual(room.status_code, status.HTTP_201_CREATED, room.data)
+        dup_room = self.client.post(f"/api/hospital/rooms/{url}", {"ward": ward.data["id"], "room_number": "m1"}, format="json")
+        self.assertEqual(dup_room.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_rooms_can_be_listed_for_one_ward(self):
+        other = Ward.objects.create(hospital=self.hospital_a, name="Surgery")
+        Room.objects.create(ward=other, room_number="301")
+        self.client.force_authenticate(user=self.nurse)
+        resp = self.client.get(f"/api/hospital/rooms/?hospital={self.hospital_a.id}&ward={self.ward_a.id}")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        rows = resp.data.get("results", resp.data)
+        self.assertEqual([r["room_number"] for r in rows], ["101"])
+
+
+class BedManagementAPITests(TestCase):
+    """Listing, editing and deleting beds without breaking admissions."""
+
+    _staff = BedSetupAPITests._staff
+
+    def setUp(self):
+        BedSetupAPITests.setUp(self)
+        from ipd.models import Admission, BedAllocation
+        from patients.models import Patient
+
+        self.free_bed = Bed.objects.create(room=self.room_a, bed_number="F-1")
+        self.busy_bed = Bed.objects.create(room=self.room_a, bed_number="O-1", status="Occupied")
+        patient = Patient.objects.create(name="Bed Patient", age=40, gender="Male", phone="9000000001", hospital=self.hospital_a)
+        admission = Admission.objects.create(patient=patient, hospital=self.hospital_a, status="Admitted")
+        BedAllocation.objects.create(admission=admission, bed=self.busy_bed, is_active=True)
+        self.client.force_authenticate(user=self.manager)
+        self.scope = f"?hospital={self.hospital_a.id}"
+
+    def _patch(self, bed, data):
+        return self.client.patch(f"/api/hospital/beds/{bed.id}/{self.scope}", data, format="json")
+
+    def test_list_shows_ward_room_and_current_patient(self):
+        resp = self.client.get(f"/api/hospital/beds/{self.scope}")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        rows = {r["bed_number"]: r for r in resp.data.get("results", resp.data)}
+        self.assertEqual(rows["O-1"]["ward_name"], "General")
+        self.assertEqual(rows["O-1"]["room_number"], "101")
+        self.assertEqual(rows["O-1"]["current_patient"], "Bed Patient")
+        self.assertIsNone(rows["F-1"]["current_patient"])
+
+    def test_free_bed_can_go_to_maintenance_and_back(self):
+        self.assertEqual(self._patch(self.free_bed, {"status": "Maintenance"}).status_code, status.HTTP_200_OK)
+        self.assertEqual(self._patch(self.free_bed, {"status": "Available"}).status_code, status.HTTP_200_OK)
+        self.free_bed.refresh_from_db()
+        self.assertEqual(self.free_bed.status, "Available")
+
+    def test_free_bed_cannot_be_marked_occupied_by_hand(self):
+        resp = self._patch(self.free_bed, {"status": "Occupied"})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_bed_in_use_keeps_its_status_and_room(self):
+        other_room = Room.objects.create(ward=self.ward_a, room_number="102")
+        self.assertEqual(self._patch(self.busy_bed, {"status": "Available"}).status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._patch(self.busy_bed, {"room": other_room.id}).status_code, status.HTTP_400_BAD_REQUEST)
+        self.busy_bed.refresh_from_db()
+        self.assertEqual((self.busy_bed.status, self.busy_bed.room_id), ("Occupied", self.room_a.id))
+
+    def test_bed_in_use_can_be_renamed(self):
+        resp = self._patch(self.busy_bed, {"bed_number": "O-1A", "bed_type": "ICU"})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
+
+    def test_bed_with_allocation_history_cannot_be_deleted(self):
+        resp = self.client.delete(f"/api/hospital/beds/{self.busy_bed.id}/{self.scope}")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Bed.objects.filter(pk=self.busy_bed.pk).exists())
+
+    def test_unused_bed_can_be_deleted_by_manager_only(self):
+        self.client.force_authenticate(user=self.nurse)
+        self.assertEqual(self.client.delete(f"/api/hospital/beds/{self.free_bed.id}/{self.scope}").status_code, status.HTTP_403_FORBIDDEN)
+        self.client.force_authenticate(user=self.manager)
+        self.assertEqual(self.client.delete(f"/api/hospital/beds/{self.free_bed.id}/{self.scope}").status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Bed.objects.filter(pk=self.free_bed.pk).exists())

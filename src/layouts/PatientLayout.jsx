@@ -1,12 +1,11 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom"
 import { useEffect, useState } from "react"
-import { Bell, CalendarDays, FileText, FlaskConical, House, LogOut, Menu, Pill, ReceiptIndianRupee, Ticket, X } from "lucide-react"
-import { useAuth } from "../assets/context/AuthContext.jsx"
+import { Bell, CalendarDays, FileText, FlaskConical, House, Menu, Pill, ReceiptIndianRupee, Ticket, X } from "lucide-react"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { useHospitals } from "../assets/context/HospitalsContext.jsx"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { BrandMark } from "../components/Sidebar.jsx"
-import { Avatar, SegmentedControl } from "../components/ui"
+import { HeaderActions } from "../components/HeaderMenus.jsx"
 
 const patientRoutes = [
   { path: "/patient", label: "Home", icon: House, end: true },
@@ -21,8 +20,7 @@ const patientRoutes = [
 
 export default function PatientLayout() {
   const location = useLocation()
-  const { patient, logout } = useAuth()
-  const { language, setLanguage, t } = useLanguage()
+  const { t } = useLanguage()
   const { hospitals } = useHospitals()
   const { selectedHospital, selectHospital } = usePatient()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -55,13 +53,6 @@ export default function PatientLayout() {
     <>
       <div className="border-b border-line px-5 pb-5 pt-5">
         <BrandMark inverted={false} />
-        <div className="mt-5 flex items-center gap-3">
-          <Avatar name={patient?.name || "Patient"} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-ink-900">{patient?.name || "Patient"}</p>
-            <p className="text-xs text-ink-500">{language === "hi" ? "मरीज़ पोर्टल" : "Patient portal"}</p>
-          </div>
-        </div>
         {myHospitals.length > 1 ? (
           <div className="mt-4">
             <label htmlFor="patient-hospital" className="hms-label">{t("Select Hospital")}</label>
@@ -108,26 +99,6 @@ export default function PatientLayout() {
         })}
       </nav>
 
-      <div className="space-y-3 border-t border-line p-4">
-        <SegmentedControl
-          label="Language"
-          value={language}
-          onChange={setLanguage}
-          options={[
-            { value: "en", label: "English" },
-            { value: "hi", label: "हिंदी" },
-          ]}
-          className="w-full [&>button]:flex-1"
-        />
-        <button
-          type="button"
-          onClick={logout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-700 hover:bg-red-50"
-        >
-          <LogOut size={18} aria-hidden="true" />
-          {t("Logout")}
-        </button>
-      </div>
     </>
   )
 
@@ -143,17 +114,18 @@ export default function PatientLayout() {
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-white/95 backdrop-blur lg:flex">{sidebar}</aside>
 
-      {/* Mobile top bar + drawer */}
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line bg-white/95 px-4 backdrop-blur lg:hidden">
+      {/* Top bar: page title, then notifications and the profile menu */}
+      <header className="hms-surface-dark sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line px-4 sm:px-6 lg:ml-64 lg:px-8">
         <button
           type="button"
           onClick={() => setSidebarOpen(true)}
-          className="-ml-1 rounded-lg p-2 text-ink-700 hover:bg-ink-100"
+          className="-ml-1 rounded-lg p-2 text-ink-700 hover:bg-ink-100 lg:hidden"
           aria-label="Open navigation menu"
         >
           <Menu size={20} aria-hidden="true" />
         </button>
-        <p className="truncate text-sm font-semibold text-ink-900">{current ? t(current.label) : "Patient portal"}</p>
+        <p className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-900">{current ? t(current.label) : "Patient portal"}</p>
+        <HeaderActions hospitalId={selectedHospital?.id} />
       </header>
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">

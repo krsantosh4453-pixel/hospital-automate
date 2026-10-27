@@ -7,6 +7,11 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // Google Sign-In only accepts the origins registered in Google Cloud
+    // (http://localhost:5173). Never drift to another port: fail instead.
+    host: 'localhost',
+    port: 5173,
+    strictPort: true,
     // The Python backend and virtualenvs live in this repo; do not watch them.
     watch: {
       ignored: ['**/backend/**', '**/backend_env/**', '**/dist/**'],

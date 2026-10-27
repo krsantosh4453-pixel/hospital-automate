@@ -14,7 +14,7 @@
   overflow: hidden;
   pointer-events: none;
   background:
-    linear-gradient(180deg, #f8fbfb 0%, var(--color-canvas) 42%, #edf2f4 100%);
+    linear-gradient(180deg, #dbedee 0%, var(--color-canvas) 42%, #d1e6e8 100%);
 }
 
 /* Large blurred colour washes that drift very slowly */
@@ -24,7 +24,7 @@
   height: 52vmax;
   border-radius: 9999px;
   filter: blur(72px);
-  opacity: 0.6;
+  opacity: 0.15;
   will-change: transform;
 }
 

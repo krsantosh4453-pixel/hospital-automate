@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
-import { CircleCheck, Hospital, ListOrdered, Megaphone, PhoneCall, SkipForward, Stethoscope, Ticket } from "lucide-react"
+import { BellRing, CircleCheck, Hospital, ListOrdered, Megaphone, PhoneCall, RotateCcw, SkipForward, Stethoscope, Ticket, UserX } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
-import { useAppointment } from "../assets/context/AppointmentContext.jsx"
 import api from "../services/api.js"
 import {
   Alert,
@@ -20,11 +19,36 @@ import {
   Toolbar,
 } from "../components/ui"
 
-const QUEUE_STATUSES = ["Waiting", "In Consultation", "Completed", "Skipped"]
+// Every status a QueueToken can have on the server (encounters.QueueToken.Status).
+const QUEUE_STATUSES = ["Waiting", "Called", "Acknowledged", "Ready", "In Consultation", "Completed", "Skipped", "No Show", "Cancelled"]
+// Called, then (optionally) acknowledged or ready: on the way to the doctor.
+const CALLED_STATUSES = ["Called", "Acknowledged", "Ready"]
+// Shown as a tab even when empty; the others appear once a token has them.
+const CORE_TABS = ["Waiting", "Called", "In Consultation", "Completed"]
+const isCalled = (status) => CALLED_STATUSES.includes(status)
+
+// The "Waiting" column: minutes while waiting, "Now" once called, and a dash
+// after the patient has gone in or left the queue.
+const waitingLabel = (status, minutes) => {
+  if (status === "Waiting") return `${minutes ?? 0} min`
+  if (isCalled(status)) return "Now"
+  if (status === "In Consultation") return "With doctor"
+  return "—"
+}
+
+// Per-row actions, as the server allows them (encounters/views.py). The
+// server also moves the token's appointment to the matching status.
+const ROW_ACTIONS = {
+  call: { apiCall: (id) => api.queue.call(id), done: "called", fail: "Failed to call this patient." },
+  start: { apiCall: (id) => api.queue.startConsultation(id), done: "sent in to the doctor", fail: "Failed to start the consultation." },
+  complete: { apiCall: (id) => api.queue.complete(id), done: "completed", fail: "Failed to complete this patient." },
+  skip: { apiCall: (id) => api.queue.skip(id), done: "skipped", fail: "Failed to skip this patient." },
+  noShow: { apiCall: (id) => api.queue.noShow(id), done: "marked as no-show", fail: "Failed to mark as no-show." },
+  requeue: { apiCall: (id) => api.queue.requeue(id), done: "put back in the queue", fail: "Failed to put the token back in the queue." },
+}
 
 function Queue() {
   const { selectedHospital } = usePatient()
-  const { updateAppointment } = useAppointment()
 
   // Live queue records from Django (encounters.QueueToken).
   const [queue, setQueue] = useState([])
@@ -39,7 +63,6 @@ function Queue() {
   // API state (loading / error / retry / feedback)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState("")
-  const [offlineMode, setOfflineMode] = useState(false)
   const [actionError, setActionError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
@@ -57,10 +80,9 @@ function Queue() {
     doctor: record.doctor_name || "",
     department: record.department || "General",
     type: record.visit_type || "OPD",
-    waiting: String(record.status || "").toLowerCase() === "waiting" ? `${record.waiting_minutes ?? 0} min` : "Now",
+    waiting: waitingLabel(record.status || "Waiting", record.waiting_minutes),
     status: record.status || "Waiting",
     hospitalId: record.hospital,
-    appointmentId: record.appointment ? `A${String(record.appointment).padStart(3, "0")}` : undefined,
     appointmentApiId: record.appointment,
     apiId: record.id,
   })
@@ -93,12 +115,12 @@ function Queue() {
             patient: appointment.patient_name,
           })),
         )
-        setOfflineMode(false)
       } catch (error) {
         if (cancelled) return
-        // Keep existing rows visible and fall back to offline behaviour.
+        // Show nothing rather than a queue the server may no longer hold.
+        setQueue([])
+        setServerAppointments([])
         setLoadError(error.message || "Failed to load the queue.")
-        setOfflineMode(true)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -120,8 +142,7 @@ function Queue() {
     (appointment) =>
       appointment.apiId &&
       String(appointment.hospitalId) === String(selectedHospital?.id) &&
-      appointment.status !== "Cancelled" &&
-      appointment.status !== "Completed" &&
+      appointment.status === "Scheduled" &&
       !queue.some((item) => String(item.appointmentApiId) === String(appointment.apiId)),
   )
 
@@ -129,10 +150,6 @@ function Queue() {
     setActionError("")
     setSuccessMessage("")
 
-    if (offlineMode) {
-      setActionError("Cannot generate tokens while offline.")
-      return
-    }
     if (issueableAppointments.length === 0) {
       setActionError("No booked appointment is waiting for a token.")
       return
@@ -174,40 +191,20 @@ function Queue() {
     const matchesDepartment = departmentFilter === "All Departments" || item.department === departmentFilter
     return matchesSearch && matchesDepartment
   })
-  const filteredQueue = baseFiltered.filter((item) => statusFilter === "All Status" || item.status === statusFilter)
+  const filteredQueue = baseFiltered.filter((item) => statusFilter === "All Status" || (statusFilter === "Called" ? isCalled(item.status) : item.status === statusFilter))
 
   // Statistics
   const countOf = (status) => hospitalQueue.filter((item) => item.status === status).length
   const waitingCount = countOf("Waiting")
   const consultationCount = countOf("In Consultation")
   const completedCount = countOf("Completed")
-  const skippedCount = countOf("Skipped")
+  const calledCount = hospitalQueue.filter((item) => isCalled(item.status)).length
 
   const currentPatient = hospitalQueue.find((item) => item.status === "In Consultation")
+  // Called and on the way to the doctor, shown when nobody is in consultation.
+  const calledPatient = hospitalQueue.find((item) => isCalled(item.status))
+  const servingPatient = currentPatient || calledPatient
   const nextWaiting = hospitalQueue.find((item) => item.status === "Waiting")
-
-  // =====================================
-  // UPDATE APPOINTMENT STATUS
-  // =====================================
-
-  const updateRelatedAppointment = (queueItem, status) => {
-    // Keep the shared AppointmentContext in sync (existing behaviour).
-    if (queueItem.appointmentId) updateAppointment(queueItem.appointmentId, { status })
-
-    // Also persist the status on the Django appointment when the queue row
-    // is backed by a real record. Failures here are non-fatal: the queue
-    // itself (QueueToken) is the source of truth for this page.
-    if (queueItem.appointmentApiId) {
-      api.appointments.patch(queueItem.appointmentApiId, { status }).catch(() => {})
-    }
-  }
-
-  const setLocalStatus = (token, patch) =>
-    setQueue((prevQueue) =>
-      prevQueue.map((item) =>
-        String(item.token) === String(token) && String(item.hospitalId) === String(selectedHospital.id) ? { ...item, ...patch } : item,
-      ),
-    )
 
   // =====================================
   // CALL NEXT PATIENT
@@ -224,50 +221,38 @@ function Queue() {
     setSuccessMessage("")
     setBusy("next")
 
-    // Ask Django to advance the queue (completes the token currently being
-    // served and calls the next waiting token, persisted server-side).
-    if (!offlineMode) {
-      try {
-        await api.queue.callNext(selectedHospital.id)
-        setSuccessMessage(`Called token #${nextPatient.token}.`)
-      } catch (error) {
-        setActionError(error.message || "Failed to call the next patient.")
-      }
+    // Django advances the queue (completes the token being served and calls
+    // the next one). The screen changes only from the server's reload.
+    try {
+      await api.queue.callNext(selectedHospital.id)
+      setSuccessMessage(`Called token #${nextPatient.token}. Start the consultation when the patient comes in.`)
+    } catch (error) {
+      setActionError(`Not changed: ${error.message || "Failed to call the next patient."}`)
+    } finally {
+      setBusy("")
+      setReloadToken((value) => value + 1)
     }
-
-    setLocalStatus(nextPatient.token, { status: "In Consultation", waiting: "Now" })
-    updateRelatedAppointment(nextPatient, "In Consultation")
-    setBusy("")
-    setReloadToken((value) => value + 1)
   }
 
-  // Shared handler for per-row call / complete / skip.
+  // Shared handler for the per-row queue actions (ROW_ACTIONS).
   const rowAction = async (token, kind) => {
-    const config = {
-      call: { apiCall: api.queue.call, status: "In Consultation", patch: { status: "In Consultation", waiting: "Now" }, done: "called", fail: "Failed to call this patient." },
-      complete: { apiCall: api.queue.complete, status: "Completed", patch: { status: "Completed" }, done: "completed", fail: "Failed to complete this patient." },
-      skip: { apiCall: api.queue.skip, status: "Skipped", patch: { status: "Skipped" }, done: "skipped", fail: "Failed to skip this patient." },
-    }[kind]
+    const config = ROW_ACTIONS[kind]
 
     const selectedQueuePatient = hospitalQueue.find((item) => String(item.token) === String(token))
     setActionError("")
     setSuccessMessage("")
     setBusy(`${kind}-${token}`)
 
-    // Persist on the QueueToken when this row is a real API record.
-    if (selectedQueuePatient && selectedQueuePatient.apiId && !offlineMode) {
-      try {
-        await config.apiCall(selectedQueuePatient.apiId)
-        setSuccessMessage(`Token #${token} ${config.done}.`)
-      } catch (error) {
-        setActionError(error.message || config.fail)
-      }
+    // Saved on the QueueToken first; the screen changes only from the reload.
+    try {
+      await config.apiCall(selectedQueuePatient.apiId)
+      setSuccessMessage(`Token #${token} ${config.done}.`)
+    } catch (error) {
+      setActionError(`Not changed: ${error.message || config.fail}`)
+    } finally {
+      setBusy("")
+      setReloadToken((value) => value + 1)
     }
-
-    setLocalStatus(token, config.patch)
-    if (selectedQueuePatient) updateRelatedAppointment(selectedQueuePatient, config.status)
-    setBusy("")
-    setReloadToken((value) => value + 1)
   }
 
   if (!selectedHospital) {
@@ -281,9 +266,13 @@ function Queue() {
     )
   }
 
+  // "Called" groups Called, Acknowledged and Ready; the rest are one status each.
+  const inTab = (item, tab) => (tab === "Called" ? isCalled(item.status) : item.status === tab)
   const statusTabs = [
     { id: "All Status", label: "All", count: baseFiltered.length },
-    ...QUEUE_STATUSES.map((s) => ({ id: s, label: s, count: baseFiltered.filter((i) => i.status === s).length })),
+    ...QUEUE_STATUSES.filter((s) => !["Acknowledged", "Ready"].includes(s))
+      .map((s) => ({ id: s, label: s, count: baseFiltered.filter((i) => inTab(i, s)).length }))
+      .filter((tab) => CORE_TABS.includes(tab.id) || tab.count > 0 || tab.id === statusFilter),
   ]
 
   return (
@@ -312,13 +301,13 @@ function Queue() {
 
       {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}
       {actionError && <Alert tone="danger" onDismiss={() => setActionError("")}>{actionError}</Alert>}
-      {offlineMode && (
+      {loadError && (
         <Alert
-          tone="warning"
-          title="Server unreachable"
+          tone="danger"
+          title="Queue could not be loaded"
           action={<Button size="sm" variant="secondary" onClick={() => setReloadToken((value) => value + 1)}>Retry</Button>}
         >
-          {loadError || "Could not reach the server. Showing saved queue data."}
+          {loadError}
         </Alert>
       )}
 
@@ -326,14 +315,16 @@ function Queue() {
         {/* Now serving */}
         <Card className="flex flex-col justify-between overflow-hidden">
           <div className="bg-brand-900 px-5 py-5 text-white">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-200">Now serving</p>
-            <p className="mt-2 text-5xl font-semibold tracking-tight tabular-nums" aria-live="polite">
-              {currentPatient ? `#${currentPatient.token}` : "—"}
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-200">
+              {currentPatient || !calledPatient ? "Now serving" : "Called · on the way"}
             </p>
-            <p className="mt-2 truncate text-[15px] font-medium text-brand-50">{currentPatient ? currentPatient.patient : "No patient in consultation"}</p>
-            {currentPatient && (
+            <p className="mt-2 text-5xl font-semibold tracking-tight tabular-nums" aria-live="polite">
+              {servingPatient ? `#${servingPatient.token}` : "—"}
+            </p>
+            <p className="mt-2 truncate text-[15px] font-medium text-brand-50">{servingPatient ? servingPatient.patient : "No patient in consultation"}</p>
+            {servingPatient && (
               <p className="mt-0.5 truncate text-[13px] text-brand-200">
-                {[currentPatient.doctor, currentPatient.department].filter(Boolean).join(" · ")}
+                {[servingPatient.doctor, servingPatient.department].filter(Boolean).join(" · ")}
               </p>
             )}
           </div>
@@ -344,7 +335,7 @@ function Queue() {
                 {nextWaiting ? `#${nextWaiting.token} · ${nextWaiting.patient}` : "Nobody waiting"}
               </p>
             </div>
-            {currentPatient && (
+            {currentPatient ? (
               <Button
                 size="sm"
                 variant="subtle"
@@ -354,15 +345,25 @@ function Queue() {
               >
                 Complete
               </Button>
+            ) : calledPatient && (
+              <Button
+                size="sm"
+                variant="subtle"
+                icon={Stethoscope}
+                loading={busy === `start-${calledPatient.token}`}
+                onClick={() => rowAction(calledPatient.token, "start")}
+              >
+                Start consultation
+              </Button>
             )}
           </div>
         </Card>
 
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           <StatTile icon={ListOrdered} tone="warning" label="Waiting" value={waitingCount} onClick={() => setStatusFilter("Waiting")} />
+          <StatTile icon={BellRing} label="Called" value={calledCount} onClick={() => setStatusFilter("Called")} />
           <StatTile icon={Stethoscope} label="In consultation" value={consultationCount} onClick={() => setStatusFilter("In Consultation")} />
           <StatTile icon={CircleCheck} tone="success" label="Completed" value={completedCount} onClick={() => setStatusFilter("Completed")} />
-          <StatTile icon={SkipForward} tone="neutral" label="Skipped" value={skippedCount} onClick={() => setStatusFilter("Skipped")} />
         </div>
       </div>
 
@@ -439,9 +440,24 @@ function Queue() {
                             </Button>
                           </>
                         )}
+                        {isCalled(item.status) && (
+                          <>
+                            <Button size="sm" variant="subtle" icon={Stethoscope} loading={busy === `start-${item.token}`} onClick={() => rowAction(item.token, "start")}>
+                              Start consultation
+                            </Button>
+                            <Button size="sm" variant="ghost" icon={UserX} loading={busy === `noShow-${item.token}`} onClick={() => rowAction(item.token, "noShow")}>
+                              No show
+                            </Button>
+                          </>
+                        )}
                         {item.status === "In Consultation" && (
                           <Button size="sm" variant="subtle" icon={CircleCheck} loading={busy === `complete-${item.token}`} onClick={() => rowAction(item.token, "complete")}>
                             Complete
+                          </Button>
+                        )}
+                        {(item.status === "Skipped" || item.status === "No Show") && (
+                          <Button size="sm" variant="ghost" icon={RotateCcw} loading={busy === `requeue-${item.token}`} onClick={() => rowAction(item.token, "requeue")}>
+                            Back to queue
                           </Button>
                         )}
                       </div>

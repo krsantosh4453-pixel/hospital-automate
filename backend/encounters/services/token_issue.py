@@ -1,9 +1,9 @@
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import serializers
 
 from ..models import Visit, QueueToken
 from ..serializers import QueueTokenSerializer
+from config.hospital_time import hospital_today
 
 
 @transaction.atomic
@@ -61,7 +61,7 @@ def issue_queue_token_for_appointment(
     if existing is not None:
         return existing, False
 
-    token_date = timezone.localdate()
+    token_date = hospital_today()
 
     # 1) Obtain the Visit ------------------------------------------------
     if visit is None:

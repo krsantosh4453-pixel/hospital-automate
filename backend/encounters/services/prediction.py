@@ -22,6 +22,7 @@ from django.db.models import Avg, Count, F
 from django.utils import timezone
 
 from encounters.models import QueueToken
+from config.hospital_time import hospital_today
 
 
 @dataclass
@@ -238,7 +239,7 @@ class QueuePredictionService:
 
         Returns count of updated tokens.
         """
-        token_date = token_date or timezone.localdate()
+        token_date = token_date or hospital_today()
 
         waiting_statuses = [
             QueueToken.Status.WAITING,

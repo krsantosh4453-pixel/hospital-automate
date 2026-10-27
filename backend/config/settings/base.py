@@ -318,6 +318,9 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 
 GOOGLE_CLIENT_ID = None  # Set in environment-specific settings
 ADMIN_INVITE_CODE = os.environ.get("ADMIN_INVITE_CODE", "")
+# Public address of the web app, for links in emails (staff invitations).
+# Empty: the address the request came in on.
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
 
 # Temporary shared development sign-in (users/dev_login.py). Works only with
 # DEBUG on; production.py switches it off.

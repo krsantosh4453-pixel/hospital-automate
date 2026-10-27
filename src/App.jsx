@@ -23,6 +23,7 @@ import Settings from "./pages/settings.jsx"
 import StaffLogin from "./pages/StaffLogin.jsx"
 import PatientLogin from "./pages/PatientLogin.jsx"
 import Register from "./pages/Register.jsx"
+import StaffInvite from "./pages/StaffInvite.jsx"
 import HospitalSelection from "./pages/HospitalSelection.jsx"
 import { ProtectedRoute } from "./components/ProtectedRoute.jsx"
 import AppBackground from "./components/AppBackground.jsx"
@@ -48,6 +49,7 @@ import Hospitals from "./pages/admin/Hospitals.jsx"
 import Departments from "./pages/admin/Departments.jsx"
 import NurseDuty from "./pages/admin/NurseDuty.jsx"
 import Permissions from "./pages/admin/Permissions.jsx"
+import HospitalSetup from "./pages/admin/HospitalSetup.jsx"
 
 import PatientDashboard from "./pages/patient/PatientDashboard.jsx"
 import PatientAppointments from "./pages/patient/PatientAppointments.jsx"
@@ -76,6 +78,7 @@ function App() {
                       <Route path="/patient-login" element={<PatientLogin />} />
                       <Route path="/login" element={<PatientLogin />} />
                       <Route path="/register" element={<Register />} />
+                      <Route path="/staff-invite/:uid/:token" element={<StaffInvite />} />
 
                       <Route element={<ProtectedRoute audience="patient" />}>
                       <Route element={<PatientLayout />}>
@@ -119,6 +122,7 @@ function App() {
                           <Route path="/admin/departments" element={<Departments />} />
                           <Route path="/admin/nurse-duty" element={<NurseDuty />} />
                           <Route path="/admin/permissions" element={<Permissions />} />
+                          <Route path="/admin/setup" element={<HospitalSetup />} />
                           <Route path="/settings" element={<Settings />} />
                         </Route>
                         </Route>

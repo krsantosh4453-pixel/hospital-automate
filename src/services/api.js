@@ -945,6 +945,14 @@ const api = {
         method: 'POST',
       }),
 
+    // A called (or acknowledged / ready) patient goes in to the doctor.
+    startConsultation: async (id) =>
+      request(`${API_BASE_URL}/encounters/queue-tokens/${id}/start-consultation/`, { method: 'POST' }),
+
+    // A skipped or no-show token goes back to Waiting.
+    requeue: async (id) =>
+      request(`${API_BASE_URL}/encounters/queue-tokens/${id}/requeue/`, { method: 'POST' }),
+
     // POST /api/encounters/queue-tokens/{id}/complete/
     complete: async (id) =>
       request(`${API_BASE_URL}/encounters/queue-tokens/${id}/complete/`, {
@@ -1660,6 +1668,25 @@ api.users = {
   // data: { role?, is_active?, department? }
   updateMembership: async (userId, data) =>
     request(`${API_BASE_URL}/users/${userId}/membership/`, { method: "PATCH", ...jsonBody(data) }),
+  // data: { name, phone, email?, role, department? } -> staff row + invite_url when a password is still to be set
+  invite: async (data) =>
+    request(`${API_BASE_URL}/users/invite/`, { method: "POST", ...jsonBody(data) }),
+  resendInvite: async (userId) =>
+    request(`${API_BASE_URL}/users/${userId}/invite/`, { method: "POST" }),
+}
+
+// Public invitation link: who it is for (GET) and setting the first password (POST).
+api.staffInvite = {
+  get: async (uid, token) => request(`${API_BASE_URL}/auth/staff/invite/${uid}/${token}/`),
+  accept: async (uid, token, data) =>
+    request(`${API_BASE_URL}/auth/staff/invite/${uid}/${token}/`, { method: "POST", ...jsonBody(data) }),
+}
+
+// A ward with its rooms and numbered beds in one step (hospital setup).
+// data: { name, ward_type, rooms: [{ room_number, beds, bed_type }] }
+api.wardSetup = {
+  create: async (hospitalId, data) =>
+    request(`${API_BASE_URL}/hospital/wards/with-beds/?hospital=${encodeURIComponent(hospitalId)}`, { method: "POST", ...jsonBody({ ...data, hospital: hospitalId }) }),
 }
 
 // Departments / clinics of a hospital (Admin or Manager write).
@@ -1676,10 +1703,37 @@ api.departments = {
     request(`${API_BASE_URL}/hospital/departments/${id}/`, { method: "DELETE" }),
 }
 
-// Wards of a hospital.
+// Wards, rooms and beds of a hospital. Only its Admin or Manager may change them.
+
 api.wards = {
-  list: async (hospitalId) =>
-    request(`${API_BASE_URL}/hospital/wards/?hospital=${encodeURIComponent(hospitalId)}`),
+  list: async (hospitalId) => request(`${API_BASE_URL}/hospital/wards/?hospital=${encodeURIComponent(hospitalId)}`),
+  create: async (hospitalId, data) =>
+    request(`${API_BASE_URL}/hospital/wards/?hospital=${encodeURIComponent(hospitalId)}`, { method: "POST", ...jsonBody({ ...data, hospital: hospitalId }) }),
+}
+
+api.rooms = {
+  list: async (hospitalId, wardId) =>
+    request(`${API_BASE_URL}/hospital/rooms/?hospital=${encodeURIComponent(hospitalId)}&ward=${encodeURIComponent(wardId)}`),
+  create: async (hospitalId, data) =>
+    request(`${API_BASE_URL}/hospital/rooms/?hospital=${encodeURIComponent(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+}
+
+api.beds = {
+  // Every bed of the hospital, across all result pages.
+  listAll: async (hospitalId) => {
+    const rows = []
+    for (let page = 1; ; page += 1) {
+      const data = await request(`${API_BASE_URL}/hospital/beds/?hospital=${encodeURIComponent(hospitalId)}&page=${page}`)
+      rows.push(...(Array.isArray(data) ? data : data?.results || []))
+      if (Array.isArray(data) || !data?.next) return rows
+    }
+  },
+  create: async (hospitalId, data) =>
+    request(`${API_BASE_URL}/hospital/beds/?hospital=${encodeURIComponent(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  update: async (hospitalId, id, data) =>
+    request(`${API_BASE_URL}/hospital/beds/${id}/?hospital=${encodeURIComponent(hospitalId)}`, { method: "PATCH", ...jsonBody(data) }),
+  remove: async (hospitalId, id) =>
+    request(`${API_BASE_URL}/hospital/beds/${id}/?hospital=${encodeURIComponent(hospitalId)}`, { method: "DELETE" }),
 }
 
 // Nurse ward duty roster (Admin or Manager write; a Nurse sees the patients

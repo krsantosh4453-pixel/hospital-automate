@@ -4,6 +4,8 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api"
 import { useToast } from "../components/Toast.jsx"
+import AddBedDialog from "../components/ipd/AddBedDialog.jsx"
+import BedsTable from "../components/ipd/BedsTable.jsx"
 import {
   Alert,
   Badge,
@@ -26,11 +28,14 @@ import {
 } from "../components/ui"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
+// Wards, rooms and beds are set up by the hospital's Admin or Manager.
+const BED_MANAGER_ROLES = ["Admin", "Hospital Manager"]
 const bedLabel = (bed) => (bed ? [bed.ward_name, bed.room_number, bed.bed_number].filter(Boolean).join(" · ") : "")
 
 function IPD() {
   // Doctors admit; a Hospital Manager only views admissions.
-  const { canAdd } = useRole()
+  const { canAdd, activeRoleName } = useRole()
+  const canManageBeds = BED_MANAGER_ROLES.includes(activeRoleName)
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
   const { selectedHospital } = usePatient()
@@ -44,8 +49,10 @@ function IPD() {
   const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [busy, setBusy] = useState("")
+  // Bumped after IPD data reloads so the All beds tab reloads too.
+  const [bedsVersion, setBedsVersion] = useState(0)
 
-  const [dialog, setDialog] = useState(null) // "admission" | "bed" | "plan" | "summary"
+  const [dialog, setDialog] = useState(null) // "admission" | "bed" | "add-bed" | "plan" | "summary"
   const [selectedAdmission, setSelectedAdmission] = useState(null)
   const [admissionForm, setAdmissionForm] = useState({ patient: "", reason: "", admitting_doctor: "" })
   const [bedId, setBedId] = useState("")
@@ -233,6 +240,7 @@ function IPD() {
         selectedHospital && (
           <>
             <Button variant="secondary" icon={RefreshCw} onClick={fetchData} disabled={loading}>Refresh</Button>
+            {canManageBeds && <Button variant="secondary" icon={BedSingle} onClick={() => { closeDialog(); setDialog("add-bed") }}>Add bed</Button>}
             {canAdd("IPD") && <Button icon={Plus} onClick={() => { closeDialog(); setDialog("admission") }}>New admission</Button>}
           </>
         )
@@ -273,11 +281,16 @@ function IPD() {
             tabs={[
               { id: "admissions", label: "Admissions", icon: UserRoundCheck, count: admissions.length },
               { id: "beds", label: "Available beds", icon: BedSingle, count: availableBeds.length },
+              { id: "all-beds", label: "All beds", icon: BedDouble },
               { id: "discharges", label: "Discharges", icon: ClipboardCheck, count: discharging.length },
             ]}
           />
 
-          {loading ? (
+          {activeTab === "all-beds" ? (
+            <Card className="overflow-hidden">
+              <BedsTable hospitalId={selectedHospital?.id} canManage={canManageBeds} refreshKey={bedsVersion} onChanged={fetchData} />
+            </Card>
+          ) : loading ? (
             <Card><SkeletonRows rows={5} /></Card>
           ) : activeTab === "admissions" ? (
             <Card className="overflow-hidden">
@@ -336,7 +349,12 @@ function IPD() {
           ) : activeTab === "beds" ? (
             <Card className="overflow-hidden">
               {availableBeds.length === 0 ? (
-                <EmptyState icon={BedSingle} title="No beds available" description="Every bed is occupied or under maintenance." />
+                <EmptyState
+                  icon={BedSingle}
+                  title="No beds available"
+                  description="Every bed is occupied or under maintenance."
+                  action={canManageBeds && <Button icon={Plus} onClick={() => setDialog("add-bed")}>Add bed</Button>}
+                />
               ) : (
                 <TableWrap>
                   <table className="hms-table">
@@ -428,6 +446,18 @@ function IPD() {
       )}
 
       {/* New admission */}
+      <AddBedDialog
+        open={dialog === "add-bed"}
+        onClose={closeDialog}
+        hospitalId={selectedHospital?.id}
+        onAdded={(bed) => {
+          toast.success(bed.status === "Available" ? `Bed ${bed.bed_number} added` : `Bed ${bed.bed_number} added as ${bed.status}`)
+          setActiveTab("all-beds")
+          setBedsVersion((v) => v + 1)
+          fetchData()
+        }}
+      />
+
       <Modal
         open={dialog === "admission"}
         onClose={closeDialog}

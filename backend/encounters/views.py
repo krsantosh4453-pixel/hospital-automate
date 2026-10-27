@@ -13,6 +13,7 @@ from .serializers import (
     DoctorScheduleSerializer,
 )
 from .services import issue_queue_token_for_appointment
+from .services.appointment_status import sync_appointment_status
 from .services.prediction import QueuePredictionService
 from notifications.services import (
     get_notification_engine,
@@ -24,6 +25,7 @@ from users.care_scope import doctor_hospital_ids, limit_queue_to_department
 from users.permissions import get_user_hospital_ids
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsHospitalManager, IsReceptionist, IsDoctor, IsNurse, IsPatientReadOnly
+from config.hospital_time import hospital_today
 
 
 logger = logging.getLogger(__name__)
@@ -169,6 +171,7 @@ class QueueTokenViewSet(HospitalScopedViewSet):
 
         self._prediction_service.update_token_estimate(token)
         self._recalculate_estimates(token.hospital_id, token.doctor_id, token.token_date)
+        sync_appointment_status(token)
 
         if created:
             self._send_queue_notification(
@@ -198,6 +201,7 @@ class QueueTokenViewSet(HospitalScopedViewSet):
 
         token.status = new_status
         token.save()
+        sync_appointment_status(token)
 
         self._recalculate_estimates(token.hospital_id, token.doctor_id, token.token_date)
 
@@ -394,9 +398,11 @@ class QueueTokenViewSet(HospitalScopedViewSet):
             base = base.filter(doctor__user=request.user)
         base = limit_queue_to_department(base, request.user, [int(hospital_id)])
 
-        base.filter(status__iexact="In Consultation").update(
-            status="Completed"
-        )
+        serving = list(base.filter(status__iexact="In Consultation"))
+        base.filter(pk__in=[t.pk for t in serving]).update(status=QueueToken.Status.COMPLETED)
+        for finished in serving:
+            finished.status = QueueToken.Status.COMPLETED
+            sync_appointment_status(finished)
 
         next_token = (
             base.filter(status__in=[QueueToken.Status.WAITING, QueueToken.Status.CALLED])
@@ -436,8 +442,7 @@ class QueueTokenViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        from django.utils import timezone
-        token_date = token_date or timezone.localdate()
+        token_date = token_date or hospital_today()
 
         waiting_statuses = [
             QueueToken.Status.WAITING,

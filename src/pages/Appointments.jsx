@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Ban, CalendarDays, CalendarPlus, Clock, Eye, Hospital, Pencil, Phone, Stethoscope, Trash2 } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
-import { useAppointment } from "../assets/context/AppointmentContext.jsx"
 import api from "../services/api.js"
 import {
   Alert,
@@ -27,6 +26,7 @@ import {
   Textarea,
   Toolbar,
 } from "../components/ui"
+import { APPOINTMENT_STATUSES, CLOSED_STATUSES } from "../config/appointmentStatus.js"
 
 // =====================================================
 // Helpers — keep the existing (flat, display-oriented) UI
@@ -35,16 +35,9 @@ import {
 
 const two = (value) => String(value).padStart(2, "0")
 
-// Statuses the UI already knows about.
-const APPOINTMENT_STATUSES = ["Confirmed", "Waiting", "Completed", "Cancelled"]
 
-// Django stores status as free text (default "Scheduled").
-// Normalise it to a value the existing pills understand.
-const normaliseStatus = (status) => {
-  if (!status) return "Confirmed"
-  const match = APPOINTMENT_STATUSES.find((item) => item.toLowerCase() === String(status).toLowerCase())
-  return match || "Confirmed"
-}
+const normaliseStatus = (status) =>
+  APPOINTMENT_STATUSES.find((item) => item.toLowerCase() === String(status || "").toLowerCase()) || "Scheduled"
 
 // "2026-09-01" -> "01 Sep 2026" (what the table renders).
 const formatDate = (value) => {
@@ -122,20 +115,18 @@ const todayIso = () => {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`
 }
 
+// Network failures get a plain "not saved"; a server refusal keeps its reason.
+// After a timeout the server may have saved it, so the list is reloaded.
+const notSavedMessage = (error) =>
+  error.isNetworkError ? `Not saved: ${error.message}` : error.message
+
 const toList = (data) => (Array.isArray(data) ? data : data?.results || [])
 
 function Appointments() {
   const { selectedHospital } = usePatient()
 
-  const {
-    appointments: savedAppointments,
-    addAppointment,
-    updateAppointment,
-    deleteAppointment,
-    cancelAppointment,
-    getHospitalAppointments,
-  } = useAppointment()
-
+  // Always loaded from the Django API. Nothing is kept in the browser: an
+  // appointment exists only once the server has saved it.
   const [appointments, setAppointments] = useState([])
 
   // API / UX states.
@@ -143,7 +134,6 @@ function Appointments() {
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState("")
   const [formError, setFormError] = useState("")
-  const [offlineMode, setOfflineMode] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
 
@@ -153,15 +143,6 @@ function Appointments() {
 
   // Patient name suggestions while typing in the form.
   const [patientSuggestions, setPatientSuggestions] = useState([])
-
-  // =====================================================
-  // OLD APPOINTMENTS + NEW CONTEXT APPOINTMENTS
-  // =====================================================
-
-  const allAppointments = [
-    ...appointments,
-    ...savedAppointments.filter((saved) => !appointments.some((old) => String(old.id) === String(saved.id))),
-  ]
 
   const [search, setSearch] = useState("")
   const [doctorFilter, setDoctorFilter] = useState("All Doctors")
@@ -182,7 +163,6 @@ function Appointments() {
     if (!selectedHospital) {
       setAppointments([])
       setLoadError("")
-      setOfflineMode(false)
       return undefined
     }
 
@@ -196,13 +176,10 @@ function Appointments() {
         const data = await api.appointments.list(selectedHospital.id)
         if (cancelled) return
         setAppointments(toList(data).map(mapAppointmentFromApi))
-        setOfflineMode(false)
       } catch (error) {
         if (cancelled) return
-        // Fall back to locally saved appointments so the page keeps working.
-        setAppointments(getHospitalAppointments(selectedHospital.id))
-        setOfflineMode(true)
-        setLoadError(error.message || "Unable to reach the server. Showing locally saved appointments.")
+        setAppointments([])
+        setLoadError(error.message || "Unable to reach the server. Appointments could not be loaded.")
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -213,7 +190,6 @@ function Appointments() {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedHospital, reloadToken])
 
   // Load this hospital's doctors for the selector and filter.
@@ -268,7 +244,7 @@ function Appointments() {
   // =========================
 
   const hospitalAppointments = selectedHospital
-    ? allAppointments.filter((appointment) => String(appointment.hospitalId) === String(selectedHospital.id))
+    ? appointments.filter((appointment) => String(appointment.hospitalId) === String(selectedHospital.id))
     : []
 
   // Doctor choices: the hospital's registered doctors, plus any name already on
@@ -382,22 +358,6 @@ function Appointments() {
     }
     setFormError("")
 
-    // Local (offline) appointment — keeps the original client-side
-    // id + token behaviour when the backend is unreachable.
-    const localAppointment = {
-      id: `A${String(allAppointments.length + 1).padStart(3, "0")}`,
-      patient: formData.patient,
-      village: formData.village,
-      contact: formData.contact,
-      doctor: formData.doctor,
-      date: formatDate(formData.date),
-      time: formatTime(formData.time),
-      reason: formData.reason,
-      status: "Confirmed",
-      tokenNumber: `T-${String(allAppointments.length + 1).padStart(3, "0")}`,
-      hospitalId: selectedHospital.id,
-    }
-
     setSaving(true)
 
     try {
@@ -411,34 +371,17 @@ function Appointments() {
         appointment_date: formData.date,
         appointment_time: formData.time,
         reason: formData.reason,
-        status: "Confirmed",
         village: formData.village,
         contact: formData.contact,
       })
 
-      const mapped = mapAppointmentFromApi(created)
-
-      // Keep the API row + the local context copy in sync.
-      // Same id => the de-duplicated merge shows a single row.
-      setAppointments((prev) => [mapped, ...prev])
-      addAppointment({ ...mapped, tokenNumber: localAppointment.tokenNumber })
-
-      setOfflineMode(false)
+      setAppointments((prev) => [mapAppointmentFromApi(created), ...prev])
       setSuccessMessage("Appointment booked.")
       resetForm()
     } catch (error) {
-      // A timeout is not "offline": the server may already have applied it.
-      if (!error.isNetworkError || error.isTimeout) {
-        // The server (or the doctor check) refused: nothing was booked.
-        setFormError(error.message)
-        return
-      }
-      // Server unreachable: degrade to the original local behaviour.
-      setOfflineMode(true)
-      setAppointments((prev) => [...prev, localAppointment])
-      addAppointment(localAppointment)
-      setSuccessMessage("Saved on this device only. The server could not be reached.")
-      resetForm()
+      // Refused, unreachable or timed out: nothing is saved in the browser.
+      setFormError(notSavedMessage(error))
+      if (error.isTimeout) setReloadToken((t) => t + 1)
     } finally {
       setSaving(false)
     }
@@ -448,29 +391,15 @@ function Appointments() {
   // Delete Appointment
   // =========================
 
+  // The row leaves the list only after the server has deleted it.
   const handleDelete = async (appointment) => {
-    // Remove locally first (original behaviour).
-    setAppointments((prev) => prev.filter((item) => String(item.id) !== String(appointment.id)))
-    deleteAppointment(appointment.id)
-
-    // Local-only rows (or offline mode) cannot be deleted from the server.
-    if (appointment.apiId === undefined || offlineMode) {
-      setSuccessMessage("Appointment removed from this device.")
-      return
-    }
-
     try {
       await api.appointments.delete(appointment.apiId)
+      setAppointments((prev) => prev.filter((item) => String(item.id) !== String(appointment.id)))
       setSuccessMessage("Appointment deleted.")
     } catch (error) {
-      // A timeout is not "offline": the server may already have applied it.
-      if (!error.isNetworkError || error.isTimeout) {
-        setLoadError(`Not deleted on the server: ${error.message}`)
-        setReloadToken((t) => t + 1)
-        return
-      }
-      setOfflineMode(true)
-      setSuccessMessage("Removed on this device. The server could not be reached.")
+      setLoadError(`Not deleted: ${error.message}`)
+      setReloadToken((t) => t + 1)
     }
   }
 
@@ -478,29 +407,17 @@ function Appointments() {
   // Cancel Appointment
   // =========================
 
+  // The status changes only after the server has cancelled it.
   const handleCancel = async (appointment) => {
-    setAppointments((prev) =>
-      prev.map((item) => (String(item.id) === String(appointment.id) ? { ...item, status: "Cancelled" } : item)),
-    )
-    cancelAppointment(appointment.id)
-
-    if (appointment.apiId === undefined || offlineMode) {
-      setSuccessMessage("Appointment cancelled on this device.")
-      return
-    }
-
     try {
       await api.appointments.patch(appointment.apiId, { status: "Cancelled" })
+      setAppointments((prev) =>
+        prev.map((item) => (String(item.id) === String(appointment.id) ? { ...item, status: "Cancelled" } : item)),
+      )
       setSuccessMessage("Appointment cancelled.")
     } catch (error) {
-      // A timeout is not "offline": the server may already have applied it.
-      if (!error.isNetworkError || error.isTimeout) {
-        setLoadError(`Not cancelled on the server: ${error.message}`)
-        setReloadToken((t) => t + 1)
-        return
-      }
-      setOfflineMode(true)
-      setSuccessMessage("Cancelled on this device. The server could not be reached.")
+      setLoadError(`Not cancelled: ${error.message}`)
+      setReloadToken((t) => t + 1)
     }
   }
 
@@ -562,15 +479,6 @@ function Appointments() {
     setFormError("")
 
     const target = selectedAppointment
-    const localChanges = {
-      patient: formData.patient,
-      village: formData.village,
-      contact: formData.contact,
-      doctor: formData.doctor,
-      date: formatDate(formData.date),
-      time: formatTime(formData.time),
-      reason: formData.reason,
-    }
 
     setSaving(true)
 
@@ -594,25 +502,11 @@ function Appointments() {
       setAppointments((prev) =>
         prev.map((appointment) => (String(appointment.id) === String(target.id) ? { ...appointment, ...mapped } : appointment)),
       )
-      updateAppointment(target.id, localChanges)
-
-      setOfflineMode(false)
       setSuccessMessage("Appointment updated.")
       resetForm()
     } catch (error) {
-      // A timeout is not "offline": the server may already have applied it.
-      if (!error.isNetworkError || error.isTimeout) {
-        setFormError(error.message)
-        return
-      }
-      // Server unreachable: degrade to the original local behaviour.
-      setOfflineMode(true)
-      setAppointments((prev) =>
-        prev.map((appointment) => (String(appointment.id) === String(target.id) ? { ...appointment, ...localChanges } : appointment)),
-      )
-      updateAppointment(target.id, localChanges)
-      setSuccessMessage("Saved on this device only. The server could not be reached.")
-      resetForm()
+      setFormError(notSavedMessage(error))
+      if (error.isTimeout) setReloadToken((t) => t + 1)
     } finally {
       setSaving(false)
     }
@@ -629,7 +523,7 @@ function Appointments() {
     setShowForm(false)
   }
 
-  const canChange = (a) => a.status !== "Cancelled" && a.status !== "Completed"
+  const canChange = (a) => !CLOSED_STATUSES.includes(a.status)
 
   const statusTabs = [
     { id: "All Status", label: "All", count: baseFiltered.length },
@@ -650,14 +544,8 @@ function Appointments() {
       />
 
       {successMessage && (
-        <Alert tone={offlineMode ? "warning" : "success"} onDismiss={() => setSuccessMessage("")}>
+        <Alert tone="success" onDismiss={() => setSuccessMessage("")}>
           {successMessage}
-        </Alert>
-      )}
-
-      {offlineMode && (
-        <Alert tone="warning" title="Working offline">
-          Showing appointments saved on this device. Changes stay here until the server is reachable again.
         </Alert>
       )}
 
