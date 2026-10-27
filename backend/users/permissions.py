@@ -346,6 +346,8 @@ IsReceptionistReadOnly = read_only(IsReceptionist)
 IsCompounderReadOnly = read_only(IsCompounder)
 # A Hospital Manager oversees clinical work without changing it.
 IsHospitalManagerReadOnly = read_only(IsHospitalManager)
+# Billing Staff look patients up to bill them; they never change the record.
+IsBillingStaffReadOnly = read_only(IsBillingStaff)
 
 
 # Object-level permissions
