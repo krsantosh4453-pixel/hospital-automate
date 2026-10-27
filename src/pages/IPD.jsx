@@ -5,6 +5,7 @@ import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api"
 import { useToast } from "../components/Toast.jsx"
 import AddBedDialog from "../components/ipd/AddBedDialog.jsx"
+import BedsTable from "../components/ipd/BedsTable.jsx"
 import {
   Alert,
   Badge,
@@ -48,6 +49,8 @@ function IPD() {
   const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [busy, setBusy] = useState("")
+  // Bumped after IPD data reloads so the All beds tab reloads too.
+  const [bedsVersion, setBedsVersion] = useState(0)
 
   const [dialog, setDialog] = useState(null) // "admission" | "bed" | "add-bed" | "plan" | "summary"
   const [selectedAdmission, setSelectedAdmission] = useState(null)
@@ -278,11 +281,16 @@ function IPD() {
             tabs={[
               { id: "admissions", label: "Admissions", icon: UserRoundCheck, count: admissions.length },
               { id: "beds", label: "Available beds", icon: BedSingle, count: availableBeds.length },
+              { id: "all-beds", label: "All beds", icon: BedDouble },
               { id: "discharges", label: "Discharges", icon: ClipboardCheck, count: discharging.length },
             ]}
           />
 
-          {loading ? (
+          {activeTab === "all-beds" ? (
+            <Card className="overflow-hidden">
+              <BedsTable hospitalId={selectedHospital?.id} canManage={canManageBeds} refreshKey={bedsVersion} onChanged={fetchData} />
+            </Card>
+          ) : loading ? (
             <Card><SkeletonRows rows={5} /></Card>
           ) : activeTab === "admissions" ? (
             <Card className="overflow-hidden">
@@ -444,7 +452,8 @@ function IPD() {
         hospitalId={selectedHospital?.id}
         onAdded={(bed) => {
           toast.success(bed.status === "Available" ? `Bed ${bed.bed_number} added` : `Bed ${bed.bed_number} added as ${bed.status}`)
-          setActiveTab("beds")
+          setActiveTab("all-beds")
+          setBedsVersion((v) => v + 1)
           fetchData()
         }}
       />

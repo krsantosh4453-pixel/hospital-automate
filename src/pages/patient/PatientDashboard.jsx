@@ -4,6 +4,7 @@ import { CalendarDays, ChevronRight, FileText, FlaskConical, History, Pill, Rece
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
 import { Alert, Card, CardHeader, EmptyState, SkeletonRows, StatTile, StatusBadge } from "../../components/ui"
+import { UPCOMING_STATUSES } from "../../config/appointmentStatus.js"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 const CURRENT_RX = ["Confirmed", "Pending"]
@@ -33,12 +34,12 @@ function PatientDashboard() {
 
       setAppointments(
         patientAppointments
-          .filter((a) => a.status === "Scheduled" || a.status === "Confirmed")
+          .filter((a) => UPCOMING_STATUSES.includes(a.status))
           .sort((a, b) => `${a.appointment_date} ${a.appointment_time}`.localeCompare(`${b.appointment_date} ${b.appointment_time}`))
           .slice(0, 5),
       )
       setStats({
-        upcomingAppointments: appts.status === "fulfilled" ? patientAppointments.filter((a) => a.status === "Scheduled" || a.status === "Confirmed").length : null,
+        upcomingAppointments: appts.status === "fulfilled" ? patientAppointments.filter((a) => UPCOMING_STATUSES.includes(a.status)).length : null,
         pastAppointments: appts.status === "fulfilled" ? patientAppointments.filter((a) => a.status === "Completed").length : null,
         currentPrescriptions: rx.status === "fulfilled" ? prescriptions.filter((p) => CURRENT_RX.includes(p.status)).length : null,
         unpaidBills: bills.status === "fulfilled" ? invoices.filter((b) => b.status === "Unpaid" || b.status === "Partial").length : null,

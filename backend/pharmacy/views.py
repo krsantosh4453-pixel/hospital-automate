@@ -204,3 +204,9 @@ class SaleViewSet(HospitalScopedViewSet):
         )
         record_audit(self.request, "pharmacy.sale.create", sale, hospital=hospital.pk,
                      details={"medicine": medicine.pk, "quantity": quantity})
+        # A sale against a prescription means it has been dispensed. Items are
+        # free text, so the first sale marks the whole prescription.
+        if prescription is not None and prescription.dispensed_at is None:
+            type(prescription).objects.filter(pk=prescription.pk, dispensed_at__isnull=True).update(
+                status="Dispensed", dispensed_at=timezone.now()
+            )

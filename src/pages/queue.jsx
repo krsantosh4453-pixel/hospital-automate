@@ -27,12 +27,21 @@ const CALLED_STATUSES = ["Called", "Acknowledged", "Ready"]
 const CORE_TABS = ["Waiting", "Called", "In Consultation", "Completed"]
 const isCalled = (status) => CALLED_STATUSES.includes(status)
 
-// Per-row actions, as the server allows them (encounters/views.py).
-// appointment: the appointment status set once the token change is saved.
+// The "Waiting" column: minutes while waiting, "Now" once called, and a dash
+// after the patient has gone in or left the queue.
+const waitingLabel = (status, minutes) => {
+  if (status === "Waiting") return `${minutes ?? 0} min`
+  if (isCalled(status)) return "Now"
+  if (status === "In Consultation") return "With doctor"
+  return "—"
+}
+
+// Per-row actions, as the server allows them (encounters/views.py). The
+// server also moves the token's appointment to the matching status.
 const ROW_ACTIONS = {
   call: { apiCall: (id) => api.queue.call(id), done: "called", fail: "Failed to call this patient." },
-  start: { apiCall: (id) => api.queue.startConsultation(id), appointment: "In Consultation", done: "sent in to the doctor", fail: "Failed to start the consultation." },
-  complete: { apiCall: (id) => api.queue.complete(id), appointment: "Completed", done: "completed", fail: "Failed to complete this patient." },
+  start: { apiCall: (id) => api.queue.startConsultation(id), done: "sent in to the doctor", fail: "Failed to start the consultation." },
+  complete: { apiCall: (id) => api.queue.complete(id), done: "completed", fail: "Failed to complete this patient." },
   skip: { apiCall: (id) => api.queue.skip(id), done: "skipped", fail: "Failed to skip this patient." },
   noShow: { apiCall: (id) => api.queue.noShow(id), done: "marked as no-show", fail: "Failed to mark as no-show." },
   requeue: { apiCall: (id) => api.queue.requeue(id), done: "put back in the queue", fail: "Failed to put the token back in the queue." },
@@ -71,7 +80,7 @@ function Queue() {
     doctor: record.doctor_name || "",
     department: record.department || "General",
     type: record.visit_type || "OPD",
-    waiting: String(record.status || "").toLowerCase() === "waiting" ? `${record.waiting_minutes ?? 0} min` : "Now",
+    waiting: waitingLabel(record.status || "Waiting", record.waiting_minutes),
     status: record.status || "Waiting",
     hospitalId: record.hospital,
     appointmentApiId: record.appointment,
@@ -133,8 +142,7 @@ function Queue() {
     (appointment) =>
       appointment.apiId &&
       String(appointment.hospitalId) === String(selectedHospital?.id) &&
-      appointment.status !== "Cancelled" &&
-      appointment.status !== "Completed" &&
+      appointment.status === "Scheduled" &&
       !queue.some((item) => String(item.appointmentApiId) === String(appointment.apiId)),
   )
 
@@ -199,21 +207,6 @@ function Queue() {
   const nextWaiting = hospitalQueue.find((item) => item.status === "Waiting")
 
   // =====================================
-  // UPDATE APPOINTMENT STATUS
-  // =====================================
-
-  // Called only after the queue token itself was saved. The QueueToken is the
-  // source of truth for this page; a failed appointment update is reported.
-  const updateRelatedAppointment = async (queueItem, status) => {
-    if (!queueItem.appointmentApiId) return
-    try {
-      await api.appointments.patch(queueItem.appointmentApiId, { status })
-    } catch (error) {
-      setActionError(`Token updated, but the appointment status was not: ${error.message}`)
-    }
-  }
-
-  // =====================================
   // CALL NEXT PATIENT
   // =====================================
 
@@ -254,7 +247,6 @@ function Queue() {
     try {
       await config.apiCall(selectedQueuePatient.apiId)
       setSuccessMessage(`Token #${token} ${config.done}.`)
-      if (config.appointment) await updateRelatedAppointment(selectedQueuePatient, config.appointment)
     } catch (error) {
       setActionError(`Not changed: ${error.message || config.fail}`)
     } finally {

@@ -139,19 +139,40 @@ class RoomSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
+def bed_in_use(bed):
+    """True while an admission holds the bed (an active BedAllocation)."""
+    return bed is not None and bed.allocations.filter(is_active=True).exists()
+
+
 class BedSerializer(serializers.ModelSerializer):
     status = serializers.ChoiceField(choices=BED_STATUSES, required=False)
+    ward = serializers.IntegerField(source="room.ward_id", read_only=True)
+    ward_name = serializers.CharField(source="room.ward.name", read_only=True)
+    room_number = serializers.CharField(source="room.room_number", read_only=True)
+    current_patient = serializers.SerializerMethodField()
+
+    def get_current_patient(self, bed):
+        if hasattr(bed, "current_patient_name"):  # annotated by BedViewSet
+            return bed.current_patient_name
+        active = bed.allocations.filter(is_active=True).select_related("admission__patient").first()
+        return active.admission.patient.name if active else None
 
     def validate_bed_number(self, value):
         return _clean_name(value, "Bed number")
 
     def validate_status(self, value):
-        if self.instance is None and value == "Occupied":
-            raise serializers.ValidationError("A new bed cannot start as Occupied; allocate it to an admission.")
+        # Occupied is set and cleared only by allocating / releasing the bed.
+        in_use = bed_in_use(self.instance)
+        if value == "Occupied" and not in_use:
+            raise serializers.ValidationError("Occupied is set by allocating the bed to an admission.")
+        if in_use and value != "Occupied":
+            raise serializers.ValidationError("This bed is in use. Release it from the admission first.")
         return value
 
     def validate(self, attrs):
         room = attrs.get("room", getattr(self.instance, "room", None))
+        if "room" in attrs and self.instance is not None and room != self.instance.room and bed_in_use(self.instance):
+            raise serializers.ValidationError({"room": "This bed is in use. Release it before moving it to another room."})
         number = attrs.get("bed_number", getattr(self.instance, "bed_number", ""))
         _refuse_duplicate(Bed, "bed_number", number, self.instance, "Bed", room=room)
         return attrs
@@ -164,5 +185,9 @@ class BedSerializer(serializers.ModelSerializer):
             "bed_number",
             "bed_type",
             "status",
+            "ward",
+            "ward_name",
+            "room_number",
+            "current_patient",
         ]
         read_only_fields = ["id"]

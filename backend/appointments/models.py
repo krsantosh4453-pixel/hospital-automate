@@ -2,6 +2,16 @@ from django.db import models
 
 
 class Appointment(models.Model):
+    class Status(models.TextChoices):
+        # Scheduled until a queue token is issued; the server then keeps it in
+        # step with the token (encounters/services/appointment_status.py).
+        SCHEDULED = "Scheduled", "Scheduled"
+        CHECKED_IN = "Checked In", "Checked In"
+        IN_CONSULTATION = "In Consultation", "In Consultation"
+        COMPLETED = "Completed", "Completed"
+        CANCELLED = "Cancelled", "Cancelled"
+        NO_SHOW = "No Show", "No Show"
+
     hospital = models.ForeignKey(
         "hospital.Hospital",
         on_delete=models.CASCADE,
@@ -30,7 +40,8 @@ class Appointment(models.Model):
 
     status = models.CharField(
         max_length=20,
-        default="Scheduled",
+        choices=Status.choices,
+        default=Status.SCHEDULED,
         db_index=True
     )
 

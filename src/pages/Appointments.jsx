@@ -26,6 +26,7 @@ import {
   Textarea,
   Toolbar,
 } from "../components/ui"
+import { APPOINTMENT_STATUSES, CLOSED_STATUSES } from "../config/appointmentStatus.js"
 
 // =====================================================
 // Helpers — keep the existing (flat, display-oriented) UI
@@ -34,16 +35,9 @@ import {
 
 const two = (value) => String(value).padStart(2, "0")
 
-// Statuses the UI already knows about.
-const APPOINTMENT_STATUSES = ["Confirmed", "Waiting", "Completed", "Cancelled"]
 
-// Django stores status as free text (default "Scheduled").
-// Normalise it to a value the existing pills understand.
-const normaliseStatus = (status) => {
-  if (!status) return "Confirmed"
-  const match = APPOINTMENT_STATUSES.find((item) => item.toLowerCase() === String(status).toLowerCase())
-  return match || "Confirmed"
-}
+const normaliseStatus = (status) =>
+  APPOINTMENT_STATUSES.find((item) => item.toLowerCase() === String(status || "").toLowerCase()) || "Scheduled"
 
 // "2026-09-01" -> "01 Sep 2026" (what the table renders).
 const formatDate = (value) => {
@@ -377,7 +371,6 @@ function Appointments() {
         appointment_date: formData.date,
         appointment_time: formData.time,
         reason: formData.reason,
-        status: "Confirmed",
         village: formData.village,
         contact: formData.contact,
       })
@@ -530,7 +523,7 @@ function Appointments() {
     setShowForm(false)
   }
 
-  const canChange = (a) => a.status !== "Cancelled" && a.status !== "Completed"
+  const canChange = (a) => !CLOSED_STATUSES.includes(a.status)
 
   const statusTabs = [
     { id: "All Status", label: "All", count: baseFiltered.length },

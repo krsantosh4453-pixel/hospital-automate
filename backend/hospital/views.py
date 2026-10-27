@@ -1,8 +1,9 @@
 from django.db import models
+from django.db.models import OuterRef, Subquery
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 
 from audit.services import record_audit
@@ -138,7 +139,22 @@ class BedViewSet(_OrgStructureViewSet):
     serializer_class = BedSerializer
 
     def get_queryset(self):
-        return self._filter_by_param(super().get_queryset(), "room")
+        from ipd.models import BedAllocation  # ipd depends on hospital
+
+        current = BedAllocation.objects.filter(bed=OuterRef("pk"), is_active=True).order_by("-allocated_at")
+        queryset = super().get_queryset().annotate(
+            current_patient_name=Subquery(current.values("admission__patient__name")[:1])
+        )
+        return self._filter_by_param(queryset, "room")
+
+    def perform_destroy(self, instance):
+        self._require_manager_of(self.get_object_hospital_id(instance))
+        # Deleting would also delete the admissions' bed history.
+        if instance.allocations.exists():
+            raise ValidationError(
+                {"detail": "This bed has admission history and cannot be deleted. Set it to Maintenance instead."}
+            )
+        super().perform_destroy(instance)
 
 
 class HospitalDirectoryView(APIView):
