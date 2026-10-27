@@ -60,8 +60,9 @@ function Queue() {
   const [statusFilter, setStatusFilter] = useState("All Status")
   const [search, setSearch] = useState("")
 
-  // API state (loading / error / retry / feedback)
-  const [loading, setLoading] = useState(false)
+  // API state (loading / error / retry / feedback). Starts loading so no
+  // action runs against the empty lists before the first fetch returns.
+  const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
   const [actionError, setActionError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
@@ -288,6 +289,7 @@ function Queue() {
               icon={Ticket}
               onClick={generateToken}
               loading={busy === "generate"}
+              disabled={loading}
               title={issueableAppointments.length ? `${issueableAppointments.length} booked appointment(s) without a token` : "No booked appointment is waiting for a token"}
             >
               Issue token{issueableAppointments.length ? ` (${issueableAppointments.length})` : ""}
