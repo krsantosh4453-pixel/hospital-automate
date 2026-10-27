@@ -25,6 +25,7 @@ from users.care_scope import doctor_hospital_ids, limit_queue_to_department
 from users.permissions import get_user_hospital_ids
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsHospitalManager, IsReceptionist, IsDoctor, IsNurse, IsPatientReadOnly
+from config.hospital_time import hospital_today
 
 
 logger = logging.getLogger(__name__)
@@ -441,8 +442,7 @@ class QueueTokenViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        from django.utils import timezone
-        token_date = token_date or timezone.localdate()
+        token_date = token_date or hospital_today()
 
         waiting_statuses = [
             QueueToken.Status.WAITING,

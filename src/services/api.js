@@ -1668,25 +1668,6 @@ api.users = {
   // data: { role?, is_active?, department? }
   updateMembership: async (userId, data) =>
     request(`${API_BASE_URL}/users/${userId}/membership/`, { method: "PATCH", ...jsonBody(data) }),
-  // data: { name, phone, email?, role, department? } -> staff row + invite_url when a password is still to be set
-  invite: async (data) =>
-    request(`${API_BASE_URL}/users/invite/`, { method: "POST", ...jsonBody(data) }),
-  resendInvite: async (userId) =>
-    request(`${API_BASE_URL}/users/${userId}/invite/`, { method: "POST" }),
-}
-
-// Public invitation link: who it is for (GET) and setting the first password (POST).
-api.staffInvite = {
-  get: async (uid, token) => request(`${API_BASE_URL}/auth/staff/invite/${uid}/${token}/`),
-  accept: async (uid, token, data) =>
-    request(`${API_BASE_URL}/auth/staff/invite/${uid}/${token}/`, { method: "POST", ...jsonBody(data) }),
-}
-
-// A ward with its rooms and numbered beds in one step (hospital setup).
-// data: { name, ward_type, rooms: [{ room_number, beds, bed_type }] }
-api.wardSetup = {
-  create: async (hospitalId, data) =>
-    request(`${API_BASE_URL}/hospital/wards/with-beds/?hospital=${encodeURIComponent(hospitalId)}`, { method: "POST", ...jsonBody({ ...data, hospital: hospitalId }) }),
 }
 
 // Departments / clinics of a hospital (Admin or Manager write).

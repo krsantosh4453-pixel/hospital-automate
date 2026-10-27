@@ -14,6 +14,7 @@ from .models import Medicine, Sale
 from .serializers import MedicineSerializer, SaleSerializer
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsCompounder, IsHospitalManager, IsInventoryStaff, IsPharmacist
+from config.hospital_time import hospital_today
 
 
 class MedicineViewSet(HospitalScopedViewSet):
@@ -151,7 +152,7 @@ class SaleViewSet(HospitalScopedViewSet):
                 }
             )
 
-        if medicine.expiry_date and medicine.expiry_date < timezone.localdate():
+        if medicine.expiry_date and medicine.expiry_date < hospital_today():
             raise serializers.ValidationError(
                 {"medicine": f"This batch expired on {medicine.expiry_date}; it cannot be dispensed."}
             )

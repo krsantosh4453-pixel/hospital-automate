@@ -3,8 +3,9 @@
 from datetime import time
 
 from django.test import TestCase
-from django.utils import timezone
 from rest_framework.test import APIClient
+
+from config.hospital_time import hospital_today
 
 from appointments.models import Appointment
 from doctors.models import Doctor
@@ -55,7 +56,7 @@ class DoctorHomeStatsTests(TestCase):
                                        specialization="General", phone="9000000901")
         colleague = Doctor.objects.create(hospital=self.hospital, user=colleague_user, name="Dr Else",
                                           specialization="General", phone="9000000902")
-        today = timezone.localdate()
+        today = hospital_today()  # the dashboard counts the hospital's day
         for name, phone, who in (("Synthetic Own", "9000000903", doctor), ("Synthetic Else", "9000000904", colleague)):
             patient = Patient.objects.create(name=name, age=40, gender="Male", phone=phone, hospital=self.hospital)
             Appointment.objects.create(hospital=self.hospital, patient=patient, doctor=who,
