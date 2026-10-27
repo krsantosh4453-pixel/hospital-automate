@@ -58,7 +58,7 @@ function DevLoginPanel({ role: chosenRole, onRoleChange, defaultRole = "Admin", 
   }
 
   return (
-    <section className="mb-5 rounded-2xl border border-amber-300 bg-amber-50/95 p-5 shadow-sm" aria-labelledby="dev-login-title">
+    <section className="hms-surface-dark mb-5 rounded-2xl border border-line p-5 shadow-sm" aria-labelledby="dev-login-title">
       <p id="dev-login-title" className="flex items-center gap-2 text-sm font-semibold text-amber-900">
         <FlaskConical size={16} aria-hidden="true" /> Development sign-in (temporary)
       </p>

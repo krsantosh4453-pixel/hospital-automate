@@ -343,7 +343,7 @@ function PatientLogin() {
         <DevLoginPanel role={selectedRole} onRoleChange={setSelectedRole} afterPatientLogin={afterPatientLogin} />
 
         {/* Main Card */}
-        <div className="rounded-2xl border border-line bg-white/95 p-6 shadow-xl shadow-ink-900/5 backdrop-blur-sm sm:p-8">
+        <div className="hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8">
 
           {/* Mode Switcher Tabs */}
           <div className="mb-6 flex rounded-lg bg-ink-100 p-0.5" role="tablist" aria-label="Sign-in method">
