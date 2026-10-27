@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from audit.services import record_audit
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import IsDoctor, IsNurse
+from users.permissions import IsDoctor, IsHospitalManagerReadOnly, IsNurse
 from .models import (
     Admission,
     BedAllocation,
@@ -32,7 +32,7 @@ from .serializers import (
 class AdmissionViewSet(HospitalScopedViewSet):
     queryset = Admission.objects.select_related("hospital", "patient", "admitting_doctor").prefetch_related("bed_allocations__bed__room__ward")
     serializer_class = AdmissionSerializer
-    permission_classes = [IsDoctor | IsNurse]
+    permission_classes = [IsDoctor | IsNurse | IsHospitalManagerReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -254,7 +254,7 @@ class AdmissionViewSet(HospitalScopedViewSet):
 class BedAllocationViewSet(HospitalScopedViewSet):
     queryset = BedAllocation.objects.select_related("admission__hospital", "admission__patient", "bed__room__ward")
     serializer_class = BedAllocationSerializer
-    permission_classes = [IsNurse | IsDoctor]
+    permission_classes = [IsNurse | IsDoctor | IsHospitalManagerReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -295,7 +295,7 @@ class BedAllocationViewSet(HospitalScopedViewSet):
 class DischargePlanViewSet(HospitalScopedViewSet):
     queryset = DischargePlan.objects.select_related("admission__hospital", "admission__patient", "created_by")
     serializer_class = DischargePlanSerializer
-    permission_classes = [IsDoctor | IsNurse]
+    permission_classes = [IsDoctor | IsNurse | IsHospitalManagerReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -311,7 +311,7 @@ class DischargeSummaryViewSet(HospitalScopedViewSet):
 
     queryset = DischargeSummary.objects.select_related("admission__hospital", "admission__patient", "authorized_doctor")
     serializer_class = DischargeSummarySerializer
-    permission_classes = [IsDoctor]
+    permission_classes = [IsDoctor | IsHospitalManagerReadOnly]
 
     def perform_update(self, serializer):
         if serializer.instance.finalized:
@@ -349,7 +349,7 @@ class DischargeSummaryViewSet(HospitalScopedViewSet):
 class DischargeNoteViewSet(HospitalScopedViewSet):
     queryset = DischargeNote.objects.select_related("admission__hospital", "admission__patient", "created_by")
     serializer_class = DischargeNoteSerializer
-    permission_classes = [IsDoctor | IsNurse]
+    permission_classes = [IsDoctor | IsNurse | IsHospitalManagerReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()

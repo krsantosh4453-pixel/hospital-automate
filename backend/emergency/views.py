@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import IsDoctor, IsNurse
+from users.permissions import IsDoctor, IsHospitalManagerReadOnly, IsNurse
 from rest_framework.exceptions import ValidationError
 from doctors.models import Doctor
 from nurses.models import Nurse
@@ -50,7 +50,7 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
         "triage", "vitals_records", "orders", "medications"
     )
     serializer_class = EmergencyVisitSerializer
-    permission_classes = [IsDoctor | IsNurse]
+    permission_classes = [IsDoctor | IsNurse | IsHospitalManagerReadOnly]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -349,7 +349,7 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
 class EmergencyTriageViewSet(HospitalScopedViewSet):
     queryset = EmergencyTriage.objects.select_related("visit__hospital", "visit__patient", "triaged_by")
     serializer_class = EmergencyTriageSerializer
-    permission_classes = [IsNurse | IsDoctor]
+    permission_classes = [IsNurse | IsDoctor | IsHospitalManagerReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -362,7 +362,7 @@ class EmergencyTriageViewSet(HospitalScopedViewSet):
 class EmergencyVitalsViewSet(HospitalScopedViewSet):
     queryset = EmergencyVitals.objects.select_related("visit__hospital", "visit__patient", "recorded_by")
     serializer_class = EmergencyVitalsSerializer
-    permission_classes = [IsNurse | IsDoctor]
+    permission_classes = [IsNurse | IsDoctor | IsHospitalManagerReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -378,7 +378,7 @@ class EmergencyVitalsViewSet(HospitalScopedViewSet):
 class EmergencyOrderViewSet(HospitalScopedViewSet):
     queryset = EmergencyOrder.objects.select_related("visit__hospital", "visit__patient", "ordered_by")
     serializer_class = EmergencyOrderSerializer
-    permission_classes = [IsDoctor | IsNurse]
+    permission_classes = [IsDoctor | IsNurse | IsHospitalManagerReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -403,7 +403,7 @@ class EmergencyOrderViewSet(HospitalScopedViewSet):
 class EmergencyMedicationViewSet(HospitalScopedViewSet):
     queryset = EmergencyMedication.objects.select_related("visit__hospital", "visit__patient", "prescribed_by", "administered_by")
     serializer_class = EmergencyMedicationSerializer
-    permission_classes = [IsDoctor | IsNurse]
+    permission_classes = [IsDoctor | IsNurse | IsHospitalManagerReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()

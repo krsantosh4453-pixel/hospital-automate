@@ -40,7 +40,9 @@ class SeedDemoTests(TestCase):
     def test_creates_every_role_without_printing_the_password(self):
         output = self.seed(password=DEMO_PASSWORD)
         self.assertNotIn(DEMO_PASSWORD, output)
-        for username in ("demo.admin", "demo.doctor1", "demo.doctor2", "demo.nurse", "demo.desk", "demo.desk.main"):
+        for username in ("demo.admin", "demo.doctor1", "demo.doctor2", "demo.nurse", "demo.desk", "demo.desk.main",
+                         "demo.manager", "demo.pharmacist", "demo.compounder", "demo.lab", "demo.bloodbank",
+                         "demo.billing", "demo.inventory"):
             self.assertTrue(User.objects.get(username=username).check_password(DEMO_PASSWORD), username)
         self.assertTrue(Patient.objects.get(user__username="demo.patient").email_verified)
 

@@ -327,6 +327,27 @@ class IsAdminOrManager(RoleBasedPermission):
     required_roles = [StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER]
 
 
+def read_only(permission_class):
+    """``permission_class`` granted for reading (safe methods) only."""
+
+    class ReadOnly(permission_class):
+        def has_permission(self, request, view):
+            return request.method in permissions.SAFE_METHODS and super().has_permission(request, view)
+
+        def has_object_permission(self, request, view, obj):
+            return request.method in permissions.SAFE_METHODS and super().has_object_permission(request, view, obj)
+
+    ReadOnly.__name__ = ReadOnly.__qualname__ = f"{permission_class.__name__}ReadOnly"
+    return ReadOnly
+
+
+IsNurseReadOnly = read_only(IsNurse)
+IsReceptionistReadOnly = read_only(IsReceptionist)
+IsCompounderReadOnly = read_only(IsCompounder)
+# A Hospital Manager oversees clinical work without changing it.
+IsHospitalManagerReadOnly = read_only(IsHospitalManager)
+
+
 # Object-level permissions
 
 class IsOwnerOrHospitalAdmin(permissions.BasePermission):

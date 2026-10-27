@@ -13,13 +13,14 @@ from hospital.models import Hospital
 from .models import Medicine, Sale
 from .serializers import MedicineSerializer, SaleSerializer
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import IsAdmin, IsHospitalManager, IsPharmacist
+from users.permissions import IsAdmin, IsCompounder, IsHospitalManager, IsInventoryStaff, IsPharmacist
 
 
 class MedicineViewSet(HospitalScopedViewSet):
     queryset = Medicine.objects.select_related("hospital")
     serializer_class = MedicineSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist]
+    # Medicine stock: pharmacy (pharmacist, compounder) and the store.
+    permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist | IsCompounder | IsInventoryStaff]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -95,7 +96,8 @@ class SaleViewSet(HospitalScopedViewSet):
         "prescription",
     )
     serializer_class = SaleSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist]
+    # Dispensing: pharmacist and compounder.
+    permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist | IsCompounder]
     http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):

@@ -74,6 +74,16 @@ export const ROLE_HOMES = {
       { to: "/inventory", icon: Package, label: "Medicine stock", module: "Inventory" },
     ],
   },
+  Pharmacist: {
+    title: "Pharmacy today",
+    tiles: [],
+    actions: [
+      { to: "/pharmacy", icon: Pill, label: "Dispense medicines", module: "Pharmacy" },
+      { to: "/prescription", icon: FileText, label: "Prescriptions", module: "Prescriptions" },
+      { to: "/inventory", icon: Package, label: "Medicine stock", module: "Inventory" },
+      { to: "/compounter", icon: Syringe, label: "Compounding", module: "Compounders" },
+    ],
+  },
   "Lab Staff": {
     title: "Laboratory today",
     tiles: ["labPending", "labUrgent", "labCompleted"],
@@ -99,8 +109,6 @@ export const ROLE_HOMES = {
   },
 }
 
-// The backend's Pharmacist role uses the Compounder screens.
-ROLE_HOMES.Pharmacist = ROLE_HOMES.Compounder
 
 /** Home configuration for a role, or null for the full dashboard. */
 export function roleHomeFor(roleName) {

@@ -19,6 +19,7 @@ from users.permissions import (
     IsReceptionist,
     IsDoctor,
     IsLinkedPatient,
+    IsNurseReadOnly,
     IsPatientReadOnly,
     get_linked_patient,
     parse_hospital_id,
@@ -84,7 +85,7 @@ def _taken_slots(doctor, day):
 class AppointmentViewSet(HospitalScopedViewSet):
     queryset = Appointment.objects.select_related("patient", "doctor", "hospital")
     serializer_class = AppointmentSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsReceptionist | IsDoctor | IsPatientReadOnly]
+    permission_classes = [IsAdmin | IsHospitalManager | IsReceptionist | IsDoctor | IsPatientReadOnly | IsNurseReadOnly]
 
     def get_queryset(self):
         queryset = super().get_queryset()

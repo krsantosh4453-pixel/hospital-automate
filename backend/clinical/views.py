@@ -1,5 +1,3 @@
-from rest_framework import viewsets, permissions
-
 from .models import (
     VitalSign,
     Allergy,
@@ -26,24 +24,15 @@ from .serializers import (
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import (
     IsAdmin,
+    IsCompounderReadOnly,
     IsHospitalManager,
     IsDoctor,
     IsNurse,
+    IsNurseReadOnly,
     IsPharmacist,
     IsPatientReadOnly,
-    IsReceptionist,
+    IsReceptionistReadOnly,
 )
-
-
-class IsReceptionistReadOnly(permissions.BasePermission):
-    """Allow Receptionists read-only access."""
-
-    def has_permission(self, request, view):
-        if request.method not in permissions.SAFE_METHODS:
-            return False
-        from users.permissions import get_user_roles
-        from users.models import StaffRole
-        return StaffRole.RECEPTIONIST in get_user_roles(request.user)
 
 
 class VitalSignViewSet(HospitalScopedViewSet):
@@ -61,7 +50,7 @@ class AllergyViewSet(HospitalScopedViewSet):
 class ClinicalNoteViewSet(HospitalScopedViewSet):
     queryset = ClinicalNote.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital", "doctor")
     serializer_class = ClinicalNoteSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
+    permission_classes = [IsAdmin | IsDoctor]
 
 
 class DiagnosisViewSet(HospitalScopedViewSet):
@@ -98,8 +87,11 @@ class PrescriptionViewSet(HospitalScopedViewSet):
         "patient", "doctor", "hospital", "visit"
     ).prefetch_related("items")
     serializer_class = PrescriptionSerializer
+    # Clinical records: not for the Hospital Manager. Nurses (MAR), the
+    # compounder (dispensing) and the front desk (reports) only read them.
     permission_classes = [
-        IsAdmin | IsHospitalManager | IsDoctor | IsPharmacist | IsPatientReadOnly | IsReceptionistReadOnly
+        IsAdmin | IsDoctor | IsPharmacist | IsPatientReadOnly
+        | IsReceptionistReadOnly | IsNurseReadOnly | IsCompounderReadOnly
     ]
 
     def get_queryset(self):
@@ -127,7 +119,7 @@ class PrescriptionViewSet(HospitalScopedViewSet):
 class PrescriptionItemViewSet(HospitalScopedViewSet):
     queryset = PrescriptionItem.objects.select_related("prescription")
     serializer_class = PrescriptionItemSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsPharmacist]
+    permission_classes = [IsAdmin | IsDoctor | IsPharmacist | IsNurseReadOnly | IsCompounderReadOnly]
 
     def get_queryset(self):
         queryset = super().get_queryset()

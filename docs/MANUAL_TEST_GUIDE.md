@@ -48,6 +48,13 @@ Browser mein kholein: http://localhost:5173
 | `demo.nurse` | Staff sign in | Nurse (aaj Ward A, Morning duty) | Ward A + aaj ki OPD queue |
 | `demo.desk` | Staff sign in | Receptionist, Cardiology | Sirf Cardiology queue |
 | `demo.desk.main` | Staff sign in | Receptionist, koi department nahi | Poori queue |
+| `demo.manager` | Staff sign in | Hospital Manager | Poora dashboard; clinical (patients, lab, IPD, ER) sirf dekhna |
+| `demo.pharmacist` | Staff sign in | Pharmacist | Pharmacy, Prescriptions, Medicine stock, Compounding (dekhna) |
+| `demo.compounder` | Staff sign in | Compounder | Pharmacy, Compounding, Prescriptions (dekhna), Medicine stock |
+| `demo.lab` | Staff sign in | Lab Staff | Sirf Laboratory |
+| `demo.bloodbank` | Staff sign in | Blood Bank Staff | Sirf Blood bank |
+| `demo.billing` | Staff sign in | Billing Staff | Sirf Billing |
+| `demo.inventory` | Staff sign in | Inventory Staff | Sirf Inventory |
 | `demo.patient@example.test` | Patient sign in → **Email** tab | Patient | Apni booking |
 
 Staff logins par mobile number set nahi hai, isliye OTP nahi maanga jaata —
@@ -99,6 +106,17 @@ Demo data:
 - [ ] **Administration → Users**: `demo.desk.main` ka Department
       "Orthopaedics" karein → us login se Queue mein sirf Sunil.
 - [ ] **Doctors** page par kisi doctor ko Edit → "Login email" field dikhe.
+
+### Baaki roles (har ek ka sirf apna kaam)
+- [ ] `demo.manager`: menu mein sab; **Patients** khule lekin naya
+      patient/lab/IPD/ER entry na ho sake; **Prescriptions** menu mein na ho.
+- [ ] `demo.pharmacist` aur `demo.compounder`: **Pharmacy**, **Prescriptions**,
+      **Inventory** khulein bina error ke; Patients aur Queue menu mein na hon.
+- [ ] `demo.lab`: menu mein sirf Laboratory (aur Reports); Blood bank nahi.
+- [ ] `demo.bloodbank`, `demo.billing`, `demo.inventory`: menu mein sirf
+      apna ek module (aur Reports).
+- [ ] Kisi bhi role se doosre ka page URL se kholein (jaise lab login se
+      `/billing`) → "not eligible" message.
 
 ### Galat login
 - [ ] Galat password → "Invalid credentials." message, login nahi.

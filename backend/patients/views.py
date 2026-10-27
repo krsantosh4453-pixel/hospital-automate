@@ -16,6 +16,7 @@ from users.permissions import (
     IsNurse,
     IsAdmin,
     IsHospitalManager,
+    IsHospitalManagerReadOnly,
     IsPatientReadOnly,
     IsLinkedPatient,
     get_linked_patient,
@@ -28,7 +29,7 @@ from users.permissions import (
 class PatientViewSet(HospitalScopedViewSet):
     queryset = Patient.objects.select_related("hospital")
     serializer_class = PatientSerializer
-    permission_classes = [IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsPatientReadOnly]
+    permission_classes = [IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsPatientReadOnly | IsHospitalManagerReadOnly]
 
     def get_permissions(self):
         action_name = getattr(self, "action", None)

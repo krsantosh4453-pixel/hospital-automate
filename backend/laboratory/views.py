@@ -6,7 +6,10 @@ from django.db.models import Q
 from django.utils import timezone
 
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import get_linked_patient, is_active_staff, IsLabStaff, IsDoctor, IsNurse, IsPatientReadOnly
+from users.permissions import (
+    get_linked_patient, is_active_staff, IsDoctor, IsHospitalManagerReadOnly, IsLabStaff, IsNurse,
+    IsPatientReadOnly,
+)
 from .models import (
     LabTest,
     SampleCollection,
@@ -29,7 +32,7 @@ class LabTestViewSet(HospitalScopedViewSet):
         "sample_collection", "sample_dispatch", "lab_result"
     )
     serializer_class = LabTestSerializer
-    permission_classes = [IsLabStaff | IsDoctor | IsNurse | IsPatientReadOnly]
+    permission_classes = [IsLabStaff | IsDoctor | IsNurse | IsPatientReadOnly | IsHospitalManagerReadOnly]
 
     def get_serializer_class(self):
         if self.action == "create":

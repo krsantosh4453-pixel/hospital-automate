@@ -15,13 +15,13 @@ from .serializers import (
     BloodTransactionSerializer,
 )
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import IsAdmin, IsHospitalManager, IsDoctor, IsNurse, IsLabStaff, IsBloodBankStaff
+from users.permissions import IsAdmin, IsHospitalManager, IsDoctor, IsNurse, IsBloodBankStaff
 
 
 class BloodInventoryViewSet(HospitalScopedViewSet):
     queryset = BloodInventory.objects.all()
     serializer_class = BloodInventorySerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse | IsLabStaff | IsBloodBankStaff]
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse | IsBloodBankStaff]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -34,7 +34,7 @@ class BloodInventoryViewSet(HospitalScopedViewSet):
 class BloodRequestViewSet(HospitalScopedViewSet):
     queryset = BloodRequest.objects.all()
     serializer_class = BloodRequestSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse | IsLabStaff | IsBloodBankStaff]
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse | IsBloodBankStaff]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -149,7 +149,7 @@ class BloodRequestViewSet(HospitalScopedViewSet):
 class BloodTransactionViewSet(HospitalScopedViewSet):
     queryset = BloodTransaction.objects.all()
     serializer_class = BloodTransactionSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse | IsLabStaff | IsBloodBankStaff]
+    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse | IsBloodBankStaff]
 
     def get_queryset(self):
         qs = super().get_queryset()

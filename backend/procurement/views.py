@@ -75,6 +75,9 @@ class RequiresHospitalScope(BasePermission):
 
         user_roles = get_user_roles(request.user)
         allowed_roles = {StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER, StaffRole.INVENTORY_STAFF}
+        if not is_write:
+            # The pharmacy reads stock and purchases; only the store changes them.
+            allowed_roles |= {StaffRole.PHARMACIST, StaffRole.COMPOUNDER}
         if not any(role in user_roles for role in allowed_roles):
             return False
 

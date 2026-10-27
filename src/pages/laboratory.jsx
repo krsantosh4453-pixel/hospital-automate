@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import { Eye, FlaskConical, Hospital, Pencil, Plus, RefreshCw, XCircle } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
@@ -26,6 +27,8 @@ import {
 } from "../components/ui"
 
 function Laboratory() {
+  // Doctors order tests; a Hospital Manager only views them.
+  const { canAdd } = useRole()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
   const [promptText, promptDialog] = usePrompt()
@@ -427,7 +430,7 @@ function Laboratory() {
         selectedHospital && (
           <>
             <Button variant="secondary" icon={RefreshCw} onClick={loadTests} disabled={loading}>Refresh</Button>
-            <Button icon={Plus} onClick={openNew}>New lab order</Button>
+            {canAdd("Laboratory") && <Button icon={Plus} onClick={openNew}>New lab order</Button>}
           </>
         )
       }
@@ -484,7 +487,7 @@ function Laboratory() {
               <EmptyState
                 icon={FlaskConical}
                 title={hospitalTests.length ? "No orders match these filters" : "No laboratory orders yet"}
-                action={!hospitalTests.length && <Button icon={Plus} onClick={openNew}>New lab order</Button>}
+                action={!hospitalTests.length && canAdd("Laboratory") && <Button icon={Plus} onClick={openNew}>New lab order</Button>}
               />
             ) : (
               <TableWrap>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { Activity, Ambulance, ClipboardPlus, HeartPulse, LogOut, Pill, Plus, RefreshCw, Send, Stethoscope } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api"
 import { useToast } from "../components/Toast.jsx"
 import {
@@ -58,6 +59,8 @@ function TriageBadge({ level }) {
 }
 
 function Emergency() {
+  // Doctors and nurses register visits; a Hospital Manager only views them.
+  const { canAdd } = useRole()
   const toast = useToast()
   const { selectedHospital } = usePatient()
 
@@ -242,7 +245,7 @@ function Emergency() {
         selectedHospital && (
           <>
             <Button variant="secondary" icon={RefreshCw} onClick={fetchData} disabled={loading}>Refresh</Button>
-            <Button variant="danger" icon={Plus} onClick={() => open("registration")}>New ER visit</Button>
+            {canAdd("Emergency") && <Button variant="danger" icon={Plus} onClick={() => open("registration")}>New ER visit</Button>}
           </>
         )
       }

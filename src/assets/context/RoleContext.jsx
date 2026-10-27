@@ -71,8 +71,12 @@ export const DEFAULT_ROLES = [
       Queue: ["View"],
       Doctors: ["View"],
       Prescriptions: ["View", "Add", "Edit"],
-      Laboratory: ["View"],
+      Laboratory: ["View", "Add"],
       Reports: ["View"],
+      IPD: ["View", "Add", "Edit"],
+      Emergency: ["View", "Add", "Edit"],
+      BloodBank: ["View", "Add"],
+      AIScribe: ["View", "Add", "Edit"],
     },
   },
   {
@@ -88,6 +92,9 @@ export const DEFAULT_ROLES = [
       Prescriptions: ["View"],
       IPD: ["View", "Edit"],
       Reports: ["View"],
+      Laboratory: ["View", "Edit"],
+      Emergency: ["View", "Add", "Edit"],
+      BloodBank: ["View"],
     },
   },
   {
@@ -96,12 +103,11 @@ export const DEFAULT_ROLES = [
     description: "Dispense medicines, manage stock and pharmacy orders",
     permissions: {
       Dashboard: ["View"],
-      Patients: ["View"],
       Compounders: ["View", "Edit"],
-      Prescriptions: ["View", "Edit"],
+      Prescriptions: ["View"],
       Pharmacy: ["View", "Add", "Edit"],
       Inventory: ["View", "Edit"],
-      Queue: ["View"],
+      Reports: ["View"],
     },
   },
   {
@@ -116,7 +122,6 @@ export const DEFAULT_ROLES = [
       Billing: ["View", "Add"],
       Doctors: ["View"],
       Reports: ["View"],
-      IPD: ["View", "Add"],
     },
   },
   {
@@ -126,6 +131,8 @@ export const DEFAULT_ROLES = [
     permissions: {
       Dashboard: ["View"],
       Pharmacy: ["View", "Add", "Edit"],
+      Prescriptions: ["View", "Edit"],
+      Compounders: ["View"],
       Inventory: ["View", "Edit"],
       Reports: ["View"],
     },
@@ -176,18 +183,20 @@ export const DEFAULT_ROLES = [
     description: "Hospital-level administration and oversight",
     permissions: {
       Dashboard: ["View"],
-      Patients: ["View", "Add", "Edit"],
+      Patients: ["View"],
       Appointments: ["View", "Add", "Edit"],
+      Queue: ["View"],
       Doctors: ["View", "Add", "Edit"],
       Nurses: ["View", "Add", "Edit"],
+      Compounders: ["View"],
       Pharmacy: ["View", "Add", "Edit"],
-      Laboratory: ["View", "Add", "Edit"],
+      Laboratory: ["View"],
       Billing: ["View", "Add", "Edit"],
       Inventory: ["View", "Add", "Edit"],
       Reports: ["View", "Add", "Edit"],
-      Emergency: ["View", "Add", "Edit"],
+      Emergency: ["View"],
       BloodBank: ["View", "Add", "Edit"],
-      IPD: ["View", "Add", "Edit"],
+      IPD: ["View"],
       Users: ["View"],
       Hospitals: ["View"],
       Departments: ["View", "Add", "Edit"],
@@ -261,7 +270,6 @@ export function RoleProvider({ children }) {
     const raw = user?.user?.roles || user?.roles || []
     const mapped = raw.map((role) => {
       if (role === "Reception") return "Receptionist"
-      if (role === "Pharmacist") return "Compounder"
       return role
     })
     const primary = getAuthenticatedStaffRole(user)
@@ -284,7 +292,7 @@ export function RoleProvider({ children }) {
 
   // Switch only among roles the backend actually assigned.
   const switchRole = useCallback((roleName) => {
-    const requested = roleName === "Reception" ? "Receptionist" : roleName === "Pharmacist" ? "Compounder" : roleName
+    const requested = roleName === "Reception" ? "Receptionist" : roleName
     if (!authenticatedRoles.includes(requested)) return
     setChosenRole(requested)
   }, [authenticatedRoles])

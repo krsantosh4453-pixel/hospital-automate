@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Eye, Hospital, Pencil, Phone, Trash2, UserPlus, UsersRound } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import Pagination from "../components/Pagination.jsx"
 import {
@@ -26,6 +27,8 @@ import {
 const EMPTY_FORM = { name: "", age: "", gender: "", phone: "", condition: "" }
 
 function Patients() {
+  // Only the front desk registers patients; a Hospital Manager only views them.
+  const { canAdd, canEdit } = useRole()
   const {
     selectedHospital,
     getHospitalPatients,
@@ -354,9 +357,11 @@ function Patients() {
         }
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Patients" }]}
         actions={
-          <Button icon={UserPlus} onClick={openAddForm} disabled={!selectedHospital}>
-            Register patient
-          </Button>
+          canAdd("Patients") && (
+            <Button icon={UserPlus} onClick={openAddForm} disabled={!selectedHospital}>
+              Register patient
+            </Button>
+          )
         }
       />
 
@@ -452,7 +457,7 @@ function Patients() {
                         <td>
                           <div className="flex items-center justify-end gap-0.5">
                             <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => setViewPatient(patient)} aria-label={`View ${patient.name}`} title="View" />
-                            <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => openEditForm(patient)} aria-label={`Edit ${patient.name}`} title="Edit" />
+                            {canEdit("Patients") && <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => openEditForm(patient)} aria-label={`Edit ${patient.name}`} title="Edit" />}
                             <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setPendingDelete(patient)} aria-label={`Delete ${patient.name}`} title="Delete" />
                           </div>
                         </td>
@@ -476,7 +481,7 @@ function Patients() {
                         <Phone size={12} aria-hidden="true" /> {patient.phone}
                       </span>
                     </button>
-                    <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => openEditForm(patient)} aria-label={`Edit ${patient.name}`} />
+                    {canEdit("Patients") && <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => openEditForm(patient)} aria-label={`Edit ${patient.name}`} />}
                   </li>
                 ))}
               </ul>
@@ -499,7 +504,7 @@ function Patients() {
                 search ? (
                   <Button variant="secondary" onClick={() => setSearch("")}>Clear search</Button>
                 ) : (
-                  <Button icon={UserPlus} onClick={openAddForm}>Register patient</Button>
+                  canAdd("Patients") && <Button icon={UserPlus} onClick={openAddForm}>Register patient</Button>
                 )
               }
             />
@@ -561,7 +566,7 @@ function Patients() {
                 Delete
               </Button>
               <Button variant="secondary" onClick={() => setViewPatient(null)}>Close</Button>
-              <Button icon={Pencil} onClick={() => openEditForm(viewPatient)}>Edit</Button>
+              {canEdit("Patients") && <Button icon={Pencil} onClick={() => openEditForm(viewPatient)}>Edit</Button>}
             </>
           )
         }

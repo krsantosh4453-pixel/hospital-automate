@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { BedDouble, BedSingle, ClipboardCheck, FileSignature, Hospital, LogOut, Plus, RefreshCw, UserRoundCheck } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api"
 import { useToast } from "../components/Toast.jsx"
 import {
@@ -28,6 +29,8 @@ const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 const bedLabel = (bed) => (bed ? [bed.ward_name, bed.room_number, bed.bed_number].filter(Boolean).join(" · ") : "")
 
 function IPD() {
+  // Doctors admit; a Hospital Manager only views admissions.
+  const { canAdd } = useRole()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
   const { selectedHospital } = usePatient()
@@ -230,7 +233,7 @@ function IPD() {
         selectedHospital && (
           <>
             <Button variant="secondary" icon={RefreshCw} onClick={fetchData} disabled={loading}>Refresh</Button>
-            <Button icon={Plus} onClick={() => { closeDialog(); setDialog("admission") }}>New admission</Button>
+            {canAdd("IPD") && <Button icon={Plus} onClick={() => { closeDialog(); setDialog("admission") }}>New admission</Button>}
           </>
         )
       }
@@ -279,7 +282,7 @@ function IPD() {
           ) : activeTab === "admissions" ? (
             <Card className="overflow-hidden">
               {admissions.length === 0 ? (
-                <EmptyState icon={BedDouble} title="No admissions yet" action={<Button icon={Plus} onClick={() => setDialog("admission")}>New admission</Button>} />
+                <EmptyState icon={BedDouble} title="No admissions yet" action={canAdd("IPD") && <Button icon={Plus} onClick={() => setDialog("admission")}>New admission</Button>} />
               ) : (
                 <TableWrap>
                   <table className="hms-table">

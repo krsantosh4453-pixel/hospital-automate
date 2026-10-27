@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import { FilePlus2, Hospital, PackageCheck, Pill, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import {
@@ -105,6 +106,9 @@ const emptyForm = () => ({
 
 function Prescription() {
   const { selectedHospital } = usePatient()
+  // Doctors write prescriptions; pharmacy and nursing staff only read them.
+  const { canAdd } = useRole()
+  const canWrite = canAdd("Prescriptions")
 
   const {
     prescriptions,
@@ -148,7 +152,7 @@ function Prescription() {
     let cancelled = false
 
     const loadOptions = async () => {
-      if (!selectedHospital) {
+      if (!selectedHospital || !canWrite) {
         setPatients([])
         setDoctors([])
         setVisits([])
@@ -196,7 +200,7 @@ function Prescription() {
     return () => {
       cancelled = true
     }
-  }, [selectedHospital, reloadToken])
+  }, [selectedHospital, reloadToken, canWrite])
 
   // ---------------------------------------------------------
   // LOAD PRESCRIPTIONS for the selected hospital
@@ -472,6 +476,7 @@ function Prescription() {
 
       <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,34rem)_minmax(0,1fr)]">
         {/* New prescription */}
+        {canWrite && (
         <Card as="form" onSubmit={handleSubmit} className="self-start" noValidate>
           <CardHeader icon={FilePlus2} title="New prescription" description="Patient, visit and doctor, then one row per medicine." />
           <div className="space-y-5 px-5 py-4">
@@ -554,6 +559,7 @@ function Prescription() {
             </div>
           </div>
         </Card>
+        )}
 
         {/* Existing prescriptions */}
         <Card className="self-start overflow-hidden">

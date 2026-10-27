@@ -596,7 +596,8 @@ function Navbar() {
             ))}
           </div>
 
-          <NotificationsMenu hospitalId={selectedHospital?.id} t={t} />
+          {/* Patient notifications: only for roles that work with patients. */}
+          {canView("Patients") && <NotificationsMenu hospitalId={selectedHospital?.id} t={t} />}
           <div className="mx-1 hidden h-6 w-px bg-line sm:block" aria-hidden="true" />
           <UserMenu t={t} />
         </div>
