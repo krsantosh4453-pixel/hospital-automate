@@ -20,7 +20,8 @@ from notifications.services import (
     NotificationChannel,
     NotificationPayload,
 )
-from users.care_scope import doctor_hospital_ids
+from users.care_scope import doctor_hospital_ids, limit_queue_to_department
+from users.permissions import get_user_hospital_ids
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsHospitalManager, IsReceptionist, IsDoctor, IsNurse, IsPatientReadOnly
 
@@ -67,6 +68,8 @@ class QueueTokenViewSet(HospitalScopedViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        # Front-desk staff with a department see that department's queue.
+        queryset = limit_queue_to_department(queryset, self.request.user, get_user_hospital_ids(self.request.user))
 
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
@@ -385,9 +388,11 @@ class QueueTokenViewSet(HospitalScopedViewSet):
             )
 
         base = QueueToken.objects.filter(hospital_id=hospital_id)
-        # A Doctor calls and completes only their own patients' tokens.
+        # A Doctor calls and completes only their own patients' tokens; staff
+        # with a department only that department's.
         if doctor_hospital_ids(request.user, [int(hospital_id)]):
             base = base.filter(doctor__user=request.user)
+        base = limit_queue_to_department(base, request.user, [int(hospital_id)])
 
         base.filter(status__iexact="In Consultation").update(
             status="Completed"

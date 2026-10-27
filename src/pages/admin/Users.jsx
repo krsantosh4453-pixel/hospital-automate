@@ -35,15 +35,21 @@ function Users() {
   const [roleFilter, setRoleFilter] = useState("All")
   const [statusFilter, setStatusFilter] = useState("All")
   const [approveRoles, setApproveRoles] = useState({})
+  const [departments, setDepartments] = useState([])
 
   const load = useCallback(async () => {
     if (!selectedHospital) return
     setLoading(true)
     setError("")
     try {
-      const data = await api.users.list()
+      const [data, deptData] = await Promise.all([
+        api.users.list(),
+        // The staff list still loads if departments cannot be read.
+        api.departments.list(selectedHospital.id).catch(() => []),
+      ])
       setStaff(data.staff || [])
       setPending(data.pending || [])
+      setDepartments(Array.isArray(deptData) ? deptData : deptData?.results || [])
     } catch (err) {
       setStaff([])
       setPending([])
@@ -74,6 +80,16 @@ function Users() {
 
   const changeRole = (member, role) =>
     run(member.id, () => api.users.updateMembership(member.id, { role }), `${member.name} is now ${role}.`)
+
+  // A Receptionist or Nurse with a department sees only that department's queue.
+  const changeDepartment = (member, departmentId) => {
+    const name = departments.find((d) => String(d.id) === departmentId)?.name
+    run(
+      member.id,
+      () => api.users.updateMembership(member.id, { department: departmentId ? Number(departmentId) : null }),
+      name ? `${member.name} now works in ${name}.` : `${member.name} now works across all departments.`,
+    )
+  }
 
   const toggleActive = async (member) => {
     const active = !member.membership?.is_active
@@ -233,6 +249,7 @@ function Users() {
                   <th className="py-2 pr-4">Username</th>
                   <th className="py-2 pr-4">Contact</th>
                   <th className="py-2 pr-4">Role</th>
+                  <th className="py-2 pr-4">Department</th>
                   <th className="py-2 pr-4">Status</th>
                   <th className="py-2"></th>
                 </tr>
@@ -264,6 +281,20 @@ function Users() {
                         >
                           {ROLES.map((role) => (
                             <option key={role}>{role}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <select
+                          aria-label={`Department of ${member.name}`}
+                          value={member.membership?.department ? String(member.membership.department) : ""}
+                          disabled={busyId === member.id}
+                          onChange={(e) => changeDepartment(member, e.target.value)}
+                          className="hms-input"
+                        >
+                          <option value="">All departments</option>
+                          {departments.map((dept) => (
+                            <option key={dept.id} value={dept.id}>{dept.name}</option>
                           ))}
                         </select>
                       </td>

@@ -11,6 +11,9 @@ today's shift, and today's OPD queue. Yesterday's Night shift still counts,
 as it runs past midnight. Admitted patients still waiting for a bed are
 visible to every nurse, so that one can be allocated.
 
+A Receptionist or Nurse whose membership names a department sees only that
+department's OPD queue (and tokens of doctors with no department).
+
 Both roles see patients with an open emergency visit, so that no emergency is
 hidden. Other roles, and other hospitals where the same user holds another
 role, are not affected.
@@ -43,6 +46,31 @@ CARE_LINKS = (
 CLOSED_EMERGENCY_STATUSES = ("Admitted", "Discharged", "Referred", "Left Against Advice", "Expired")
 NIGHT_SHIFT = "Night"
 MAX_PATH_DEPTH = 3
+# Roles whose OPD queue is limited to their department when one is set.
+DEPARTMENT_QUEUE_ROLES = (StaffRole.RECEPTIONIST, StaffRole.NURSE)
+QUEUE_TOKEN_LABEL = "encounters.QueueToken"
+
+
+def limit_queue_to_department(queryset, user, hospital_ids):
+    """
+    Narrow OPD queue tokens for a Receptionist or Nurse whose membership names
+    a department: only that department's tokens, plus tokens whose doctor has
+    no department (so no patient is missed). Staff without a department, and
+    other roles, keep the whole queue.
+    """
+    departments = dict(
+        get_user_active_hospital_memberships(user)
+        .filter(hospital_id__in=list(hospital_ids), role__in=DEPARTMENT_QUEUE_ROLES, department__isnull=False)
+        .values_list("hospital_id", "department_id")
+    )
+    if not departments:
+        return queryset
+    visible = Q(hospital_id__in=[h for h in hospital_ids if h not in departments])
+    for hospital_id, department_id in departments.items():
+        visible |= Q(hospital_id=hospital_id) & (
+            Q(doctor__department_id=department_id) | Q(doctor__department__isnull=True)
+        )
+    return queryset.filter(visible)
 
 
 def _scoped_roles(user, hospital_ids):
@@ -84,7 +112,10 @@ def _nurse_care(user, hospital_ids):
         hospital_id__in=hospital_ids, status="Admitted"
     ).exclude(bed_allocations__is_active=True)
     direct = apps.get_model("nurses.PatientAssignment").objects.filter(on_duty, **mine)
-    opd = apps.get_model("encounters.QueueToken").objects.filter(hospital_id__in=hospital_ids, token_date=today)
+    opd = limit_queue_to_department(
+        apps.get_model(QUEUE_TOKEN_LABEL).objects.filter(hospital_id__in=hospital_ids, token_date=today),
+        user, hospital_ids,
+    )
     return (
         Q(pk__in=in_ward.values("admission__patient_id"))
         | Q(pk__in=awaiting_bed.values("patient_id"))
@@ -174,7 +205,15 @@ def care_view_of(queryset, user, hospital_id):
     own profile, and other patient rows (lab, emergency, billing) of patients
     in their care; a Nurse gets every patient row of patients in their care.
     Rows not about a patient (beds, doctors) and other roles are unchanged.
+    Queue tokens also follow the department limit of front-desk staff.
     """
+    queryset = _own_rows(queryset, user, hospital_id)
+    if queryset.model._meta.label == QUEUE_TOKEN_LABEL:
+        queryset = limit_queue_to_department(queryset, user, [hospital_id])
+    return queryset
+
+
+def _own_rows(queryset, user, hospital_id):
     role = _scoped_roles(user, [hospital_id]).get(hospital_id)
     if role is None:
         return queryset
