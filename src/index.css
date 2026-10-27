@@ -43,7 +43,7 @@
   --color-ink-200: #e0e5e9;
   --color-ink-300: #c8d0d6;
   --color-ink-400: #8d99a4;
-  --color-ink-500: #66737f;
+  --color-ink-500: #56636f;
   --color-ink-600: #4d5965;
   --color-ink-700: #3b4652;
   --color-ink-800: #27303a;
@@ -52,7 +52,7 @@
 
   /* Surfaces and lines */
   --color-surface: #ffffff;
-  --color-canvas: #f4f6f7;
+  --color-canvas: #d6eaeb;
   --color-line: #e0e5e9;
   --color-line-strong: #c8d0d6;
 
@@ -384,4 +384,211 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---- Teal surfaces ----
+ * Cards, panels and the top header sit on the light page background in a
+ * teal colour (#176e79) with white text. Inside them the shared colour tokens are swapped for a
+ * white-on-teal set, so every page's text, badges, icons and inputs stay
+ * readable without editing each page. The page background and the sidebar
+ * keep their own colours.
+ */
+:root {
+  --card-surface: #176e79;
+  --card-raised: #105861;
+}
+
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)),
+.hms-surface-dark {
+  background-color: var(--card-surface);
+  color: var(--color-ink-900);
+
+  --color-surface: var(--card-surface);
+  --color-line: rgb(255 255 255 / 0.14);
+  --color-line-strong: rgb(255 255 255 / 0.26);
+
+  --color-ink-50: #135f69;
+  --color-ink-100: #125962;
+  --color-ink-200: #2f8792;
+  --color-ink-300: #8cc3c9;
+  --color-ink-400: #ffffff;
+  --color-ink-500: #ffffff;
+  --color-ink-600: #ffffff;
+  --color-ink-700: #ffffff;
+  --color-ink-800: #ffffff;
+  --color-ink-900: #ffffff;
+  --color-ink-950: #ffffff;
+
+  /* Tints (50–200) become dark tints; text shades (700–900) become light. */
+  --color-brand-50: color-mix(in srgb, #258893 32%, #0b3f46);
+  --color-brand-100: color-mix(in srgb, #258893 45%, #0b3f46);
+  --color-brand-200: color-mix(in srgb, #258893 60%, #0b3f46);
+  --color-brand-700: #ffffff;
+  --color-brand-800: #ffffff;
+  --color-brand-900: #ffffff;
+
+  --color-accent-50: color-mix(in srgb, #6369bb 32%, #0b3f46);
+  --color-accent-100: color-mix(in srgb, #6369bb 45%, #0b3f46);
+  --color-accent-200: color-mix(in srgb, #6369bb 60%, #0b3f46);
+  --color-accent-700: #ffffff;
+  --color-accent-800: #ffffff;
+
+  --color-green-50: color-mix(in srgb, #2f9a5c 30%, #0b3f46);
+  --color-green-100: color-mix(in srgb, #2f9a5c 42%, #0b3f46);
+  --color-green-200: color-mix(in srgb, #2f9a5c 58%, #0b3f46);
+  --color-green-700: #ffffff;
+  --color-green-800: #ffffff;
+  --color-emerald-50: var(--color-green-50);
+  --color-emerald-100: var(--color-green-100);
+  --color-emerald-700: var(--color-green-700);
+
+  --color-red-50: color-mix(in srgb, #d9493c 30%, #0b3f46);
+  --color-red-100: color-mix(in srgb, #d9493c 42%, #0b3f46);
+  --color-red-200: color-mix(in srgb, #d9493c 58%, #0b3f46);
+  --color-red-700: #ffffff;
+  --color-red-800: #ffffff;
+  --color-rose-50: var(--color-red-50);
+  --color-rose-100: var(--color-red-100);
+  --color-rose-700: var(--color-red-700);
+
+  --color-amber-50: color-mix(in srgb, #d48f12 30%, #0b3f46);
+  --color-amber-100: color-mix(in srgb, #d48f12 42%, #0b3f46);
+  --color-amber-200: color-mix(in srgb, #d48f12 58%, #0b3f46);
+  --color-amber-700: #ffffff;
+  --color-amber-800: #ffffff;
+  --color-amber-900: #ffffff;
+
+  --color-orange-50: color-mix(in srgb, #dd7428 30%, #0b3f46);
+  --color-orange-100: color-mix(in srgb, #dd7428 42%, #0b3f46);
+  --color-orange-200: color-mix(in srgb, #dd7428 58%, #0b3f46);
+  --color-orange-700: #ffffff;
+  --color-orange-800: #ffffff;
+
+  /* Aliases (gray, slate, blue, indigo …) re-read the swapped tokens here. */
+  --color-blue-50: var(--color-brand-50);
+  --color-blue-100: var(--color-brand-100);
+  --color-blue-200: var(--color-brand-200);
+  --color-blue-300: var(--color-brand-300);
+  --color-blue-400: var(--color-brand-400);
+  --color-blue-500: var(--color-brand-500);
+  --color-blue-600: var(--color-brand-600);
+  --color-blue-700: var(--color-brand-700);
+  --color-blue-800: var(--color-brand-800);
+  --color-blue-900: var(--color-brand-900);
+  --color-blue-950: var(--color-brand-950);
+  --color-sky-50: var(--color-brand-50);
+  --color-sky-100: var(--color-brand-100);
+  --color-sky-500: var(--color-brand-500);
+  --color-sky-600: var(--color-brand-600);
+  --color-sky-700: var(--color-brand-700);
+  --color-indigo-50: var(--color-accent-50);
+  --color-indigo-100: var(--color-accent-100);
+  --color-indigo-200: var(--color-accent-200);
+  --color-indigo-300: var(--color-accent-300);
+  --color-indigo-400: var(--color-accent-400);
+  --color-indigo-500: var(--color-accent-500);
+  --color-indigo-600: var(--color-accent-600);
+  --color-indigo-700: var(--color-accent-700);
+  --color-indigo-800: var(--color-accent-800);
+  --color-indigo-900: var(--color-accent-900);
+  --color-purple-50: var(--color-accent-50);
+  --color-purple-100: var(--color-accent-100);
+  --color-purple-200: var(--color-accent-200);
+  --color-purple-300: var(--color-accent-300);
+  --color-purple-400: var(--color-accent-400);
+  --color-purple-500: var(--color-accent-500);
+  --color-purple-600: var(--color-accent-600);
+  --color-purple-700: var(--color-accent-700);
+  --color-purple-800: var(--color-accent-800);
+  --color-purple-900: var(--color-accent-900);
+  --color-violet-50: var(--color-accent-50);
+  --color-violet-100: var(--color-accent-100);
+  --color-violet-500: var(--color-accent-500);
+  --color-violet-600: var(--color-accent-600);
+  --color-violet-700: var(--color-accent-700);
+  --color-gray-50: var(--color-ink-50);
+  --color-gray-100: var(--color-ink-100);
+  --color-gray-200: var(--color-ink-200);
+  --color-gray-300: var(--color-ink-300);
+  --color-gray-400: var(--color-ink-400);
+  --color-gray-500: var(--color-ink-500);
+  --color-gray-600: var(--color-ink-600);
+  --color-gray-700: var(--color-ink-700);
+  --color-gray-800: var(--color-ink-800);
+  --color-gray-900: var(--color-ink-900);
+  --color-gray-950: var(--color-ink-950);
+  --color-slate-50: var(--color-ink-50);
+  --color-slate-100: var(--color-ink-100);
+  --color-slate-200: var(--color-ink-200);
+  --color-slate-300: var(--color-ink-300);
+  --color-slate-400: var(--color-ink-400);
+  --color-slate-500: var(--color-ink-500);
+  --color-slate-600: var(--color-ink-600);
+  --color-slate-700: var(--color-ink-700);
+  --color-slate-800: var(--color-ink-800);
+  --color-slate-900: var(--color-ink-900);
+  --color-slate-950: var(--color-ink-950);
+}
+
+/* Shade 500/600 stays for button fills; as text or icons on teal it is white. */
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.text-brand-500, .text-brand-600, .text-blue-500, .text-blue-600, .text-sky-500, .text-sky-600, .text-teal-600),
+.hms-surface-dark :is(.text-brand-500, .text-brand-600, .text-blue-500, .text-blue-600, .text-sky-500, .text-sky-600, .text-teal-600) {
+  color: #ffffff;
+}
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.text-green-500, .text-green-600, .text-emerald-500, .text-emerald-600),
+.hms-surface-dark :is(.text-green-500, .text-green-600, .text-emerald-500, .text-emerald-600) {
+  color: #ffffff;
+}
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.text-red-500, .text-red-600, .text-rose-500, .text-rose-600),
+.hms-surface-dark :is(.text-red-500, .text-red-600, .text-rose-500, .text-rose-600) {
+  color: #ffffff;
+}
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.text-amber-500, .text-amber-600, .text-orange-500, .text-orange-600),
+.hms-surface-dark :is(.text-amber-500, .text-amber-600, .text-orange-500, .text-orange-600) {
+  color: #ffffff;
+}
+
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.text-accent-500, .text-accent-600, .text-indigo-500, .text-indigo-600, .text-purple-500, .text-purple-600, .text-violet-500, .text-violet-600),
+.hms-surface-dark :is(.text-accent-500, .text-accent-600, .text-indigo-500, .text-indigo-600, .text-purple-500, .text-purple-600, .text-violet-500, .text-violet-600) {
+  color: #ffffff;
+}
+
+/* Dark grey fills (e.g. a "Clear" button with white text) stay dark on teal. */
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.bg-ink-600, .bg-ink-700, .bg-ink-800, .bg-ink-900, .bg-ink-950, .bg-gray-600, .bg-gray-700, .bg-gray-800, .bg-gray-900, .bg-slate-600, .bg-slate-700, .bg-slate-800, .bg-slate-900),
+.hms-surface-dark :is(.bg-ink-600, .bg-ink-700, .bg-ink-800, .bg-ink-900, .bg-ink-950, .bg-gray-600, .bg-gray-700, .bg-gray-800, .bg-gray-900, .bg-slate-600, .bg-slate-700, .bg-slate-800, .bg-slate-900) {
+  background-color: #0d4a52;
+}
+
+/* White controls inside a teal surface (secondary buttons, toggles, inputs, popovers). */
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.bg-white, .hms-input),
+.hms-surface-dark :is(.bg-white, .hms-input) {
+  background-color: var(--card-raised);
+}
+
+/* Primary (teal) buttons would vanish on a teal card: use a darker teal there. */
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.bg-brand-600, .bg-blue-600, .bg-brand-500, .bg-blue-500),
+.hms-surface-dark :is(.bg-brand-600, .bg-blue-600, .bg-brand-500, .bg-blue-500) {
+  background-color: #0b4950;
+}
+
+/* Light tints used as text (on a dark panel) are white too. */
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.text-brand-50, .text-brand-100, .text-brand-200, .text-blue-50, .text-blue-100, .text-blue-200, .text-sky-50, .text-sky-100, .text-sky-200, .text-teal-50, .text-teal-100, .text-teal-200, .text-accent-50, .text-accent-100, .text-accent-200, .text-indigo-50, .text-indigo-100, .text-indigo-200, .text-green-50, .text-green-100, .text-green-200, .text-emerald-50, .text-emerald-100, .text-emerald-200, .text-red-50, .text-red-100, .text-red-200, .text-rose-50, .text-rose-100, .text-rose-200, .text-amber-50, .text-amber-100, .text-amber-200, .text-orange-50, .text-orange-100, .text-orange-200, .text-yellow-50, .text-yellow-100, .text-yellow-200),
+.hms-surface-dark :is(.text-brand-50, .text-brand-100, .text-brand-200, .text-blue-50, .text-blue-100, .text-blue-200, .text-sky-50, .text-sky-100, .text-sky-200, .text-teal-50, .text-teal-100, .text-teal-200, .text-accent-50, .text-accent-100, .text-accent-200, .text-indigo-50, .text-indigo-100, .text-indigo-200, .text-green-50, .text-green-100, .text-green-200, .text-emerald-50, .text-emerald-100, .text-emerald-200, .text-red-50, .text-red-100, .text-red-200, .text-rose-50, .text-rose-100, .text-rose-200, .text-amber-50, .text-amber-100, .text-amber-200, .text-orange-50, .text-orange-100, .text-orange-200, .text-yellow-50, .text-yellow-100, .text-yellow-200) {
+  color: #ffffff;
+}
+
+/* Dark teal panels (e.g. "Now serving") stay dark instead of turning white. */
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.bg-brand-700, .bg-brand-800, .bg-brand-900, .bg-brand-950, .bg-blue-700, .bg-blue-800, .bg-blue-900, .bg-blue-950, .bg-sky-700, .bg-sky-800, .bg-sky-900, .bg-sky-950, .bg-teal-700, .bg-teal-800, .bg-teal-900, .bg-teal-950),
+.hms-surface-dark :is(.bg-brand-700, .bg-brand-800, .bg-brand-900, .bg-brand-950, .bg-blue-700, .bg-blue-800, .bg-blue-900, .bg-blue-950, .bg-sky-700, .bg-sky-800, .bg-sky-900, .bg-sky-950, .bg-teal-700, .bg-teal-800, .bg-teal-900, .bg-teal-950) {
+  background-color: #0b4950;
+}
+
+/* Dark status fills keep their original colour behind white text. */
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.bg-green-700, .bg-green-800, .bg-emerald-700),
+.hms-surface-dark :is(.bg-green-700, .bg-green-800, .bg-emerald-700) {
+  background-color: #1d683d;
+}
+:is(#main-content, #patient-main) :is(.bg-surface, .hms-card, .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl)) :is(.bg-red-700, .bg-red-800, .bg-rose-700),
+.hms-surface-dark :is(.bg-red-700, .bg-red-800, .bg-rose-700) {
+  background-color: #9d2b21;
 }
