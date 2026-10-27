@@ -118,6 +118,14 @@ export function visibleStaffNav(canView) {
     .filter((group) => group.items.length > 0)
 }
 
+/**
+ * Navigation for visitors who have not signed in: the same menu staff see,
+ * without Administration. Every page except Home asks them to sign in.
+ */
+export function guestStaffNav() {
+  return STAFF_NAV.filter((group) => !group.adminOnly)
+}
+
 /** Title of the current staff route, for breadcrumbs and the document title. */
 export function findNavItem(pathname) {
   for (const group of STAFF_NAV) {

@@ -1,10 +1,11 @@
 import { useEffect } from "react"
-import { NavLink, useLocation } from "react-router-dom"
-import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react"
+import { Link, NavLink, useLocation } from "react-router-dom"
+import { LogIn, PanelLeftClose, PanelLeftOpen, X } from "lucide-react"
+import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useSidebar } from "../assets/context/SidebarContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
-import { visibleStaffNav } from "../config/navigation.js"
+import { guestStaffNav, visibleStaffNav } from "../config/navigation.js"
 
 export function BrandMark({ compact = false, inverted = true }) {
   return (
@@ -89,7 +90,23 @@ function NavItems({ groups, collapsed, t, onNavigate }) {
   )
 }
 
-function RoleFooter({ collapsed, activeRoleName, activeRole }) {
+function GuestFooter({ collapsed }) {
+  return (
+    <div className={`border-t border-white/10 ${collapsed ? "flex justify-center py-3" : "px-4 py-3"}`}>
+      <Link
+        to="/staff-login"
+        title={collapsed ? "Sign in" : undefined}
+        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-ink-200 hover:bg-white/[0.05] hover:text-white"
+      >
+        <LogIn size={15} aria-hidden="true" />
+        {collapsed ? <span className="sr-only">Sign in</span> : <span>Not signed in · Sign in</span>}
+      </Link>
+    </div>
+  )
+}
+
+function RoleFooter({ collapsed, activeRoleName, activeRole, isGuest }) {
+  if (isGuest) return <GuestFooter collapsed={collapsed} />
   if (collapsed) {
     return (
       <div className="flex justify-center border-t border-white/10 py-3" title={`Role: ${activeRoleName}`}>
@@ -113,8 +130,10 @@ function Sidebar() {
   const location = useLocation()
   const { isSidebarOpen, toggleSidebar, isMobileOpen, closeMobile } = useSidebar()
   const { canView, activeRole, activeRoleName } = useRole()
+  const { isStaff } = useAuth()
   const { t } = useLanguage()
-  const groups = visibleStaffNav(canView)
+  // Visitors see the full menu; each page asks them to sign in.
+  const groups = isStaff ? visibleStaffNav(canView) : guestStaffNav()
   const collapsed = !isSidebarOpen
 
   // Close the mobile drawer whenever the route changes.
@@ -166,7 +185,7 @@ function Sidebar() {
           </div>
         )}
         <NavItems groups={groups} collapsed={collapsed} t={t} />
-        <RoleFooter collapsed={collapsed} activeRoleName={activeRoleName} activeRole={activeRole} />
+        <RoleFooter collapsed={collapsed} activeRoleName={activeRoleName} activeRole={activeRole} isGuest={!isStaff} />
       </aside>
 
       {/* Mobile / tablet: off-canvas drawer */}
@@ -186,7 +205,7 @@ function Sidebar() {
               </button>
             </div>
             <NavItems groups={groups} collapsed={false} t={t} onNavigate={closeMobile} />
-            <RoleFooter collapsed={false} activeRoleName={activeRoleName} activeRole={activeRole} />
+            <RoleFooter collapsed={false} activeRoleName={activeRoleName} activeRole={activeRole} isGuest={!isStaff} />
           </aside>
         </div>
       )}

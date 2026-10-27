@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest"
 import GuestHome from "../pages/GuestHome.jsx"
 import { eligibleRolesFor } from "../assets/context/RoleContext.jsx"
 import { roleHomeFor, ROLE_HOMES } from "../config/roleHomes.js"
+import { guestStaffNav, STAFF_NAV } from "../config/navigation.js"
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -33,6 +34,14 @@ describe("role homes", () => {
   it("names the roles that may work in a department", () => {
     expect(eligibleRolesFor("Billing")).toContain("Admin")
     expect(eligibleRolesFor("Billing")).not.toContain("Nurse")
+  })
+})
+
+describe("guest navigation", () => {
+  it("shows visitors the same menu as staff, without Administration", () => {
+    const ids = guestStaffNav().map((group) => group.id)
+    expect(ids).toEqual(STAFF_NAV.filter((group) => group.id !== "admin").map((group) => group.id))
+    expect(guestStaffNav().flatMap((group) => group.items).length).toBeGreaterThan(10)
   })
 })
 

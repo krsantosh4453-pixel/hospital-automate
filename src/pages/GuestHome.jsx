@@ -71,7 +71,7 @@ function GuestHome() {
   const roles = locked ? eligibleRolesFor(locked.module) : []
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-8">
       <section className="overflow-hidden rounded-2xl bg-brand-900 px-6 py-10 text-white sm:px-10 sm:py-14">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-brand-200">Hospital services</p>
         <h1 className="mt-3 max-w-2xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">

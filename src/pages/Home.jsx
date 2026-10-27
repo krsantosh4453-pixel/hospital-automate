@@ -111,7 +111,8 @@ function Home() {
   const latestRequest = useRef(0)
 
   const fetchStats = useCallback(async () => {
-    if (!selectedHospital) return
+    // Visitors get no figures, so there is nothing to fetch for them.
+    if (!isLoggedIn || !selectedHospital) return
     const requestId = ++latestRequest.current
     const isLatest = () => requestId === latestRequest.current
     setLoading(true)
@@ -124,7 +125,7 @@ function Home() {
     } finally {
       if (isLatest()) setLoading(false)
     }
-  }, [selectedHospital])
+  }, [isLoggedIn, selectedHospital])
 
   useEffect(() => {
     fetchStats()
