@@ -1658,13 +1658,11 @@ api.audit = {
 // Staff administration for the selected hospital (Admin / Hospital Manager).
 api.users = {
   me: async () => api.auth.getMe(),
-  // -> { staff: [...], pending: [...] }
+  // -> { staff: [...] }
   list: async (params = {}) => {
     const query = new URLSearchParams(params).toString()
     return request(`${API_BASE_URL}/users/${query ? `?${query}` : ""}`)
   },
-  approve: async (userId, data) =>
-    request(`${API_BASE_URL}/users/${userId}/approve/`, { method: "POST", ...jsonBody(data) }),
   // data: { role?, is_active?, department? }
   updateMembership: async (userId, data) =>
     request(`${API_BASE_URL}/users/${userId}/membership/`, { method: "PATCH", ...jsonBody(data) }),

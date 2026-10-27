@@ -1,14 +1,14 @@
 """
-Hospital staff administration: list staff and pending registrations, approve
-an applicant into the acting hospital with a role, and change or end a
-membership. Only that hospital's Admin or Hospital Manager may do this, and
-only an Admin may grant the Admin role. Every change is audited.
+Hospital staff administration: list the acting hospital's staff and change or
+end a membership. Staff join only by this hospital's invitation
+(staff_invite.py); there is no open list of applicants. Only that hospital's
+Admin or Hospital Manager may do this, and only an Admin may grant the Admin
+role. Every change is audited.
 """
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
-from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from audit.services import record_audit
 from hospital.models import Department
 
-from .models import StaffHospitalMembership, StaffProfile, StaffRole
+from .models import StaffHospitalMembership, StaffRole
 from .permissions import (
     get_request_hospital_id,
     get_user_hospital_ids,
@@ -78,7 +78,7 @@ def _row(profile, membership=None):
 
 
 class StaffListView(APIView):
-    """GET /api/users/ — staff of the acting hospital and pending registrations."""
+    """GET /api/users/ — staff of the acting hospital."""
 
     permission_classes = [IsAuthenticated]
 
@@ -94,42 +94,7 @@ class StaffListView(APIView):
                 | Q(staff__user__last_name__icontains=search) | Q(staff__employee_id__icontains=search)
             )
         staff = [_row(m.staff, m) for m in memberships.order_by("staff__user__username")[:500]]
-        pending = StaffProfile.objects.filter(
-            is_active_staff=False, hospital_memberships__isnull=True, user__is_active=True
-        ).select_related("user")
-        return Response({"staff": staff, "pending": [_row(p) for p in pending[:200]]})
-
-
-class StaffApproveView(APIView):
-    """POST /api/users/<id>/approve/ {role, department?} — admit an applicant to this hospital."""
-
-    permission_classes = [IsAuthenticated]
-
-    @transaction.atomic
-    def post(self, request, user_id):
-        hospital_id, granter_roles = _acting_hospital(request)
-        try:
-            profile = StaffProfile.objects.select_for_update().select_related("user").get(user_id=user_id)
-        except StaffProfile.DoesNotExist:
-            raise NotFound("Staff registration not found.")
-        if profile.is_active_staff and profile.hospital_memberships.exists():
-            raise ValidationError("Already approved; use the membership endpoint to change the role.")
-        role = _role(request.data.get("role") or profile.role, granter_roles)
-        department = None
-        if request.data.get("department"):
-            department = Department.objects.filter(pk=request.data["department"], hospital_id=hospital_id).first()
-            if department is None:
-                raise ValidationError({"department": "Department not found in this hospital."})
-        profile.is_active_staff = True
-        profile.role = role
-        profile.save(update_fields=["is_active_staff", "role"])
-        membership, _ = StaffHospitalMembership.objects.update_or_create(
-            staff=profile, hospital_id=hospital_id,
-            defaults={"role": role, "department": department, "is_active": True},
-        )
-        record_audit(request, "users.staff.approved", profile, hospital=hospital_id,
-                     details={"user": profile.user_id, "role": role})
-        return Response(_row(profile, membership), status=status.HTTP_200_OK)
+        return Response({"staff": staff})
 
 
 class StaffMembershipView(APIView):

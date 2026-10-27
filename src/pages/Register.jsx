@@ -11,14 +11,19 @@ import { Alert } from "../components/ui"
 
 const inputClass = "hms-input w-full"
 
+// Staff (Doctor, Nurse, Compounder, Receptionist) join a hospital only by its
+// invitation; the backend refuses them here.
+const REGISTER_ROLES = LOGIN_ROLES.filter((item) => item === "Patient" || item === "Admin")
+
 function Register() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
   const initialRole = useMemo(() => {
     const fromQuery = searchParams.get("role")
-    if (LOGIN_ROLES.includes(fromQuery)) return saveSelectedLoginRole(fromQuery)
-    return getSelectedLoginRole()
+    if (REGISTER_ROLES.includes(fromQuery)) return saveSelectedLoginRole(fromQuery)
+    const remembered = getSelectedLoginRole()
+    return REGISTER_ROLES.includes(remembered) ? remembered : "Patient"
   }, [searchParams])
 
   const [role, setRole] = useState(initialRole)
@@ -38,12 +43,6 @@ function Register() {
     date_of_birth: "",
     gender: "Other",
     address: "",
-    license_number: "",
-    specialization: "",
-    experience: "",
-    nursing_registration: "",
-    department: "",
-    employee_id: "",
     invite_code: "",
   })
 
@@ -109,20 +108,6 @@ function Register() {
         payload.gender = form.gender
         payload.address = form.address
       }
-      if (role === "Doctor") {
-        payload.license_number = form.license_number
-        payload.specialization = form.specialization
-        payload.experience = form.experience
-      }
-      if (role === "Nurse") {
-        payload.nursing_registration = form.nursing_registration
-        payload.license_number = form.nursing_registration
-        payload.department = form.department
-      }
-      if (role === "Compounder" || role === "Receptionist") {
-        payload.employee_id = form.employee_id
-        payload.department = form.department
-      }
       if (role === "Admin") {
         payload.invite_code = form.invite_code
       }
@@ -153,7 +138,7 @@ function Register() {
         <div className="mb-8">
           <BrandMark inverted={false} />
           <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">Create an account</h1>
-          <p className="mt-1 text-sm text-ink-500">Patients can sign in once their email is verified. Staff accounts wait for an administrator&apos;s approval.</p>
+          <p className="mt-1 text-sm text-ink-500">Patients can sign in once their email is verified. Doctors, nurses and other staff join by an invitation from their hospital.</p>
         </div>
 
         <div className="hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8">
@@ -161,8 +146,8 @@ function Register() {
             <p id="register-role-label" className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
               Account type
             </p>
-            <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-labelledby="register-role-label">
-              {LOGIN_ROLES.map((item) => (
+            <div className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-labelledby="register-role-label">
+              {REGISTER_ROLES.map((item) => (
                 <button
                   key={item}
                   type="button"
@@ -184,11 +169,10 @@ function Register() {
             </Alert>
           )}
 
-          {["Doctor", "Nurse", "Compounder", "Receptionist"].includes(role) && (
+          {role === "Patient" && (
             <Alert tone="info" className="mb-4">
-              {role} registrations stay pending until a hospital administrator
-              activates the staff profile. Selecting {role} here does not grant
-              {` ${role} `} access by itself.
+              Hospital staff do not sign up here. Your hospital&apos;s administrator
+              sends you an invitation link to set your password.
             </Alert>
           )}
 
@@ -275,85 +259,6 @@ function Register() {
                     className={inputClass}
                     value={form.address}
                     onChange={(e) => setField("address", e.target.value)}
-                  />
-                </div>
-              </>
-            )}
-
-            {role === "Doctor" && (
-              <>
-                <div>
-                  <label htmlFor="reg-field-6" className="hms-label">Medical Registration / License Number</label>
-                  <input
-                    id="reg-field-6"
-                    className={inputClass}
-                    value={form.license_number}
-                    onChange={(e) => setField("license_number", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="reg-field-7" className="hms-label">Specialization</label>
-                  <input
-                    id="reg-field-7"
-                    className={inputClass}
-                    value={form.specialization}
-                    onChange={(e) => setField("specialization", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="reg-field-8" className="hms-label">Experience</label>
-                  <input
-                    id="reg-field-8"
-                    className={inputClass}
-                    value={form.experience}
-                    onChange={(e) => setField("experience", e.target.value)}
-                    placeholder="e.g. 8 years"
-                  />
-                </div>
-              </>
-            )}
-
-            {role === "Nurse" && (
-              <>
-                <div>
-                  <label htmlFor="reg-field-9" className="hms-label">Nursing Registration / ID</label>
-                  <input
-                    id="reg-field-9"
-                    className={inputClass}
-                    value={form.nursing_registration}
-                    onChange={(e) => setField("nursing_registration", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="reg-field-10" className="hms-label">Department / Ward</label>
-                  <input
-                    id="reg-field-10"
-                    className={inputClass}
-                    value={form.department}
-                    onChange={(e) => setField("department", e.target.value)}
-                  />
-                </div>
-              </>
-            )}
-
-            {(role === "Compounder" || role === "Receptionist") && (
-              <>
-                <div>
-                  <label htmlFor="reg-field-11" className="hms-label">Employee / Staff ID</label>
-                  <input
-                    id="reg-field-11"
-                    className={inputClass}
-                    value={form.employee_id}
-                    onChange={(e) => setField("employee_id", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="reg-field-12" className="hms-label">Department</label>
-                  <input
-                    id="reg-field-12"
-                    className={inputClass}
-                    value={form.department}
-                    onChange={(e) => setField("department", e.target.value)}
                   />
                 </div>
               </>

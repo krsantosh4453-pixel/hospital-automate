@@ -74,7 +74,6 @@ function AdminDashboard() {
     const value = (r) => (r.status === "fulfilled" ? r.value : null)
     setData({
       staff: value(users)?.staff || [],
-      pending: value(users)?.pending || [],
       departments: list(value(departments)),
       stats: value(stats)?.statistics || null,
       audit: list(value(audit)).slice(0, 10),
@@ -94,6 +93,7 @@ function AdminDashboard() {
   }, [load])
 
   const activeStaff = data ? data.staff.filter((s) => Boolean(s.membership?.is_active)).length : null
+  const invitePending = data ? data.staff.filter((s) => s.invite_pending).length : null
   const num = (v) => (v === null || v === undefined ? null : Number(v).toLocaleString("en-IN"))
 
   return (
@@ -111,19 +111,9 @@ function AdminDashboard() {
         <>
           {errors.length > 0 && <Alert tone="warning" title="Some figures could not be loaded">{[...new Set(errors)].join(" ")}</Alert>}
 
-          {data?.pending.length > 0 && (
-            <Alert
-              tone="info"
-              title={`${data.pending.length} staff account${data.pending.length === 1 ? "" : "s"} waiting for approval`}
-              action={<Link to="/admin/users" className="inline-flex h-8 items-center rounded-lg bg-brand-600 px-3 text-[13px] font-medium text-white hover:bg-brand-700">Review</Link>}
-            >
-              New staff cannot sign in until an administrator approves them and assigns a role.
-            </Alert>
-          )}
-
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             <StatTile icon={UsersRound} label="Active staff" value={loading ? null : num(activeStaff)} hint={data ? `${data.staff.length} in total` : undefined} />
-            <StatTile icon={UserCheck} tone="warning" label="Awaiting approval" value={loading ? null : num(data?.pending.length)} />
+            <StatTile icon={UserCheck} tone="warning" label="Invite pending" value={loading ? null : num(invitePending)} hint="Invited, password not set yet" />
             <StatTile icon={ClipboardList} tone="accent" label="Departments" value={loading ? null : num(data?.departments.length)} />
             <StatTile icon={Stethoscope} tone="success" label="Doctors" value={loading ? null : num(data?.stats?.doctors?.total)} hint={data?.stats ? `${num(data.stats.patients?.total)} patients registered` : undefined} />
           </div>
