@@ -46,7 +46,7 @@ npm run lint && npm test && npm run build && npm audit
 | T-004 | Backend | Full suite, PostgreSQL 16 (throwaway cluster) | NOT RUN (settings had no PostgreSQL option) | **254 run, 253 pass, 1 skipped** | `Ran 254 tests in 8.2s OK` | — |
 | T-005 | Security | `check --deploy`, production settings | PASS | PASS | "no issues" | Run again in staging with real values |
 | T-006 | Security | Hospital isolation scan (`test_tenant_isolation`, 68 models, list + detail) | PASS | PASS | "LEAKS: none" | — |
-| T-007 | Security | List without an acting hospital, mixed roles (D-02) | FAIL (reproduced) | PASS | `RolePerHospitalTests` | R-07: non-viewset endpoints |
+| T-007 | Security | List without an acting hospital, mixed roles (D-02) | FAIL (reproduced) | PASS | `RolePerHospitalTests`, `ProcurementRolePerHospitalTests` | R-07 fixed 2026-10-28 (D-29) |
 | T-008 | Security | Cross-hospital patient delete (D-01) | FAIL (204, B's visit deleted) | PASS | `PatientDeleteTests` | R-03 policy |
 | T-009 | Security | Report templates / schedules (D-03) | FAIL ×5 | PASS ×7 | `test_reports_access` | — |
 | T-010 | Security | Notification honesty (D-04) | FAIL ×3 | PASS | `ProviderHonestyTests` | R-06 |

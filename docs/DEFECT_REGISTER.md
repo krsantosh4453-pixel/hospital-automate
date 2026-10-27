@@ -40,7 +40,7 @@ Audit date 2026-10-25 (evening). Branch `ui/redesign-2026-10-25`, base commit `e
 | R-04 | ~~Medium~~ **Fixed 2026-10-28** | `users/staff_admin.py`, `users/views.py`, `users/staff_invite.py` | Pending staff applicants (name, email, phone) were visible to every hospital's admins; Admin self-registration works with a shared invite code | `security_tests/test_staff_admin.py` (8 tests) | Done: staff join only by a hospital's invitation. Public sign-up refuses Doctor/Nurse/Compounder/Receptionist (403); the open applicant list and `/api/users/<id>/approve/` are removed; inviting an earlier applicant by email admits them. **Accepted (owner, 2026-10-28):** Admin sign-up with the secret `ADMIN_INVITE_CODE` stays as the onboarding path for a new hospital's owner; that Admin belongs to no hospital and can only create one |
 | R-05 | Medium | audit | No read-auditing of list or detail views of clinical data; no break-glass access | Code | Define the policy, then implement it |
 | R-06 | Medium | notifications | SMS, WhatsApp and Voice delivery is not implemented, and sending is synchronous | D-04 now reports it honestly | Implement with Twilio Messaging behind consent; move to Celery |
-| R-07 | Medium | non-viewset endpoints | The D-02 fix covers `HospitalScopedViewSet` and its read-only variant. Function and `APIView` endpoints (home stats, report analytics) were **not** re-checked for the same role-union pattern | Not verified | Add a list-without-hospital probe per endpoint |
+| R-07 | ~~Medium~~ **Fixed 2026-10-28 (D-29, D-30)** | non-viewset endpoints | The D-02 fix covered `HospitalScopedViewSet` only. Function, `APIView` and custom-permission endpoints were not re-checked for the role-union pattern | Every non-viewset endpoint reviewed; one live leak (procurement) and one count leak (home stats) reproduced | Done: see the 2026-10-28 update |
 | R-08 | Low | `patients/models.py`, `users/patient_auth.py` | UHID is not unique per hospital but is used as a login identifier; email OTP hash is unsalted SHA-256 (short TTL) | Code | Unique constraint `(hospital, uhid)`; HMAC the OTP |
 | R-09 | Low | production settings | `STATICFILES_STORAGE` is ignored by Django 6 and WhiteNoise is not installed, so static files depend on nginx | Runtime check | Switch to `STORAGES` after a Docker `collectstatic` rehearsal |
 | R-10 | Low | CI | Trivy action is on `@master` (unpinned); Bandit is report-only; deploy jobs only `echo`; `Dockerfile.frontend` uses Node 20 | Workflow | Pin Trivy to a reviewed SHA; triage Bandit; write real deploy steps |
@@ -97,3 +97,26 @@ Remaining:
 - **1 High:** R-02 (approved, being applied).
 - **5 Medium:** R-03 to R-07.
 - **7 Low:** R-08 to R-14. R-09 (static storage) is mitigated: nginx served the collected static files in the rehearsal.
+
+## Update 2026-10-28: R-07 (role union outside the viewset base)
+
+Every function view, `APIView`, `viewsets.ViewSet` and custom permission class was reviewed for a role taken from the union of all hospitals instead of the acting hospital.
+
+| ID | Sev. | Files | Defect and evidence | Fix | Regression test | Result |
+|---|---|---|---|---|---|---|
+| D-29 (R-07) | High | `backend/procurement/views.py` | `RequiresHospitalScope` checked `get_user_roles(user)` (all hospitals) and then only membership of `?hospital=`. A user who is Inventory Staff in A and Receptionist in B listed, created and edited B's suppliers (the same class guards purchase orders, goods receipt and stock). Reproduced: 200 / 201 / 200 | The role must be held in the acting hospital (`?hospital=`, body `hospital`, or `X-Hospital-ID`). A write with no hospital is refused unless the user belongs to exactly one hospital | `test_rbac_and_writes.ProcurementRolePerHospitalTests` (5) | Pass |
+| D-30 (R-07) | Low | `backend/home/views.py` | The dashboard counted lab tests by the **patient's registration** hospital, so Hospital A's count included tests a shared patient had at Hospital B. Reproduced: 2 instead of 1 | Count by `LabTest.hospital` | `test_home_stats.HomeStatsTests.test_lab_count_uses_the_test_hospital_not_the_patient_registration` | Pass |
+| D-31 | Low | `backend/users/permissions.py` | `IsOwnerOrHospitalAdmin` (not used by any view) accepted an Admin role held in any hospital for an object in another | Role read in the object's hospital | Not exercised (class unused) | Done |
+
+**Reviewed and clean** (role checked in one named hospital, or no data): home stats (hospital required), report analytics and KPI views, consent writes and shared-record reads, documents upload/delete, staff list, membership and invites, hospital and org-structure writes, stock `adjust`. HL7 uses its own API-key/IP check. FHIR and ABDM views are stubs that return no data.
+
+**Not fixed (policy decisions, new):**
+
+| ID | Sev. | Module | Problem | Next action |
+|---|---|---|---|---|
+| R-15 | Medium | `consent/views.py`, `documents/views.py`, `reports/views.py`, `home/views.py` | Reads have **no role check**: any active staff role at a hospital (e.g. Pharmacist, Lab Staff) can list that hospital's consent records, shares, patient documents, analytics and revenue. Documents and consents also skip the Doctor/Nurse care scope. Not a role-union bug: it is the same with or without `X-Hospital-ID` | Decide which roles read each, then gate them per hospital |
+| R-16 | Low | `home/views.py` | Lab "pending"/"completed"/"urgent" counts filter on `Pending`/`Completed`, which are not `LabTest` statuses, so they are always 0 | Map to the real status set |
+
+Verification: full backend suite in a clean copy, `manage.py test` with `config.settings.testing`: **388 tests, OK (3 skipped)**. Both reproduced defects failed before the fix.
+
+**Counting after this update:** 31 defects fixed (D-01 to D-31). Remaining: R-02 (High, see its row), R-03 to R-06 and R-15 (Medium), R-08 to R-14 and R-16 (Low).

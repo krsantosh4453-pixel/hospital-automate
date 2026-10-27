@@ -380,10 +380,10 @@ class IsOwnerOrHospitalAdmin(permissions.BasePermission):
         # Check if user has admin/manager role in the object's hospital
         hospital = self._get_object_hospital(obj)
         if hospital:
-            user_roles = get_user_roles(request.user)
+            # The role must be held in the object's hospital, not in any hospital.
+            user_roles = get_user_roles(request.user, hospital.id)
             if StaffRole.ADMIN in user_roles or StaffRole.HOSPITAL_MANAGER in user_roles:
-                if user_has_hospital_access(request.user, hospital.id):
-                    return True
+                return True
 
         return False
 

@@ -64,7 +64,7 @@ def home_dashboard(request):
     admission_qs = own(Admission.objects.filter(hospital_id=hospital_id))
     invoice_qs = own(Invoice.objects.filter(hospital_id=hospital_id))
     payment_qs = own(Payment.objects.filter(invoice__hospital_id=hospital_id))
-    lab_qs = own(LabTest.objects.filter(patient__hospital_id=hospital_id))
+    lab_qs = own(LabTest.objects.filter(hospital_id=hospital_id))
 
     today = hospital_today()
     

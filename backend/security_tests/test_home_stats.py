@@ -10,6 +10,7 @@ from config.hospital_time import hospital_today
 from appointments.models import Appointment
 from doctors.models import Doctor
 from hospital.models import Hospital
+from laboratory.models import LabTest
 from patients.models import Patient
 from users.models import StaffRole
 
@@ -37,6 +38,15 @@ class HomeStatsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["statistics"]["patients"]["total"], 1)
         self.assertEqual(response.data["recent_patients"][0]["name"], "Synthetic Stats Patient")
+
+    def test_lab_count_uses_the_test_hospital_not_the_patient_registration(self):
+        # R-07: a shared patient's tests at another hospital are not this hospital's.
+        patient = Patient.objects.get(hospital=self.hospital)
+        LabTest.objects.create(name="Synthetic CBC here", patient=patient, hospital=self.hospital)
+        LabTest.objects.create(name="Synthetic CBC elsewhere", patient=patient, hospital=self.other)
+        response = self.client.get(f"/api/home/stats/detail/?hospital={self.hospital.id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["statistics"]["laboratory"]["total"], 1)
 
     def test_other_hospital_is_refused(self):
         for url in ("/api/home/stats/", "/api/home/stats/detail/"):

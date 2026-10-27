@@ -62,7 +62,7 @@ Current list with ids and next actions: `DEFECT_REGISTER.md` ("Remaining"). It a
 
 - R-03: clinical hard deletes, and single-hospital patient delete by non-admin roles.
 - R-06: SMS/WhatsApp/Voice not implemented.
-- R-07: non-viewset endpoints not re-checked for the role-union pattern.
+- R-07: fixed 2026-10-28. Procurement used the union of roles (D-29); all other non-viewset endpoints reviewed. New: R-15, reads without a role check.
 - R-08: UHID uniqueness, unsalted email OTP hash.
 - R-09 to R-14: static storage, CI pinning, public API docs, code quality, offline cache, dev auth bypass.
 
