@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { CircleCheck, Hospital, ListOrdered, Megaphone, PhoneCall, SkipForward, Stethoscope, Ticket } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
-import { useAppointment } from "../assets/context/AppointmentContext.jsx"
 import api from "../services/api.js"
 import {
   Alert,
@@ -24,7 +23,6 @@ const QUEUE_STATUSES = ["Waiting", "In Consultation", "Completed", "Skipped"]
 
 function Queue() {
   const { selectedHospital } = usePatient()
-  const { updateAppointment } = useAppointment()
 
   // Live queue records from Django (encounters.QueueToken).
   const [queue, setQueue] = useState([])
@@ -39,7 +37,6 @@ function Queue() {
   // API state (loading / error / retry / feedback)
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState("")
-  const [offlineMode, setOfflineMode] = useState(false)
   const [actionError, setActionError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
@@ -60,7 +57,6 @@ function Queue() {
     waiting: String(record.status || "").toLowerCase() === "waiting" ? `${record.waiting_minutes ?? 0} min` : "Now",
     status: record.status || "Waiting",
     hospitalId: record.hospital,
-    appointmentId: record.appointment ? `A${String(record.appointment).padStart(3, "0")}` : undefined,
     appointmentApiId: record.appointment,
     apiId: record.id,
   })
@@ -93,12 +89,12 @@ function Queue() {
             patient: appointment.patient_name,
           })),
         )
-        setOfflineMode(false)
       } catch (error) {
         if (cancelled) return
-        // Keep existing rows visible and fall back to offline behaviour.
+        // Show nothing rather than a queue the server may no longer hold.
+        setQueue([])
+        setServerAppointments([])
         setLoadError(error.message || "Failed to load the queue.")
-        setOfflineMode(true)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -129,10 +125,6 @@ function Queue() {
     setActionError("")
     setSuccessMessage("")
 
-    if (offlineMode) {
-      setActionError("Cannot generate tokens while offline.")
-      return
-    }
     if (issueableAppointments.length === 0) {
       setActionError("No booked appointment is waiting for a token.")
       return
@@ -190,24 +182,16 @@ function Queue() {
   // UPDATE APPOINTMENT STATUS
   // =====================================
 
-  const updateRelatedAppointment = (queueItem, status) => {
-    // Keep the shared AppointmentContext in sync (existing behaviour).
-    if (queueItem.appointmentId) updateAppointment(queueItem.appointmentId, { status })
-
-    // Also persist the status on the Django appointment when the queue row
-    // is backed by a real record. Failures here are non-fatal: the queue
-    // itself (QueueToken) is the source of truth for this page.
-    if (queueItem.appointmentApiId) {
-      api.appointments.patch(queueItem.appointmentApiId, { status }).catch(() => {})
+  // Called only after the queue token itself was saved. The QueueToken is the
+  // source of truth for this page; a failed appointment update is reported.
+  const updateRelatedAppointment = async (queueItem, status) => {
+    if (!queueItem.appointmentApiId) return
+    try {
+      await api.appointments.patch(queueItem.appointmentApiId, { status })
+    } catch (error) {
+      setActionError(`Token updated, but the appointment status was not: ${error.message}`)
     }
   }
-
-  const setLocalStatus = (token, patch) =>
-    setQueue((prevQueue) =>
-      prevQueue.map((item) =>
-        String(item.token) === String(token) && String(item.hospitalId) === String(selectedHospital.id) ? { ...item, ...patch } : item,
-      ),
-    )
 
   // =====================================
   // CALL NEXT PATIENT
@@ -224,29 +208,26 @@ function Queue() {
     setSuccessMessage("")
     setBusy("next")
 
-    // Ask Django to advance the queue (completes the token currently being
-    // served and calls the next waiting token, persisted server-side).
-    if (!offlineMode) {
-      try {
-        await api.queue.callNext(selectedHospital.id)
-        setSuccessMessage(`Called token #${nextPatient.token}.`)
-      } catch (error) {
-        setActionError(error.message || "Failed to call the next patient.")
-      }
+    // Django advances the queue (completes the token being served and calls
+    // the next one). The screen changes only from the server's reload.
+    try {
+      await api.queue.callNext(selectedHospital.id)
+      setSuccessMessage(`Called token #${nextPatient.token}.`)
+      await updateRelatedAppointment(nextPatient, "In Consultation")
+    } catch (error) {
+      setActionError(`Not changed: ${error.message || "Failed to call the next patient."}`)
+    } finally {
+      setBusy("")
+      setReloadToken((value) => value + 1)
     }
-
-    setLocalStatus(nextPatient.token, { status: "In Consultation", waiting: "Now" })
-    updateRelatedAppointment(nextPatient, "In Consultation")
-    setBusy("")
-    setReloadToken((value) => value + 1)
   }
 
   // Shared handler for per-row call / complete / skip.
   const rowAction = async (token, kind) => {
     const config = {
-      call: { apiCall: api.queue.call, status: "In Consultation", patch: { status: "In Consultation", waiting: "Now" }, done: "called", fail: "Failed to call this patient." },
-      complete: { apiCall: api.queue.complete, status: "Completed", patch: { status: "Completed" }, done: "completed", fail: "Failed to complete this patient." },
-      skip: { apiCall: api.queue.skip, status: "Skipped", patch: { status: "Skipped" }, done: "skipped", fail: "Failed to skip this patient." },
+      call: { apiCall: api.queue.call, status: "In Consultation", done: "called", fail: "Failed to call this patient." },
+      complete: { apiCall: api.queue.complete, status: "Completed", done: "completed", fail: "Failed to complete this patient." },
+      skip: { apiCall: api.queue.skip, status: "Skipped", done: "skipped", fail: "Failed to skip this patient." },
     }[kind]
 
     const selectedQueuePatient = hospitalQueue.find((item) => String(item.token) === String(token))
@@ -254,20 +235,17 @@ function Queue() {
     setSuccessMessage("")
     setBusy(`${kind}-${token}`)
 
-    // Persist on the QueueToken when this row is a real API record.
-    if (selectedQueuePatient && selectedQueuePatient.apiId && !offlineMode) {
-      try {
-        await config.apiCall(selectedQueuePatient.apiId)
-        setSuccessMessage(`Token #${token} ${config.done}.`)
-      } catch (error) {
-        setActionError(error.message || config.fail)
-      }
+    // Saved on the QueueToken first; the screen changes only from the reload.
+    try {
+      await config.apiCall(selectedQueuePatient.apiId)
+      setSuccessMessage(`Token #${token} ${config.done}.`)
+      await updateRelatedAppointment(selectedQueuePatient, config.status)
+    } catch (error) {
+      setActionError(`Not changed: ${error.message || config.fail}`)
+    } finally {
+      setBusy("")
+      setReloadToken((value) => value + 1)
     }
-
-    setLocalStatus(token, config.patch)
-    if (selectedQueuePatient) updateRelatedAppointment(selectedQueuePatient, config.status)
-    setBusy("")
-    setReloadToken((value) => value + 1)
   }
 
   if (!selectedHospital) {
@@ -312,13 +290,13 @@ function Queue() {
 
       {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}
       {actionError && <Alert tone="danger" onDismiss={() => setActionError("")}>{actionError}</Alert>}
-      {offlineMode && (
+      {loadError && (
         <Alert
-          tone="warning"
-          title="Server unreachable"
+          tone="danger"
+          title="Queue could not be loaded"
           action={<Button size="sm" variant="secondary" onClick={() => setReloadToken((value) => value + 1)}>Retry</Button>}
         >
-          {loadError || "Could not reach the server. Showing saved queue data."}
+          {loadError}
         </Alert>
       )}
 
