@@ -2275,8 +2275,10 @@ api.emergency.visits.admitToIpd = async (id, bedId) =>
 // GET /api/clinical/allergies/?patient=<id>; POST { patient, name, reaction, severity }.
 // Any allergies helpers defined above take precedence.
 api.clinical.allergies = {
-  list: async ({ patientId } = {}) =>
-    request(`${API_BASE_URL}/clinical/allergies/${patientId ? `?patient=${encodeURIComponent(patientId)}` : ""}`),
+  list: async ({ patientId } = {}) => {
+    const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : ""
+    return request(`${API_BASE_URL}/clinical/allergies/${query}`)
+  },
   create: async (data) =>
     request(`${API_BASE_URL}/clinical/allergies/`, { method: "POST", ...jsonBody(data) }),
   ...api.clinical.allergies,
