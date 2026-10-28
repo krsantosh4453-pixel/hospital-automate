@@ -9,6 +9,7 @@ import {
   FileText,
   FlaskConical,
   HeartPulse,
+  History,
   House,
   KeyRound,
   LayoutDashboard,
@@ -96,6 +97,7 @@ export const STAFF_NAV = [
       { to: "/admin/departments", label: "Departments", icon: ClipboardList, module: "Departments" },
       { to: "/admin/nurse-duty", label: "Nurse duty", icon: CalendarClock, module: "Departments" },
       { to: "/admin/permissions", label: "Permissions", icon: KeyRound, module: "Permissions" },
+      { to: "/admin/audit", label: "Audit log", icon: History, module: "Permissions" },
     ],
   },
   {

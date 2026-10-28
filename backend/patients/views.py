@@ -27,6 +27,10 @@ from users.permissions import (
 )
 
 
+def _is_true(value):
+    return str(value).lower() in ("1", "true", "yes", "on")
+
+
 class PatientViewSet(HospitalScopedViewSet):
     queryset = Patient.objects.select_related("hospital")
     serializer_class = PatientSerializer
@@ -177,10 +181,18 @@ class PatientViewSet(HospitalScopedViewSet):
         ).distinct()
 
         # Search filter
-        search = self.request.query_params.get("search")
+        search = (self.request.query_params.get("search") or "").strip()
         if search:
+            # UHIDs are issued per hospital: match only the acting hospitals'.
+            uhid_match = Patient.objects.filter(
+                hospital_memberships__hospital_id__in=hospital_ids,
+                hospital_memberships__uhid__icontains=search,
+            ).values("pk")
             queryset = queryset.filter(
-                Q(name__icontains=search) | Q(phone__icontains=search) | Q(condition__icontains=search)
+                Q(name__icontains=search)
+                | Q(phone__icontains=search)
+                | Q(condition__icontains=search)
+                | Q(pk__in=uhid_match)
             )
 
         # Status filter
@@ -200,12 +212,42 @@ class PatientViewSet(HospitalScopedViewSet):
         
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        duplicates = self._possible_duplicates(serializer.validated_data)
+        if duplicates and not _is_true(request.data.get("confirm_new")):
+            return Response(
+                {
+                    "error": "A patient with this mobile number is already registered here. "
+                             "Use the existing record, or confirm this is a different person.",
+                    "duplicates": [
+                        {"id": p.id, "name": p.name, "age": p.age, "gender": p.gender, "phone": p.phone}
+                        for p in duplicates
+                    ],
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
         self.perform_create(serializer)
 
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED
         )
+
+    def _possible_duplicates(self, data, limit=5):
+        """Patients at the acting hospitals with the same mobile number (B5)."""
+        phone = data.get("phone")
+        if not phone:
+            return []
+        hospital_ids = self.get_acting_hospital_ids()
+        hospital = data.get("hospital")
+        if hospital is not None:
+            hospital_ids = [h for h in hospital_ids if h == hospital.pk]
+        if not hospital_ids:
+            return []
+        rows = Patient.objects.filter(phone=phone).filter(
+            Q(hospital_id__in=hospital_ids)
+            | Q(hospital_memberships__hospital_id__in=hospital_ids, hospital_memberships__is_active=True)
+        ).distinct().order_by("-created_at")
+        return list(rows[:limit])
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)

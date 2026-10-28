@@ -25,9 +25,8 @@ State as of 2026-10-25, branch `audit/production-readiness-2026-10-24`. Row ids 
 ## Partial features (23 PARTIAL rows, main ones)
 
 - Hindi covers navigation, the patient menu and the AI label; page bodies are English (A17).
-- Audit log is API-only; no viewer page (A15). Security settings are environment variables, not a screen (A14).
-- Patient search covers name and phone, not UHID (A20); the navbar notification bell is not wired (A21).
-- Staff registration does not detect duplicate patients (B5); demographics are minimal (B3).
+- Security settings are environment variables, not a screen (A14).
+- Demographics are minimal (B3).
 - No combined longitudinal record/timeline (B9, D12); clinical notes are free text without structured sections (D4).
 - Discharge checklist is not enforced (E7); discharge is not linked to final billing (E12, H8).
 - Barcode is a flag only, no scanner flow (F6); radiology is a lab test type (G4).

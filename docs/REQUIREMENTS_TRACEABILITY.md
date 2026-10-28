@@ -49,13 +49,13 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | A12 | Delegated / proxy access rules | UI 3.1, P1 10 | MISSING | — | Consent forms record proxy signature only |
 | A13 | Departments / clinics setup | UI 3.2 | VERIFIED | Department API (code, head) + page | T, B |
 | A14 | Security settings screen | UI 3.1 | PARTIAL | Settings via environment (`STAFF_LOGIN_REQUIRE_OTP`, …); no UI | R |
-| A15 | Audit log viewer (admin only) | UI 3.1, 6 | PARTIAL | `/api/audit/audit-logs/` (Admin, hospital-scoped) with automatic write auditing; no viewer page | T:test_rbac_and_writes (AuditTrail) |
+| A15 | Audit log viewer (admin only) | UI 3.1, 6 | VERIFIED | Admin → Audit log (`/admin/audit`): filters by action, record type, user and dates; newest first; read only | T:test_rbac_and_writes (AuditTrail), audit.tests.AuditLogFilterTests (5); browser 2026-10-28 |
 | A16 | Role-specific dashboards and navigation | UI 2, 3 | IMPLEMENTED | Sidebar uses `canView`; ProtectedRoute checks backend roles | B (Admin role only) |
 | A17 | Hindi / English toggle | UI 2, P1 | PARTIAL | LanguageContext: navigation, patient menu and AI label translated; page bodies are English | B |
 | A18 | Breadcrumb bar | UI 2 | MISSING | — | — |
 | A19 | Patient context strip (sticky) | UI 2 | MISSING | — | — |
-| A20 | Global patient search (UHID / name / mobile) | UI 2, 6 | PARTIAL | `/api/patients/?search=` (name, phone); UHID not included | R |
-| A21 | Notifications bell / notification center | UI 2, 6 | PARTIAL | API `/api/notifications/notifications/`; navbar bell not wired | R |
+| A20 | Global patient search (UHID / name / mobile) | UI 2, 6 | VERIFIED | `/api/patients/?search=` matches name, phone and the acting hospital's UHIDs (never another hospital's) | patients.tests (2 UHID tests); browser 2026-10-28 |
+| A21 | Notifications bell / notification center | UI 2, 6 | VERIFIED | Header bell (`HeaderMenus.jsx` NotificationsMenu) lists the hospital's notifications and marks them read | T:test_notifications; browser 2026-10-28 |
 
 ## B. Patient registration and portal
 
@@ -65,7 +65,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | B2 | UHID per hospital | MH 5, P1 4 | IMPLEMENTED | PatientHospital.uhid | R |
 | B3 | Full demographics (DOB, marital status, ID type, address parts, payer) | P1 4.1 | PARTIAL | name, age, gender, phone, address, DOB only | R |
 | B4 | Emergency contact / relative | P1 4.1 | VERIFIED | `patients.tests` (4 emergency-contact tests); browser check 2026-10-28 | Added 2026-10-28: name, relation, phone on the patient; a name needs a phone |
-| B5 | Duplicate prevention / existing-patient match | — | PARTIAL | Self-registration rejects a duplicate phone; staff registration does not | R |
+| B5 | Duplicate prevention / existing-patient match | — | VERIFIED | Staff registration with a mobile number already registered at that hospital returns 409 with the matches; staff open the existing record or confirm a different person (`confirm_new`). Other hospitals' patients are never shown | patients.tests (3 duplicate tests); browser 2026-10-28 |
 | B6 | Patient portal home | MH 3, UI 4 | VERIFIED | `pages/patient/*` | B |
 | B7 | Book appointment (specialty → doctor → slot) | UI 4 | IMPLEMENTED | Patient appointment page | B (render only) |
 | B8 | My appointments / queue token status | UI 4 | IMPLEMENTED | PatientQueue (15 s polling) | B (render only) |

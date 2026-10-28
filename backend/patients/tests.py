@@ -150,6 +150,45 @@ class PatientAPITests(TestCase):
         self.patient_a.refresh_from_db()
         self.assertEqual(self.patient_a.age, 31)
 
+    def test_search_finds_patient_by_this_hospitals_uhid(self):
+        PatientHospital.objects.filter(patient=self.patient_a).update(uhid="UH-A-001")
+
+        response = self.client.get(f"{self._get_list_url()}&search=uh-a-001")
+
+        ids = [row["id"] for row in response.data.get("results", response.data)]
+        self.assertEqual(ids, [self.patient_a.id])
+
+    def test_search_ignores_another_hospitals_uhid(self):
+        # Patient A is also registered at B under B's UHID; A's staff must not match on it.
+        PatientHospital.objects.create(patient=self.patient_a, hospital=self.hospital_b, uhid="UH-B-777", is_active=True)
+
+        response = self.client.get(f"{self._get_list_url()}&search=UH-B-777")
+
+        self.assertEqual(response.data.get("results", response.data), [])
+
+    def _new_patient(self, phone, **extra):
+        data = {"name": "Second Person", "age": 12, "gender": "Female", "phone": phone, "hospital": self.hospital_a.id}
+        data.update(extra)
+        return self.client.post("/api/patients/", data, format="json")
+
+    def test_registering_a_known_mobile_number_returns_the_match(self):
+        response = self._new_patient(self.patient_a.phone)
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual([row["id"] for row in response.data["duplicates"]], [self.patient_a.id])
+        self.assertFalse(Patient.objects.filter(name="Second Person").exists())
+
+    def test_confirmed_different_person_with_same_number_is_registered(self):
+        response = self._new_patient(self.patient_a.phone, confirm_new=True)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+    def test_number_known_only_at_another_hospital_is_not_revealed(self):
+        response = self._new_patient(self.patient_b.phone)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertNotIn("duplicates", response.data)
+
     def test_emergency_contact_saved_with_digits_only(self):
         response = self.client.patch(
             self._get_detail_url(self.patient_a.id),

@@ -49,6 +49,7 @@ import Hospitals from "./pages/admin/Hospitals.jsx"
 import Departments from "./pages/admin/Departments.jsx"
 import NurseDuty from "./pages/admin/NurseDuty.jsx"
 import Permissions from "./pages/admin/Permissions.jsx"
+import AuditLog from "./pages/admin/AuditLog.jsx"
 import HospitalSetup from "./pages/admin/HospitalSetup.jsx"
 
 import PatientDashboard from "./pages/patient/PatientDashboard.jsx"
@@ -122,6 +123,7 @@ function App() {
                           <Route path="/admin/departments" element={<Departments />} />
                           <Route path="/admin/nurse-duty" element={<NurseDuty />} />
                           <Route path="/admin/permissions" element={<Permissions />} />
+                          <Route path="/admin/audit" element={<AuditLog />} />
                           <Route path="/admin/setup" element={<HospitalSetup />} />
                           <Route path="/settings" element={<Settings />} />
                         </Route>

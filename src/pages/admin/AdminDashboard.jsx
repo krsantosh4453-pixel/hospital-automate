@@ -138,7 +138,12 @@ function AdminDashboard() {
             </Card>
 
             <Card>
-              <CardHeader icon={History} title="Recent activity" description="From the audit trail" />
+              <CardHeader
+                icon={History}
+                title="Recent activity"
+                description="From the audit trail"
+                actions={data?.auditAvailable && <Link to="/admin/audit" className="text-[13px] font-medium text-brand-700 hover:underline">Open audit log</Link>}
+              />
               {loading ? (
                 <p className="px-5 py-6 text-sm text-ink-500">Loading…</p>
               ) : !data?.auditAvailable ? (
@@ -153,7 +158,7 @@ function AdminDashboard() {
                       <p className="text-xs text-ink-500">
                         {entry.model_name}
                         {entry.object_id ? ` #${entry.object_id}` : ""}
-                        {entry.user ? ` · user ${entry.user}` : ""} · {timeAgo(entry.created_at)}
+                        {entry.username ? ` · ${entry.username}` : entry.user ? ` · user ${entry.user}` : ""} · {timeAgo(entry.created_at)}
                       </p>
                     </li>
                   ))}

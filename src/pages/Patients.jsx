@@ -242,8 +242,8 @@ function Patients() {
   // CREATE / UPDATE (POST / PUT)
   // =====================================================
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
+  const handleSubmit = async (event, { confirmNew = false } = {}) => {
+    event?.preventDefault()
     if (!validateForm()) return
 
     const payload = {
@@ -269,7 +269,7 @@ function Patients() {
         )
         setSuccessMessage("Patient updated successfully.")
       } else {
-        const created = await api.patients.create(payload)
+        const created = await api.patients.create(confirmNew ? { ...payload, confirm_new: true } : payload)
         setPatients((prev) => [mapFromApi(created), ...prev])
         setTotalRecords((n) => n + 1)
         setSuccessMessage("Patient added successfully.")
@@ -280,6 +280,11 @@ function Patients() {
       // Refused, unreachable or timed out: keep the form open and say so.
       // Nothing is saved in the browser. After a timeout the server may
       // already have saved it, so the list is reloaded to show the truth.
+      if (error.status === 409 && Array.isArray(error.body?.duplicates)) {
+        // Same mobile number already registered here (B5): let staff choose.
+        setFormErrors((prev) => ({ ...prev, _duplicates: error.body.duplicates }))
+        return
+      }
       setFormErrors((prev) => ({ ...prev, _server: `Not saved: ${error.message}` }))
       if (error.isTimeout) setReloadToken((value) => value + 1)
     } finally {
@@ -372,7 +377,7 @@ function Patients() {
             <SearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Search by name or phone"
+              placeholder="Search by name, phone or UHID"
               label="Search patients"
               className="w-full sm:max-w-sm"
             />
@@ -499,6 +504,23 @@ function Patients() {
       >
         <form id="patient-form" onSubmit={handleSubmit} noValidate className="space-y-4">
           {formErrors._server && <Alert tone="danger" title="Not saved">{formErrors._server}</Alert>}
+          {formErrors._duplicates && (
+            <Alert tone="warning" title="This mobile number is already registered here">
+              <ul className="mt-1 space-y-1">
+                {formErrors._duplicates.map((match) => (
+                  <li key={match.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <span>{match.name} · {match.age} y · {match.gender}</span>
+                    <Button size="sm" variant="secondary" onClick={() => { closeForm(); setViewPatient(mapFromApi(match)) }}>
+                      Use this patient
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              <Button size="sm" variant="ghost" className="mt-2" loading={saving} onClick={() => handleSubmit(null, { confirmNew: true })}>
+                Different person: register anyway
+              </Button>
+            </Alert>
+          )}
           <Field label="Full name" required error={formErrors.name}>
             <Input name="name" value={formData.name} onChange={handleFormChange} placeholder="As on ID document" autoComplete="off" />
           </Field>

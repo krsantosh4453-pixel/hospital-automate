@@ -1695,6 +1695,15 @@ api.audit = {
     const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
     return request(`${API_BASE_URL}/audit/audit-logs/${query}`)
   },
+
+  // GET /api/audit/audit-logs/?hospital=&page=&action=&model=&user=&from=&to=
+  search: async (hospitalId, { page = 1, action, model, user, from, to } = {}) => {
+    const params = new URLSearchParams({ hospital: hospitalId, page: String(page) })
+    Object.entries({ action, model, user, from, to }).forEach(([key, value]) => {
+      if (value) params.set(key, value)
+    })
+    return request(`${API_BASE_URL}/audit/audit-logs/?${params.toString()}`)
+  },
 }
 
 // Staff administration for the selected hospital (Admin / Hospital Manager).
