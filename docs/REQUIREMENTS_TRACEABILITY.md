@@ -48,7 +48,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | A11 | Roles and permissions matrix | UI 3.1 | VERIFIED | Server-side role classes per membership; read-only matrix page | T (role-per-hospital tests), B |
 | A12 | Delegated / proxy access rules | UI 3.1, P1 10 | MISSING | — | Consent forms record proxy signature only |
 | A13 | Departments / clinics setup | UI 3.2 | VERIFIED | Department API (code, head) + page | T, B |
-| A14 | Security settings screen | UI 3.1 | PARTIAL | Settings via environment (`STAFF_LOGIN_REQUIRE_OTP`, …); no UI | R |
+| A14 | Security settings screen | UI 3.1 | VERIFIED | Admin → Security settings (`/admin/security`): effective OTP, dev sign-in, token lifetimes, cookie/HTTPS/HSTS, password rules and rate limits, each marked recommended or not for production. Read only by design (environment variables); no secrets returned | users.test_security_settings (4); browser 2026-10-28 |
 | A15 | Audit log viewer (admin only) | UI 3.1, 6 | VERIFIED | Admin → Audit log (`/admin/audit`): filters by action, record type, user and dates; newest first; read only | T:test_rbac_and_writes (AuditTrail), audit.tests.AuditLogFilterTests (5); browser 2026-10-28 |
 | A16 | Role-specific dashboards and navigation | UI 2, 3 | IMPLEMENTED | Sidebar uses `canView`; ProtectedRoute checks backend roles | B (Admin role only) |
 | A17 | Hindi / English toggle | UI 2, P1 | PARTIAL | LanguageContext: navigation, patient menu and AI label translated; page bodies are English | B |

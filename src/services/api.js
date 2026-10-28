@@ -2246,6 +2246,11 @@ api.ipd.admissions.finalBill = async (id, data) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
+// Read-only security configuration (A14), Admin only.
+// GET /api/auth/security-settings/
+api.securitySettings = {
+  get: async () => request(`${API_BASE_URL}/auth/security-settings/`),
+}
 // PATCH /api/ipd/discharge-plans/{id}/  e.g. { medications_reconciled: true }
 api.ipd.dischargePlans.patch = async (id, data) =>
   request(`${API_BASE_URL}/ipd/discharge-plans/${id}/`, {
