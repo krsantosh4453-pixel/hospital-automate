@@ -25,6 +25,30 @@ class Patient(models.Model):
     emergency_contact_name = models.CharField(max_length=100, blank=True, default="")
     emergency_contact_relation = models.CharField(max_length=50, blank=True, default="")
     emergency_contact_phone = models.CharField(max_length=15, blank=True, default="")
+    # Demographics (requirement B3). Address parts are kept beside the
+    # free-text ``address`` used by older screens.
+    marital_status = models.CharField(
+        max_length=20, blank=True, default="",
+        choices=[(v, v) for v in ("Single", "Married", "Widowed", "Divorced", "Separated")],
+    )
+    address_line = models.CharField(max_length=200, blank=True, default="")
+    city = models.CharField(max_length=80, blank=True, default="")
+    district = models.CharField(max_length=80, blank=True, default="")
+    state = models.CharField(max_length=80, blank=True, default="")
+    pincode = models.CharField(max_length=6, blank=True, default="")
+    # Only the ID type and its last four characters: the full number of a
+    # government ID (e.g. Aadhaar) is not stored.
+    id_type = models.CharField(
+        max_length=30, blank=True, default="",
+        choices=[(v, v) for v in ("Aadhaar", "PAN", "Voter ID", "Passport", "Driving licence", "ABHA", "Other")],
+    )
+    id_last4 = models.CharField(max_length=4, blank=True, default="")
+    payer_type = models.CharField(
+        max_length=30, blank=True, default="",
+        choices=[(v, v) for v in ("Self", "Insurance", "Government scheme", "Corporate")],
+    )
+    payer_name = models.CharField(max_length=120, blank=True, default="")
+    policy_number = models.CharField(max_length=60, blank=True, default="")
     # Direct hospital link used by the Patients UI.
     # PatientHospital (membership) is kept for backward compatibility.
     hospital = models.ForeignKey(

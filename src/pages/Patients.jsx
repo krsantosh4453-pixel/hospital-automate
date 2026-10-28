@@ -27,6 +27,18 @@ import {
 const EMPTY_FORM = {
   name: "", age: "", gender: "", phone: "", condition: "",
   emergencyName: "", emergencyRelation: "", emergencyPhone: "",
+  dateOfBirth: "",
+  maritalStatus: "",
+  addressLine: "",
+  city: "",
+  district: "",
+  state: "",
+  pincode: "",
+  idType: "",
+  idLast4: "",
+  payerType: "",
+  payerName: "",
+  policyNumber: "",
 }
 
 function Patients() {
@@ -75,6 +87,18 @@ function Patients() {
     emergencyName: record.emergency_contact_name || "",
     emergencyRelation: record.emergency_contact_relation || "",
     emergencyPhone: record.emergency_contact_phone || "",
+    dateOfBirth: record.date_of_birth || "",
+    maritalStatus: record.marital_status || "",
+    addressLine: record.address_line || "",
+    city: record.city || "",
+    district: record.district || "",
+    state: record.state || "",
+    pincode: record.pincode || "",
+    idType: record.id_type || "",
+    idLast4: record.id_last4 || "",
+    payerType: record.payer_type || "",
+    payerName: record.payer_name || "",
+    policyNumber: record.policy_number || "",
     doctor: record.doctor || "",
     status: record.status || "Active",
     hospitalId: record.hospital ?? selectedHospital?.id ?? "",
@@ -196,6 +220,18 @@ function Patients() {
       emergencyName: patient.emergencyName || "",
       emergencyRelation: patient.emergencyRelation || "",
       emergencyPhone: patient.emergencyPhone || "",
+      dateOfBirth: patient.dateOfBirth || "",
+      maritalStatus: patient.maritalStatus || "",
+      addressLine: patient.addressLine || "",
+      city: patient.city || "",
+      district: patient.district || "",
+      state: patient.state || "",
+      pincode: patient.pincode || "",
+      idType: patient.idType || "",
+      idLast4: patient.idLast4 || "",
+      payerType: patient.payerType || "",
+      payerName: patient.payerName || "",
+      policyNumber: patient.policyNumber || "",
     })
     setFormErrors({})
     setViewPatient(null)
@@ -233,6 +269,12 @@ function Patients() {
     } else if (formData.emergencyName.trim() && !emergencyDigits) {
       errors.emergencyPhone = "Add a phone number for the emergency contact."
     }
+    if (formData.pincode && !/^\d{6}$/.test(formData.pincode.trim())) errors.pincode = "A PIN code has 6 digits."
+    if (formData.idLast4 && !/^[A-Za-z0-9]{4}$/.test(formData.idLast4.trim())) errors.idLast4 = "Enter only the last 4 characters."
+    if (formData.idLast4 && !formData.idType) errors.idType = "Choose the type of ID."
+    if (["Insurance", "Government scheme", "Corporate"].includes(formData.payerType) && !formData.payerName.trim()) {
+      errors.payerName = "Name the insurer, scheme or company."
+    }
 
     setFormErrors(errors)
     return Object.keys(errors).length === 0
@@ -255,6 +297,19 @@ function Patients() {
       emergency_contact_name: formData.emergencyName.trim(),
       emergency_contact_relation: formData.emergencyRelation.trim(),
       emergency_contact_phone: String(formData.emergencyPhone).replace(/\D/g, ""),
+      // Demographics (B3); empty strings clear a field, a missing DOB is null.
+      date_of_birth: formData.dateOfBirth || null,
+      marital_status: String(formData.maritalStatus).trim(),
+      address_line: String(formData.addressLine).trim(),
+      city: String(formData.city).trim(),
+      district: String(formData.district).trim(),
+      state: String(formData.state).trim(),
+      pincode: String(formData.pincode).trim(),
+      id_type: String(formData.idType).trim(),
+      id_last4: String(formData.idLast4).trim(),
+      payer_type: String(formData.payerType).trim(),
+      payer_name: String(formData.payerName).trim(),
+      policy_number: String(formData.policyNumber).trim(),
       hospital: selectedHospital?.id ?? null,
     }
 
@@ -557,6 +612,52 @@ function Patients() {
               <Input type="tel" inputMode="tel" name="emergencyPhone" value={formData.emergencyPhone} onChange={handleFormChange} autoComplete="off" />
             </Field>
           </fieldset>
+          <details className="rounded-xl border border-line px-4 py-2" open={Boolean(formErrors.pincode || formErrors.idLast4 || formErrors.idType || formErrors.payerName)}>
+            <summary className="cursor-pointer py-1 text-[13px] font-medium text-ink-700">More details (optional)</summary>
+            <div className="mt-3 space-y-3 pb-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Date of birth">
+                  <Input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleFormChange} max={new Date().toISOString().slice(0, 10)} />
+                </Field>
+                <Field label="Marital status">
+                  <Select name="maritalStatus" value={formData.maritalStatus} onChange={handleFormChange}>
+                    <option value="">Not recorded</option>
+                    {["Single", "Married", "Widowed", "Divorced", "Separated"].map((v) => <option key={v}>{v}</option>)}
+                  </Select>
+                </Field>
+              </div>
+              <Field label="Address">
+                <Input name="addressLine" value={formData.addressLine} onChange={handleFormChange} maxLength={200} placeholder="House, street, locality" />
+              </Field>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Field label="City / village"><Input name="city" value={formData.city} onChange={handleFormChange} maxLength={80} /></Field>
+                <Field label="District"><Input name="district" value={formData.district} onChange={handleFormChange} maxLength={80} /></Field>
+                <Field label="State"><Input name="state" value={formData.state} onChange={handleFormChange} maxLength={80} /></Field>
+                <Field label="PIN code" error={formErrors.pincode}><Input name="pincode" inputMode="numeric" value={formData.pincode} onChange={handleFormChange} maxLength={6} /></Field>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="ID type" error={formErrors.idType}>
+                  <Select name="idType" value={formData.idType} onChange={handleFormChange}>
+                    <option value="">None</option>
+                    {["Aadhaar", "PAN", "Voter ID", "Passport", "Driving licence", "ABHA", "Other"].map((v) => <option key={v}>{v}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Last 4 of ID" error={formErrors.idLast4} hint="Only the last 4 characters are kept, never the full number.">
+                  <Input name="idLast4" value={formData.idLast4} onChange={handleFormChange} maxLength={4} autoComplete="off" />
+                </Field>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Field label="Who pays">
+                  <Select name="payerType" value={formData.payerType} onChange={handleFormChange}>
+                    <option value="">Not recorded</option>
+                    {["Self", "Insurance", "Government scheme", "Corporate"].map((v) => <option key={v}>{v}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Insurer / scheme / company" error={formErrors.payerName}><Input name="payerName" value={formData.payerName} onChange={handleFormChange} maxLength={120} /></Field>
+                <Field label="Policy / card number"><Input name="policyNumber" value={formData.policyNumber} onChange={handleFormChange} maxLength={60} /></Field>
+              </div>
+            </div>
+          </details>
         </form>
       </Modal>
 
@@ -593,6 +694,14 @@ function Patients() {
                 { label: "Gender", value: viewPatient.gender },
                 { label: "Mobile", value: viewPatient.phone },
                 { label: "Reason for visit", value: viewPatient.condition },
+                { label: "Date of birth", value: viewPatient.dateOfBirth },
+                { label: "Marital status", value: viewPatient.maritalStatus },
+                {
+                  label: "Address",
+                  value: [viewPatient.addressLine, viewPatient.city, viewPatient.district, viewPatient.state, viewPatient.pincode].filter(Boolean).join(", "),
+                },
+                { label: "ID", value: viewPatient.idType ? `${viewPatient.idType} ending ${viewPatient.idLast4 || "—"}` : "" },
+                { label: "Payer", value: [viewPatient.payerType, viewPatient.payerName, viewPatient.policyNumber].filter(Boolean).join(" · ") },
                 {
                   label: "Emergency contact",
                   value: [viewPatient.emergencyName, viewPatient.emergencyRelation && `(${viewPatient.emergencyRelation})`, viewPatient.emergencyPhone]

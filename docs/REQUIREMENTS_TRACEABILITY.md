@@ -63,7 +63,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 |---|---|---|---|---|---|
 | B1 | Register patient and retrieve persisted record | P1 4.1 | VERIFIED | PatientViewSet | T:test_e2e_workflows |
 | B2 | UHID per hospital | MH 5, P1 4 | IMPLEMENTED | PatientHospital.uhid | R |
-| B3 | Full demographics (DOB, marital status, ID type, address parts, payer) | P1 4.1 | PARTIAL | name, age, gender, phone, address, DOB only | R |
+| B3 | Full demographics (DOB, marital status, ID type, address parts, payer) | P1 4.1 | VERIFIED | Patients form → More details: DOB, marital status, address line / city / district / state / PIN, ID type with only the last 4 characters (full government ID numbers are not stored), payer type / name / policy | patients.tests (3 demographic tests); browser 2026-10-28 |
 | B4 | Emergency contact / relative | P1 4.1 | VERIFIED | `patients.tests` (4 emergency-contact tests); browser check 2026-10-28 | Added 2026-10-28: name, relation, phone on the patient; a name needs a phone |
 | B5 | Duplicate prevention / existing-patient match | — | VERIFIED | Staff registration with a mobile number already registered at that hospital returns 409 with the matches; staff open the existing record or confirm a different person (`confirm_new`). Other hospitals' patients are never shown | patients.tests (3 duplicate tests); browser 2026-10-28 |
 | B6 | Patient portal home | MH 3, UI 4 | VERIFIED | `pages/patient/*` | B |

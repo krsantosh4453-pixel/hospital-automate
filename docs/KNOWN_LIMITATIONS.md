@@ -26,7 +26,6 @@ State as of 2026-10-25, branch `audit/production-readiness-2026-10-24`. Row ids 
 
 - Hindi covers navigation, the patient menu and the AI label; page bodies are English (A17).
 - Security settings are environment variables, not a screen (A14).
-- Demographics are minimal (B3).
 - No combined longitudinal record/timeline (B9, D12); clinical notes are free text without structured sections (D4).
 - Barcode is a flag only, no scanner flow (F6); radiology is a lab test type (G4).
 - About half of the 24 ER actions exist (J3).

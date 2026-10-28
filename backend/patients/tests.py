@@ -189,6 +189,45 @@ class PatientAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         self.assertNotIn("duplicates", response.data)
 
+    def test_demographics_saved(self):
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {
+                "marital_status": "Married", "address_line": "12 MG Road", "city": "Patna",
+                "district": "Patna", "state": "Bihar", "pincode": "800001",
+                "id_type": "Aadhaar", "id_last4": "4321", "payer_type": "Insurance",
+                "payer_name": "Star Health", "policy_number": "SH-77",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.patient_a.refresh_from_db()
+        self.assertEqual((self.patient_a.city, self.patient_a.id_last4, self.patient_a.payer_name), ("Patna", "4321", "Star Health"))
+
+    def test_full_id_number_is_refused(self):
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {"id_type": "Aadhaar", "id_last4": "123456789012"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("id_last4", response.data["details"])
+
+    def test_demographic_rules(self):
+        cases = [
+            ({"pincode": "8000"}, "pincode"),
+            ({"id_last4": "4321"}, "id_type"),
+            ({"payer_type": "Insurance"}, "payer_name"),
+            ({"date_of_birth": "2999-01-01"}, "date_of_birth"),
+            ({"marital_status": "Unknown"}, "marital_status"),
+        ]
+        for data, field in cases:
+            response = self.client.patch(self._get_detail_url(self.patient_a.id), data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, data)
+            self.assertIn(field, response.data["details"], data)
+
     def test_emergency_contact_saved_with_digits_only(self):
         response = self.client.patch(
             self._get_detail_url(self.patient_a.id),
