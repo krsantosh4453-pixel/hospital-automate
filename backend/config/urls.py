@@ -107,8 +107,8 @@ urlpatterns = [
     # Reports
     path("api/reports/", include("reports.urls")),
 
-    # FHIR Interoperability (not implemented)
-    # path("api/fhir/", include("fhir.urls")),
+    # FHIR R4 read API (Admin only, off unless FHIR_ENABLED)
+    path("api/fhir/", include("fhir.urls")),
 
     # HL7 Messaging (not implemented)
     # path("api/hl7/", include("hl7.urls")),

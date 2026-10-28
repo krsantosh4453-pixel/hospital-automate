@@ -29,18 +29,15 @@ class FHIRResourceBuilder(ABC):
         self.hospital_id = hospital_id
         self._extensions: Dict[str, Any] = {}
     
-    @abstractmethod
     def build(self, source_obj: Any) -> Dict[str, Any]:
         """
-        Build a FHIR resource from the source internal model object.
-        
-        Args:
-            source_obj: The internal Django model instance
-            
-        Returns:
-            Dictionary representing the FHIR resource
+        Return the resource for ``source_obj``.
+
+        Mappers assemble the resource dict themselves and use builders only
+        for the helper methods below, so the default is a pass-through.
+        Subclasses may override it to build from a model instance directly.
         """
-        pass
+        return source_obj
     
     def _base_resource(self, id_value: str, meta: Optional[Dict] = None) -> Dict[str, Any]:
         """Create base FHIR resource structure with id, meta, and resourceType."""
@@ -141,9 +138,9 @@ class FHIRResourceBuilder(ABC):
             ref["identifier"] = identifier
         return ref
     
-    def _codeable_concept(self, coding: List[Dict], text: Optional[str] = None) -> Dict[str, Any]:
-        """Create a FHIR CodeableConcept element."""
-        concept = {"coding": coding}
+    def _codeable_concept(self, coding: Optional[List[Dict]] = None, text: Optional[str] = None) -> Dict[str, Any]:
+        """Create a FHIR CodeableConcept element (text-only is valid when no code is known)."""
+        concept = {"coding": coding} if coding else {}
         if text:
             concept["text"] = text
         return concept

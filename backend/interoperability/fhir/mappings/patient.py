@@ -71,24 +71,26 @@ class PatientMapper(FHIRMapper):
         }
         resource["gender"] = gender_map.get(patient.gender, "unknown")
         
-        # Birth Date - calculate from age if birth_date not stored
-        # Note: Internal model only has age, not birthDate
-        # We calculate approximate birth date from age
-        if patient.age:
-            current_year = date.today().year
-            birth_year = current_year - patient.age
-            resource["birthDate"] = f"{birth_year}-01-01"  # Approximate
-        
-        # Address - from hospital address as proxy if patient address not stored
-        address = []
-        if hospital.address:
-            address.append(self.builder._address(
-                line=[hospital.address],
-                city=hospital.city,
-                state=hospital.state,
-                use="home"
-            ))
-        resource["address"] = address
+        # Birth date: the recorded date of birth, else only the year implied by
+        # age (FHIR allows year precision; inventing a day and month would not be).
+        if patient.date_of_birth:
+            resource["birthDate"] = patient.date_of_birth.isoformat()
+        elif patient.age:
+            resource["birthDate"] = str(date.today().year - patient.age)
+
+        # Address: the patient's own address only, never the hospital's.
+        line = patient.address_line or patient.address
+        if line or patient.city or patient.state or patient.pincode:
+            resource["address"] = [self.builder._address(
+                line=[line] if line else None,
+                city=patient.city or None,
+                state=patient.state or None,
+                postal_code=patient.pincode or None,
+                country="IN",
+                use="home",
+            )]
+        else:
+            resource["address"] = []
         
         # Managing Organization (the hospital)
         resource["managingOrganization"] = self.builder._reference(
