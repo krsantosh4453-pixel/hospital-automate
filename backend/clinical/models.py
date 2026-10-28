@@ -1,7 +1,15 @@
+from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
 class VitalSign(models.Model):
+    class Avpu(models.TextChoices):
+        ALERT = "A", "Alert"
+        VOICE = "V", "Responds to voice"
+        PAIN = "P", "Responds to pain"
+        UNRESPONSIVE = "U", "Unresponsive"
+
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -17,6 +25,18 @@ class VitalSign(models.Model):
     heart_rate = models.PositiveIntegerField(null=True, blank=True)
     blood_sugar = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     spo2 = models.PositiveIntegerField(null=True, blank=True)
+    # Extended set (requirement D2).
+    pain_score = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(10)], help_text="0 (none) to 10 (worst)"
+    )
+    gcs = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(3), MaxValueValidator(15)],
+        help_text="Glasgow Coma Scale total, 3 to 15",
+    )
+    avpu = models.CharField(max_length=1, choices=Avpu.choices, blank=True)
+    head_circumference = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="cm")
+    muac = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Mid-upper arm circumference, cm")
+    urine_output = models.PositiveIntegerField(null=True, blank=True, help_text="mL since the last reading")
     comments = models.TextField(blank=True)
     recorded_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -353,3 +373,60 @@ class Referral(models.Model):
 
     def __str__(self):
         return f"REF-{self.pk}"
+
+
+class Immunization(models.Model):
+    """A vaccine dose given to a patient (requirement D15)."""
+
+    class Route(models.TextChoices):
+        IM = "IM", "Intramuscular"
+        SC = "SC", "Subcutaneous"
+        ID = "ID", "Intradermal"
+        ORAL = "Oral", "Oral"
+        NASAL = "Nasal", "Intranasal"
+
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.CASCADE,
+        related_name="immunizations",
+        db_index=True
+    )
+    patient = models.ForeignKey(
+        "patients.Patient",
+        on_delete=models.CASCADE,
+        related_name="immunizations",
+        db_index=True
+    )
+    vaccine = models.CharField(max_length=150)
+    dose_number = models.PositiveSmallIntegerField(default=1, validators=[MinValueValidator(1)])
+    administered_on = models.DateField()
+    batch_number = models.CharField(max_length=60, blank=True)
+    manufacturer = models.CharField(max_length=120, blank=True)
+    route = models.CharField(max_length=10, choices=Route.choices, blank=True)
+    site = models.CharField(max_length=60, blank=True)
+    next_due_on = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="immunizations_recorded",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-administered_on", "-created_at"]
+        indexes = [
+            models.Index(fields=["patient", "administered_on"]),
+            models.Index(fields=["hospital", "next_due_on"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(next_due_on__isnull=True) | models.Q(next_due_on__gt=models.F("administered_on")),
+                name="immunization_next_due_after_given",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.vaccine} dose {self.dose_number}"

@@ -1290,6 +1290,31 @@ const api = {
         }),
     },
 
+    // Vaccination register (D15). Doses are corrected, never deleted.
+    immunizations: {
+      // GET /api/clinical/immunizations/?patient=<id>
+      list: async ({ patientId } = {}) => {
+        const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : ''
+        return request(`${API_BASE_URL}/clinical/immunizations/${query}`)
+      },
+
+      // POST /api/clinical/immunizations/
+      create: async (data) =>
+        request(`${API_BASE_URL}/clinical/immunizations/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+
+      // PATCH /api/clinical/immunizations/{id}/
+      update: async (id, data) =>
+        request(`${API_BASE_URL}/clinical/immunizations/${id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+    },
+
     // =====================================
     // PHARMACY
     // =====================================
@@ -1449,6 +1474,9 @@ const api = {
           : ''
         return request(`${API_BASE_URL}/ipd/admissions/${query}`)
       },
+      // GET /api/ipd/admissions/?patient=<id>&status=Admitted
+      currentForPatient: async (patientId) =>
+        request(`${API_BASE_URL}/ipd/admissions/?patient=${encodeURIComponent(patientId)}&status=Admitted`),
       get: async (id) => request(`${API_BASE_URL}/ipd/admissions/${id}/`),
       create: async (data) =>
         request(`${API_BASE_URL}/ipd/admissions/`, {

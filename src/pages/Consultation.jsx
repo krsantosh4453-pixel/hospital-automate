@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
-import { CalendarClock, ClipboardList, FileText, HeartPulse, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Trash2, UserRound } from "lucide-react"
+import { CalendarClock, ClipboardList, FileText, HeartPulse, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Syringe, Trash2, UserRound } from "lucide-react"
 import {
   Alert,
   Avatar,
@@ -22,6 +22,8 @@ import {
   Textarea,
 } from "../components/ui"
 import VisitDocuments from "../components/clinical/VisitDocuments.jsx"
+import VisitImmunizations from "../components/clinical/VisitImmunizations.jsx"
+import PatientContextStrip from "../components/clinical/PatientContextStrip.jsx"
 
 // =========================================================
 // DOCTOR CONSULTATION
@@ -128,6 +130,12 @@ const mapVitalFromApi = (record) => ({
   heartRate: record.heart_rate,
   bloodSugar: record.blood_sugar,
   spo2: record.spo2,
+  painScore: record.pain_score,
+  gcs: record.gcs,
+  avpu: record.avpu || "",
+  headCircumference: record.head_circumference,
+  muac: record.muac,
+  urineOutput: record.urine_output,
   comments: record.comments || "",
   recordedAt: record.recorded_at || null,
 })
@@ -196,7 +204,28 @@ const emptyVitalForm = {
   heartRate: "",
   bloodSugar: "",
   spo2: "",
+  painScore: "",
+  gcs: "",
+  avpu: "",
+  headCircumference: "",
+  muac: "",
+  urineOutput: "",
   comments: "",
+}
+
+const AVPU_OPTIONS = [
+  { value: "", label: "—" },
+  { value: "A", label: "Alert" },
+  { value: "V", label: "Voice" },
+  { value: "P", label: "Pain" },
+  { value: "U", label: "Unresponsive" },
+]
+
+// BMI from kg and cm, or null when either is missing.
+const bmiOf = (weight, height) => {
+  const kg = Number(weight)
+  const m = Number(height) / 100
+  return kg > 0 && m > 0 ? (kg / (m * m)).toFixed(1) : null
 }
 
 const emptyDiagnosisForm = {
@@ -470,6 +499,11 @@ function Consultation() {
       ["heartRate", 20, 250, "Pulse / heart rate"],
       ["bloodSugar", 0, 1000, "Blood sugar"],
       ["spo2", 50, 100, "SpO2"],
+      ["painScore", 0, 10, "Pain score"],
+      ["gcs", 3, 15, "GCS"],
+      ["headCircumference", 20, 70, "Head circumference"],
+      ["muac", 5, 60, "MUAC"],
+      ["urineOutput", 0, 10000, "Urine output"],
     ]
 
     for (const [field, min, max, label] of checks) {
@@ -497,7 +531,7 @@ function Consultation() {
         vitalForm[field] !== undefined
     )
 
-    if (!hasAnyValue) {
+    if (!hasAnyValue && !vitalForm.avpu) {
       return "Enter at least one vital sign value."
     }
 
@@ -532,6 +566,12 @@ function Consultation() {
       heart_rate: num(vitalForm.heartRate),
       blood_sugar: num(vitalForm.bloodSugar),
       spo2: num(vitalForm.spo2),
+      pain_score: num(vitalForm.painScore),
+      gcs: num(vitalForm.gcs),
+      avpu: vitalForm.avpu,
+      head_circumference: num(vitalForm.headCircumference),
+      muac: num(vitalForm.muac),
+      urine_output: num(vitalForm.urineOutput),
       comments: vitalForm.comments.trim(),
     }
 
@@ -583,6 +623,12 @@ function Consultation() {
       heartRate: vital.heartRate ?? "",
       bloodSugar: vital.bloodSugar ?? "",
       spo2: vital.spo2 ?? "",
+      painScore: vital.painScore ?? "",
+      gcs: vital.gcs ?? "",
+      avpu: vital.avpu || "",
+      headCircumference: vital.headCircumference ?? "",
+      muac: vital.muac ?? "",
+      urineOutput: vital.urineOutput ?? "",
       comments: vital.comments || "",
     })
   }
@@ -980,6 +1026,7 @@ function Consultation() {
     { id: "notes", label: "Notes", icon: NotebookPen, count: notes.length },
     { id: "orders", label: "Service orders", icon: ClipboardList, count: orders.length },
     { id: "documents", label: "Certificates & referrals", icon: FileText },
+    { id: "vaccinations", label: "Vaccinations", icon: Syringe },
   ]
 
   const visibleVisits = visits.filter((visit) =>
@@ -1095,6 +1142,7 @@ function Consultation() {
                     </Select>
                   </div>
                 </div>
+                <PatientContextStrip key={`${selectedVisit.patientApiId}-${reloadToken}`} patientId={selectedVisit.patientApiId} />
                 {selectedVisit.chiefComplaint && (
                   <p className="border-t border-line px-5 py-3 text-sm text-ink-700">
                     <span className="font-medium text-ink-500">Chief complaint: </span>
@@ -1129,6 +1177,24 @@ function Consultation() {
                         <Field label="Height (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.height} onChange={setVital("height")} /></Field>
                         <Field label="Blood sugar (mg/dL)" className="col-span-2"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.bloodSugar} onChange={setVital("bloodSugar")} /></Field>
                       </div>
+                      {bmiOf(vitalForm.weight, vitalForm.height) && (
+                        <p className="text-sm text-ink-600">BMI <span className="font-medium tabular-nums text-ink-900">{bmiOf(vitalForm.weight, vitalForm.height)}</span></p>
+                      )}
+                      <details className="rounded-lg border border-ink-200 px-3 py-2" open={Boolean(editingVital && (vitalForm.painScore !== "" || vitalForm.gcs !== "" || vitalForm.avpu || vitalForm.headCircumference !== "" || vitalForm.muac !== "" || vitalForm.urineOutput !== ""))}>
+                        <summary className="cursor-pointer text-sm font-medium text-ink-700">More vitals</summary>
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                          <Field label="Pain score (0–10)"><Input type="number" min="0" max="10" inputMode="numeric" value={vitalForm.painScore} onChange={setVital("painScore")} /></Field>
+                          <Field label="GCS (3–15)"><Input type="number" min="3" max="15" inputMode="numeric" value={vitalForm.gcs} onChange={setVital("gcs")} /></Field>
+                          <Field label="AVPU">
+                            <Select value={vitalForm.avpu} onChange={setVital("avpu")}>
+                              {AVPU_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </Select>
+                          </Field>
+                          <Field label="Urine output (mL)"><Input type="number" inputMode="numeric" value={vitalForm.urineOutput} onChange={setVital("urineOutput")} /></Field>
+                          <Field label="Head circ. (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.headCircumference} onChange={setVital("headCircumference")} /></Field>
+                          <Field label="MUAC (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.muac} onChange={setVital("muac")} /></Field>
+                        </div>
+                      </details>
                       <Field label="Comments"><Textarea value={vitalForm.comments} onChange={setVital("comments")} /></Field>
                       <FormButtons
                         saving={savingVitals}
@@ -1159,6 +1225,9 @@ function Consultation() {
                               <th scope="col" className="num">SpO₂</th>
                               <th scope="col" className="num">Resp</th>
                               <th scope="col" className="num">Weight</th>
+                              <th scope="col" className="num">BMI</th>
+                              <th scope="col" className="num">Pain</th>
+                              <th scope="col">GCS / AVPU</th>
                               <th scope="col"><span className="sr-only">Actions</span></th>
                             </tr>
                           </thead>
@@ -1174,6 +1243,9 @@ function Consultation() {
                                 <td className="num">{show(vital.spo2, "%")}</td>
                                 <td className="num">{show(vital.respiratoryRate)}</td>
                                 <td className="num">{show(vital.weight, " kg")}</td>
+                                <td className="num">{show(bmiOf(vital.weight, vital.height))}</td>
+                                <td className="num">{show(vital.painScore)}</td>
+                                <td className="whitespace-nowrap">{[vital.gcs, vital.avpu].filter((v) => v !== null && v !== undefined && v !== "").join(" · ") || "—"}</td>
                                 <td><RowActions label="vital signs" onEdit={() => handleEditVitals(vital)} onDelete={() => handleDeleteVitals(vital)} /></td>
                               </tr>
                             ))}
@@ -1296,6 +1368,7 @@ function Consultation() {
               )}
 
               {activeTab === "documents" && selectedVisit && <VisitDocuments key={selectedVisit.apiId} visit={selectedVisit} />}
+              {activeTab === "vaccinations" && selectedVisit && <VisitImmunizations key={selectedVisit.patientApiId} visit={selectedVisit} />}
 
               {!loadingClinical && activeTab === "orders" && (
                 <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">

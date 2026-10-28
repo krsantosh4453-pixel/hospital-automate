@@ -1,14 +1,18 @@
 import { Link } from "react-router-dom"
 import { ChevronRight } from "lucide-react"
+import { useShellBreadcrumbs } from "../shellBreadcrumbsContext.js"
 
 /**
  * Page title block used at the top of every staff and patient page.
- * breadcrumbs: [{ label, to? }] — the last item is the current page.
+ * breadcrumbs: [{ label, to? }] — the last item is the current page. Hidden
+ * inside the staff shell when its breadcrumb bar covers the route.
  */
 function PageHeader({ title, description, breadcrumbs, actions, meta, className = "" }) {
+  // The staff shell already shows the trail for navigation pages.
+  const shellHasTrail = useShellBreadcrumbs()
   return (
     <header className={`mb-6 ${className}`}>
-      {breadcrumbs?.length > 0 && (
+      {!shellHasTrail && breadcrumbs?.length > 0 && (
         <nav aria-label="Breadcrumb" className="mb-2">
           <ol className="flex flex-wrap items-center gap-1 text-[13px] text-ink-500">
             {breadcrumbs.map((crumb, i) => {

@@ -1,6 +1,9 @@
+from config.hospital_time import hospital_today
+
 from django.db import transaction
 from rest_framework import serializers
 from .models import (
+    Immunization,
     VitalSign,
     Allergy,
     ClinicalNote,
@@ -56,6 +59,12 @@ class VitalSignSerializer(serializers.ModelSerializer):
             "heart_rate",
             "blood_sugar",
             "spo2",
+            "pain_score",
+            "gcs",
+            "avpu",
+            "head_circumference",
+            "muac",
+            "urine_output",
             "comments",
             "recorded_at",
         ]
@@ -375,4 +384,51 @@ class ReferralSerializer(serializers.ModelSerializer):
         if not attrs.get("reason", "").strip():
             raise serializers.ValidationError({"reason": "Give the reason for the referral."})
         attrs["referred_to_external"] = external
+        return attrs
+
+
+class ImmunizationSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source="patient.name", read_only=True)
+    recorded_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Immunization
+        fields = [
+            "id",
+            "hospital",
+            "patient",
+            "vaccine",
+            "dose_number",
+            "administered_on",
+            "batch_number",
+            "manufacturer",
+            "route",
+            "site",
+            "next_due_on",
+            "notes",
+            "recorded_by",
+            "created_at",
+            "patient_name",
+            "recorded_by_name",
+        ]
+        read_only_fields = ["id", "recorded_by", "created_at"]
+        # Defaults to the acting hospital (X-Hospital-ID) in the view.
+        extra_kwargs = {"hospital": {"required": False}}
+
+    def get_recorded_by_name(self, obj):
+        user = obj.recorded_by
+        return (user.get_full_name() or user.username) if user else ""
+
+    def validate(self, attrs):
+        vaccine = attrs.get("vaccine")
+        if vaccine is not None:
+            if not vaccine.strip():
+                raise serializers.ValidationError({"vaccine": "Name the vaccine."})
+            attrs["vaccine"] = vaccine.strip()
+        given = attrs.get("administered_on", getattr(self.instance, "administered_on", None))
+        due = attrs.get("next_due_on", getattr(self.instance, "next_due_on", None))
+        if given and given > hospital_today():
+            raise serializers.ValidationError({"administered_on": "A dose cannot be recorded in the future."})
+        if given and due and due <= given:
+            raise serializers.ValidationError({"next_due_on": "The next dose must be due after this one."})
         return attrs

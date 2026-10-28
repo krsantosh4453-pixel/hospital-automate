@@ -2,6 +2,7 @@ from rest_framework.exceptions import ValidationError
 
 from doctors.models import Doctor
 from .models import (
+    Immunization,
     VitalSign,
     Allergy,
     ClinicalNote,
@@ -16,6 +17,7 @@ from .models import (
 )
 
 from .serializers import (
+    ImmunizationSerializer,
     VitalSignSerializer,
     AllergySerializer,
     ClinicalNoteSerializer,
@@ -52,6 +54,13 @@ class AllergyViewSet(HospitalScopedViewSet):
     queryset = Allergy.objects.select_related("patient")
     serializer_class = AllergySerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        patient_id = self.request.query_params.get("patient")
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        return queryset
 
 
 class ClinicalNoteViewSet(HospitalScopedViewSet):
@@ -192,3 +201,26 @@ class ReferralViewSet(_SignedByDoctorViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         return queryset
+
+
+class ImmunizationViewSet(HospitalScopedViewSet):
+    """Vaccination register (D15). Corrections are audited; doses are never deleted."""
+
+    queryset = Immunization.objects.select_related("patient", "hospital", "recorded_by")
+    serializer_class = ImmunizationSerializer
+    permission_classes = [IsAdmin | IsDoctor | IsNurse | IsPatientReadOnly]
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        patient_id = self.request.query_params.get("patient")
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        if self.request.query_params.get("due") == "1":
+            queryset = queryset.filter(next_due_on__isnull=False).order_by("next_due_on")
+        return queryset
+
+    def perform_create(self, serializer):
+        extra = self._check_tenancy(serializer.validated_data)
+        instance = serializer.save(recorded_by=self.request.user, **extra)
+        self._audit("create", instance)

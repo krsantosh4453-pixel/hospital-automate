@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { Outlet, useLocation } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import Sidebar from "../components/Sidebar"
+import Breadcrumbs, { ShellBreadcrumbsProvider } from "../components/Breadcrumbs.jsx"
 import { useSidebar } from "../assets/context/SidebarContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { findNavItem } from "../config/navigation.js"
@@ -32,7 +33,10 @@ function Layout() {
         <Navbar />
         <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-5 outline-none sm:px-6 sm:py-6 lg:px-8">
           <div className="mx-auto w-full max-w-[1600px] min-w-0">
-            <Outlet />
+            <ShellBreadcrumbsProvider>
+              <Breadcrumbs />
+              <Outlet />
+            </ShellBreadcrumbsProvider>
           </div>
         </main>
       </div>
