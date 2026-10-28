@@ -3,7 +3,7 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import { useLinkedPatient } from "../utils/linkedPatient.js"
-import { Eye, FlaskConical, Hospital, Pencil, Plus, Printer, RefreshCw, XCircle } from "lucide-react"
+import { Eye, FlaskConical, Hospital, Pencil, Plus, Printer, RefreshCw, ScanLine, Tag, XCircle } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import {
   Badge,
@@ -28,6 +28,8 @@ import {
   usePrompt,
 } from "../components/ui"
 import { LabReportDocument } from "../components/documents/ClinicalDocuments.jsx"
+import SampleLabel from "../components/laboratory/SampleLabel.jsx"
+import SampleScanDialog from "../components/laboratory/SampleScanDialog.jsx"
 
 function Laboratory() {
   // Doctors order tests; a Hospital Manager only views them.
@@ -99,7 +101,9 @@ function Laboratory() {
     try {
       const [testData, patientData, doctorData] = await Promise.all([
         api.laboratory.tests.list(selectedHospital.id),
-        api.patients.list(selectedHospital.id),
+        // Only the new-order form needs patients; Lab Staff may not list them,
+        // and that must not hide the lab's own worklist.
+        api.patients.list(selectedHospital.id).catch(() => []),
         api.doctors.list(selectedHospital.id),
       ])
       setTests(rows(testData).map(toRow))
@@ -136,6 +140,9 @@ function Laboratory() {
     useState(false)
 
   const [printingTest, setPrintingTest] = useState(null)
+  // Barcode scan (F6) and tube label printing.
+  const [scanning, setScanning] = useState(false)
+  const [labelTest, setLabelTest] = useState(null)
   const [selectedTest, setSelectedTest] =
     useState(null)
 
@@ -438,6 +445,7 @@ function Laboratory() {
         selectedHospital && (
           <>
             <Button variant="secondary" icon={RefreshCw} onClick={loadTests} disabled={loading}>Refresh</Button>
+            <Button variant="secondary" icon={ScanLine} onClick={() => setScanning(true)}>Scan sample</Button>
             {canAdd("Laboratory") && <Button icon={Plus} onClick={openNew}>New lab order</Button>}
           </>
         )
@@ -552,6 +560,9 @@ function Laboratory() {
                                   </Button>
                                 )}
                                 <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(test)} aria-label={`View ${test.id}`} title="View" />
+                                {test.record?.sample_collection?.sample_id && (
+                                  <Button variant="ghost" size="icon-sm" icon={Tag} onClick={() => setLabelTest(test.record)} aria-label={`Print sample label for ${test.id}`} title="Print sample label" />
+                                )}
                                 {test.stage === "Released" && (
                                   <Button variant="ghost" size="icon-sm" icon={Printer} onClick={() => setPrintingTest(test.record)} aria-label={`Print ${test.id}`} title="Print report" />
                                 )}
@@ -650,6 +661,17 @@ function Laboratory() {
           </div>
         )}
       </Modal>
+
+      <PrintSheet open={Boolean(labelTest)} onClose={() => setLabelTest(null)} title="Sample label">
+        {labelTest && <SampleLabel test={labelTest} />}
+      </PrintSheet>
+
+      <SampleScanDialog
+        open={scanning}
+        onClose={() => setScanning(false)}
+        nextStepFor={(status) => NEXT_STEP[status]?.[0]}
+        onNextStep={(found) => handleProcess(`LAB-${found.id}`)}
+      />
 
       <PrintSheet open={Boolean(printingTest)} onClose={() => setPrintingTest(null)} title="Lab report">
         {printingTest && <LabReportDocument test={printingTest} />}

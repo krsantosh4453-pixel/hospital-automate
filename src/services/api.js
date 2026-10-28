@@ -2315,5 +2315,9 @@ api.clinical.allergies = {
   ...api.clinical.allergies,
 }
 
+// Sample barcode scan (F6). GET /api/laboratory/by_sample/?sample_id=<scanned code>
+api.laboratory.tests.bySample = async (sampleId) =>
+  request(`${API_BASE_URL}/laboratory/by_sample/?sample_id=${encodeURIComponent(sampleId)}`)
+
 export default api
 

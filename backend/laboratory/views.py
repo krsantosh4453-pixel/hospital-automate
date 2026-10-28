@@ -104,6 +104,17 @@ class LabTestViewSet(HospitalScopedViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @action(detail=False, methods=["get"], permission_classes=[IsLabStaff | IsNurse])
+    def by_sample(self, request):
+        """Barcode scan (F6): the order whose sample carries ?sample_id=, in this hospital only."""
+        sample_id = (request.query_params.get("sample_id") or "").strip()
+        if not sample_id:
+            return Response({"detail": "Scan or type a sample number."}, status=status.HTTP_400_BAD_REQUEST)
+        lab_test = self.get_queryset().filter(sample_collection__sample_id__iexact=sample_id).first()
+        if lab_test is None:
+            return Response({"detail": "No sample with this number at this hospital."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(LabTestSerializer(lab_test).data)
+
     @action(detail=True, methods=["post"], permission_classes=[IsLabStaff | IsNurse])
     def dispatch_sample(self, request, pk=None):
         """Dispatch sample to lab."""
