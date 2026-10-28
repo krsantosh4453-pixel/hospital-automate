@@ -36,6 +36,7 @@ from .serializers import (
 )
 
 from audit.services import record_audit
+from .services import languages
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,19 @@ def _audio_error(audio_file):
     if content_type not in ALLOWED_AUDIO_TYPES:
         return f"Unsupported audio format. Allowed: {', '.join(ALLOWED_AUDIO_TYPES)}"
     return None
+
+
+def _draft_language(draft):
+    """
+    Language for the clinical draft. The doctor's choice wins; only "auto"
+    defers to what the STT provider heard (a Hinglish consultation is often
+    detected as "hi", but its note should still be in English).
+    """
+    chosen = draft.consultation.language
+    if chosen != languages.AUTO:
+        return chosen
+    detected = draft.transcript.detected_language
+    return detected if detected in languages.SUPPORTED_LANGUAGES else languages.AUTO
 
 
 def _doctor_for(request, hospital_id):
@@ -200,13 +214,26 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # The doctor may pick the spoken language right before transcribing.
+        language_changed = False
+        if "language" in request.data:
+            try:
+                chosen_language = languages.normalize_language(request.data.get("language"))
+            except ValueError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            if chosen_language != session.language:
+                session.language = chosen_language
+                session.save(update_fields=["language"])
+                language_changed = True
+
         # Get or create transcript
         transcript, created = ConversationTranscript.objects.get_or_create(
             consultation=session,
             defaults={"status": ConversationTranscript.Status.PENDING},
         )
 
-        if transcript.status == ConversationTranscript.Status.COMPLETED:
+        # A finished transcript is reused unless the doctor changed the language.
+        if transcript.status == ConversationTranscript.Status.COMPLETED and not language_changed:
             return Response(
                 {"message": "Transcript already exists", "transcript": ConversationTranscriptSerializer(transcript).data},
                 status=status.HTTP_200_OK,
@@ -332,7 +359,7 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
             llm_service = LLMClinicalService()
             result = llm_service.generate_clinical_draft(
                 transcript_text=draft.transcript.text,
-                language=draft.transcript.detected_language or draft.consultation.language,
+                language=_draft_language(draft),
                 patient_context={
                     "name": draft.consultation.patient.name,
                     "age": draft.consultation.patient.age,

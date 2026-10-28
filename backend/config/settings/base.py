@@ -469,6 +469,14 @@ AI_SCRIBE_MODEL = 'gpt-4'
 AI_SCRIBE_MAX_TOKENS = 4000
 AI_SCRIBE_TEMPERATURE = 0.1
 
+# Speech-to-text. Whisper API works with OpenAI or any OpenAI-compatible host
+# (e.g. Groq: base URL https://api.groq.com/openai/v1, model whisper-large-v3).
+# With no key, only the development mock (where allowed) is available.
+AI_SCRIBE_STT_API_KEY = os.environ.get('AI_SCRIBE_STT_API_KEY') or os.environ.get('OPENAI_API_KEY', '')
+AI_SCRIBE_STT_BASE_URL = os.environ.get('AI_SCRIBE_STT_BASE_URL', 'https://api.openai.com/v1')
+AI_SCRIBE_STT_MODEL = os.environ.get('AI_SCRIBE_STT_MODEL', 'whisper-1')
+AI_SCRIBE_STT_PROVIDER = os.environ.get('AI_SCRIBE_STT_PROVIDER', '')  # whisper_api, whisper_local, google
+
 # FHIR Configuration
 FHIR_ENABLED = True
 FHIR_BASE_URL = None  # Set in environment-specific settings

@@ -143,6 +143,9 @@ CELERY_BEAT_SCHEDULE = {}
 
 AI_SCRIBE_ENABLED = False
 AI_SCRIBE_ALLOW_MOCK_PROVIDERS = True
+# Never call a real speech-to-text service from tests, even if .env has a key.
+AI_SCRIBE_STT_API_KEY = ''
+AI_SCRIBE_STT_PROVIDER = ''
 
 
 # ============================================================

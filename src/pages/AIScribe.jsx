@@ -12,6 +12,14 @@ const DIAGNOSIS_TYPES = [
   "Confirmed",
 ]
 
+// Codes match backend ai_scribe/services/languages.py.
+const SPOKEN_LANGUAGES = [
+  { value: "en", label: "English" },
+  { value: "hi", label: "हिन्दी (Hindi)" },
+  { value: "hinglish", label: "Hinglish (Hindi + English)" },
+  { value: "auto", label: "Detect automatically" },
+]
+
 const formatDateTime = (value) => {
   if (!value) return "—"
   const date = new Date(value)
@@ -143,6 +151,8 @@ function AIScribe() {
 
   // Consultation session
   const [session, setSession] = useState(null)
+  // Language spoken in the consultation; sent with the transcribe request.
+  const [spokenLanguage, setSpokenLanguage] = useState("en")
   const [loadingSession, setLoadingSession] = useState(false)
   const [sessionError, setSessionError] = useState("")
 
@@ -248,6 +258,7 @@ function AIScribe() {
 
         if (existingSession) {
           setSession(existingSession)
+          setSpokenLanguage(existingSession.language || "en")
           await loadTranscript(existingSession.id)
           await loadDrafts(existingSession.id)
         } else {
@@ -436,7 +447,7 @@ function AIScribe() {
     setLoadingTranscript(true)
     setTranscriptError("")
     try {
-      const result = await api.aiScribe.consultationSessions.transcribe(session.id)
+      const result = await api.aiScribe.consultationSessions.transcribe(session.id, spokenLanguage)
       setTranscript(mapTranscriptFromApi(result.transcript || result))
       // A successful transcription creates the draft the doctor generates into.
       const draftsData = await api.aiScribe.drafts.list(session.id)
@@ -604,7 +615,8 @@ function AIScribe() {
 
   const tabs = [
     { id: "recording", label: "Recording", icon: MicIcon },
-    { id: "transcript", label: "Transcript", icon: NotebookPenIcon, disabled: !transcript },
+    // Open once audio is saved: the Transcribe button lives on this tab.
+    { id: "transcript", label: "Transcript", icon: NotebookPenIcon, disabled: !transcript && !session?.audio_file },
     { id: "draft", label: "AI Draft", icon: SparklesIcon },
     { id: "review", label: "Review", icon: CircleCheckIcon },
   ]
@@ -721,6 +733,20 @@ function AIScribe() {
               {!transcript && (
                 <div className="text-center py-12">
                   <p className="text-slate-500">No transcript available. Click &quot;Transcribe&quot; to generate.</p>
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    <label htmlFor="spoken-language" className="text-sm font-medium text-slate-700">Spoken language</label>
+                    <select
+                      id="spoken-language"
+                      value={spokenLanguage}
+                      onChange={(e) => setSpokenLanguage(e.target.value)}
+                      disabled={loadingTranscript}
+                      className="hms-input"
+                    >
+                      {SPOKEN_LANGUAGES.map(({ value, label }) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
                   <button
                     onClick={handleTranscribe}
                     disabled={loadingTranscript || !session?.audio_file}

@@ -2094,8 +2094,11 @@ api.aiScribe.consultationSessions = {
       body: form,
     })
   },
-  transcribe: async (id) =>
-    request(`${API_BASE_URL}/ai/consultation-sessions/${id}/transcribe/`, { method: "POST" }),
+  transcribe: async (id, language) =>
+    request(`${API_BASE_URL}/ai/consultation-sessions/${id}/transcribe/`, {
+      method: "POST",
+      ...jsonBody(language ? { language } : {}),
+    }),
 }
 
 api.aiScribe.transcripts = {
