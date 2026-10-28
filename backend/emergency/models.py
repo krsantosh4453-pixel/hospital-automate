@@ -216,3 +216,26 @@ class EmergencyMedication(models.Model):
             models.Index(fields=["visit", "prescribed_at"]),
             models.Index(fields=["prescribed_by", "prescribed_at"]),
         ]
+
+
+class EmergencyNote(models.Model):
+    """A doctor's or nurse's note on an ER visit (ER action "Doctor Notes"). Never edited."""
+
+    visit = models.ForeignKey(
+        EmergencyVisit,
+        on_delete=models.CASCADE,
+        related_name="notes",
+        db_index=True
+    )
+    note = models.TextField()
+    written_by = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="er_notes"
+    )
+    written_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-written_at"]

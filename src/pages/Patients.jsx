@@ -3,6 +3,7 @@ import { Eye, Hospital, Pencil, Phone, Trash2, UserPlus, UsersRound } from "luci
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
+import { useLinkedPatient } from "../utils/linkedPatient.js"
 import Pagination from "../components/Pagination.jsx"
 import {
   Alert,
@@ -46,7 +47,10 @@ function Patients() {
   const { canAdd, canEdit } = useRole()
   const { selectedHospital } = usePatient()
 
-  const [search, setSearch] = useState("")
+  // Opened from another module (e.g. the ER) with ?q=<name>&edit=<id> or &record=<id>.
+  const linked = useLinkedPatient()
+  const linkedHandled = useRef(false)
+  const [search, setSearch] = useState(linked.query)
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -208,6 +212,17 @@ function Patients() {
     resetForm()
     setShowForm(true)
   }
+
+  // Open the linked patient once, when the list that contains them arrives.
+  useEffect(() => {
+    const targetId = linked.editId || linked.recordId
+    if (!targetId || linkedHandled.current) return
+    const match = patients.find((patient) => String(patient.id) === String(targetId))
+    if (!match) return
+    linkedHandled.current = true
+    if (linked.editId) openEditForm(match)
+    else setViewPatient(match)
+  }, [patients, linked.editId, linked.recordId])
 
   const openEditForm = (patient) => {
     setEditingPatient(patient)

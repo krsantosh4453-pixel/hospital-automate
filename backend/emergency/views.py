@@ -16,6 +16,7 @@ from .models import (
     EmergencyVitals,
     EmergencyOrder,
     EmergencyMedication,
+    EmergencyNote,
 )
 from .serializers import (
     EmergencyVisitSerializer,
@@ -24,6 +25,7 @@ from .serializers import (
     EmergencyVitalsSerializer,
     EmergencyOrderSerializer,
     EmergencyMedicationSerializer,
+    EmergencyNoteSerializer,
 )
 
 
@@ -47,7 +49,7 @@ def _hospital_staff(model, value, hospital_id, field):
 
 class EmergencyVisitViewSet(HospitalScopedViewSet):
     queryset = EmergencyVisit.objects.select_related("hospital", "patient", "attending_doctor").prefetch_related(
-        "triage", "vitals_records", "orders", "medications"
+        "triage", "vitals_records", "orders", "medications", "notes__written_by"
     )
     serializer_class = EmergencyVisitSerializer
     permission_classes = [IsDoctor | IsNurse | IsHospitalManagerReadOnly]
@@ -322,6 +324,43 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
         visit.save()
 
         return Response(EmergencyVisitSerializer(visit).data)
+
+    @action(detail=True, methods=["post"])
+    def add_note(self, request, pk=None):
+        """ER action "Doctor Notes": append a note; notes are never edited."""
+        visit = self.get_object()
+        text = str(request.data.get("note", "")).strip()
+        if not text:
+            raise ValidationError({"note": "Write the note."})
+        note = EmergencyNote.objects.create(visit=visit, note=text, written_by=request.user)
+        self._audit("note", visit)
+        return Response(EmergencyNoteSerializer(note).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"])
+    def charge_slip(self, request, pk=None):
+        """ER action "Charge Slip Details": everything done in this visit that can be billed."""
+        visit = self.get_object()
+        lines = [
+            {"date": order.ordered_at, "kind": order.get_order_type_display(), "description": order.description,
+             "status": order.status}
+            for order in visit.orders.all()
+        ] + [
+            {"date": med.prescribed_at, "kind": "Medicine",
+             "description": f"{med.name} {med.dose} {med.route}".strip(),
+             "status": "Given" if med.administered else "Prescribed"}
+            for med in visit.medications.all()
+        ]
+        lines.sort(key=lambda line: line["date"])
+        return Response({
+            "visit": visit.pk,
+            "visit_number": visit.visit_number,
+            "patient": visit.patient_id,
+            "patient_name": visit.patient.name,
+            "hospital_name": visit.hospital.name,
+            "arrival_time": visit.arrival_time,
+            "status": visit.status,
+            "lines": lines,
+        })
 
     @action(detail=False, methods=["get"])
     def dashboard(self, request):

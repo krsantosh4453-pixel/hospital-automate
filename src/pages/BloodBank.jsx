@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Check, Droplet, Hospital, PackageCheck, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api"
+import { useLinkedPatient } from "../utils/linkedPatient.js"
 import { useToast } from "../components/Toast.jsx"
 import {
   Alert,
@@ -37,9 +38,11 @@ function BloodBank() {
   const [patients, setPatients] = useState([])
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState("")
-  const [showRequestModal, setShowRequestModal] = useState(false)
   const [editingRequest, setEditingRequest] = useState(null)
-  const [requestForm, setRequestForm] = useState(EMPTY_REQUEST)
+  // Opened from the ER action menu with ?patient=<id>: start a request for them.
+  const linked = useLinkedPatient()
+  const [showRequestModal, setShowRequestModal] = useState(Boolean(linked.patientId))
+  const [requestForm, setRequestForm] = useState(linked.patientId ? { ...EMPTY_REQUEST, patient: linked.patientId } : EMPTY_REQUEST)
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState("")
 

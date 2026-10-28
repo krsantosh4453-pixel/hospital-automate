@@ -2259,5 +2259,28 @@ api.ipd.dischargePlans.patch = async (id, data) =>
     body: JSON.stringify(data),
   })
 
+// ER row actions (J3). Appended here so the ER and clinical blocks above stay untouched.
+// POST /api/emergency/emergency-visits/{id}/add_note/  { note }
+api.emergency.visits.addNote = async (id, note) =>
+  request(`${API_BASE_URL}/emergency/emergency-visits/${id}/add_note/`, { method: "POST", ...jsonBody({ note }) })
+// GET /api/emergency/emergency-visits/{id}/charge_slip/
+api.emergency.visits.chargeSlip = async (id) =>
+  request(`${API_BASE_URL}/emergency/emergency-visits/${id}/charge_slip/`)
+// POST /api/emergency/emergency-visits/{id}/administer_medication/  { medication_id, administered_by? }
+api.emergency.visits.administerMedication = async (id, data) =>
+  request(`${API_BASE_URL}/emergency/emergency-visits/${id}/administer_medication/`, { method: "POST", ...jsonBody(data) })
+// POST /api/emergency/emergency-visits/{id}/admit_to_ipd/  { bed_id }
+api.emergency.visits.admitToIpd = async (id, bedId) =>
+  request(`${API_BASE_URL}/emergency/emergency-visits/${id}/admit_to_ipd/`, { method: "POST", ...jsonBody({ bed_id: bedId }) })
+// GET /api/clinical/allergies/?patient=<id>; POST { patient, name, reaction, severity }.
+// Any allergies helpers defined above take precedence.
+api.clinical.allergies = {
+  list: async ({ patientId } = {}) =>
+    request(`${API_BASE_URL}/clinical/allergies/${patientId ? `?patient=${encodeURIComponent(patientId)}` : ""}`),
+  create: async (data) =>
+    request(`${API_BASE_URL}/clinical/allergies/`, { method: "POST", ...jsonBody(data) }),
+  ...api.clinical.allergies,
+}
+
 export default api
 

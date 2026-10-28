@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
+import { useLinkedPatient } from "../utils/linkedPatient.js"
 import { Eye, FlaskConical, Hospital, Pencil, Plus, Printer, RefreshCw, XCircle } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import {
@@ -118,7 +119,9 @@ function Laboratory() {
 
   const testsData = tests
 
-  const [search, setSearch] = useState("")
+  // Opened from another module (e.g. the ER) with ?q=<patient name>.
+  const linked = useLinkedPatient()
+  const [search, setSearch] = useState(linked.query)
 
   const [statusFilter, setStatusFilter] =
     useState("All Status")

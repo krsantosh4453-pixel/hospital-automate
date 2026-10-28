@@ -6,7 +6,18 @@ from .models import (
     EmergencyVitals,
     EmergencyOrder,
     EmergencyMedication,
+    EmergencyNote,
 )
+
+
+class EmergencyNoteSerializer(serializers.ModelSerializer):
+    written_by_name = serializers.CharField(source="written_by.get_full_name", read_only=True, default="")
+    written_by_username = serializers.CharField(source="written_by.username", read_only=True, default="")
+
+    class Meta:
+        model = EmergencyNote
+        fields = ["id", "visit", "note", "written_by", "written_at", "written_by_name", "written_by_username"]
+        read_only_fields = ["id", "visit", "written_by", "written_at"]
 
 
 class EmergencyTriageSerializer(serializers.ModelSerializer):
@@ -104,6 +115,7 @@ class EmergencyVisitSerializer(serializers.ModelSerializer):
     vitals_records = EmergencyVitalsSerializer(many=True, read_only=True)
     orders = EmergencyOrderSerializer(many=True, read_only=True)
     medications = EmergencyMedicationSerializer(many=True, read_only=True)
+    notes = EmergencyNoteSerializer(many=True, read_only=True)
 
     class Meta:
         model = EmergencyVisit
@@ -130,11 +142,12 @@ class EmergencyVisitSerializer(serializers.ModelSerializer):
             "vitals_records",
             "orders",
             "medications",
+            "notes",
         ]
         read_only_fields = [
             "id", "visit_number", "arrival_time", "triage_time", "consultation_start_time",
             "discharge_time", "patient_name", "hospital_name",
-            "attending_doctor_name", "triage", "vitals_records", "orders", "medications"
+            "attending_doctor_name", "triage", "vitals_records", "orders", "medications", "notes"
         ]
 
     def validate_hospital(self, value):

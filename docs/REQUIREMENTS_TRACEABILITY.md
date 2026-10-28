@@ -180,7 +180,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 |---|---|---|---|---|---|
 | J1 | ER patient list, triage, vitals, orders, medication | P4 12–13 | IMPLEMENTED | emergency app actions | Existing tests (4) |
 | J2 | ER → inpatient transfer, ER discharge | P4 13 | IMPLEMENTED | admit_to_ipd, discharge | R |
-| J3 | ER action menu (all 24 actions) | P4 13 | PARTIAL | About half are available as API actions | R |
+| J3 | ER action menu (all 24 actions) | P4 13 | VERIFIED | Emergency → All actions on every ER row: all 24 spec actions. ER-owned ones run in place (doctor notes, allergy, investigation results, consent / emergency / generic forms, drug receive, transfer to IP, charge slip + bill preview, ER discharge summary, medical certificate); vitals, service order, drug request and discharge reuse the ER dialogs; sample collection/dispatch, blood request/receive, bed transfer, billing, update details and medical record open that module with the patient chosen (`?patient=&q=`). The ER board no longer fails for doctors (nurse list optional) | emergency.test_er_actions (5), erActions.test.js (24-action spec check); browser 2026-10-28 |
 | J4 | Blood bank | UI 3.12 | IMPLEMENTED | Inventory, requests, transactions | Existing tests |
 | J5 | Ambulance, mortuary, phlebotomy, OT / procedure room | UI 3.12, P1 | MISSING | — | — |
 | J6 | HR, feedback, custom templates | UI 3.2 | MISSING | — | — |

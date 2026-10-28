@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
+import { useLinkedPatient } from "../utils/linkedPatient.js"
 import { CreditCardIcon, HospitalIcon, MapPinIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import { Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
@@ -20,7 +21,9 @@ function Billing() {
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState("")
 
-  const [search, setSearch] = useState("")
+  // Opened from another module (e.g. the ER) with ?q=<patient name>.
+  const linked = useLinkedPatient()
+  const [search, setSearch] = useState(linked.query)
   const [statusFilter, setStatusFilter] = useState("All Status")
 
   const [showForm, setShowForm] = useState(false)

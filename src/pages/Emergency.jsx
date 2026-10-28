@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react"
-import { Activity, Ambulance, ClipboardPlus, HeartPulse, LogOut, Pill, Plus, RefreshCw, Send, Stethoscope } from "lucide-react"
+import { Activity, Ambulance, ClipboardPlus, HeartPulse, LayoutGrid, LogOut, Pill, Plus, RefreshCw, Send, Stethoscope } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api"
 import { useToast } from "../components/Toast.jsx"
+import ErActions from "../components/emergency/ErActions.jsx"
 import {
   Badge,
   Button,
@@ -74,6 +75,8 @@ function Emergency() {
   const [nurses, setNurses] = useState([])
 
   const [dialog, setDialog] = useState(null)
+  // The visit whose 24-action menu (J3) is open.
+  const [actionsVisit, setActionsVisit] = useState(null)
   const [selectedVisit, setSelectedVisit] = useState(null)
   const [forms, setForms] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
@@ -92,7 +95,9 @@ function Emergency() {
         api.emergency.visits.list(selectedHospital.id),
         api.patients.list(selectedHospital.id),
         api.doctors.list(selectedHospital.id),
-        api.nurses.nurses.list(selectedHospital.id),
+        // Only fills the "recorded by" pickers; Doctors may not read the nurse
+        // list, and that must not blank the whole ER board.
+        api.nurses.nurses.list(selectedHospital.id).catch(() => []),
         api.emergency.visits.dashboard(selectedHospital.id),
       ])
       setVisits(list(visitsRes))
@@ -356,6 +361,7 @@ function Emergency() {
                                   <Button size="sm" variant="secondary" icon={LogOut} onClick={() => open("discharge", visit)}>Discharge</Button>
                                 </>
                               )}
+                              <Button size="sm" variant="ghost" icon={LayoutGrid} onClick={() => setActionsVisit(visit)} aria-label={`All actions for ${visit.patient_name}`}>All actions</Button>
                             </div>
                           </td>
                         </tr>
@@ -380,6 +386,7 @@ function Emergency() {
                         <th scope="col">Disposition</th>
                         <th scope="col">Arrived</th>
                         <th scope="col">Left</th>
+                        <th scope="col"><span className="sr-only">Actions</span></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -391,6 +398,9 @@ function Emergency() {
                           <td className="text-ink-600">{visit.disposition || "—"}</td>
                           <td className="whitespace-nowrap tabular-nums text-ink-600">{new Date(visit.arrival_time).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</td>
                           <td className="whitespace-nowrap tabular-nums text-ink-600">{visit.discharge_time ? new Date(visit.discharge_time).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—"}</td>
+                          <td className="text-right">
+                            <Button size="sm" variant="ghost" icon={LayoutGrid} onClick={() => setActionsVisit(visit)} aria-label={`All actions for ${visit.patient_name}`}>All actions</Button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -432,6 +442,14 @@ function Emergency() {
           )}
         </>
       )}
+
+      <ErActions
+        visit={actionsVisit ? visits.find((v) => v.id === actionsVisit.id) || actionsVisit : null}
+        open={Boolean(actionsVisit)}
+        onClose={() => setActionsVisit(null)}
+        onOpenDialog={(name, visit) => open(name, visit)}
+        onChanged={fetchData}
+      />
 
       <Modal open={dialog === "registration"} onClose={close} title="New emergency visit" footer={footer("er-reg", "Register visit")}>
         <form id="er-reg" onSubmit={handleRegistration} className="space-y-4">
