@@ -4,6 +4,7 @@ import api from "../services/api.js"
 import { CreditCardIcon, HospitalIcon, MapPinIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import { Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
+import DischargeBills from "../components/billing/DischargeBills.jsx"
 import { Plus as PlusIcon } from "lucide-react"
 
 function Billing() {
@@ -12,6 +13,8 @@ function Billing() {
 
 
   const { selectedHospital } = usePatient()
+  // Bumped when a discharge final bill is created, to reload the invoices.
+  const [billsReloadToken, setBillsReloadToken] = useState(0)
 
   const [bills, setBills] = useState([])
   const [loading, setLoading] = useState(false)
@@ -103,7 +106,7 @@ function Billing() {
     return () => {
       cancelled = true
     }
-  }, [selectedHospital])
+  }, [selectedHospital, billsReloadToken])
 
 
   // =========================
@@ -948,6 +951,11 @@ function Billing() {
 
           <>
 
+            <DischargeBills
+              hospitalId={selectedHospital.id}
+              refreshKey={bills}
+              onCreated={() => setBillsReloadToken((n) => n + 1)}
+            />
 
             {/* =========================
                 Statistics

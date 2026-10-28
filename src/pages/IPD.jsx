@@ -6,6 +6,7 @@ import api from "../services/api"
 import { useToast } from "../components/Toast.jsx"
 import AddBedDialog from "../components/ipd/AddBedDialog.jsx"
 import BedsTable from "../components/ipd/BedsTable.jsx"
+import DischargeReadiness from "../components/ipd/DischargeReadiness.jsx"
 import {
   Alert,
   Badge,
@@ -42,6 +43,9 @@ function IPD() {
 
   const [admissions, setAdmissions] = useState([])
   const [summaries, setSummaries] = useState([])
+  // Server-side discharge readiness per admission id (checklist + final bill).
+  const [readiness, setReadiness] = useState({})
+  const [readinessToken, setReadinessToken] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState("admissions")
@@ -87,6 +91,8 @@ function IPD() {
       setError(err.message || "Failed to load IPD data")
     } finally {
       setLoading(false)
+      // Payments and checklist changes happen elsewhere; re-read readiness too.
+      setReadinessToken((n) => n + 1)
     }
   }, [selectedHospital])
 
@@ -227,6 +233,7 @@ function IPD() {
         fetchData()
       } catch (err) {
         toast.error(err.message || "Failed to complete discharge")
+        setReadinessToken((n) => n + 1)
       }
     })
   }
@@ -387,7 +394,7 @@ function IPD() {
             <Card>
               <CardHeader
                 title="Discharges in progress"
-                description="Each discharge needs a discharge summary finalized by the patient's doctor before it can be completed."
+                description="A discharge completes once the checklist is ticked, the doctor has signed the summary and the final bill is paid."
               />
               {discharging.length === 0 ? (
                 <EmptyState compact icon={ClipboardCheck} title="No discharges in progress" />
@@ -402,7 +409,7 @@ function IPD() {
                       { label: "Complete discharge", done: false },
                     ]
                     return (
-                      <li key={admission.id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center">
+                      <li key={admission.id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:flex-wrap lg:items-center">
                         <div className="min-w-0 lg:w-64">
                           <p className="font-medium text-ink-900">{admission.patient_name}</p>
                           <p className="text-xs text-ink-500">{admission.current_bed ? bedLabel(admission.current_bed) : "No bed"} · admitted {new Date(admission.admission_date).toLocaleDateString("en-IN")}</p>
@@ -428,12 +435,20 @@ function IPD() {
                           <Button
                             size="sm"
                             loading={busy === `complete-${admission.id}`}
-                            disabled={!summary?.finalized}
-                            title={summary?.finalized ? undefined : "Needs a finalized discharge summary"}
+                            disabled={!readiness[admission.id]?.ready}
+                            title={readiness[admission.id]?.ready ? undefined : (readiness[admission.id]?.blockers || []).join(" ")}
                             onClick={() => handleCompleteDischarge(admission)}
                           >
                             Complete discharge
                           </Button>
+                        </div>
+                        <div className="w-full border-t border-line pt-3">
+                          <DischargeReadiness
+                            admissionId={admission.id}
+                            reloadToken={`${readinessToken}-${summary?.finalized}`}
+                            canTick={activeRoleName === "Doctor" || activeRoleName === "Nurse" || activeRoleName === "Admin"}
+                            onChange={(state) => setReadiness((prev) => ({ ...prev, [admission.id]: state }))}
+                          />
                         </div>
                       </li>
                     )

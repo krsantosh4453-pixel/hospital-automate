@@ -120,12 +120,12 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | E4 | Nursing vitals (on admitted patients) | P3 36 | IMPLEMENTED | Saved as Focused nursing assessment with vitals | R (UI wired; not browser-saved) |
 | E5 | MAR states: due, next due, delay, administered, not given, excluded, PRN | P4 5 | VERIFIED | Scheduled / Administered / Held / Refused / Missed / Vomited / Excluded, is_delayed, PRN | T:test_mar_safety, B (dose given via UI) |
 | E6 | Bed transfer / doctor transfer | P3 | IMPLEMENTED | admissions transfer action | Existing tests |
-| E7 | Discharge planning checklist | P3 34, P4 7 | PARTIAL | DischargePlan model; no checklist enforcement | R |
+| E7 | Discharge planning checklist | P3 34, P4 7 | VERIFIED | Four-item checklist on DischargePlan, ticked from IPD → Discharges; `complete_discharge` refuses until every item, the signed summary and the paid final bill are done (`readiness` lists what is left). Ward nurses keep the patient in care during discharge | ipd.test_discharge_readiness (11), ipd.tests, test_e2e_workflows; browser 2026-10-28 |
 | E8 | Discharge notes | P4 7 | IMPLEMENTED | DischargeNote | R |
 | E9 | Sample collection / dispatch from ward | P4 3 | VERIFIED | Nurse can collect and dispatch | T:test_e2e_workflows |
 | E10 | Drug / consumable order | P4 4 | PARTIAL | Via prescriptions only | R |
 | E11 | Blood request / receive / return | P4 6 | IMPLEMENTED | bloodbank requests / transactions | Existing tests |
-| E12 | Final billing at discharge | P3 | PARTIAL | Invoices exist; not linked to discharge | R |
+| E12 | Final billing at discharge | P3 | VERIFIED | Billing → Discharge bills: one live final invoice per stay (`Invoice.admission`), bed days × daily rate plus extra lines; discharge waits for it to be paid | ipd.test_discharge_readiness; browser 2026-10-28 |
 
 ## F. Pharmacy and medication safety
 
@@ -161,7 +161,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | H5 | Duplicate-payment prevention | Brief 4 | VERIFIED | Idempotency-Key | T |
 | H6 | Insurance / TPA claims | UI 3.8 | IMPLEMENTED | InsuranceClaim (amount ≤ invoice) | Existing tests |
 | H7 | Invoice PDF / export | P2 16 | IMPLEMENTED | Layout shared with the tested PrintSheet | Added 2026-10-28: patient Bills page prints the invoice with payments (browser "Save as PDF"); staff Billing already had Print Bill. Not clicked through in a browser |
-| H8 | IPD / discharge billing | UI 3.8 | PARTIAL | Manual invoices | R |
+| H8 | IPD / discharge billing | UI 3.8 | VERIFIED | Same as E12: started days are counted on the server; billing roles see only patient name, dates and days, not the admission record | ipd.test_discharge_readiness; browser 2026-10-28 |
 
 ## I. Inventory and supply chain
 

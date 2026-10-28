@@ -103,7 +103,9 @@ def _nurse_care(user, hospital_ids):
     wards = apps.get_model("nurses.NurseWardAssignment").objects.filter(on_duty, **mine).values("ward_id")
     in_ward = apps.get_model("ipd.BedAllocation").objects.filter(
         is_active=True,
-        admission__status="Admitted",
+        # The ward keeps the patient while discharge is under way: the
+        # discharge checklist is nursing work done in the bed.
+        admission__status__in=("Admitted", "Discharge Initiated"),
         admission__hospital_id__in=hospital_ids,
         bed__room__ward_id__in=wards,
     )

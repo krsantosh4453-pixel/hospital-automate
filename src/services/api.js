@@ -2232,5 +2232,27 @@ api.patients.documents = {
   },
 }
 
+// Discharge readiness and the final bill of a stay (E7, E12, H8).
+// GET /api/ipd/admissions/{id}/readiness/
+api.ipd.admissions.readiness = async (id) =>
+  request(`${API_BASE_URL}/ipd/admissions/${id}/readiness/`)
+// GET /api/ipd/admissions/awaiting_final_bill/?hospital=<id> (billing roles)
+api.ipd.admissions.awaitingFinalBill = async (hospitalId) =>
+  request(`${API_BASE_URL}/ipd/admissions/awaiting_final_bill/?hospital=${encodeURIComponent(hospitalId)}`)
+// POST /api/ipd/admissions/{id}/final_bill/  { daily_rate, items: [{ description, quantity, unit_price }] }
+api.ipd.admissions.finalBill = async (id, data) =>
+  request(`${API_BASE_URL}/ipd/admissions/${id}/final_bill/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+// PATCH /api/ipd/discharge-plans/{id}/  e.g. { medications_reconciled: true }
+api.ipd.dischargePlans.patch = async (id, data) =>
+  request(`${API_BASE_URL}/ipd/discharge-plans/${id}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+
 export default api
 

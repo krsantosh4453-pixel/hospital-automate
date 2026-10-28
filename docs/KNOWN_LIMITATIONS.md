@@ -28,7 +28,6 @@ State as of 2026-10-25, branch `audit/production-readiness-2026-10-24`. Row ids 
 - Security settings are environment variables, not a screen (A14).
 - Demographics are minimal (B3).
 - No combined longitudinal record/timeline (B9, D12); clinical notes are free text without structured sections (D4).
-- Discharge checklist is not enforced (E7); discharge is not linked to final billing (E12, H8).
 - Barcode is a flag only, no scanner flow (F6); radiology is a lab test type (G4).
 - About half of the 24 ER actions exist (J3).
 - Notifications: in-app works; SMS/WhatsApp need consent and credentials (K7).

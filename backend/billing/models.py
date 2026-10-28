@@ -21,6 +21,14 @@ class Invoice(models.Model):
         related_name="invoices",
         db_index=True
     )
+    # Set on the final bill of an inpatient stay (requirements E12, H8).
+    admission = models.ForeignKey(
+        "ipd.Admission",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invoices",
+    )
     invoice_number = models.CharField(max_length=50, unique=True)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tax = models.DecimalField(max_digits=10, decimal_places=2, default=0)

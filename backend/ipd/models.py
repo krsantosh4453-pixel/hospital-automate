@@ -84,6 +84,12 @@ class DischargePlan(models.Model):
     )
     instructions = models.TextField(blank=True)
     pending_tasks = models.TextField(blank=True)
+    # Discharge checklist (requirement E7): every item must be ticked before
+    # the discharge can be completed.
+    medications_reconciled = models.BooleanField(default=False)
+    patient_counselled = models.BooleanField(default=False)
+    follow_up_arranged = models.BooleanField(default=False)
+    documents_handed_over = models.BooleanField(default=False)
     created_by = models.ForeignKey(
         "doctors.Doctor",
         on_delete=models.SET_NULL,
