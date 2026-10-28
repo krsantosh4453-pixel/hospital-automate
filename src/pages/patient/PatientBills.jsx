@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
-import { ReceiptIndianRupee } from "lucide-react"
+import { Printer, ReceiptIndianRupee } from "lucide-react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
-import { Alert, Card, EmptyState, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
+import { Alert, Button, Card, EmptyState, PrintSheet, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
+import { InvoiceDocument } from "../../components/documents/ClinicalDocuments.jsx"
 
 const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2 })
 // Money arrives as decimal strings calculated by the server.
@@ -14,6 +15,7 @@ function PatientBills() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState("all")
+  const [printing, setPrinting] = useState(null)
 
   useEffect(() => {
     if (!patient?.id) return
@@ -98,7 +100,10 @@ function PatientBills() {
                       {bill.hospital_name ? ` · ${bill.hospital_name}` : ""}
                     </p>
                   </div>
-                  <StatusBadge status={bill.status} />
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={bill.status} />
+                    <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting(bill)}>Print</Button>
+                  </div>
                 </div>
                 <dl className="grid grid-cols-3 gap-px border-t border-line bg-line text-sm">
                   <div className="bg-white px-5 py-3">
@@ -134,6 +139,10 @@ function PatientBills() {
           ))}
         </ul>
       )}
+
+      <PrintSheet open={Boolean(printing)} onClose={() => setPrinting(null)} title="Invoice">
+        {printing && <InvoiceDocument invoice={printing} />}
+      </PrintSheet>
     </div>
   )
 }

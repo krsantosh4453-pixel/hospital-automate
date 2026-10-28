@@ -24,7 +24,10 @@ import {
   Toolbar,
 } from "../components/ui"
 
-const EMPTY_FORM = { name: "", age: "", gender: "", phone: "", condition: "" }
+const EMPTY_FORM = {
+  name: "", age: "", gender: "", phone: "", condition: "",
+  emergencyName: "", emergencyRelation: "", emergencyPhone: "",
+}
 
 function Patients() {
   // Only the front desk registers patients; a Hospital Manager only views them.
@@ -69,6 +72,9 @@ function Patients() {
     gender: record.gender || "",
     phone: record.phone || "",
     condition: record.condition || "",
+    emergencyName: record.emergency_contact_name || "",
+    emergencyRelation: record.emergency_contact_relation || "",
+    emergencyPhone: record.emergency_contact_phone || "",
     doctor: record.doctor || "",
     status: record.status || "Active",
     hospitalId: record.hospital ?? selectedHospital?.id ?? "",
@@ -187,6 +193,9 @@ function Patients() {
       gender: patient.gender || "",
       phone: patient.phone || "",
       condition: patient.condition || "",
+      emergencyName: patient.emergencyName || "",
+      emergencyRelation: patient.emergencyRelation || "",
+      emergencyPhone: patient.emergencyPhone || "",
     })
     setFormErrors({})
     setViewPatient(null)
@@ -218,6 +227,13 @@ function Patients() {
     const digits = String(formData.phone).replace(/\D/g, "")
     if (digits.length < 10) errors.phone = "Phone number must have at least 10 digits."
 
+    const emergencyDigits = String(formData.emergencyPhone).replace(/\D/g, "")
+    if (emergencyDigits && emergencyDigits.length < 10) {
+      errors.emergencyPhone = "Phone number must have at least 10 digits."
+    } else if (formData.emergencyName.trim() && !emergencyDigits) {
+      errors.emergencyPhone = "Add a phone number for the emergency contact."
+    }
+
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -236,6 +252,9 @@ function Patients() {
       gender: formData.gender,
       phone: String(formData.phone).replace(/\D/g, ""),
       condition: formData.condition.trim(),
+      emergency_contact_name: formData.emergencyName.trim(),
+      emergency_contact_relation: formData.emergencyRelation.trim(),
+      emergency_contact_phone: String(formData.emergencyPhone).replace(/\D/g, ""),
       hospital: selectedHospital?.id ?? null,
     }
 
@@ -502,6 +521,20 @@ function Patients() {
           <Field label="Reason for visit">
             <Input name="condition" value={formData.condition} onChange={handleFormChange} placeholder="e.g. fever for 3 days" />
           </Field>
+          <fieldset className="space-y-3 rounded-xl border border-line px-4 pb-4 pt-2">
+            <legend className="px-1 text-[13px] font-medium text-ink-700">Emergency contact (optional)</legend>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Name">
+                <Input name="emergencyName" value={formData.emergencyName} onChange={handleFormChange} maxLength={100} autoComplete="off" />
+              </Field>
+              <Field label="Relation">
+                <Input name="emergencyRelation" value={formData.emergencyRelation} onChange={handleFormChange} maxLength={50} placeholder="e.g. spouse" />
+              </Field>
+            </div>
+            <Field label="Phone" error={formErrors.emergencyPhone}>
+              <Input type="tel" inputMode="tel" name="emergencyPhone" value={formData.emergencyPhone} onChange={handleFormChange} autoComplete="off" />
+            </Field>
+          </fieldset>
         </form>
       </Modal>
 
@@ -538,6 +571,12 @@ function Patients() {
                 { label: "Gender", value: viewPatient.gender },
                 { label: "Mobile", value: viewPatient.phone },
                 { label: "Reason for visit", value: viewPatient.condition },
+                {
+                  label: "Emergency contact",
+                  value: [viewPatient.emergencyName, viewPatient.emergencyRelation && `(${viewPatient.emergencyRelation})`, viewPatient.emergencyPhone]
+                    .filter(Boolean)
+                    .join(" "),
+                },
               ]}
             />
           </div>

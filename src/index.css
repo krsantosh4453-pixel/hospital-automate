@@ -592,3 +592,27 @@
 .hms-surface-dark :is(.bg-red-700, .bg-red-800, .bg-rose-700) {
   background-color: #9d2b21;
 }
+
+/*
+ * PrintSheet (components/ui/PrintSheet.jsx): while a document preview is
+ * open, print only its sheet. On screen the sheet copy stays hidden.
+ */
+.hms-print-sheet {
+  display: none;
+}
+/* The on-screen preview stays paper-white inside the dark dialog surface. */
+.hms-paper,
+.hms-surface-dark .hms-paper {
+  background-color: #fff;
+  color: #000;
+}
+@media print {
+  body.hms-printing > :not(.hms-print-sheet) {
+    display: none !important;
+  }
+  body.hms-printing > .hms-print-sheet {
+    display: block;
+    background: #fff;
+    color: #000;
+  }
+}

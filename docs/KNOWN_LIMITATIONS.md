@@ -12,13 +12,12 @@ State as of 2026-10-25, branch `audit/production-readiness-2026-10-24`. Row ids 
 | L4 | No clinical safety review of the workflows | MAR, discharge, lab release and AI-draft rules were designed by engineering only | Sign-off by a clinical safety officer / pharmacist |
 | L5 | No penetration test or DPDP Act privacy assessment | Required for health data in India | Commission both |
 
-## Missing features (23 MISSING rows)
+## Missing features (18 MISSING rows; B4, D10, D11, G3, H7 added 2026-10-28)
 
-- **Access / portal:** proxy and caregiver access (A12, B13); breadcrumbs (A18); sticky patient context strip (A19); emergency contact (B4).
-- **EMR:** extra vitals set (D2); ICD-10 terminology search (D6); medical certificate (D10); referral (D11); vaccination (D15).
+- **Access / portal:** proxy and caregiver access (A12, B13); breadcrumbs (A18); sticky patient context strip (A19).
+- **EMR:** extra vitals set (D2); ICD-10 terminology search (D6); vaccination (D15).
 - **Pharmacy:** OPD/IPD returns (F5); **drug-interaction and contraindication alerts (F7)** — there is no drug database, so no alerting exists; substitutes (F8).
-- **Lab:** result printing / export (G3).
-- **Billing:** advance payments (H4); invoice PDF (H7).
+- **Billing:** advance payments (H4).
 - **Supply chain:** purchase requisition approval (I2); supplier return, department issue, consignment, quotation (I4); CSSD / laundry (I6).
 - **Other services:** ambulance, mortuary, phlebotomy, OT (J5); HR, feedback, templates (J6).
 - **AI / notifications:** discharge-summary AI assist (K6); voice-call fallback workflow (K8).

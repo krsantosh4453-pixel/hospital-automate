@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
-import { CalendarClock, ClipboardList, HeartPulse, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Trash2, UserRound } from "lucide-react"
+import { CalendarClock, ClipboardList, FileText, HeartPulse, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Trash2, UserRound } from "lucide-react"
 import {
   Alert,
   Avatar,
@@ -21,6 +21,7 @@ import {
   Tabs,
   Textarea,
 } from "../components/ui"
+import VisitDocuments from "../components/clinical/VisitDocuments.jsx"
 
 // =========================================================
 // DOCTOR CONSULTATION
@@ -978,6 +979,7 @@ function Consultation() {
     { id: "diagnoses", label: "Diagnoses", icon: Stethoscope, count: diagnoses.length },
     { id: "notes", label: "Notes", icon: NotebookPen, count: notes.length },
     { id: "orders", label: "Service orders", icon: ClipboardList, count: orders.length },
+    { id: "documents", label: "Certificates & referrals", icon: FileText },
   ]
 
   const visibleVisits = visits.filter((visit) =>
@@ -1292,6 +1294,8 @@ function Consultation() {
                   </Card>
                 </div>
               )}
+
+              {activeTab === "documents" && selectedVisit && <VisitDocuments key={selectedVisit.apiId} visit={selectedVisit} />}
 
               {!loadingClinical && activeTab === "orders" && (
                 <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">

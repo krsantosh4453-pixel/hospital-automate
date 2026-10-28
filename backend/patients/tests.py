@@ -150,6 +150,55 @@ class PatientAPITests(TestCase):
         self.patient_a.refresh_from_db()
         self.assertEqual(self.patient_a.age, 31)
 
+    def test_emergency_contact_saved_with_digits_only(self):
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {
+                "emergency_contact_name": "Meera",
+                "emergency_contact_relation": "Sister",
+                "emergency_contact_phone": "+91 98765-43210",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.patient_a.refresh_from_db()
+        self.assertEqual(
+            (self.patient_a.emergency_contact_name, self.patient_a.emergency_contact_phone),
+            ("Meera", "919876543210"),
+        )
+
+    def test_emergency_contact_needs_a_phone(self):
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {"emergency_contact_name": "Meera"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("emergency_contact_phone", response.data["details"])
+
+    def test_emergency_contact_name_change_keeps_stored_phone(self):
+        self.patient_a.emergency_contact_phone = "9876543210"
+        self.patient_a.save(update_fields=["emergency_contact_phone"])
+
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {"emergency_contact_name": "Meera"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+    def test_emergency_contact_phone_too_short(self):
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {"emergency_contact_name": "Meera", "emergency_contact_phone": "12345"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_delete_patient(self):
         """Test deleting a patient."""
         response = self.client.delete(self._get_detail_url(self.patient_a.id))

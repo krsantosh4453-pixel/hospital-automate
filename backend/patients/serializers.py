@@ -15,6 +15,9 @@ class PatientSerializer(serializers.ModelSerializer):
             "date_of_birth",
             "doctor",
             "condition",
+            "emergency_contact_name",
+            "emergency_contact_relation",
+            "emergency_contact_phone",
             "hospital",
             "status",
             "email_verified",
@@ -44,6 +47,25 @@ class PatientSerializer(serializers.ModelSerializer):
                 "Phone number must have at least 10 digits."
             )
         return digits
+
+    def validate_emergency_contact_phone(self, value):
+        if not value:
+            return ""
+        return self.validate_phone(value)
+
+    def validate(self, attrs):
+        # A contact without a number cannot be called. On a partial update
+        # the stored value stands in for a field that was not sent.
+        def current(field):
+            if field in attrs:
+                return attrs[field]
+            return getattr(self.instance, field, "") if self.instance else ""
+
+        if current("emergency_contact_name").strip() and not current("emergency_contact_phone"):
+            raise serializers.ValidationError(
+                {"emergency_contact_phone": "Add a phone number for the emergency contact."}
+            )
+        return attrs
 
     def validate_hospital(self, value):
         """Ensure user has access to the hospital."""

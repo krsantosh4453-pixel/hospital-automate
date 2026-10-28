@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
-import { Eye, FlaskConical, Hospital, Pencil, Plus, RefreshCw, XCircle } from "lucide-react"
+import { Eye, FlaskConical, Hospital, Pencil, Plus, Printer, RefreshCw, XCircle } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import {
   Badge,
@@ -14,6 +14,7 @@ import {
   Field,
   Modal,
   PageHeader,
+  PrintSheet,
   SearchInput,
   Select,
   SkeletonRows,
@@ -25,6 +26,7 @@ import {
   useConfirm,
   usePrompt,
 } from "../components/ui"
+import { LabReportDocument } from "../components/documents/ClinicalDocuments.jsx"
 
 function Laboratory() {
   // Doctors order tests; a Hospital Manager only views them.
@@ -85,6 +87,8 @@ function Laboratory() {
     status: SUMMARY[t.status] || t.status,
     result: t.status === "Released" ? t.result || "—" : "Pending",
     hospitalId: t.hospital,
+    // The API row as returned, for the printed report.
+    record: t,
   })
 
   const loadTests = async () => {
@@ -128,6 +132,7 @@ function Laboratory() {
   const [showView, setShowView] =
     useState(false)
 
+  const [printingTest, setPrintingTest] = useState(null)
   const [selectedTest, setSelectedTest] =
     useState(null)
 
@@ -544,6 +549,9 @@ function Laboratory() {
                                   </Button>
                                 )}
                                 <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(test)} aria-label={`View ${test.id}`} title="View" />
+                                {test.stage === "Released" && (
+                                  <Button variant="ghost" size="icon-sm" icon={Printer} onClick={() => setPrintingTest(test.record)} aria-label={`Print ${test.id}`} title="Print report" />
+                                )}
                                 {test.stage !== "Released" && test.stage !== "Cancelled" && (
                                   <>
                                     <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => handleEdit(test)} aria-label={`Edit ${test.id}`} title="Edit" />
@@ -639,6 +647,10 @@ function Laboratory() {
           </div>
         )}
       </Modal>
+
+      <PrintSheet open={Boolean(printingTest)} onClose={() => setPrintingTest(null)} title="Lab report">
+        {printingTest && <LabReportDocument test={printingTest} />}
+      </PrintSheet>
     </div></>
   )
 }

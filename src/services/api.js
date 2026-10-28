@@ -1248,6 +1248,48 @@ const api = {
       },
     },
 
+    // Signed by the requesting doctor; issued once and never edited.
+    certificates: {
+      // GET /api/clinical/certificates/?patient=<id>
+      list: async ({ patientId } = {}) => {
+        const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : ''
+        return request(`${API_BASE_URL}/clinical/certificates/${query}`)
+      },
+
+      // POST /api/clinical/certificates/
+      create: async (data) =>
+        request(`${API_BASE_URL}/clinical/certificates/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+    },
+
+    // Only a referral's status can change after it is made.
+    referrals: {
+      // GET /api/clinical/referrals/?patient=<id>
+      list: async ({ patientId } = {}) => {
+        const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : ''
+        return request(`${API_BASE_URL}/clinical/referrals/${query}`)
+      },
+
+      // POST /api/clinical/referrals/
+      create: async (data) =>
+        request(`${API_BASE_URL}/clinical/referrals/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+
+      // PATCH /api/clinical/referrals/{id}/  { status }
+      setStatus: async (id, status) =>
+        request(`${API_BASE_URL}/clinical/referrals/${id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        }),
+    },
+
     // =====================================
     // PHARMACY
     // =====================================

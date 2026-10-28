@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
-import { FlaskConical } from "lucide-react"
-import { Alert, Card, EmptyState, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
+import { FlaskConical, Printer } from "lucide-react"
+import { Alert, Button, Card, EmptyState, PrintSheet, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
+import { LabReportDocument } from "../../components/documents/ClinicalDocuments.jsx"
 
 function PatientLabResults() {
   const { patient } = useAuth()
@@ -10,6 +11,7 @@ function PatientLabResults() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState("all")
+  const [printing, setPrinting] = useState(null)
 
   useEffect(() => {
     if (!patient?.id) return
@@ -88,7 +90,12 @@ function PatientLabResults() {
                         {released && test.released_at ? ` · released ${formatDate(test.released_at)}` : ""}
                       </p>
                     </div>
-                    <StatusBadge status={released ? "Released" : test.status === "Cancelled" ? "Cancelled" : "In progress"} />
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={released ? "Released" : test.status === "Cancelled" ? "Cancelled" : "In progress"} />
+                      {released && (
+                        <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting(test)}>Print</Button>
+                      )}
+                    </div>
                   </div>
                   <div className="border-t border-line px-5 py-3 text-sm">
                     {released ? (
@@ -105,6 +112,10 @@ function PatientLabResults() {
           })}
         </ul>
       )}
+
+      <PrintSheet open={Boolean(printing)} onClose={() => setPrinting(null)} title="Lab report">
+        {printing && <LabReportDocument test={printing} />}
+      </PrintSheet>
     </div>
   )
 }

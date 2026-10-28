@@ -10,6 +10,8 @@ from .models import (
     MedicalRecord,
     Prescription,
     PrescriptionItem,
+    MedicalCertificate,
+    Referral,
 )
 
 
@@ -274,3 +276,103 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             ])
 
         return instance
+
+class MedicalCertificateSerializer(serializers.ModelSerializer):
+    # Display fields so the certificate prints without extra requests.
+    patient_name = serializers.CharField(source="patient.name", read_only=True)
+    patient_age = serializers.IntegerField(source="patient.age", read_only=True)
+    patient_gender = serializers.CharField(source="patient.gender", read_only=True)
+    doctor_name = serializers.CharField(source="doctor.name", read_only=True)
+    doctor_specialization = serializers.CharField(source="doctor.specialization", read_only=True)
+    hospital_name = serializers.CharField(source="hospital.name", read_only=True)
+    hospital_address = serializers.CharField(source="hospital.address", read_only=True, default="")
+
+    class Meta:
+        model = MedicalCertificate
+        fields = [
+            "id",
+            "hospital",
+            "patient",
+            "doctor",
+            "kind",
+            "diagnosis",
+            "remarks",
+            "start_date",
+            "end_date",
+            "issued_at",
+            "patient_name",
+            "patient_age",
+            "patient_gender",
+            "doctor_name",
+            "doctor_specialization",
+            "hospital_name",
+            "hospital_address",
+        ]
+        read_only_fields = ["id", "doctor", "issued_at"]
+        # Defaults to the acting hospital (X-Hospital-ID) in the view.
+        extra_kwargs = {"hospital": {"required": False}}
+
+    def validate(self, attrs):
+        start, end = attrs.get("start_date"), attrs.get("end_date")
+        if attrs.get("kind", MedicalCertificate.Kind.SICK_LEAVE) == MedicalCertificate.Kind.SICK_LEAVE and not end:
+            raise serializers.ValidationError({"end_date": "A sick-leave certificate needs an end date."})
+        if start and end and end < start:
+            raise serializers.ValidationError({"end_date": "The end date cannot be before the start date."})
+        return attrs
+
+
+class ReferralSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source="patient.name", read_only=True)
+    patient_age = serializers.IntegerField(source="patient.age", read_only=True)
+    patient_gender = serializers.CharField(source="patient.gender", read_only=True)
+    referring_doctor_name = serializers.CharField(source="referring_doctor.name", read_only=True)
+    referred_to_doctor_name = serializers.CharField(source="referred_to_doctor.name", read_only=True, default="")
+    hospital_name = serializers.CharField(source="hospital.name", read_only=True)
+    hospital_address = serializers.CharField(source="hospital.address", read_only=True, default="")
+
+    class Meta:
+        model = Referral
+        fields = [
+            "id",
+            "hospital",
+            "patient",
+            "visit",
+            "referring_doctor",
+            "referred_to_doctor",
+            "referred_to_external",
+            "specialty",
+            "reason",
+            "urgency",
+            "status",
+            "created_at",
+            "patient_name",
+            "patient_age",
+            "patient_gender",
+            "referring_doctor_name",
+            "referred_to_doctor_name",
+            "hospital_name",
+            "hospital_address",
+        ]
+        read_only_fields = ["id", "referring_doctor", "created_at"]
+        # Defaults to the acting hospital (X-Hospital-ID) in the view.
+        extra_kwargs = {"hospital": {"required": False}}
+
+    def validate(self, attrs):
+        if self.instance is not None:
+            # A referral is a record of what was asked: only its progress changes.
+            changed = set(attrs) - {"status"}
+            if changed:
+                raise serializers.ValidationError(
+                    {name: "Only the status of a referral can change." for name in sorted(changed)}
+                )
+            return attrs
+        internal = attrs.get("referred_to_doctor")
+        external = attrs.get("referred_to_external", "").strip()
+        if bool(internal) == bool(external):
+            raise serializers.ValidationError(
+                {"referred_to_doctor": "Refer to one doctor of this hospital or one outside doctor/facility."}
+            )
+        if not attrs.get("reason", "").strip():
+            raise serializers.ValidationError({"reason": "Give the reason for the referral."})
+        attrs["referred_to_external"] = external
+        return attrs

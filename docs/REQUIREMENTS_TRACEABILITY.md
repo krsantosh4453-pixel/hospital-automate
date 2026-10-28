@@ -64,7 +64,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | B1 | Register patient and retrieve persisted record | P1 4.1 | VERIFIED | PatientViewSet | T:test_e2e_workflows |
 | B2 | UHID per hospital | MH 5, P1 4 | IMPLEMENTED | PatientHospital.uhid | R |
 | B3 | Full demographics (DOB, marital status, ID type, address parts, payer) | P1 4.1 | PARTIAL | name, age, gender, phone, address, DOB only | R |
-| B4 | Emergency contact / relative | P1 4.1 | MISSING | — | — |
+| B4 | Emergency contact / relative | P1 4.1 | VERIFIED | `patients.tests` (4 emergency-contact tests); browser check 2026-10-28 | Added 2026-10-28: name, relation, phone on the patient; a name needs a phone |
 | B5 | Duplicate prevention / existing-patient match | — | PARTIAL | Self-registration rejects a duplicate phone; staff registration does not | R |
 | B6 | Patient portal home | MH 3, UI 4 | VERIFIED | `pages/patient/*` | B |
 | B7 | Book appointment (specialty → doctor → slot) | UI 4 | IMPLEMENTED | Patient appointment page | B (render only) |
@@ -103,8 +103,8 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | D7 | Investigation / procedure orders | P1 5, P4 2 | IMPLEMENTED | ServiceOrder, Procedure, LabTest | T (lab flow) |
 | D8 | Prescription medicine | P1 5 | VERIFIED | Prescription + items; UI saves only on server success | T:test_e2e_workflows |
 | D9 | Advice | P1 5 | PARTIAL | Prescription item instructions only | R |
-| D10 | Medical certificate | UI 3.4 | MISSING | — | — |
-| D11 | Refer to doctor | UI 3.4 | MISSING | — | — |
+| D10 | Medical certificate | UI 3.4 | VERIFIED | `clinical.test_certificates_referrals` (10); `PrintSheet.test.jsx`; browser check 2026-10-28 | Added 2026-10-28: Consultation → Certificates & referrals. Signed by the requesting doctor's profile; never edited or deleted; patients read their own |
+| D11 | Refer to doctor | UI 3.4 | VERIFIED | `clinical.test_certificates_referrals` (6); browser check 2026-10-28 | Added 2026-10-28: to a doctor of the same hospital or an outside facility; only the status changes later; printable letter |
 | D12 | Previous visits / timeline | UI 3.4 | PARTIAL | Visit list per patient; no timeline view | R |
 | D13 | Discharge summary authoring and finalization | P3, P4 7 | VERIFIED | Finalize action (linked doctor), locked after; discharge requires it | T:test_e2e_workflows |
 | D14 | Corrections and history of clinical records | Brief 7 | IMPLEMENTED | Audit stores old → new values on every update | T (audit) |
@@ -146,7 +146,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 |---|---|---|---|---|---|
 | G1 | Orders, collection, lab number, dispatch, receive, process | P4 3 | VERIFIED | LabTest actions; lab number generated | T:test_e2e_workflows, B (page) |
 | G2 | Result entry, verification, release (lab staff only) | UI 3.7 | VERIFIED | Role-restricted actions; status not editable directly | T |
-| G3 | Result printing / export | UI 3.7 | MISSING | — | — |
+| G3 | Result printing / export | UI 3.7 | IMPLEMENTED | `PrintSheet.test.jsx` (released-only, abnormal flags) | Added 2026-10-28: print / Save-as-PDF on the Laboratory page and patient Lab reports, released results only. Not clicked through in a browser |
 | G4 | Radiology | P1 | PARTIAL | Treated as lab test type only | R |
 | G5 | Collection queue view (patient, UHID, lab no., ward, count) | P4 3 | PARTIAL | Lab page list; no ward / UHID columns | B |
 
@@ -160,7 +160,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | H4 | Advance payments | P2 6 | MISSING | Payments cannot exceed the bill | — |
 | H5 | Duplicate-payment prevention | Brief 4 | VERIFIED | Idempotency-Key | T |
 | H6 | Insurance / TPA claims | UI 3.8 | IMPLEMENTED | InsuranceClaim (amount ≤ invoice) | Existing tests |
-| H7 | Invoice PDF / export | P2 16 | MISSING | — | — |
+| H7 | Invoice PDF / export | P2 16 | IMPLEMENTED | Layout shared with the tested PrintSheet | Added 2026-10-28: patient Bills page prints the invoice with payments (browser "Save as PDF"); staff Billing already had Print Bill. Not clicked through in a browser |
 | H8 | IPD / discharge billing | UI 3.8 | PARTIAL | Manual invoices | R |
 
 ## I. Inventory and supply chain

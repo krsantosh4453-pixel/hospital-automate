@@ -21,6 +21,10 @@ class Patient(models.Model):
     doctor = models.CharField(max_length=100, blank=True)
     # Free-text condition/reason shown in the Patients UI
     condition = models.CharField(max_length=150, blank=True)
+    # Next of kin to call in an emergency (requirement B4). All optional.
+    emergency_contact_name = models.CharField(max_length=100, blank=True, default="")
+    emergency_contact_relation = models.CharField(max_length=50, blank=True, default="")
+    emergency_contact_phone = models.CharField(max_length=15, blank=True, default="")
     # Direct hospital link used by the Patients UI.
     # PatientHospital (membership) is kept for backward compatibility.
     hospital = models.ForeignKey(

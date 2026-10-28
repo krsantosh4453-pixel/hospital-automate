@@ -241,3 +241,115 @@ class PrescriptionItem(models.Model):
 
     def __str__(self):
         return f"{self.name} x{self.quantity}"
+
+class MedicalCertificate(models.Model):
+    """A signed medical certificate (requirement D10). Never edited once issued."""
+
+    class Kind(models.TextChoices):
+        SICK_LEAVE = "Sick leave", "Sick leave"
+        FITNESS = "Fitness", "Fitness"
+        OTHER = "Other", "Other"
+
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.CASCADE,
+        related_name="medical_certificates",
+        db_index=True
+    )
+    patient = models.ForeignKey(
+        "patients.Patient",
+        on_delete=models.CASCADE,
+        related_name="medical_certificates",
+        db_index=True
+    )
+    doctor = models.ForeignKey(
+        "doctors.Doctor",
+        on_delete=models.PROTECT,
+        related_name="medical_certificates",
+    )
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.SICK_LEAVE)
+    diagnosis = models.CharField(max_length=255, blank=True)
+    remarks = models.TextField(blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    issued_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-issued_at"]
+        indexes = [
+            models.Index(fields=["hospital", "issued_at"]),
+            models.Index(fields=["patient", "issued_at"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_date__isnull=True) | models.Q(end_date__gte=models.F("start_date")),
+                name="certificate_end_not_before_start",
+            ),
+        ]
+
+    def __str__(self):
+        return f"CERT-{self.pk}"
+
+
+class Referral(models.Model):
+    """A doctor's referral to a colleague or an outside facility (requirement D11)."""
+
+    class Urgency(models.TextChoices):
+        ROUTINE = "Routine", "Routine"
+        URGENT = "Urgent", "Urgent"
+        EMERGENCY = "Emergency", "Emergency"
+
+    class Status(models.TextChoices):
+        PENDING = "Pending", "Pending"
+        ACCEPTED = "Accepted", "Accepted"
+        DECLINED = "Declined", "Declined"
+        COMPLETED = "Completed", "Completed"
+
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.CASCADE,
+        related_name="referrals",
+        db_index=True
+    )
+    patient = models.ForeignKey(
+        "patients.Patient",
+        on_delete=models.CASCADE,
+        related_name="referrals",
+        db_index=True
+    )
+    visit = models.ForeignKey(
+        "encounters.Visit",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="referrals",
+    )
+    referring_doctor = models.ForeignKey(
+        "doctors.Doctor",
+        on_delete=models.PROTECT,
+        related_name="referrals_made",
+    )
+    # Either a doctor of the same hospital or a named outside doctor/facility.
+    referred_to_doctor = models.ForeignKey(
+        "doctors.Doctor",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="referrals_received",
+    )
+    referred_to_external = models.CharField(max_length=200, blank=True)
+    specialty = models.CharField(max_length=100, blank=True)
+    reason = models.TextField()
+    urgency = models.CharField(max_length=20, choices=Urgency.choices, default=Urgency.ROUTINE)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["hospital", "status"]),
+            models.Index(fields=["patient", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"REF-{self.pk}"
