@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Eye, Hospital, Pencil, Phone, Trash2, UserPlus, UsersRound } from "lucide-react"
+import { Eye, History, Hospital, Pencil, Phone, Trash2, UserPlus, UsersRound } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import { useLinkedPatient } from "../utils/linkedPatient.js"
+import PatientTimeline from "../components/clinical/PatientTimeline.jsx"
 import Pagination from "../components/Pagination.jsx"
 import {
   Alert,
@@ -44,7 +45,7 @@ const EMPTY_FORM = {
 
 function Patients() {
   // Only the front desk registers patients; a Hospital Manager only views them.
-  const { canAdd, canEdit } = useRole()
+  const { canAdd, canEdit, activeRoleName } = useRole()
   const { selectedHospital } = usePatient()
 
   // Opened from another module (e.g. the ER) with ?q=<name>&edit=<id> or &record=<id>.
@@ -76,6 +77,8 @@ function Patients() {
 
   // Read-only "View" and delete confirmation
   const [viewPatient, setViewPatient] = useState(null)
+  // Patient whose medical record (timeline, B9) is open.
+  const [recordPatient, setRecordPatient] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
@@ -221,7 +224,7 @@ function Patients() {
     if (!match) return
     linkedHandled.current = true
     if (linked.editId) openEditForm(match)
-    else setViewPatient(match)
+    else setRecordPatient(match)
   }, [patients, linked.editId, linked.recordId])
 
   const openEditForm = (patient) => {
@@ -676,6 +679,16 @@ function Patients() {
         </form>
       </Modal>
 
+      <Modal
+        open={Boolean(recordPatient)}
+        onClose={() => setRecordPatient(null)}
+        size="xl"
+        title={recordPatient ? `Medical record · ${recordPatient.name}` : "Medical record"}
+        description="Visits, diagnoses, results and treatment at this hospital, newest first. Every view is recorded in the audit log."
+      >
+        {recordPatient && <PatientTimeline patientId={recordPatient.id} />}
+      </Modal>
+
       {/* Patient details */}
       <Modal
         open={Boolean(viewPatient)}
@@ -687,6 +700,9 @@ function Patients() {
               <Button variant="danger-ghost" icon={Trash2} onClick={() => setPendingDelete(viewPatient)} className="mr-auto">
                 Delete
               </Button>
+              {["Doctor", "Nurse", "Admin"].includes(activeRoleName) && (
+                <Button variant="secondary" icon={History} onClick={() => { setRecordPatient(viewPatient); setViewPatient(null) }}>Medical record</Button>
+              )}
               <Button variant="secondary" onClick={() => setViewPatient(null)}>Close</Button>
               {canEdit("Patients") && <Button icon={Pencil} onClick={() => openEditForm(viewPatient)}>Edit</Button>}
             </>

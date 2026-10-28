@@ -2337,5 +2337,8 @@ api.imaging = {
   cancel: async (id) => request(`${API_BASE_URL}/laboratory/imaging/${id}/cancel/`, { method: "POST" }),
 }
 
+// Longitudinal record (B9, D12). GET /api/patients/{id}/timeline/ (audited)
+api.patients.timeline = async (id) => request(`${API_BASE_URL}/patients/${id}/timeline/`)
+
 export default api
 

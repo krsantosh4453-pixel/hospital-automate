@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
-import { CalendarClock, ClipboardList, FileText, HeartPulse, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Syringe, Trash2, UserRound } from "lucide-react"
+import { CalendarClock, ClipboardList, FileText, HeartPulse, History, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Syringe, Trash2, UserRound } from "lucide-react"
 import {
   Alert,
   Avatar,
@@ -22,6 +22,7 @@ import {
   Textarea,
 } from "../components/ui"
 import VisitDocuments from "../components/clinical/VisitDocuments.jsx"
+import PatientTimeline from "../components/clinical/PatientTimeline.jsx"
 import VisitImmunizations from "../components/clinical/VisitImmunizations.jsx"
 import PatientContextStrip from "../components/clinical/PatientContextStrip.jsx"
 
@@ -1026,6 +1027,7 @@ function Consultation() {
     { id: "notes", label: "Notes", icon: NotebookPen, count: notes.length },
     { id: "orders", label: "Service orders", icon: ClipboardList, count: orders.length },
     { id: "documents", label: "Certificates & referrals", icon: FileText },
+    { id: "history", label: "History", icon: History },
     { id: "vaccinations", label: "Vaccinations", icon: Syringe },
   ]
 
@@ -1368,6 +1370,9 @@ function Consultation() {
               )}
 
               {activeTab === "documents" && selectedVisit && <VisitDocuments key={selectedVisit.apiId} visit={selectedVisit} />}
+              {activeTab === "history" && selectedVisit && (
+                <Card><div className="px-5 py-4"><PatientTimeline patientId={selectedVisit.patientApiId} /></div></Card>
+              )}
               {activeTab === "vaccinations" && selectedVisit && <VisitImmunizations key={selectedVisit.patientApiId} visit={selectedVisit} />}
 
               {!loadingClinical && activeTab === "orders" && (

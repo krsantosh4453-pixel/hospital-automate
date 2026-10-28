@@ -45,6 +45,9 @@ class PatientViewSet(HospitalScopedViewSet):
             return [(IsAdmin | IsHospitalManager)()]
         if action_name == "documents":
             return [(IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
+        if action_name == "timeline":
+            # Clinical history: clinicians, and the patient for their own record.
+            return [(IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
         return super().get_permissions()
 
     def _document_payload(self, document):
@@ -96,6 +99,24 @@ class PatientViewSet(HospitalScopedViewSet):
         )
         record_audit(request, "documents.document.upload", document, hospital=hospital_id)
         return Response(self._document_payload(document), status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"])
+    def timeline(self, request, pk=None):
+        """Longitudinal record (B9, D12) at the acting hospitals; every read is audited."""
+        from .timeline import build_timeline
+
+        patient = self.get_object()
+        for_patient = bool(get_linked_patient(request.user)) and not is_active_staff(request.user)
+        if for_patient:
+            hospital_ids = set(patient.hospital_memberships.filter(is_active=True).values_list("hospital_id", flat=True))
+            if patient.hospital_id:
+                hospital_ids.add(patient.hospital_id)
+        else:
+            hospital_ids = self.get_acting_hospital_ids()
+        events = build_timeline(patient, hospital_ids, for_patient=for_patient)
+        record_audit(request, "patients.timeline.read", patient,
+                     hospital=self.get_object_hospital_id(patient), details={"events": len(events)})
+        return Response({"patient": patient.pk, "patient_name": patient.name, "events": events})
 
     @action(detail=False, methods=["delete"], url_path=r"documents/(?P<doc_id>[0-9]+)")
     def delete_document(self, request, doc_id=None):

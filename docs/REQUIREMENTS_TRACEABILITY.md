@@ -69,7 +69,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | B6 | Patient portal home | MH 3, UI 4 | VERIFIED | `pages/patient/*` | B |
 | B7 | Book appointment (specialty → doctor → slot) | UI 4 | IMPLEMENTED | Patient appointment page | B (render only) |
 | B8 | My appointments / queue token status | UI 4 | IMPLEMENTED | PatientQueue (15 s polling) | B (render only) |
-| B9 | Medical records (longitudinal EHR, read-only) | UI 4, P1 9 | PARTIAL | Lab, prescriptions and documents per hospital; no combined timeline | B |
+| B9 | Medical records (longitudinal EHR, read-only) | UI 4, P1 9 | VERIFIED | `GET /api/patients/{id}/timeline/`: visits, diagnoses, notes, vitals, prescriptions, lab, imaging, admissions, ER, nursing notes, vaccinations, certificates and referrals, newest first; every read audited. Patient portal → My health record shows the patient's own record at all their hospitals (released results and signed reports only, no doctor/nursing notes) | patients.test_timeline (4); browser 2026-10-28 |
 | B10 | Prescriptions / lab reports (released only) | UI 4 | VERIFIED | Patients see only Released lab results | T:test_e2e_workflows |
 | B11 | Documents upload / view by folder | P4 11, UI 4 | VERIFIED | Hospital-scoped, content-checked, audited downloads | T:test_documents |
 | B12 | Consent and record sharing (recipient, scope, expiry, revoke, audit) | UI 4, P1 10 | VERIFIED | `consent/` app + PatientConsent page | T:test_consent_sharing, B (signing) |
@@ -105,7 +105,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | D9 | Advice | P1 5 | PARTIAL | Prescription item instructions only | R |
 | D10 | Medical certificate | UI 3.4 | VERIFIED | `clinical.test_certificates_referrals` (10); `PrintSheet.test.jsx`; browser check 2026-10-28 | Added 2026-10-28: Consultation → Certificates & referrals. Signed by the requesting doctor's profile; never edited or deleted; patients read their own |
 | D11 | Refer to doctor | UI 3.4 | VERIFIED | `clinical.test_certificates_referrals` (6); browser check 2026-10-28 | Added 2026-10-28: to a doctor of the same hospital or an outside facility; only the status changes later; printable letter |
-| D12 | Previous visits / timeline | UI 3.4 | PARTIAL | Visit list per patient; no timeline view | R |
+| D12 | Previous visits / timeline | UI 3.4 | VERIFIED | Consultation → History tab and Patients → Medical record (Doctor/Nurse/Admin, care scope applies; the ER "Patient medical record" action opens it) | patients.test_timeline; browser 2026-10-28 |
 | D13 | Discharge summary authoring and finalization | P3, P4 7 | VERIFIED | Finalize action (linked doctor), locked after; discharge requires it | T:test_e2e_workflows |
 | D14 | Corrections and history of clinical records | Brief 7 | IMPLEMENTED | Audit stores old → new values on every update | T (audit) |
 | D15 | Vaccination | P1 5 | MISSING | — | — |

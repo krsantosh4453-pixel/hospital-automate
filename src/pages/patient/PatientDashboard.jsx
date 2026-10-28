@@ -5,6 +5,7 @@ import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
 import { Alert, Card, CardHeader, EmptyState, SkeletonRows, StatTile, StatusBadge } from "../../components/ui"
 import { UPCOMING_STATUSES } from "../../config/appointmentStatus.js"
+import PatientTimeline from "../../components/clinical/PatientTimeline.jsx"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 const CURRENT_RX = ["Confirmed", "Pending"]
@@ -139,6 +140,13 @@ function PatientDashboard() {
           </ul>
         </Card>
       </div>
+
+      {patient?.id && (
+        <Card>
+          <CardHeader icon={History} title="My health record" description="Your visits, results and treatment at every hospital you use." />
+          <div className="px-5 py-4"><PatientTimeline patientId={patient.id} /></div>
+        </Card>
+      )}
     </div>
   )
 }
