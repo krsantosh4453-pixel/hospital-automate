@@ -74,6 +74,7 @@ const STAFF_ROUTE_MODULES = [
   ["/compounter", "Compounders"],
   ["/pharmacy", "Pharmacy"],
   ["/laboratory", "Laboratory"],
+  ["/radiology", "Laboratory"],
   ["/billing", "Billing"],
   ["/inventory", "Inventory"],
   ["/reports", "Reports"],

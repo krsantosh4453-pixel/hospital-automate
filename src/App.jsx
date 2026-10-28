@@ -15,6 +15,7 @@ import Consultation from "./pages/Consultation.jsx"
 import Prescription from "./pages/Prescription.jsx"
 import Pharmacy from "./pages/pharmacy.jsx"
 import Laboratory from "./pages/laboratory.jsx"
+import Radiology from "./pages/Radiology.jsx"
 import Billing from "./pages/billing.jsx"
 import Inventory from "./pages/inventory.jsx"
 import Reports from "./pages/reports.jsx"
@@ -109,6 +110,7 @@ function App() {
                           <Route path="/compounter" element={<Compounter />} />
                           <Route path="/pharmacy" element={<Pharmacy />} />
                           <Route path="/laboratory" element={<Laboratory />} />
+                          <Route path="/radiology" element={<Radiology />} />
                           <Route path="/billing" element={<Billing />} />
                           <Route path="/inventory" element={<Inventory />} />
                           <Route path="/reports" element={<Reports />} />

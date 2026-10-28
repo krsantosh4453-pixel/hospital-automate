@@ -4,10 +4,14 @@ from rest_framework.response import Response
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from rest_framework.exceptions import ValidationError
+
+from doctors.models import Doctor
 
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import (
-    get_linked_patient, is_active_staff, IsDoctor, IsHospitalManagerReadOnly, IsLabStaff, IsNurse,
+    get_linked_patient, get_user_roles, is_active_staff, IsDoctor, IsHospitalManagerReadOnly, IsLabStaff, IsNurse,
     IsPatientReadOnly,
 )
 from .models import (
@@ -16,6 +20,7 @@ from .models import (
     SampleDispatch,
     LabResult,
     ResultVerification,
+    ImagingStudy,
 )
 from .serializers import (
     LabTestSerializer,
@@ -24,6 +29,7 @@ from .serializers import (
     SampleDispatchSerializer,
     LabResultSerializer,
     ResultVerificationSerializer,
+    ImagingStudySerializer,
 )
 
 
@@ -342,3 +348,111 @@ class ResultVerificationViewSet(HospitalScopedViewSet):
         if hospital_id:
             qs = qs.filter(lab_result__lab_test__hospital_id=hospital_id)
         return qs.select_related("lab_result__lab_test__hospital", "lab_result__lab_test__patient", "verified_by")
+
+class ImagingStudyViewSet(HospitalScopedViewSet):
+    """
+    Radiology / imaging (G4): Doctor orders, Lab Staff (technician) schedules and
+    performs, a Doctor reports and signs. Rows are never edited or deleted; a
+    study is cancelled instead. Patients see only signed reports.
+    """
+
+    queryset = ImagingStudy.objects.select_related("hospital", "patient", "ordered_by", "reported_by")
+    serializer_class = ImagingStudySerializer
+    permission_classes = [IsDoctor | IsLabStaff | IsNurse | IsPatientReadOnly | IsHospitalManagerReadOnly]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsDoctor()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if get_linked_patient(self.request.user) and not is_active_staff(self.request.user):
+            return qs.filter(status=ImagingStudy.Status.REPORTED)
+        visible = Q(pk__in=qs.values("pk")) | Q(pk__in=self._reporting_worklist().values("pk"))
+        qs = ImagingStudy.objects.select_related(
+            "hospital", "patient", "ordered_by", "reported_by"
+        ).filter(visible)
+        for param, field in (("patient", "patient_id"), ("status", "status"), ("modality", "modality")):
+            value = self.request.query_params.get(param)
+            if value:
+                qs = qs.filter(**{field: value})
+        return qs
+
+    def _reporting_worklist(self):
+        # The reporting radiologist is rarely the treating doctor, so studies
+        # awaiting a report (and the ones they signed) stay visible to doctors.
+        doctor_ids = Doctor.objects.filter(user=self.request.user).values("pk")
+        # The doctor role must be held in that hospital, never the union of roles.
+        hospital_ids = [
+            h for h in self.get_acting_hospital_ids()
+            if set(get_user_roles(self.request.user, h)) & set(IsDoctor.required_roles)
+        ]
+        if not hospital_ids:
+            return ImagingStudy.objects.none()
+        return ImagingStudy.objects.filter(hospital_id__in=hospital_ids).filter(
+            Q(status=ImagingStudy.Status.PERFORMED) | Q(reported_by__in=doctor_ids)
+        )
+
+    def _doctor_at(self, hospital):
+        doctor = Doctor.objects.filter(user=self.request.user, hospital=hospital).first()
+        if doctor is None:
+            raise ValidationError("Only a doctor of this hospital can do this; your account has no doctor profile here.")
+        return doctor
+
+    def perform_create(self, serializer):
+        from billing.services import new_reference
+
+        extra = self._check_tenancy(serializer.validated_data)
+        hospital = serializer.validated_data.get("hospital") or extra.get("hospital")
+        if hospital is None:
+            raise ValidationError({"hospital": "Choose the hospital."})
+        extra["ordered_by"] = self._doctor_at(hospital)
+        study = serializer.save(accession_number=new_reference("RAD"), **extra)
+        self._audit("create", study)
+
+    def _move(self, request, allowed_from, to, **fields):
+        study = self.get_object()
+        if study.status not in allowed_from:
+            return Response(
+                {"detail": f"A study that is {study.status.lower()} cannot be {to.lower()}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        study.status = to
+        for name, value in fields.items():
+            setattr(study, name, value)
+        study.save()
+        self._audit(to.lower(), study)
+        return Response(self.get_serializer(study).data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
+    def schedule(self, request, pk=None):
+        when = parse_datetime(str(request.data.get("scheduled_for") or ""))
+        if when is None:
+            raise ValidationError({"scheduled_for": "Give the date and time of the appointment."})
+        return self._move(request, [ImagingStudy.Status.ORDERED, ImagingStudy.Status.SCHEDULED],
+                          ImagingStudy.Status.SCHEDULED, scheduled_for=when)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
+    def perform(self, request, pk=None):
+        return self._move(request, [ImagingStudy.Status.ORDERED, ImagingStudy.Status.SCHEDULED],
+                          ImagingStudy.Status.PERFORMED, performed_at=timezone.now(), performed_by=request.user,
+                          technician_notes=str(request.data.get("technician_notes", "")).strip())
+
+    @action(detail=True, methods=["post"], permission_classes=[IsDoctor])
+    def report(self, request, pk=None):
+        """Sign the report. Findings and impression are required; the study then locks."""
+        study = self.get_object()
+        findings = str(request.data.get("findings", "")).strip()
+        impression = str(request.data.get("impression", "")).strip()
+        if not findings or not impression:
+            raise ValidationError({"impression": "Write both the findings and the impression."})
+        return self._move(request, [ImagingStudy.Status.PERFORMED], ImagingStudy.Status.REPORTED,
+                          findings=findings, impression=impression,
+                          reported_by=self._doctor_at(study.hospital), reported_at=timezone.now())
+
+    @action(detail=True, methods=["post"], permission_classes=[IsDoctor])
+    def cancel(self, request, pk=None):
+        return self._move(request, [ImagingStudy.Status.ORDERED, ImagingStudy.Status.SCHEDULED],
+                          ImagingStudy.Status.CANCELLED)

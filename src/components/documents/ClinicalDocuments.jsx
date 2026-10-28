@@ -191,3 +191,37 @@ export function LabReportDocument({ test }) {
     </PrintedDocument>
   )
 }
+
+/** Signed radiology report (requirement G4). Unsigned studies are never printed. */
+export function ImagingReportDocument({ study }) {
+  if (study.status !== "Reported") {
+    return <p>This study has no signed report yet, so it cannot be printed.</p>
+  }
+  return (
+    <PrintedDocument
+      hospitalName={study.hospital_name}
+      title={`${study.modality} report`}
+      reference={study.accession_number}
+      date={formatPrintDate(study.reported_at)}
+      signature={study.reported_by_name}
+    >
+      <PrintedFacts
+        rows={[
+          ["Patient", patientLine(study)],
+          ["Examination", `${study.modality} · ${study.body_part}`],
+          ["Ordered by", study.ordered_by_name],
+          ["Performed", formatPrintDate(study.performed_at)],
+          ["Clinical question", study.indication],
+        ]}
+      />
+      <section>
+        <p className="font-semibold">Findings</p>
+        <p className="whitespace-pre-line">{study.findings}</p>
+      </section>
+      <section>
+        <p className="font-semibold">Impression</p>
+        <p className="whitespace-pre-line">{study.impression}</p>
+      </section>
+    </PrintedDocument>
+  )
+}

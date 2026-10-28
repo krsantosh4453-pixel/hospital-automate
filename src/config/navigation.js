@@ -8,6 +8,7 @@ import {
   Droplet,
   FileText,
   FlaskConical,
+  ScanSearch,
   HeartPulse,
   History,
   House,
@@ -66,6 +67,7 @@ export const STAFF_NAV = [
     label: "Diagnostics & pharmacy",
     items: [
       { to: "/laboratory", label: "Laboratory", icon: FlaskConical, module: "Laboratory" },
+      { to: "/radiology", label: "Radiology", icon: ScanSearch, module: "Laboratory" },
       { to: "/pharmacy", label: "Pharmacy", icon: Pill, module: "Pharmacy" },
       { to: "/compounter", label: "Compounder", icon: Syringe, module: "Compounders" },
       { to: "/blood-bank", label: "Blood Bank", icon: Droplet, module: "BloodBank" },

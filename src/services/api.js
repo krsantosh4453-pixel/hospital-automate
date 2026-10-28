@@ -2319,5 +2319,23 @@ api.clinical.allergies = {
 api.laboratory.tests.bySample = async (sampleId) =>
   request(`${API_BASE_URL}/laboratory/by_sample/?sample_id=${encodeURIComponent(sampleId)}`)
 
+// Radiology / imaging (G4). /api/laboratory/imaging/
+api.imaging = {
+  // GET ?patient=&status=&modality=
+  list: async (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString()
+    return request(`${API_BASE_URL}/laboratory/imaging/${query ? `?${query}` : ""}`)
+  },
+  // POST { patient, modality, body_part, indication, priority }
+  create: async (data) => request(`${API_BASE_URL}/laboratory/imaging/`, { method: "POST", ...jsonBody(data) }),
+  // POST { scheduled_for } (technician)
+  schedule: async (id, data) => request(`${API_BASE_URL}/laboratory/imaging/${id}/schedule/`, { method: "POST", ...jsonBody(data) }),
+  // POST { technician_notes } (technician)
+  perform: async (id, data) => request(`${API_BASE_URL}/laboratory/imaging/${id}/perform/`, { method: "POST", ...jsonBody(data) }),
+  // POST { findings, impression } (doctor; signs and locks the report)
+  report: async (id, data) => request(`${API_BASE_URL}/laboratory/imaging/${id}/report/`, { method: "POST", ...jsonBody(data) }),
+  cancel: async (id) => request(`${API_BASE_URL}/laboratory/imaging/${id}/cancel/`, { method: "POST" }),
+}
+
 export default api
 

@@ -3,7 +3,7 @@ import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
 import { FlaskConical, Printer } from "lucide-react"
 import { Alert, Button, Card, EmptyState, PrintSheet, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
-import { LabReportDocument } from "../../components/documents/ClinicalDocuments.jsx"
+import { ImagingReportDocument, LabReportDocument } from "../../components/documents/ClinicalDocuments.jsx"
 
 function PatientLabResults() {
   const { patient } = useAuth()
@@ -12,6 +12,9 @@ function PatientLabResults() {
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState("all")
   const [printing, setPrinting] = useState(null)
+  // Signed radiology reports (G4); the server returns only signed ones to patients.
+  const [imaging, setImaging] = useState([])
+  const [printingStudy, setPrintingStudy] = useState(null)
 
   useEffect(() => {
     if (!patient?.id) return
@@ -30,6 +33,10 @@ function PatientLabResults() {
     }
 
     fetchLabTests()
+    api.imaging
+      .list()
+      .then((data) => setImaging(data?.results || data || []))
+      .catch(() => setImaging([]))
   }, [patient?.id])
 
   const formatDate = (dateStr) => {
@@ -112,6 +119,32 @@ function PatientLabResults() {
           })}
         </ul>
       )}
+
+      {imaging.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold text-ink-900">Imaging reports</h2>
+          <ul className="space-y-3">
+            {imaging.map((study) => (
+              <li key={study.id}>
+                <Card>
+                  <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+                    <div>
+                      <p className="font-semibold text-ink-900">{study.modality} · {study.body_part}</p>
+                      <p className="text-[13px] text-ink-500">Reported {formatDate(study.reported_at)}{study.reported_by_name ? ` by ${study.reported_by_name}` : ""}</p>
+                    </div>
+                    <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrintingStudy(study)}>Print</Button>
+                  </div>
+                  <p className="border-t border-line px-5 py-3 text-sm text-ink-900"><span className="font-medium">Impression:</span> {study.impression}</p>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <PrintSheet open={Boolean(printingStudy)} onClose={() => setPrintingStudy(null)} title="Imaging report">
+        {printingStudy && <ImagingReportDocument study={printingStudy} />}
+      </PrintSheet>
 
       <PrintSheet open={Boolean(printing)} onClose={() => setPrinting(null)} title="Lab report">
         {printing && <LabReportDocument test={printing} />}

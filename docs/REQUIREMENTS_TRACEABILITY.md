@@ -147,7 +147,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | G1 | Orders, collection, lab number, dispatch, receive, process | P4 3 | VERIFIED | LabTest actions; lab number generated | T:test_e2e_workflows, B (page) |
 | G2 | Result entry, verification, release (lab staff only) | UI 3.7 | VERIFIED | Role-restricted actions; status not editable directly | T |
 | G3 | Result printing / export | UI 3.7 | IMPLEMENTED | `PrintSheet.test.jsx` (released-only, abnormal flags) | Added 2026-10-28: print / Save-as-PDF on the Laboratory page and patient Lab reports, released results only. Not clicked through in a browser |
-| G4 | Radiology | P1 | PARTIAL | Treated as lab test type only | R |
+| G4 | Radiology | P1 | VERIFIED | Radiology page (`/radiology`) and `/api/laboratory/imaging/`: doctor orders (modality, region, clinical question, priority), technician (Lab Staff) schedules and performs, a doctor reports and signs (findings + impression, then locked); radiologists see studies awaiting report outside their own care, never via another hospital's role; patients see only signed reports in Lab reports; printable report | laboratory.test_imaging (8); browser 2026-10-28 |
 | G5 | Collection queue view (patient, UHID, lab no., ward, count) | P4 3 | PARTIAL | Lab page list; no ward / UHID columns | B |
 
 ## H. Billing, payments and insurance

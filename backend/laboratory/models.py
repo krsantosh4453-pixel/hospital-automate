@@ -235,3 +235,58 @@ class ResultVerification(models.Model):
 
     class Meta:
         ordering = ["-verified_at"]
+
+class ImagingStudy(models.Model):
+    """
+    A radiology / imaging order and its report (requirement G4).
+    Ordered by a doctor, scheduled and performed by the technician (Lab Staff),
+    reported and signed by a doctor. A signed report is never edited.
+    """
+
+    class Modality(models.TextChoices):
+        XRAY = "X-ray", "X-ray"
+        ULTRASOUND = "Ultrasound", "Ultrasound"
+        CT = "CT", "CT"
+        MRI = "MRI", "MRI"
+        MAMMOGRAPHY = "Mammography", "Mammography"
+        FLUOROSCOPY = "Fluoroscopy", "Fluoroscopy"
+        ECG = "ECG", "ECG"
+        ECHO = "Echo", "Echo"
+        OTHER = "Other", "Other"
+
+    class Status(models.TextChoices):
+        ORDERED = "Ordered", "Ordered"
+        SCHEDULED = "Scheduled", "Scheduled"
+        PERFORMED = "Performed", "Performed"
+        REPORTED = "Reported", "Reported"
+        CANCELLED = "Cancelled", "Cancelled"
+
+    hospital = models.ForeignKey("hospital.Hospital", on_delete=models.CASCADE, related_name="imaging_studies")
+    patient = models.ForeignKey("patients.Patient", on_delete=models.CASCADE, related_name="imaging_studies")
+    visit = models.ForeignKey("encounters.Visit", on_delete=models.SET_NULL, null=True, blank=True, related_name="imaging_studies")
+    accession_number = models.CharField(max_length=40, unique=True)
+    modality = models.CharField(max_length=20, choices=Modality.choices)
+    body_part = models.CharField(max_length=120)
+    indication = models.TextField(help_text="Clinical question for the radiologist.")
+    priority = models.CharField(max_length=10, choices=[("Routine", "Routine"), ("Urgent", "Urgent"), ("STAT", "STAT")], default="Routine")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ORDERED, db_index=True)
+    ordered_by = models.ForeignKey("doctors.Doctor", on_delete=models.PROTECT, related_name="imaging_ordered")
+    ordered_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    scheduled_for = models.DateTimeField(null=True, blank=True)
+    performed_at = models.DateTimeField(null=True, blank=True)
+    performed_by = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    technician_notes = models.TextField(blank=True)
+    findings = models.TextField(blank=True)
+    impression = models.TextField(blank=True)
+    reported_by = models.ForeignKey("doctors.Doctor", on_delete=models.SET_NULL, null=True, blank=True, related_name="imaging_reported")
+    reported_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-ordered_at"]
+        indexes = [
+            models.Index(fields=["hospital", "status"]),
+            models.Index(fields=["patient", "ordered_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.accession_number} {self.modality} {self.body_part}"
