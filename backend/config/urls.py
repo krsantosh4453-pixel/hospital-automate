@@ -113,8 +113,8 @@ urlpatterns = [
     # HL7 Messaging (not implemented)
     # path("api/hl7/", include("hl7.urls")),
 
-    # ABDM/ABHA Integration (not implemented)
-    # path("api/abdm/", include("abdm.urls")),
+    # ABDM/ABHA: verify and link an existing ABHA (off unless ABDM_ENABLED)
+    path("api/abdm/", include("abdm.urls")),
 
     # Reports (not implemented)
     # path("api/reports/", include("reports.urls")),

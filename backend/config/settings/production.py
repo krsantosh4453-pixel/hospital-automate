@@ -390,8 +390,9 @@ if AI_SCRIBE_ENABLED and not AI_SCRIBE_API_KEY:
 # FHIR - Production
 # ============================================================
 
-# FHIR/HL7/ABDM routes are not mounted (config/urls.py); keep them off unless
-# a deployment has completed their conformance and security review.
+# FHIR (read-only, Admin) and ABDM (ABHA linking) routes are mounted; HL7 is
+# not. Keep each off unless the deployment has completed its conformance and
+# security review.
 FHIR_ENABLED = os.environ.get('FHIR_ENABLED', 'False').lower() == 'true'
 FHIR_BASE_URL = os.environ.get('FHIR_BASE_URL')
 FHIR_VERSION = os.environ.get('FHIR_VERSION', 'R4')
@@ -427,9 +428,14 @@ ABDM_ENABLED = os.environ.get('ABDM_ENABLED', 'False').lower() == 'true'
 ABDM_BASE_URL = os.environ.get('ABDM_BASE_URL')
 ABDM_CLIENT_ID = os.environ.get('ABDM_CLIENT_ID')
 ABDM_CLIENT_SECRET = os.environ.get('ABDM_CLIENT_SECRET')
+# No sandbox default in production: the live ABHA URL must be set explicitly.
+ABDM_ABHA_BASE_URL = os.environ.get('ABDM_ABHA_BASE_URL')
+ABDM_CM_ID = os.environ.get('ABDM_CM_ID', 'abdm')
 
-if ABDM_ENABLED and (not ABDM_BASE_URL or not ABDM_CLIENT_ID or not ABDM_CLIENT_SECRET):
-    raise ImproperlyConfigured('ABDM_BASE_URL, ABDM_CLIENT_ID, and ABDM_CLIENT_SECRET are required when ABDM_ENABLED=True')
+if ABDM_ENABLED and not all((ABDM_BASE_URL, ABDM_ABHA_BASE_URL, ABDM_CLIENT_ID, ABDM_CLIENT_SECRET)):
+    raise ImproperlyConfigured(
+        'ABDM_BASE_URL, ABDM_ABHA_BASE_URL, ABDM_CLIENT_ID and ABDM_CLIENT_SECRET are required when ABDM_ENABLED=True'
+    )
 
 
 # ============================================================

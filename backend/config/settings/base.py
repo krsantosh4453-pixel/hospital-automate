@@ -70,6 +70,9 @@ INSTALLED_APPS = [
 
     # Consent forms and patient-controlled record sharing
     "consent",
+
+    # ABDM / ABHA linking (Ayushman Bharat Digital Mission)
+    "abdm",
 ]
 
 # ============================================================
@@ -493,9 +496,12 @@ HL7_API_KEY = None  # API key for HL7 endpoints (set in production)
 
 # ABDM/ABHA Configuration
 ABDM_ENABLED = True
-ABDM_BASE_URL = None
+ABDM_BASE_URL = None  # gateway, e.g. https://dev.abdm.gov.in (sandbox)
 ABDM_CLIENT_ID = None
 ABDM_CLIENT_SECRET = None
+# ABHA v3 service and consent-manager id; sandbox values by default.
+ABDM_ABHA_BASE_URL = os.environ.get('ABDM_ABHA_BASE_URL', 'https://abhasbx.abdm.gov.in/abha/api')
+ABDM_CM_ID = os.environ.get('ABDM_CM_ID', 'sbx')
 
 # Notifications
 NOTIFICATION_CHANNELS = ['email', 'sms', 'whatsapp', 'push', 'in_app']
