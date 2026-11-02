@@ -51,7 +51,7 @@ def _notes(patient, hospital_ids, for_patient=False, **_):
 
     rows = ClinicalNote.objects.filter(visit__patient=patient, visit__hospital_id__in=hospital_ids).select_related("doctor", "visit__hospital")
     for n in rows:
-        yield _event(n.created_at, "Doctor note", n.doctor.name if n.doctor else "Doctor note", n.note, n.visit.hospital, n.pk)
+        yield _event(n.created_at, "Doctor note", n.doctor.name if n.doctor else "Doctor note", n.as_text(), n.visit.hospital, n.pk)
 
 
 def _vitals(patient, hospital_ids, **_):

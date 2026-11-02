@@ -92,10 +92,21 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             "id",
             "visit",
             "doctor",
-            "note",
+            *[field for field, _ in ClinicalNote.SECTIONS],
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        # On a partial update the stored value stands in for a field not sent.
+        def current(field):
+            if field in attrs:
+                return attrs[field] or ""
+            return getattr(self.instance, field, "") if self.instance else ""
+
+        if not any(current(field).strip() for field, _ in ClinicalNote.SECTIONS):
+            raise serializers.ValidationError({"note": "Write at least one part of the note."})
+        return attrs
 
 
 class DiagnosisSerializer(serializers.ModelSerializer):

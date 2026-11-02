@@ -83,14 +83,42 @@ class ClinicalNote(models.Model):
         null=True,
         blank=True
     )
-    note = models.TextField()
+    # Structured sections (requirement D4), in the order a clinician writes
+    # them. ``note`` stays as free text ("Other notes") so older notes still
+    # read correctly. At least one part must be filled (serializer).
+    chief_complaint = models.TextField(blank=True, default="")
+    history_of_present_illness = models.TextField(blank=True, default="")
+    past_history = models.TextField(blank=True, default="")
+    current_medications = models.TextField(blank=True, default="")
+    examination = models.TextField(blank=True, default="")
+    assessment = models.TextField(blank=True, default="")
+    plan = models.TextField(blank=True, default="")
+    note = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    # (field, label) in display order; shared by the serializer and the timeline.
+    SECTIONS = [
+        ("chief_complaint", "Chief complaint"),
+        ("history_of_present_illness", "History of present illness"),
+        ("past_history", "Past history"),
+        ("current_medications", "Current medications"),
+        ("examination", "Examination"),
+        ("assessment", "Assessment"),
+        ("plan", "Plan"),
+        ("note", "Other notes"),
+    ]
 
     class Meta:
         indexes = [
             models.Index(fields=["visit", "created_at"]),
             models.Index(fields=["doctor", "created_at"]),
         ]
+
+    def as_text(self):
+        """All filled sections as "Label: text" lines."""
+        return "\n".join(
+            f"{label}: {getattr(self, field).strip()}" for field, label in self.SECTIONS if getattr(self, field).strip()
+        )
 
 
 class Diagnosis(models.Model):

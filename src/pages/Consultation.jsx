@@ -150,9 +150,21 @@ const mapDiagnosisFromApi = (record) => ({
   createdAt: record.created_at || null,
 })
 
+// Structured note sections (D4), in display order. "note" is free text.
+const NOTE_SECTIONS = [
+  ["chief_complaint", "Chief complaint", 2],
+  ["history_of_present_illness", "History of present illness", 3],
+  ["past_history", "Past history", 2],
+  ["current_medications", "Current medications", 2],
+  ["examination", "Examination", 3],
+  ["assessment", "Assessment", 2],
+  ["plan", "Plan", 3],
+  ["note", "Other notes", 2],
+]
+
 const mapNoteFromApi = (record) => ({
   apiId: record.id,
-  note: record.note || "",
+  ...Object.fromEntries(NOTE_SECTIONS.map(([field]) => [field, record[field] || ""])),
   doctorApiId: record.doctor || null,
   createdAt: record.created_at || null,
 })
@@ -236,9 +248,7 @@ const emptyDiagnosisForm = {
   remarks: "",
 }
 
-const emptyNoteForm = {
-  note: "",
-}
+const emptyNoteForm = Object.fromEntries(NOTE_SECTIONS.map(([field]) => [field, ""]))
 
 const emptyOrderForm = {
   serviceName: "",
@@ -785,8 +795,8 @@ function Consultation() {
       return
     }
 
-    if (!noteForm.note.trim()) {
-      setErrorMessage("Note text is required.")
+    if (!NOTE_SECTIONS.some(([field]) => noteForm[field].trim())) {
+      setErrorMessage("Write at least one part of the note.")
       return
     }
 
@@ -797,7 +807,7 @@ function Consultation() {
       visit: Number(selectedVisitId),
       // Attribute the note to the visit's doctor when one is set.
       doctor: selectedVisit?.doctorApiId || null,
-      note: noteForm.note.trim(),
+      ...Object.fromEntries(NOTE_SECTIONS.map(([field]) => [field, noteForm[field].trim()])),
     }
 
     try {
@@ -838,7 +848,7 @@ function Consultation() {
     setActiveTab("notes")
     setEditingNote(note.apiId)
     setErrorMessage("")
-    setNoteForm({ note: note.note })
+    setNoteForm(Object.fromEntries(NOTE_SECTIONS.map(([field]) => [field, note[field] || ""])))
   }
 
   const handleDeleteNote = (note) =>
@@ -1332,9 +1342,12 @@ function Consultation() {
                   <Card as="form" onSubmit={handleSaveNote}>
                     <CardHeader title={editingNote ? "Edit note" : "Add clinical note"} />
                     <div className="space-y-4 px-5 py-4">
-                      <Field label="Note" required hint={`Attributed to ${selectedVisit?.doctorName || "Unassigned"}.`}>
-                        <Textarea rows={8} value={noteForm.note} onChange={(e) => setNoteForm({ note: e.target.value })} />
-                      </Field>
+                      <p className="text-xs text-ink-500">Fill the parts that apply. Attributed to {selectedVisit?.doctorName || "Unassigned"}.</p>
+                      {NOTE_SECTIONS.map(([field, label, rows]) => (
+                        <Field key={field} label={label}>
+                          <Textarea rows={rows} value={noteForm[field]} onChange={(e) => setNoteForm({ ...noteForm, [field]: e.target.value })} />
+                        </Field>
+                      ))}
                       <FormButtons
                         saving={savingNote}
                         editing={Boolean(editingNote)}
@@ -1360,7 +1373,14 @@ function Consultation() {
                               <time className="text-xs font-medium text-ink-500 tabular-nums">{formatDateTime(note.createdAt)}</time>
                               <RowActions label="note" onEdit={() => handleEditNote(note)} onDelete={() => handleDeleteNote(note)} />
                             </div>
-                            <p className="whitespace-pre-wrap text-sm leading-6 text-ink-800">{note.note}</p>
+                            <dl className="space-y-1.5 text-sm leading-6">
+                              {NOTE_SECTIONS.filter(([field]) => note[field]).map(([field, label]) => (
+                                <div key={field}>
+                                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">{label}</dt>
+                                  <dd className="whitespace-pre-wrap text-ink-800">{note[field]}</dd>
+                                </div>
+                              ))}
+                            </dl>
                           </li>
                         ))}
                       </ol>

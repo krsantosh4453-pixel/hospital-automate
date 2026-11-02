@@ -97,7 +97,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | D1 | Vitals (BP, temperature, pulse, RR, SpO2, height, weight, sugar) | P1 5.2, P4 1 | VERIFIED | VitalSign | T:test_e2e_workflows |
 | D2 | Extra vitals (BMI, urine output, AVPU, trauma, mobility, O2, intake/output), recorder | P4 1 | MISSING | — | — |
 | D3 | Allergies | P1 5 | IMPLEMENTED | Allergy (now hospital-scoped) | T (isolation) |
-| D4 | Current medication / complaint / history and examination | P1 5 | PARTIAL | ClinicalNote free text; no structured sections | R |
+| D4 | Current medication / complaint / history and examination | P1 5 | VERIFIED | Clinical notes have structured sections: chief complaint, history of present illness, past history, current medications, examination, assessment, plan, plus free-text other notes (older notes keep working); at least one part required; sections shown in Consultation and the patient timeline | clinical.test_structured_notes (4); browser 2026-11-02 |
 | D5 | Diagnosis with ICD-10, type, responsible clinician | P1 6 | VERIFIED | Diagnosis.icd10_code, recorded_by | T:test_e2e_workflows |
 | D6 | ICD-10 search by name / code | P1 6 | MISSING | Code is free text; no terminology table | — |
 | D7 | Investigation / procedure orders | P1 5, P4 2 | IMPLEMENTED | ServiceOrder, Procedure, LabTest | T (lab flow) |

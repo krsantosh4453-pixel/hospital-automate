@@ -25,7 +25,6 @@ State as of 2026-10-25, branch `audit/production-readiness-2026-10-24`. Row ids 
 ## Partial features (23 PARTIAL rows, main ones)
 
 - Hindi covers navigation, the patient menu and the AI label; page bodies are English (A17).
-- Clinical notes are free text without structured sections (D4).
 - Notifications: in-app works; SMS/WhatsApp need consent and credentials (K7).
 
 ## Blocked (3) and not applicable (1)
