@@ -14,11 +14,13 @@ import { useToast } from "../components/Toast.jsx"
 import { BrandMark } from "../components/Sidebar.jsx"
 import { Alert } from "../components/ui"
 import DevLoginPanel from "../components/DevLoginPanel.jsx"
+import { useInSignInDialog } from "../components/auth/SignInDialog.jsx"
 
 function PatientLogin() {
   const toast = useToast()
 
   const navigate = useNavigate()
+  const inDialog = useInSignInDialog()
   const [searchParams] = useSearchParams()
   // From the public "Book appointment" button: open the booking form after sign-in.
   const afterPatientLogin = searchParams.get("next") === "book" ? "/patient/appointments?book=1" : "/patient"
@@ -293,14 +295,19 @@ function PatientLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-[26rem]">
+    // Inside the sign-in dialog the dialog supplies the frame and title.
+    <div className={inDialog ? "" : "min-h-screen flex items-center justify-center px-4 py-8"}>
+      <div className={inDialog ? "" : "w-full max-w-[26rem]"}>
 
-        <div className="mb-8">
-          <BrandMark inverted={false} />
-          <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">Sign in</h1>
-          <p className="mt-1 text-sm text-ink-500">Patients see their own appointments, prescriptions, reports and bills.</p>
-        </div>
+        {inDialog ? (
+          <p className="mb-5 text-sm text-ink-500">Patients see their own appointments, prescriptions, reports and bills.</p>
+        ) : (
+          <div className="mb-8">
+            <BrandMark inverted={false} />
+            <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">Sign in</h1>
+            <p className="mt-1 text-sm text-ink-500">Patients see their own appointments, prescriptions, reports and bills.</p>
+          </div>
+        )}
 
         <div className="mb-6">
           <p id="login-role-label" className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
@@ -325,7 +332,7 @@ function PatientLogin() {
         <DevLoginPanel role={selectedRole} onRoleChange={setSelectedRole} afterPatientLogin={afterPatientLogin} />
 
         {/* Main Card */}
-        <div className="hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8">
+        <div className={inDialog ? "" : "hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8"}>
 
           {/* Mode Switcher Tabs */}
           <div className="mb-6 flex rounded-lg bg-ink-100 p-0.5" role="tablist" aria-label="Sign-in method">

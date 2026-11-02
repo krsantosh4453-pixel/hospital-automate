@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { Bell, Check, ChevronDown, LogIn, LogOut, Settings, UserCog } from "lucide-react"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { Avatar } from "./ui"
+import { SignInLink } from "./auth/SignInDialog.jsx"
 import api from "../services/api.js"
 
 /*
@@ -164,18 +165,18 @@ export function NotificationsMenu({ hospitalId, canRead = true }) {
 function GuestSignIn() {
   return (
     <div className="flex items-center gap-1.5">
-      <Link
+      <SignInLink
         to="/patient-login"
         className="hidden h-9 items-center rounded-lg border border-line-strong bg-white px-3 text-[13px] font-medium text-ink-800 hover:bg-ink-50 sm:inline-flex"
       >
         Patient sign in
-      </Link>
-      <Link
+      </SignInLink>
+      <SignInLink
         to="/staff-login"
         className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-[13px] font-medium text-white hover:bg-brand-700"
       >
         <LogIn size={15} aria-hidden="true" /> Staff sign in
-      </Link>
+      </SignInLink>
     </div>
   )
 }

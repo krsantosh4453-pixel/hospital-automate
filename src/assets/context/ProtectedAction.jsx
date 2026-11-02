@@ -1,9 +1,9 @@
 import { useAuth } from "./AuthContext.jsx"
-import { useNavigate } from "react-router-dom"
+import { useOpenSignIn } from "../../components/auth/SignInDialog.jsx"
 
 function ProtectedAction({ children, onAction }) {
   const { isLoggedIn } = useAuth()
-  const navigate = useNavigate()
+  const openSignIn = useOpenSignIn()
 
   const handleAction = () => {
     if (isLoggedIn) {
@@ -15,7 +15,7 @@ function ProtectedAction({ children, onAction }) {
     }
 
     // Not logged in
-    navigate("/patient-login")
+    openSignIn("/patient-login")
   }
 
   return (

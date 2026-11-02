@@ -14,6 +14,9 @@ function AuthLoading() {
   )
 }
 
+// Sign-in asked for by a protected page opens as a dialog over the public home.
+const PUBLIC_HOME = { pathname: "/" }
+
 export function ProtectedRoute({ audience = "staff" }) {
   const { isStaff, isPatient, isLoading, user } = useAuth()
   const location = useLocation()
@@ -27,7 +30,7 @@ export function ProtectedRoute({ audience = "staff" }) {
       return <Navigate to="/" replace />
     }
     if (!isPatient) {
-      return <Navigate to="/patient-login" state={{ from: location }} replace />
+      return <Navigate to="/patient-login" state={{ from: location, backgroundLocation: PUBLIC_HOME }} replace />
     }
     return <Outlet />
   }
@@ -40,7 +43,7 @@ export function ProtectedRoute({ audience = "staff" }) {
     // Visitors who have not signed in see the public home page inside the
     // normal layout (sidebar and navbar); every other staff page asks them to sign in.
     if (location.pathname === "/") return <Outlet />
-    return <Navigate to="/staff-login" state={{ from: location }} replace />
+    return <Navigate to="/staff-login" state={{ from: location, backgroundLocation: PUBLIC_HOME }} replace />
   }
 
   const moduleName = staffModuleForPath(location.pathname)

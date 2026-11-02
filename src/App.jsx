@@ -1,5 +1,5 @@
 import { LanguageProvider } from "./assets/context/LanguageContext.jsx"
-import { BrowserRouter, Route, Routes } from "react-router-dom"
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom"
 
 import Layout from "./layouts/layout.jsx"
 import PatientLayout from "./layouts/PatientLayout.jsx"
@@ -23,6 +23,7 @@ import Settings from "./pages/settings.jsx"
 
 import StaffLogin from "./pages/StaffLogin.jsx"
 import PatientLogin from "./pages/PatientLogin.jsx"
+import { SignInDialog } from "./components/auth/SignInDialog.jsx"
 import Register from "./pages/Register.jsx"
 import StaffInvite from "./pages/StaffInvite.jsx"
 import HospitalSelection from "./pages/HospitalSelection.jsx"
@@ -63,6 +64,30 @@ import PatientBills from "./pages/patient/PatientBills.jsx"
 import PatientDocuments from "./pages/patient/PatientDocuments.jsx"
 import PatientConsent from "./pages/patient/PatientConsent.jsx"
 
+/*
+ * A sign-in link opened from a page carries `backgroundLocation` (see
+ * SignInDialog): that page keeps rendering underneath and the sign-in route
+ * is drawn on top of it as a dialog. Without it, sign-in is a full page.
+ */
+function RoutesWithSignInDialog({ children }) {
+  const location = useLocation()
+  const background = location.state?.backgroundLocation
+
+  return (
+    <>
+      <Routes location={background || location}>{children}</Routes>
+      {background && (
+        <Routes>
+          <Route path="/staff-login" element={<SignInDialog title="Staff sign in"><StaffLogin /></SignInDialog>} />
+          <Route path="/patient-login" element={<SignInDialog title="Sign in"><PatientLogin /></SignInDialog>} />
+          <Route path="/login" element={<SignInDialog title="Sign in"><PatientLogin /></SignInDialog>} />
+          <Route path="*" element={null} />
+        </Routes>
+      )}
+    </>
+  )
+}
+
 function App() {
   return (
     <LanguageProvider>
@@ -76,7 +101,7 @@ function App() {
                 <SidebarProvider>
                   <AppBackground />
                   <BrowserRouter>
-                    <Routes>
+                    <RoutesWithSignInDialog>
                       <Route path="/staff-login" element={<StaffLogin />} />
                       <Route path="/patient-login" element={<PatientLogin />} />
                       <Route path="/login" element={<PatientLogin />} />
@@ -132,7 +157,7 @@ function App() {
                           <Route path="/settings" element={<Settings />} />
                         </Route>
                         </Route>
-                    </Routes>
+                    </RoutesWithSignInDialog>
                   </BrowserRouter>
                 </SidebarProvider>
                 </RoleAuthBridge>

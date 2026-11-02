@@ -1,11 +1,12 @@
 import { useEffect } from "react"
-import { Link, NavLink, useLocation } from "react-router-dom"
+import { NavLink, useLocation } from "react-router-dom"
 import { LogIn, PanelLeftClose, PanelLeftOpen, X } from "lucide-react"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useSidebar } from "../assets/context/SidebarContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { guestStaffNav, visibleStaffNav } from "../config/navigation.js"
+import { SignInLink } from "./auth/SignInDialog.jsx"
 
 export function BrandMark({ compact = false, inverted = true }) {
   return (
@@ -93,14 +94,14 @@ function NavItems({ groups, collapsed, t, onNavigate }) {
 function GuestFooter({ collapsed }) {
   return (
     <div className={`border-t border-white/10 ${collapsed ? "flex justify-center py-3" : "px-4 py-3"}`}>
-      <Link
+      <SignInLink
         to="/staff-login"
         title={collapsed ? "Sign in" : undefined}
         className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-ink-200 hover:bg-white/[0.05] hover:text-white"
       >
         <LogIn size={15} aria-hidden="true" />
         {collapsed ? <span className="sr-only">Sign in</span> : <span>Not signed in · Sign in</span>}
-      </Link>
+      </SignInLink>
     </div>
   )
 }

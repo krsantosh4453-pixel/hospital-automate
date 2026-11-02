@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { SignInLink } from "../components/auth/SignInDialog.jsx"
 import {
   BedDouble,
   CalendarCheck,
@@ -81,15 +81,15 @@ function GuestHome() {
           Book an appointment, then sign in to follow your visits, prescriptions, reports and bills.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link to="/patient-login?next=book" className={primaryLink}>
+          <SignInLink to="/patient-login?next=book" className={primaryLink}>
             <CalendarPlus size={17} aria-hidden="true" /> Book appointment
-          </Link>
-          <Link to="/patient-login" className={outlineLink}>
+          </SignInLink>
+          <SignInLink to="/patient-login" className={outlineLink}>
             <LogIn size={17} aria-hidden="true" /> Patient sign in
-          </Link>
-          <Link to="/staff-login" className={outlineLink}>
+          </SignInLink>
+          <SignInLink to="/staff-login" className={outlineLink}>
             <LogIn size={17} aria-hidden="true" /> Staff sign in
-          </Link>
+          </SignInLink>
         </div>
       </section>
 
@@ -160,12 +160,13 @@ function GuestHome() {
             >
               Close
             </button>
-            <Link
+            <SignInLink
               to="/staff-login"
+              onClick={() => setLocked(null)}
               className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
             >
               <LogIn size={16} aria-hidden="true" /> Staff sign in
-            </Link>
+            </SignInLink>
           </>
         }
       >

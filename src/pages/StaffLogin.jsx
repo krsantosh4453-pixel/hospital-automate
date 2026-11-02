@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import api from "../services/api.js"
-import { Link } from "react-router-dom"
+import { SignInLink, useInSignInDialog } from "../components/auth/SignInDialog.jsx"
 import { ArrowLeft, KeyRound, LockKeyhole, ShieldCheck, UserRound } from "lucide-react"
 import { BrandMark } from "../components/Sidebar.jsx"
 import DevLoginPanel from "../components/DevLoginPanel.jsx"
@@ -10,6 +10,7 @@ import { Alert, Button, Field, Input } from "../components/ui"
 
 function StaffLogin() {
   const navigate = useNavigate()
+  const inDialog = useInSignInDialog()
   const { staffLogin, staffLoginStartOtp, staffOtpVerify, staffOtpResend, applyDevelopmentAccess, devBypassAvailable } = useAuth()
 
   const [step, setStep] = useState("credentials")
@@ -146,46 +147,12 @@ function StaffLogin() {
   }
   const [title, subtitle] = titles[step] || titles.credentials
 
-  return (
-    <div className="flex min-h-screen">
-      {/* Brand panel (large screens) */}
-      <aside className="relative hidden w-[44%] max-w-xl flex-col justify-between bg-brand-950 px-12 py-10 text-white lg:flex">
-        <BrandMark />
-        <div>
-          <h1 className="text-3xl font-semibold leading-tight tracking-tight">
-            Calm, connected care
-            <br />
-            across every ward.
-          </h1>
-          <ul className="mt-8 space-y-4 text-[15px] text-brand-100/90">
-            <li className="flex gap-3">
-              <ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-300" aria-hidden="true" />
-              Every hospital&apos;s records stay separate; you only see the hospitals you belong to.
-            </li>
-            <li className="flex gap-3">
-              <LockKeyhole size={20} className="mt-0.5 shrink-0 text-brand-300" aria-hidden="true" />
-              Sign-in is confirmed with a one-time code sent to your registered mobile.
-            </li>
-            <li className="flex gap-3">
-              <UserRound size={20} className="mt-0.5 shrink-0 text-brand-300" aria-hidden="true" />
-              Every change to a patient record is attributed and kept in the audit trail.
-            </li>
-          </ul>
-        </div>
-        <p className="text-xs text-brand-200/60">For authorised hospital staff only.</p>
-      </aside>
-
-      {/* Form */}
-      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-8">
-        <div className="w-full max-w-[26rem]">
-          <div className="mb-8 lg:hidden">
-            <BrandMark inverted={false} />
-          </div>
-
+  const panel = (
+        <>
           <DevLoginPanel />
 
-          <div className="hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-700">Staff portal</p>
+          <div className={inDialog ? "" : "hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8"}>
+            {!inDialog && <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-700">Staff portal</p>}
             <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">{title}</h2>
             <p className="mt-1 text-sm text-ink-500">{subtitle}</p>
 
@@ -310,9 +277,52 @@ function StaffLogin() {
             </p>
             <p>
               Patient?{" "}
-              <Link to="/patient-login" className="font-medium text-brand-700 hover:underline">Sign in to the patient portal</Link>
+              <SignInLink to="/patient-login" replace className="font-medium text-brand-700 hover:underline">Sign in to the patient portal</SignInLink>
             </p>
           </div>
+        </>
+  )
+
+  // Opened from a page's "Staff sign in" button: just the form, inside the dialog.
+  if (inDialog) return panel
+
+  return (
+    <div className="flex min-h-screen">
+      {/* Brand panel (large screens) */}
+      <aside className="relative hidden w-[44%] max-w-xl flex-col justify-between bg-brand-950 px-12 py-10 text-white lg:flex">
+        <BrandMark />
+        <div>
+          <h1 className="text-3xl font-semibold leading-tight tracking-tight">
+            Calm, connected care
+            <br />
+            across every ward.
+          </h1>
+          <ul className="mt-8 space-y-4 text-[15px] text-brand-100/90">
+            <li className="flex gap-3">
+              <ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-300" aria-hidden="true" />
+              Every hospital&apos;s records stay separate; you only see the hospitals you belong to.
+            </li>
+            <li className="flex gap-3">
+              <LockKeyhole size={20} className="mt-0.5 shrink-0 text-brand-300" aria-hidden="true" />
+              Sign-in is confirmed with a one-time code sent to your registered mobile.
+            </li>
+            <li className="flex gap-3">
+              <UserRound size={20} className="mt-0.5 shrink-0 text-brand-300" aria-hidden="true" />
+              Every change to a patient record is attributed and kept in the audit trail.
+            </li>
+          </ul>
+        </div>
+        <p className="text-xs text-brand-200/60">For authorised hospital staff only.</p>
+      </aside>
+
+      {/* Form */}
+      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-8">
+        <div className="w-full max-w-[26rem]">
+          <div className="mb-8 lg:hidden">
+            <BrandMark inverted={false} />
+          </div>
+
+          {panel}
         </div>
       </main>
     </div>
