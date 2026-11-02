@@ -1,7 +1,11 @@
+import { useEffect, useRef } from "react"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 import { Search, X } from "lucide-react"
+import { useT } from "./useT.js"
 
 /** Key figure with label. `value` of null/undefined renders "—", never a made-up number. */
 export function StatTile({ label, value, icon: Icon, tone = "brand", hint, onClick, className = "" }) {
+  const tr = useT()
   const toneCls = {
     brand: "bg-brand-50 text-brand-700",
     accent: "bg-accent-50 text-accent-700",
@@ -24,11 +28,11 @@ export function StatTile({ label, value, icon: Icon, tone = "brand", hint, onCli
         </span>
       )}
       <span className="min-w-0">
-        <span className="block text-[13px] font-medium text-ink-500">{label}</span>
+        <span className="block text-[13px] font-medium text-ink-500">{tr(label)}</span>
         <span className="mt-0.5 block text-2xl font-semibold leading-8 tracking-tight text-ink-900 tabular-nums">
           {shown}
         </span>
-        {hint && <span className="mt-0.5 block text-xs text-ink-500">{hint}</span>}
+        {hint && <span className="mt-0.5 block text-xs text-ink-500">{tr(hint)}</span>}
       </span>
     </Tag>
   )
@@ -36,6 +40,7 @@ export function StatTile({ label, value, icon: Icon, tone = "brand", hint, onCli
 
 /** Search box with a clear button. */
 export function SearchInput({ value, onChange, placeholder = "Search…", className = "", label = "Search", ...rest }) {
+  const tr = useT()
   return (
     <div className={`relative ${className}`}>
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" aria-hidden="true" />
@@ -43,8 +48,8 @@ export function SearchInput({ value, onChange, placeholder = "Search…", classN
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        aria-label={label}
+        placeholder={tr(placeholder)}
+        aria-label={tr(label)}
         className="hms-input w-full pl-9 pr-8 [&::-webkit-search-cancel-button]:hidden"
         {...rest}
       />
@@ -74,8 +79,22 @@ export function Toolbar({ children, actions, className = "" }) {
 
 /** Scroll container for wide tables; the table keeps its density on small screens. */
 export function TableWrap({ children, className = "", maxHeight }) {
+  const ref = useRef(null)
+  const { t, language } = useLanguage()
+  // Column headers are always interface labels, never patient data, so their
+  // plain text is translated in place; the English original is kept so the
+  // language can switch back.
+  useEffect(() => {
+    ref.current?.querySelectorAll("th").forEach((th) => {
+      if (th.children.length) return
+      const original = th.dataset.i18nSource ?? th.textContent
+      th.dataset.i18nSource = original
+      const next = t(original.trim())
+      if (th.textContent !== next) th.textContent = next
+    })
+  })
   return (
-    <div className={`overflow-x-auto scrollbar-thin ${className}`} style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
+    <div ref={ref} data-language={language} className={`overflow-x-auto scrollbar-thin ${className}`} style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
       {children}
     </div>
   )
@@ -107,11 +126,12 @@ export function Avatar({ name, size = "md", tone = "brand" }) {
 
 /** Label/value list for detail panels. */
 export function DescriptionList({ items, columns = 2, className = "" }) {
+  const tr = useT()
   return (
     <dl className={`grid grid-cols-1 gap-x-6 gap-y-4 ${columns === 3 ? "sm:grid-cols-3" : columns === 1 ? "" : "sm:grid-cols-2"} ${className}`}>
       {items.map((item) => (
         <div key={item.label} className="min-w-0">
-          <dt className="text-xs font-medium text-ink-500">{item.label}</dt>
+          <dt className="text-xs font-medium text-ink-500">{tr(item.label)}</dt>
           <dd className="mt-0.5 break-words text-sm text-ink-900">
             {item.value === null || item.value === undefined || item.value === "" ? (
               <span className="text-ink-400">Not recorded</span>

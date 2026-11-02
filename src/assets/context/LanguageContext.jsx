@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
+import HI_PAGES from "../i18n/hiPages.js"
 
 // Interface language (English / Hindi). Only interface text is translated;
 // clinical content is always shown exactly as it was entered.
@@ -67,7 +68,8 @@ const HI = {
   "Approved by clinician": "डॉक्टर द्वारा स्वीकृत",
 }
 
-const DICTIONARIES = { en: {}, hi: HI }
+// Page text (A17) first; the shell entries above win where both define a string.
+const DICTIONARIES = { en: {}, hi: { ...HI_PAGES, ...HI } }
 
 const LanguageContext = createContext({ language: "en", setLanguage: () => {}, t: (text) => text })
 

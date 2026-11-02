@@ -1,3 +1,5 @@
+import { useT } from "./useT.js"
+
 const TONES = {
   neutral: "bg-ink-100 text-ink-700 ring-ink-200",
   brand: "bg-brand-50 text-brand-700 ring-brand-200",
@@ -59,11 +61,12 @@ export function statusTone(status) {
 }
 
 export function StatusBadge({ status, label, className = "" }) {
+  const tr = useT()
   if (status === null || status === undefined || status === "") return null
   const text = label || String(status).replace(/_/g, " ")
   return (
     <Badge tone={statusTone(status)} dot className={`capitalize ${className}`}>
-      {text}
+      {tr(text)}
     </Badge>
   )
 }

@@ -1,4 +1,5 @@
 import { CircleAlert, TriangleAlert, CircleCheck, Info, Inbox, Lock, X } from "lucide-react"
+import { useT } from "./useT.js"
 
 const ALERT_TONES = {
   info: { icon: Info, cls: "border-brand-200 bg-brand-50 text-brand-900", iconCls: "text-brand-600" },
@@ -9,6 +10,7 @@ const ALERT_TONES = {
 
 /** Inline message for page-level info, warnings and errors. */
 export function Alert({ tone = "info", title, children, onDismiss, action, className = "" }) {
+  const tr = useT()
   const t = ALERT_TONES[tone] || ALERT_TONES.info
   const Icon = t.icon
   return (
@@ -18,8 +20,8 @@ export function Alert({ tone = "info", title, children, onDismiss, action, class
     >
       <Icon size={18} className={`mt-0.5 shrink-0 ${t.iconCls}`} aria-hidden="true" />
       <div className="min-w-0 flex-1 leading-6">
-        {title && <p className="font-semibold">{title}</p>}
-        {children && <div className={title ? "opacity-90" : ""}>{children}</div>}
+        {title && <p className="font-semibold">{tr(title)}</p>}
+        {children && <div className={title ? "opacity-90" : ""}>{tr(children)}</div>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
       {onDismiss && (
@@ -38,13 +40,14 @@ export function Alert({ tone = "info", title, children, onDismiss, action, class
 
 /** Shown when a list or section has no records. Never shows invented data. */
 export function EmptyState({ icon: Icon = Inbox, title, description, action, compact = false, className = "" }) {
+  const tr = useT()
   return (
     <div className={`flex flex-col items-center justify-center text-center ${compact ? "px-4 py-8" : "px-6 py-14"} ${className}`}>
       <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-ink-100 text-ink-500">
         <Icon size={22} aria-hidden="true" />
       </span>
-      <p className="mt-3 text-sm font-semibold text-ink-800">{title}</p>
-      {description && <p className="mt-1 max-w-sm text-[13px] leading-5 text-ink-500">{description}</p>}
+      <p className="mt-3 text-sm font-semibold text-ink-800">{tr(title)}</p>
+      {description && <p className="mt-1 max-w-sm text-[13px] leading-5 text-ink-500">{tr(description)}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   )

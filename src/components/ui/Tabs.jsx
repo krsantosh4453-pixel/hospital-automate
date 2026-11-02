@@ -1,10 +1,12 @@
 import { useId, useRef } from "react"
+import { useT } from "./useT.js"
 
 /**
  * Underline tabs with arrow-key navigation (WAI-ARIA tabs pattern).
  * tabs: [{ id, label, icon?, count? }]
  */
 export function Tabs({ tabs, value, onChange, className = "", label = "Sections" }) {
+  const tr = useT()
   const baseId = useId()
   const refs = useRef({})
 
@@ -50,7 +52,7 @@ export function Tabs({ tabs, value, onChange, className = "", label = "Sections"
               }`}
             >
               {Icon && <Icon size={16} aria-hidden="true" />}
-              {tab.label}
+              {tr(tab.label)}
               {tab.count !== undefined && tab.count !== null && (
                 <span
                   className={`rounded-full px-1.5 py-px text-[11px] font-semibold tabular-nums ${
@@ -70,6 +72,7 @@ export function Tabs({ tabs, value, onChange, className = "", label = "Sections"
 
 /** Compact pill switch for filters with few options. */
 export function SegmentedControl({ options, value, onChange, className = "", label }) {
+  const tr = useT()
   return (
     <div role="radiogroup" aria-label={label} className={`inline-flex rounded-lg bg-ink-100 p-0.5 ${className}`}>
       {options.map((opt) => {
@@ -85,7 +88,7 @@ export function SegmentedControl({ options, value, onChange, className = "", lab
               active ? "bg-white text-ink-900 shadow-sm" : "text-ink-600 hover:text-ink-900"
             }`}
           >
-            {opt.label}
+            {tr(opt.label)}
           </button>
         )
       })}

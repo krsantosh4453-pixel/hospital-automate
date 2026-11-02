@@ -24,7 +24,7 @@ State as of 2026-10-25, branch `audit/production-readiness-2026-10-24`. Row ids 
 
 ## Partial features (23 PARTIAL rows, main ones)
 
-- Hindi covers navigation, the patient menu and the AI label; page bodies are English (A17).
+- Hindi covers page text passed to the shared UI components; sentences built with names or numbers inside them, and text written directly in page markup, stay English until added to `src/assets/i18n/hiPages.js` (A17).
 - Notifications: in-app works; SMS/WhatsApp need consent and credentials (K7).
 
 ## Blocked (3) and not applicable (1)
