@@ -43,7 +43,6 @@ class RateLimitMiddleware(MiddlewareMixin):
         '/api/notifications/otp/verify/': {'limit': 5, 'window': 60, 'scope': 'phone'},
 
         # Password reset
-        # confirm is listed first: rules match by prefix in order.
         '/api/auth/password/reset/confirm/': {'limit': 5, 'window': 3600, 'scope': 'ip'},
         '/api/auth/password/reset/': {'limit': 3, 'window': 3600, 'scope': 'ip'},
 
@@ -77,15 +76,12 @@ class RateLimitMiddleware(MiddlewareMixin):
         if request.path.startswith('/static/') or request.path.startswith('/media/'):
             return None
 
-        # Check if path matches any rate limit rule
-        matched_rule = None
-        for pattern, rule in self.RATE_LIMITS.items():
-            if request.path.startswith(pattern):
-                matched_rule = rule
-                break
-
-        if not matched_rule:
+        # The longest matching prefix wins, so a specific rule beats a broad one
+        matches = [pattern for pattern in self.RATE_LIMITS if request.path.startswith(pattern)]
+        if not matches:
             return None
+        matched_pattern = max(matches, key=len)
+        matched_rule = self.RATE_LIMITS[matched_pattern]
 
         # Determine rate limit key
         scope = matched_rule.get('scope', 'ip')
@@ -107,7 +103,8 @@ class RateLimitMiddleware(MiddlewareMixin):
         else:
             key = self._get_client_ip(request)
 
-        cache_key = f"ratelimit:{scope}:{key}:{request.path}"
+        # One budget per rule: paths under the same prefix share it
+        cache_key = f"ratelimit:{scope}:{key}:{matched_pattern}"
 
         # Check current count
         current = cache.get(cache_key, 0)
@@ -170,30 +167,3 @@ class RateLimitMiddleware(MiddlewareMixin):
                 pass
         return None
 
-
-class IPWhitelistMiddleware(MiddlewareMixin):
-    """
-    IP whitelist middleware for admin and sensitive endpoints.
-    """
-
-    def __init__(self, get_response):
-        self.get_response = get_response
-        # Load from settings
-        from django.conf import settings
-        self.whitelist = getattr(settings, 'ADMIN_IP_WHITELIST', [])
-        self.admin_paths = ['/admin/', '/api/admin/']
-
-    def __call__(self, request):
-        # Check if path requires IP whitelist
-        if any(request.path.startswith(path) for path in self.admin_paths):
-            client_ip = self._get_client_ip(request)
-            if self.whitelist and client_ip not in self.whitelist:
-                logger.warning(f"Blocked admin access from non-whitelisted IP: {client_ip}")
-                return JsonResponse({
-                    'error': {'code': 'FORBIDDEN', 'message': 'Access denied'}
-                }, status=403)
-
-        return self.get_response(request)
-
-    def _get_client_ip(self, request):
-        return client_ip(request) or 'unknown'
