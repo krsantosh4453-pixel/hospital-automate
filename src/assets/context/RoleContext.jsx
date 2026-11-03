@@ -234,35 +234,16 @@ export function eligibleRolesFor(moduleName) {
 
 export function RoleProvider({ children }) {
   const { isStaff, isPatient, user } = useAuth()
-  // Load roles & permissions from localStorage or defaults
-  const [roles, setRoles] = useState(() => {
-    const extraAdminPerms = {
-      Emergency: ["View", "Add", "Edit", "Delete"],
-      BloodBank: ["View", "Add", "Edit", "Delete"],
-      IPD: ["View", "Add", "Edit", "Delete"],
-      AIScribe: ["View", "Add", "Edit", "Delete"],
+  // Roles are built in. The Permissions page used to save edits to localStorage
+  // that no permission check ever read; drop any such leftovers.
+  const roles = DEFAULT_ROLES
+  useEffect(() => {
+    try {
+      localStorage.removeItem("hms_role_permissions")
+    } catch {
+      // Storage unavailable (private mode): nothing to clean up.
     }
-    const saved = localStorage.getItem("hms_role_permissions")
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        return parsed.map((role) => {
-          const name = role.name === "Reception" ? "Receptionist" : role.name
-          if (name !== "Admin") {
-            return { ...role, name }
-          }
-          return {
-            ...role,
-            name,
-            permissions: { ...extraAdminPerms, ...(role.permissions || {}) },
-          }
-        })
-      } catch (e) {
-        console.error("Failed to parse saved role permissions:", e)
-      }
-    }
-    return DEFAULT_ROLES
-  })
+  }, [])
 
   const authenticatedRoles = (() => {
     if (isPatient && !isStaff) return ["Patient"]
@@ -282,11 +263,6 @@ export function RoleProvider({ children }) {
     ? chosenRole
     : authenticatedRoles[0] || null
 
-  // Save roles whenever changed
-  useEffect(() => {
-    localStorage.setItem("hms_role_permissions", JSON.stringify(roles))
-  }, [roles])
-
   // Current active role object comes from the authenticated backend role.
   const activeRole = DEFAULT_ROLES.find((role) => role.name === activeRoleName) || null
 
@@ -296,15 +272,6 @@ export function RoleProvider({ children }) {
     if (!authenticatedRoles.includes(requested)) return
     setChosenRole(requested)
   }, [authenticatedRoles])
-
-  // Update permissions for a specific role
-  const updateRolePermissions = (roleId, newPermissions) => {
-    setRoles((prevRoles) =>
-      prevRoles.map((role) =>
-        role.id === roleId ? { ...role, permissions: newPermissions } : role
-      )
-    )
-  }
 
   // Permission checks
   const hasPermission = (moduleName, action = "View") => {
@@ -327,7 +294,6 @@ export function RoleProvider({ children }) {
         activeRole,
         activeRoleName,
         switchRole,
-        updateRolePermissions,
         hasPermission,
         canView,
         canAdd,
