@@ -126,3 +126,15 @@ class PatientHospitalSerializer(serializers.ModelSerializer):
             "joined_at",
         ]
         read_only_fields = ["id", "joined_at"]
+
+    def validate(self, attrs):
+        # A UHID is also a patient login identifier, so it is unique per
+        # hospital (ignoring case). Existing duplicates: report_duplicate_uhids.
+        hospital = attrs.get("hospital", getattr(self.instance, "hospital", None))
+        uhid = attrs.get("uhid", getattr(self.instance, "uhid", ""))
+        clash = PatientHospital.objects.filter(hospital=hospital, uhid__iexact=uhid)
+        if self.instance is not None:
+            clash = clash.exclude(pk=self.instance.pk)
+        if hospital is not None and uhid and clash.exists():
+            raise serializers.ValidationError({"uhid": "This UHID is already used at this hospital."})
+        return attrs
