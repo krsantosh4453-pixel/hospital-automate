@@ -139,7 +139,7 @@ function Reports() {
 
       <PageHeader
         title={t("Reports")}
-        description={`Operational and financial figures for ${selectedHospital.name}, counted on the server.`}
+        description={t("Operational and financial figures for {hospital}, counted on the server.", { hospital: selectedHospital.name })}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Reports" }]}
         actions={
           <SegmentedControl
@@ -615,9 +615,6 @@ function Reports() {
                   {t("Test")}
                 </th>
 
-                <th className="text-left px-6 py-4 text-sm">
-                  {t("Amount")}
-                </th>
 
                 <th className="text-left px-6 py-4 text-sm">
                   {t("Status")}
@@ -650,17 +647,11 @@ function Reports() {
                       {test.test}
                     </td>
 
-                    <td className="px-6 py-4 font-semibold">
-                      ₹
-                      {test.amount.toLocaleString(
-                        "en-IN"
-                      )}
-                    </td>
 
                     <td className="px-6 py-4">
 
                       <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-                        {test.status}
+                        {t(test.status)}
                       </span>
 
                     </td>
