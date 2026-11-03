@@ -23,7 +23,7 @@ State as of 2026-10-25, updated 2026-11-03, branch `audit/production-readiness-2
 
 ## Partial features (23 PARTIAL rows, main ones)
 
-- Hindi covers page text passed to the shared UI components; sentences built with names or numbers inside them, and text written directly in page markup, stay English until added to `src/assets/i18n/hiPages.js` (A17).
+- Hindi (A17, 2026-11-03): the shell, home dashboard and 16 clinical pages show their own text in Hindi, and `t()` takes `{placeholders}` for sentences with names or numbers. Still English: the Laboratory, Pharmacy, admin and patient-portal pages; status values that come from the server (Scheduled, Critical…); sentences built with template literals; toast messages. The translations were written by engineering and need review by Hindi-speaking clinical staff.
 - Notifications: in-app works; SMS/WhatsApp need consent and credentials (K7).
 - Procurement (2026-11-03): Inventory has Suppliers and Purchase orders tabs (raise an order, receive full or partial goods with invoice number, batch and expiry) and per-item unit, reorder level and usual supplier. Not built: purchase requisition approval (I2), supplier returns, department issue, consignment and quotations (I4), and cancelling a purchase order from the screen.
 - Admin → Permissions is a read-only view of the built-in roles (2026-11-03). Roles cannot be customised: changing what a role may do needs a code change to both `RoleContext.jsx` and the backend permission classes.
