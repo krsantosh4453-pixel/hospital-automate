@@ -15,7 +15,7 @@ State as of 2026-10-25, updated 2026-11-03, branch `audit/production-readiness-2
 
 - **Access / portal:** breadcrumbs (A18); sticky patient context strip (A19).
 - **EMR:** extra vitals set (D2); ICD-10 terminology search (D6).
-- **Pharmacy:** OPD/IPD returns (F5); **drug-interaction and contraindication alerts (F7)** — there is no drug database, so no alerting exists; substitutes (F8).
+- **Pharmacy:** OPD/IPD returns (F5); substitutes (F8). Drug alerts (F7) are partial: allergy, duplicate-salt and a starter list of 8 interactions, pending Pharmacy & Therapeutics approval; no licensed drug database and no dose-range checks (`CLINICAL_SAFETY_REVIEW_PACK.md` section 9).
 - **Billing:** advance payments (H4).
 - **Supply chain:** purchase requisition approval (I2); supplier return, department issue, consignment, quotation (I4); CSSD / laundry (I6).
 - **Other services:** ambulance, mortuary, phlebotomy, OT (J5); HR, feedback, templates (J6).

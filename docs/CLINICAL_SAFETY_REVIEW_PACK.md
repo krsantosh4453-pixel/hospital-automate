@@ -13,7 +13,7 @@ Test names point to `backend/security_tests/`.
 
 ## 0. What the system does NOT do (must be acknowledged)
 
-- **No drug–drug, drug–allergy or dose-range checking.** There is no drug database; prescriptions are free text plus a medicine catalogue.
+- **Only limited medication checking (section 9).** Allergy, duplicate-salt and a starter list of 8 interactions are checked; there is no full drug database and no dose-range checking.
 - No ICD-10 coding, no structured EMR sections, no clinical decision support.
 - AI scribe output is a draft only (section 4); its accuracy for Hindi/Hinglish depends on the provider chosen.
 - SMS, WhatsApp and voice alerts are not sent. Patients are not told by SMS that results are ready.
@@ -144,6 +144,27 @@ Test names point to `backend/security_tests/`.
 - For **minors** and patients who lack capacity, who may grant access? Today only the patient can, from their own account.
 - Should a doctor be able to see who has family access when sharing sensitive news?
 
+## 9. Medication safety check when prescribing — `clinical/medication_safety.py`, `clinical/safety_rules.py` (new, Phase A)
+
+**As implemented** (`clinical/test_medication_safety.py`, E2E `e2e/medication-safety.spec.js`):
+
+- Before a prescription is saved, each medicine's **salt** is identified from the hospital catalogue (Inventory/Pharmacy "Salt (generic name)") or from a salt name written in the text (for example "Tab Ibuprofen 400").
+- It is checked against:
+  - the patient's **allergies recorded in this hospital**, including drug classes (penicillins, cephalosporins, sulfonamides, NSAIDs, fluoroquinolones, macrolides);
+  - the **same salt twice** on one prescription;
+  - a **starter list of 8 interactions**: PDE5 inhibitors + nitrates/nicorandil; warfarin/acenocoumarol + NSAIDs; simvastatin/lovastatin + clarithromycin, erythromycin, azole antifungals or ritonavir; linezolid/MAOIs + SSRIs/SNRIs/tramadol; methotrexate + co-trimoxazole; tizanidine + ciprofloxacin/fluvoxamine (all **high**); clopidogrel + omeprazole/esomeprazole; ACE inhibitors/ARBs + spironolactone/eplerenone/potassium chloride (**moderate**).
+- **High** alerts (allergy, high interactions) block saving until the doctor writes a reason (at least 10 characters). The alerts and reason are stored on the prescription and an audit entry `clinical.prescription.safety_override` is written. The server enforces this, not only the screen.
+- **Moderate** alerts and duplicates are shown but do not block. A medicine whose salt is not recognised is shown as "not identified, so it was not checked".
+- **Not checked:** dose ranges, renal/hepatic dosing, pregnancy, age, interactions outside the list, other active prescriptions of the patient, allergies recorded in other hospitals, and free-text brand names without a catalogue salt.
+
+**Questions for the Pharmacy & Therapeutics committee:**
+
+- Approve, amend or replace each of the 8 interaction rules and the allergy classes (`clinical/safety_rules.py`, version `2026-11-03.1`). Which further pairs are mandatory before go-live?
+- Is "prescribe anyway with a written reason" acceptable for allergy alerts, or must some be a hard stop?
+- Should duplicates also be checked against the patient's other active prescriptions?
+- Who reviews `clinical.prescription.safety_override` audit entries, and how often?
+- Which licensed drug database should replace or extend this list (Phase B)?
+
 ## Sign-off
 
 | Area | Approved as is / Changes required | Reviewer | Date |
@@ -156,3 +177,4 @@ Test names point to `backend/security_tests/`.
 | Emergency | | | |
 | Break-glass access | | | |
 | Family / caregiver access | | | |
+| Medication safety rules (section 9) | | | |

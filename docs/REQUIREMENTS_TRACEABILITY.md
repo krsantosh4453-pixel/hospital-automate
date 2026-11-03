@@ -137,7 +137,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | F4 | OPD sale | P2 4 | VERIFIED | Server-side price | T |
 | F5 | OPD / IPD returns | P2 4 | MISSING | — | — |
 | F6 | Barcode scan | P2 4 | VERIFIED | Laboratory → Print sample label (Code 39 barcode of the sample number, patient, test, tube) and Scan sample: a USB/handheld scanner's code (or typed number) finds the order at this hospital and offers its next step. The lab worklist now loads for Lab Staff (patient list optional) | laboratory.test_sample_scan (4), code39.test.js (4); browser 2026-10-28. Not tried with a physical scanner |
-| F7 | Drug interaction / contraindication alerts | P2 4 | MISSING | No drug database. Must not be presented as available. | — |
+| F7 | Drug interaction / contraindication alerts | P2 4 | PARTIAL | Phase A (2026-11-03): allergy (incl. drug classes), duplicate salt and a starter list of 8 interactions at prescribing; high alerts need a recorded, audited reason (`clinical/medication_safety.py`). Starter list pending P&T approval; no licensed drug database, no dose checks. | T:clinical/test_medication_safety, E2E `medication-safety.spec.js` |
 | F8 | Generic / substitute | P2 4 | MISSING | — | — |
 
 ## G. Laboratory and radiology
