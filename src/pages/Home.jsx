@@ -24,6 +24,7 @@ import {
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import { eligibleRolesFor, useRole } from "../assets/context/RoleContext.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { roleHomeFor } from "../config/roleHomes.js"
 import GuestHome from "./GuestHome.jsx"
 import api from "../services/api.js"
@@ -50,10 +51,11 @@ function greeting() {
 
 /* One horizontal bar split into labelled parts, from real counts only. */
 function SplitBar({ parts, total, label }) {
+  const { t } = useLanguage()
   const sum = total ?? parts.reduce((s, p) => s + (p.value || 0), 0)
   return (
     <div>
-      <div className="flex h-2.5 overflow-hidden rounded-full bg-ink-100" role="img" aria-label={label}>
+      <div className="flex h-2.5 overflow-hidden rounded-full bg-ink-100" role="img" aria-label={t(label)}>
         {sum > 0 &&
           parts.map((p) =>
             p.value > 0 ? <span key={p.label} className={p.cls} style={{ width: `${(p.value / sum) * 100}%` }} /> : null,
@@ -63,7 +65,7 @@ function SplitBar({ parts, total, label }) {
         {parts.map((p) => (
           <li key={p.label} className="flex items-center gap-2 text-[13px] text-ink-600">
             <span className={`h-2 w-2 rounded-full ${p.cls}`} aria-hidden="true" />
-            {p.label}
+            {t(p.label)}
             <span className="font-semibold text-ink-900 tabular-nums">{num.format(p.value || 0)}</span>
           </li>
         ))}
@@ -73,16 +75,17 @@ function SplitBar({ parts, total, label }) {
 }
 
 function FlowRow({ icon: Icon, title, to, children }) {
+  const { t } = useLanguage()
   return (
     <div className="px-5 py-4">
       <div className="mb-3 flex items-center justify-between">
         <p className="flex items-center gap-2 text-sm font-semibold text-ink-800">
           <Icon size={16} className="text-ink-400" aria-hidden="true" />
-          {title}
+          {t(title)}
         </p>
         {to && (
           <Link to={to} className="inline-flex items-center gap-0.5 text-[13px] font-medium text-brand-700 hover:underline">
-            Open <ChevronRight size={14} aria-hidden="true" />
+            {t("Open")} <ChevronRight size={14} aria-hidden="true" />
           </Link>
         )}
       </div>
@@ -97,6 +100,8 @@ function Home() {
   const { isLoggedIn, patient, user } = useAuth()
   const { selectedHospital } = usePatient()
   const { canView, activeRoleName } = useRole()
+  const { t, language } = useLanguage()
+  const dateLocale = language === "hi" ? "hi-IN" : "en-IN"
   // null for Admin / Hospital Manager: they keep the full hospital dashboard.
   const roleHome = roleHomeFor(activeRoleName)
   // Set by ProtectedRoute when this role opened another department's page.
@@ -141,7 +146,7 @@ function Home() {
       <Card className="mx-auto mt-10 max-w-lg">
         <EmptyState
           icon={Hospital}
-          title={`Welcome${patient?.name ? `, ${patient.name}` : ""}`}
+          title={patient?.name ? t("Welcome, {name}", { name: patient.name }) : t("Welcome")}
           description={
             newAdmin
               ? "Add your hospital, its wards and beds, and invite your staff."
@@ -152,7 +157,7 @@ function Home() {
               to={newAdmin ? "/admin/setup" : "/hospital-selection"}
               className="inline-flex h-10 items-center rounded-lg bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
             >
-              {newAdmin ? "Set up your hospital" : "Select hospital"}
+              {t(newAdmin ? "Set up your hospital" : "Select hospital")}
             </Link>
           }
         />
@@ -169,18 +174,18 @@ function Home() {
   const recentPatients = dashboardStats?.recent_patients || []
 
   const firstName = user?.first_name || user?.user?.first_name || user?.username || user?.user?.username
-  const today = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })
+  const today = new Date().toLocaleDateString(dateLocale, { weekday: "long", day: "numeric", month: "long" })
 
   const fmt = (n) => (n === null ? null : num.format(n))
   const tiles = {
     patients: { icon: UsersRound, label: "Patients registered today", value: fmt(v(stats.patients, "today")),
-      hint: dashboardStats ? `${num.format(stats.patients?.total || 0)} registered in total` : undefined },
+      hint: dashboardStats ? t("{count} registered in total", { count: num.format(stats.patients?.total || 0) }) : undefined },
     appointments: { icon: CalendarDays, tone: "accent", label: "Appointments today", value: fmt(v(stats.appointments, "today")),
-      hint: dashboardStats ? `${num.format(stats.appointments?.pending || 0)} pending` : undefined },
+      hint: dashboardStats ? t("{count} pending", { count: num.format(stats.appointments?.pending || 0) }) : undefined },
     queue: { icon: ListOrdered, tone: "warning", label: "Waiting in queue", value: fmt(v(stats.queue, "waiting")),
-      hint: dashboardStats && stats.queue?.current_token ? `Now serving token ${stats.queue.current_token}` : "No token being served" },
+      hint: dashboardStats && stats.queue?.current_token ? t("Now serving token {token}", { token: stats.queue.current_token }) : "No token being served" },
     beds: { icon: BedDouble, tone: "success", label: "Beds available", value: fmt(availableBeds),
-      hint: dashboardStats ? `${num.format(occupiedBeds || 0)} occupied of ${num.format(totalBeds || 0)}` : undefined },
+      hint: dashboardStats ? t("{occupied} occupied of {total}", { occupied: num.format(occupiedBeds || 0), total: num.format(totalBeds || 0) }) : undefined },
     admissions: { icon: BedDouble, label: "Current admissions", value: fmt(v(stats.admissions, "current")) },
     labPending: { icon: FlaskConical, tone: "warning", label: "Lab tests pending", value: fmt(v(stats.laboratory, "pending")) },
     labUrgent: { icon: FlaskConical, tone: "warning", label: "Urgent lab tests", value: fmt(v(stats.laboratory, "urgent")) },
@@ -197,26 +202,26 @@ function Home() {
     ? [
         canView("Emergency") && stats.emergency?.active > 0 && {
           tone: "danger", icon: Siren, to: "/emergency",
-          text: `${stats.emergency.active} active emergency case${stats.emergency.active === 1 ? "" : "s"}`,
+          text: t(stats.emergency.active === 1 ? "1 active emergency case" : "{count} active emergency cases", { count: stats.emergency.active }),
         },
         canView("Laboratory") && stats.laboratory?.urgent > 0 && {
           tone: "danger", icon: FlaskConical, to: "/laboratory",
-          text: `${stats.laboratory.urgent} urgent lab test${stats.laboratory.urgent === 1 ? "" : "s"}`,
+          text: t(stats.laboratory.urgent === 1 ? "1 urgent lab test" : "{count} urgent lab tests", { count: stats.laboratory.urgent }),
         },
         canView("Queue") && stats.queue?.waiting > 0 && {
           tone: "warning", icon: ListOrdered, to: "/queue",
-          text: `${stats.queue.waiting} patient${stats.queue.waiting === 1 ? "" : "s"} waiting in the queue`,
+          text: t(stats.queue.waiting === 1 ? "1 patient waiting in the queue" : "{count} patients waiting in the queue", { count: stats.queue.waiting }),
         },
         canView("Laboratory") && stats.laboratory?.pending > 0 && {
           tone: "warning", icon: ClipboardCheck, to: "/laboratory",
-          text: `${stats.laboratory.pending} lab test${stats.laboratory.pending === 1 ? "" : "s"} pending`,
+          text: t(stats.laboratory.pending === 1 ? "1 lab test pending" : "{count} lab tests pending", { count: stats.laboratory.pending }),
         },
         canView("Billing") && stats.billing?.pending > 0 && {
           tone: "neutral", icon: ReceiptIndianRupee, to: "/billing",
-          text: `${stats.billing.pending} invoice${stats.billing.pending === 1 ? "" : "s"} awaiting payment`,
+          text: t(stats.billing.pending === 1 ? "1 invoice awaiting payment" : "{count} invoices awaiting payment", { count: stats.billing.pending }),
         },
         canView("IPD") && totalBeds > 0 && availableBeds === 0 && {
-          tone: "warning", icon: BedDouble, to: "/ipd", text: "No beds available",
+          tone: "warning", icon: BedDouble, to: "/ipd", text: t("No beds available"),
         },
       ].filter(Boolean)
     : []
@@ -242,11 +247,11 @@ function Home() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`${greeting()}${firstName ? `, ${firstName}` : ""}`}
+        title={firstName ? t("{greeting}, {name}", { greeting: t(greeting()), name: firstName }) : t(greeting())}
         description={
           <>
-            {roleHome ? `${roleHome.title} · ` : ""}{today} · <span className="font-medium text-ink-700">{selectedHospital.name}</span>
-            {activeRoleName ? ` · ${activeRoleName}` : ""}
+            {roleHome ? `${t(roleHome.title)} · ` : ""}{today} · <span className="font-medium text-ink-700">{selectedHospital.name}</span>
+            {activeRoleName ? ` · ${t(activeRoleName)}` : ""}
           </>
         }
         actions={
@@ -256,7 +261,7 @@ function Home() {
                 to="/appointments"
                 className="inline-flex h-10 items-center gap-2 rounded-lg border border-line-strong bg-white px-4 text-sm font-medium text-ink-800 shadow-sm hover:bg-ink-50"
               >
-                <CalendarPlus size={17} aria-hidden="true" /> New appointment
+                <CalendarPlus size={17} aria-hidden="true" /> {t("New appointment")}
               </Link>
             )}
             {!roleHome && canView("Patients") && (
@@ -264,7 +269,7 @@ function Home() {
                 to="/patients"
                 className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-700"
               >
-                <UserPlus size={17} aria-hidden="true" /> Register patient
+                <UserPlus size={17} aria-hidden="true" /> {t("Register patient")}
               </Link>
             )}
           </>
@@ -283,12 +288,16 @@ function Home() {
 
       {denied && (
         <Alert tone="warning" title="You are not eligible for that page">
-          {denied} work is only for {eligibleRolesFor(denied).join(", ")}. You are signed in as {activeRoleName}.
+          {t("{module} work is only for {roles}. You are signed in as {role}.", {
+            module: t(denied),
+            roles: eligibleRolesFor(denied).map((role) => t(role)).join(", "),
+            role: t(activeRoleName),
+          })}
         </Alert>
       )}
 
       {tileKeys.length > 0 && (
-      <section aria-label="Today at a glance" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <section aria-label={t("Today at a glance")} className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {loading && !dashboardStats ? (
           tileKeys.map((key) => <div key={key} className="skeleton h-[88px] rounded-2xl" />)
         ) : (
@@ -350,7 +359,7 @@ function Home() {
               actions={
                 canView("Patients") && (
                   <Link to="/patients" className="text-[13px] font-medium text-brand-700 hover:underline">
-                    View all
+                    {t("View all")}
                   </Link>
                 )
               }
@@ -364,12 +373,12 @@ function Home() {
                       <p className="truncate text-sm font-medium text-ink-900">{p.name}</p>
                       <p className="text-xs text-ink-500 tabular-nums">
                         {p.uhid || p.patient_id || `ID ${p.id}`}
-                        {p.gender ? ` · ${p.gender}` : ""}
-                        {p.age ? ` · ${p.age} y` : ""}
+                        {p.gender ? ` · ${t(p.gender)}` : ""}
+                        {p.age ? ` · ${t("{age} y", { age: p.age })}` : ""}
                       </p>
                     </div>
                     {p.created_at && (
-                      <span className="text-xs text-ink-400 tabular-nums">{new Date(p.created_at).toLocaleDateString("en-IN")}</span>
+                      <span className="text-xs text-ink-400 tabular-nums">{new Date(p.created_at).toLocaleDateString(dateLocale)}</span>
                     )}
                   </li>
                 ))}
@@ -419,7 +428,7 @@ function Home() {
                     className="flex flex-col gap-2 rounded-xl border border-transparent p-3 text-[13px] font-medium text-ink-800 hover:border-line hover:bg-ink-50"
                   >
                     <Icon size={18} className="text-brand-600" aria-hidden="true" />
-                    {label}
+                    {t(label)}
                   </Link>
                 ))}
               </div>
@@ -432,24 +441,24 @@ function Home() {
               <dl className="divide-y divide-ink-100 text-sm">
                 {canView("IPD") && (
                   <div className="flex items-center justify-between px-5 py-3">
-                    <dt className="text-ink-600">Current admissions</dt>
+                    <dt className="text-ink-600">{t("Current admissions")}</dt>
                     <dd className="font-semibold text-ink-900 tabular-nums">{num.format(stats.admissions?.current || 0)}</dd>
                   </div>
                 )}
                 {canView("Emergency") && (
                   <div className="flex items-center justify-between px-5 py-3">
-                    <dt className="text-ink-600">Emergency visits today</dt>
+                    <dt className="text-ink-600">{t("Emergency visits today")}</dt>
                     <dd className="font-semibold text-ink-900 tabular-nums">{num.format(stats.emergency?.today || 0)}</dd>
                   </div>
                 )}
                 {canView("Billing") && (
                   <>
                     <div className="flex items-center justify-between px-5 py-3">
-                      <dt className="text-ink-600">Collected today</dt>
+                      <dt className="text-ink-600">{t("Collected today")}</dt>
                       <dd className="font-semibold text-ink-900 tabular-nums">{inr.format(Number(stats.billing?.today_revenue || 0))}</dd>
                     </div>
                     <div className="flex items-center justify-between px-5 py-3">
-                      <dt className="text-ink-600">Invoices paid / total</dt>
+                      <dt className="text-ink-600">{t("Invoices paid / total")}</dt>
                       <dd className="font-semibold text-ink-900 tabular-nums">
                         {num.format(stats.billing?.paid || 0)} / {num.format(stats.billing?.total_invoices || 0)}
                       </dd>

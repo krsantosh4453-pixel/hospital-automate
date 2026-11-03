@@ -154,7 +154,7 @@ function HospitalSwitcher({ hospitals, selectedHospital, onSelect, t }) {
       >
         <Hospital size={18} className="shrink-0 text-brand-600" aria-hidden="true" />
         <span className="hidden min-w-0 sm:block">
-          <span className="block text-[10.5px] font-medium uppercase tracking-wide text-ink-500">Hospital</span>
+          <span className="block text-[10.5px] font-medium uppercase tracking-wide text-ink-500">{t("Hospital")}</span>
           <span className="block truncate text-[13px] font-semibold leading-4 text-ink-900">
             {selectedHospital ? selectedHospital.name : t("Select Hospital")}
           </span>
@@ -302,7 +302,7 @@ function Navbar() {
           type="button"
           onClick={openMobile}
           className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-700 hover:bg-ink-100 lg:hidden"
-          aria-label="Open navigation"
+          aria-label={t("Open navigation")}
         >
           <Menu size={20} aria-hidden="true" />
         </button>
@@ -313,14 +313,14 @@ function Navbar() {
           className="hidden h-10 w-full max-w-xs items-center gap-2 rounded-lg border border-line bg-ink-50 px-3 text-[13px] text-ink-500 hover:border-line-strong hover:bg-white md:flex"
         >
           <Search size={16} aria-hidden="true" />
-          <span className="flex-1 text-left">Jump to…</span>
+          <span className="flex-1 text-left">{t("Jump to…")}</span>
           <kbd className="rounded border border-line bg-white px-1.5 py-px font-sans text-[11px] text-ink-500">Ctrl K</kbd>
         </button>
         <button
           type="button"
           onClick={() => setJumpOpen(true)}
           className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-600 hover:bg-ink-100 md:hidden"
-          aria-label="Jump to a page"
+          aria-label={t("Jump to a page")}
         >
           <Search size={19} aria-hidden="true" />
         </button>

@@ -7,8 +7,10 @@ import { useToast } from "../components/Toast.jsx"
 import { Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
 import DischargeBills from "../components/billing/DischargeBills.jsx"
 import { Plus as PlusIcon } from "lucide-react"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Billing() {
+  const { t } = useLanguage()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
 
@@ -929,7 +931,7 @@ function Billing() {
 
 
         <PageHeader
-          title="Billing"
+          title={t("Billing")}
           description={selectedHospital ? `Invoices, payments and refunds at ${selectedHospital.name}.` : "Select a hospital from the header to view billing."}
           breadcrumbs={[{ label: "Home", to: "/" }, { label: "Billing" }]}
           actions={
@@ -942,14 +944,14 @@ function Billing() {
                   setShowForm(true)
                 }}
               >
-                Create invoice
+                {t("Create invoice")}
               </Button>
             )
           }
         />
 
         {!selectedHospital ? (
-          <Card><EmptyState icon={CreditCardIcon} title="Select a hospital" description="Choose a hospital in the header to view its invoices." /></Card>
+          <Card><EmptyState icon={CreditCardIcon} title={t("Select a hospital")} description="Choose a hospital in the header to view its invoices." /></Card>
         ) : (
 
           <>
@@ -972,7 +974,7 @@ function Billing() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
                 <p className="text-sm text-gray-500">
-                  Total Revenue
+                  {t("Total Revenue")}
                 </p>
 
                 <h2 className="text-3xl font-bold text-green-600 mt-3">
@@ -990,7 +992,7 @@ function Billing() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
                 <p className="text-sm text-gray-500">
-                  Outstanding
+                  {t("Outstanding")}
                 </p>
 
                 <h2 className="text-3xl font-bold text-orange-500 mt-3">
@@ -1008,7 +1010,7 @@ function Billing() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
                 <p className="text-sm text-gray-500">
-                  Paid Invoices
+                  {t("Paid Invoices")}
                 </p>
 
                 <h2 className="text-3xl font-bold text-blue-600 mt-3">
@@ -1041,7 +1043,7 @@ function Billing() {
                     )
                   }
 
-                  placeholder="Search patient, patient ID or invoice..."
+                  placeholder={t("Search patient, patient ID or invoice...")}
 
                   className="hms-input"
 
@@ -1097,11 +1099,11 @@ function Billing() {
               <div className="p-6 border-b">
 
                 <h2 className="text-xl font-bold text-gray-800">
-                  Invoice List
+                  {t("Invoice List")}
                 </h2>
 
                 <p className="text-sm text-gray-500 mt-1">
-                  {filteredBills.length} invoice(s) found
+                  {filteredBills.length}{" "}{t("invoice(s) found")}
                 </p>
 
               </div>
@@ -1117,35 +1119,35 @@ function Billing() {
                     <tr>
 
                       <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                        Invoice
+                        {t("Invoice")}
                       </th>
 
                       <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                        Patient
+                        {t("Patient")}
                       </th>
 
                       <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                        Date
+                        {t("Date")}
                       </th>
 
                       <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                        Total
+                        {t("Total")}
                       </th>
 
                       <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                        Paid
+                        {t("Paid")}
                       </th>
 
                       <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                        Due
+                        {t("Due")}
                       </th>
 
                       <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                        Status
+                        {t("Status")}
                       </th>
 
                       <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">
-                        Actions
+                        {t("Actions")}
                       </th>
 
                     </tr>
@@ -1169,7 +1171,7 @@ function Billing() {
                             <CreditCardIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                           </div>
 
-                          No bills found for this hospital.
+                          {t("No bills found for this hospital.")}
 
                         </td>
 
@@ -1297,7 +1299,7 @@ function Billing() {
                                     className="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg"
 
                                   >
-                                    Invoice
+                                    {t("Invoice")}
                                   </button>
 
 
@@ -1312,7 +1314,7 @@ function Billing() {
                                     className="px-3 py-2 text-sm bg-green-50 text-green-700 rounded-lg"
 
                                   >
-                                    Edit
+                                    {t("Edit")}
                                   </button>
 
 
@@ -1330,7 +1332,7 @@ function Billing() {
                                         className="px-3 py-2 text-sm bg-indigo-50 text-indigo-700 rounded-lg"
 
                                       >
-                                        Payment
+                                        {t("Payment")}
                                       </button>
 
                                     )}
@@ -1347,7 +1349,7 @@ function Billing() {
                                     className="px-3 py-2 text-sm bg-red-50 text-red-700 rounded-lg"
 
                                   >
-                                    Delete
+                                    {t("Delete")}
                                   </button>
 
 
@@ -1442,7 +1444,7 @@ function Billing() {
                 <div>
 
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Patient Name
+                    {t("Patient Name")}
                   </label>
 
                   <input
@@ -1461,7 +1463,7 @@ function Billing() {
 
                     required
 
-                    placeholder="Rahul Kumar"
+                    placeholder={t("Rahul Kumar")}
 
                     className="hms-input w-full"
 
@@ -1473,7 +1475,7 @@ function Billing() {
                 <div>
 
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Patient ID
+                    {t("Patient ID")}
                   </label>
 
                   <input
@@ -1508,7 +1510,7 @@ function Billing() {
               <div>
 
                 <h3 className="font-semibold text-gray-800 mb-3">
-                  Hospital Charges
+                  {t("Hospital Charges")}
                 </h3>
 
 
@@ -1531,7 +1533,7 @@ function Billing() {
                       handleChange
                     }
 
-                    placeholder="Doctor Consultation ₹"
+                    placeholder={t("Doctor Consultation ₹")}
 
                     className="hms-input w-full"
 
@@ -1554,7 +1556,7 @@ function Billing() {
                       handleChange
                     }
 
-                    placeholder="Laboratory Charges ₹"
+                    placeholder={t("Laboratory Charges ₹")}
 
                     className="hms-input w-full"
 
@@ -1577,7 +1579,7 @@ function Billing() {
                       handleChange
                     }
 
-                    placeholder="Pharmacy / Medicines ₹"
+                    placeholder={t("Pharmacy / Medicines ₹")}
 
                     className="hms-input w-full"
 
@@ -1600,7 +1602,7 @@ function Billing() {
                       handleChange
                     }
 
-                    placeholder="Other Charges ₹"
+                    placeholder={t("Other Charges ₹")}
 
                     className="hms-input w-full"
 
@@ -1616,7 +1618,7 @@ function Billing() {
               <div>
 
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Discount
+                  {t("Discount")}
                 </label>
 
                 <input
@@ -1652,7 +1654,7 @@ function Billing() {
                 <div>
 
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount Paid
+                    {t("Amount Paid")}
                   </label>
 
                   <input
@@ -1683,7 +1685,7 @@ function Billing() {
                 <div>
 
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Method
+                    {t("Payment Method")}
                   </label>
 
                   <select
@@ -1740,7 +1742,7 @@ function Billing() {
                   className="px-5 py-3 border border-gray-300 rounded-xl"
 
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
 
 
@@ -1810,7 +1812,7 @@ function Billing() {
                         </h1>
 
                         <p className="text-gray-600">
-                          Hospital Management System
+                          {t("Hospital Management System")}
                         </p>
 
                       </div>
@@ -1828,12 +1830,12 @@ function Billing() {
                   <div className="md:text-right">
 
                     <h2 className="text-2xl font-bold">
-                      INVOICE
+                      {t("INVOICE")}
                     </h2>
 
                     <p className="mt-2">
 
-                      Invoice No:
+                      {t("Invoice No:")}
 
                       <span className="font-semibold ml-2">
                         {selectedBill.id}
@@ -1843,7 +1845,7 @@ function Billing() {
 
                     <p>
 
-                      Date:
+                      {t("Date:")}
 
                       <span className="font-semibold ml-2">
                         {selectedBill.date}
@@ -1863,7 +1865,7 @@ function Billing() {
               <div className="p-8 border-b">
 
                 <h3 className="text-sm uppercase tracking-wide text-gray-500">
-                  Patient Information
+                  {t("Patient Information")}
                 </h3>
 
 
@@ -1874,7 +1876,7 @@ function Billing() {
                   </p>
 
                   <p className="text-gray-600">
-                    Patient ID: {selectedBill.patientId}
+                    {t("Patient ID:")}{" "}{selectedBill.patientId}
                   </p>
 
                 </div>
@@ -1893,11 +1895,11 @@ function Billing() {
                     <tr className="border-b-2 border-gray-300">
 
                       <th className="text-left py-3">
-                        Description
+                        {t("Description")}
                       </th>
 
                       <th className="text-right py-3">
-                        Amount
+                        {t("Amount")}
                       </th>
 
                     </tr>
@@ -1951,7 +1953,7 @@ function Billing() {
                   <div className="flex justify-between">
 
                     <span>
-                      Subtotal
+                      {t("Subtotal")}
                     </span>
 
                     <span>
@@ -1971,7 +1973,7 @@ function Billing() {
                   <div className="flex justify-between">
 
                     <span>
-                      Discount
+                      {t("Discount")}
                     </span>
 
                     <span>
@@ -1992,7 +1994,7 @@ function Billing() {
                   <div className="flex justify-between border-t-2 border-gray-800 pt-3 text-xl font-bold">
 
                     <span>
-                      Total
+                      {t("Total")}
                     </span>
 
                     <span>
@@ -2012,7 +2014,7 @@ function Billing() {
                   <div className="flex justify-between text-green-700 font-semibold">
 
                     <span>
-                      Paid
+                      {t("Paid")}
                     </span>
 
                     <span>
@@ -2032,7 +2034,7 @@ function Billing() {
                   <div className="flex justify-between text-orange-600 font-bold">
 
                     <span>
-                      Balance Due
+                      {t("Balance Due")}
                     </span>
 
                     <span>
@@ -2063,7 +2065,7 @@ function Billing() {
                   <div className="flex justify-between">
 
                     <span className="text-gray-500">
-                      Payment Method
+                      {t("Payment Method")}
                     </span>
 
                     <span className="font-semibold">
@@ -2076,7 +2078,7 @@ function Billing() {
                   <div className="flex justify-between mt-3">
 
                     <span className="text-gray-500">
-                      Payment Status
+                      {t("Payment Status")}
                     </span>
 
                     <span
@@ -2101,11 +2103,11 @@ function Billing() {
                 <div className="mt-12 pt-6 border-t text-center">
 
                   <p className="font-semibold">
-                    Thank you for choosing our hospital.
+                    {t("Thank you for choosing our hospital.")}
                   </p>
 
                   <p className="text-sm text-gray-500 mt-2">
-                    This is a computer-generated invoice.
+                    {t("This is a computer-generated invoice.")}
                   </p>
 
                 </div>
@@ -2128,7 +2130,7 @@ function Billing() {
                   className="px-5 py-3 border border-gray-300 rounded-xl"
 
                 >
-                  Close
+                  {t("Close")}
                 </button>
 
 
@@ -2141,7 +2143,7 @@ function Billing() {
                   className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
 
                 >
-                  <PrinterIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Print Bill
+                  <PrinterIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Print Bill")}
                 </button>
 
               </div>

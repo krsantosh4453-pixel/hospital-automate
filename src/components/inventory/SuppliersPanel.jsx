@@ -3,6 +3,7 @@ import { Pencil, Plus, Truck } from "lucide-react"
 import api from "../../services/api.js"
 import { useToast } from "../Toast.jsx"
 import { Button, EmptyState, Field, Input, Modal, StatusBadge, TableWrap, Textarea } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const EMPTY_FORM = { name: "", contact_person: "", phone: "", email: "", address: "", is_active: true }
 
@@ -12,6 +13,7 @@ const EMPTY_FORM = { name: "", contact_person: "", phone: "", email: "", address
  * @param {{ hospital: { id: number, name: string }, suppliers: object[], canEdit: boolean, onChanged: () => void }} props
  */
 export default function SuppliersPanel({ hospital, suppliers, canEdit, onChanged }) {
+  const { t } = useLanguage()
   const toast = useToast()
   const [editing, setEditing] = useState(null) // null = closed, {} = new, supplier = edit
   const [form, setForm] = useState(EMPTY_FORM)
@@ -61,28 +63,28 @@ export default function SuppliersPanel({ hospital, suppliers, canEdit, onChanged
       {suppliers.length === 0 ? (
         <EmptyState
           icon={Truck}
-          title="No suppliers yet"
+          title={t("No suppliers yet")}
           description="Add the companies you buy from, then raise purchase orders to them."
-          action={canEdit && <Button icon={Plus} onClick={() => open(null)}>Add supplier</Button>}
+          action={canEdit && <Button icon={Plus} onClick={() => open(null)}>{t("Add supplier")}</Button>}
         />
       ) : (
         <>
           {canEdit && (
             <div className="flex justify-end border-b border-line px-4 py-3">
-              <Button size="sm" icon={Plus} onClick={() => open(null)}>Add supplier</Button>
+              <Button size="sm" icon={Plus} onClick={() => open(null)}>{t("Add supplier")}</Button>
             </div>
           )}
           <TableWrap>
             <table className="hms-table">
-              <caption className="sr-only">Suppliers of {hospital.name}</caption>
+              <caption className="sr-only">{t("Suppliers of")}{" "}{hospital.name}</caption>
               <thead>
                 <tr>
-                  <th scope="col">Supplier</th>
-                  <th scope="col">Contact</th>
-                  <th scope="col">Phone</th>
-                  <th scope="col">Email</th>
-                  <th scope="col">Status</th>
-                  {canEdit && <th scope="col"><span className="sr-only">Actions</span></th>}
+                  <th scope="col">{t("Supplier")}</th>
+                  <th scope="col">{t("Contact")}</th>
+                  <th scope="col">{t("Phone")}</th>
+                  <th scope="col">{t("Email")}</th>
+                  <th scope="col">{t("Status")}</th>
+                  {canEdit && <th scope="col"><span className="sr-only">{t("Actions")}</span></th>}
                 </tr>
               </thead>
               <tbody>
@@ -96,7 +98,7 @@ export default function SuppliersPanel({ hospital, suppliers, canEdit, onChanged
                     {canEdit && (
                       <td>
                         <div className="flex justify-end">
-                          <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => open(supplier)} aria-label={`Edit ${supplier.name}`} title="Edit" />
+                          <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => open(supplier)} aria-label={`Edit ${supplier.name}`} title={t("Edit")} />
                         </div>
                       </td>
                     )}
@@ -114,7 +116,7 @@ export default function SuppliersPanel({ hospital, suppliers, canEdit, onChanged
         title={editing?.id ? `Edit ${editing.name}` : "Add supplier"}
         footer={
           <>
-            <Button variant="secondary" onClick={close}>Cancel</Button>
+            <Button variant="secondary" onClick={close}>{t("Cancel")}</Button>
             <Button type="submit" form="supplier-form" loading={saving}>{editing?.id ? "Save changes" : "Add supplier"}</Button>
           </>
         }
@@ -140,7 +142,7 @@ export default function SuppliersPanel({ hospital, suppliers, canEdit, onChanged
           {editing?.id && (
             <label className="flex items-center gap-2 text-sm text-ink-700">
               <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
-              Active (inactive suppliers are not offered for new purchase orders)
+              {t("Active (inactive suppliers are not offered for new purchase orders)")}
             </label>
           )}
         </form>

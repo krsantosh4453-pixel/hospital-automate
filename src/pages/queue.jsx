@@ -18,6 +18,7 @@ import {
   Tabs,
   Toolbar,
 } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 // Every status a QueueToken can have on the server (encounters.QueueToken.Status).
 const QUEUE_STATUSES = ["Waiting", "Called", "Acknowledged", "Ready", "In Consultation", "Completed", "Skipped", "No Show", "Cancelled"]
@@ -48,6 +49,7 @@ const ROW_ACTIONS = {
 }
 
 function Queue() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
 
   // Live queue records from Django (encounters.QueueToken).
@@ -259,9 +261,9 @@ function Queue() {
   if (!selectedHospital) {
     return (
       <div className="space-y-5">
-        <PageHeader title="Queue" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Queue" }]} />
+        <PageHeader title={t("Queue")} breadcrumbs={[{ label: "Home", to: "/" }, { label: "Queue" }]} />
         <Card>
-          <EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header to see its patient queue." />
+          <EmptyState icon={Hospital} title={t("Select a hospital")} description="Choose a hospital in the header to see its patient queue." />
         </Card>
       </div>
     )
@@ -279,7 +281,7 @@ function Queue() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="OPD queue"
+        title={t("OPD queue")}
         description={`Tokens and consultation flow at ${selectedHospital.name}.`}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Queue" }]}
         actions={
@@ -292,10 +294,10 @@ function Queue() {
               disabled={loading}
               title={issueableAppointments.length ? `${issueableAppointments.length} booked appointment(s) without a token` : "No booked appointment is waiting for a token"}
             >
-              Issue token{issueableAppointments.length ? ` (${issueableAppointments.length})` : ""}
+              {t("Issue token")}{issueableAppointments.length ? ` (${issueableAppointments.length})` : ""}
             </Button>
             <Button icon={Megaphone} onClick={callNextPatient} loading={busy === "next"} disabled={!nextWaiting}>
-              Call next patient
+              {t("Call next patient")}
             </Button>
           </>
         }
@@ -306,8 +308,8 @@ function Queue() {
       {loadError && (
         <Alert
           tone="danger"
-          title="Queue could not be loaded"
-          action={<Button size="sm" variant="secondary" onClick={() => setReloadToken((value) => value + 1)}>Retry</Button>}
+          title={t("Queue could not be loaded")}
+          action={<Button size="sm" variant="secondary" onClick={() => setReloadToken((value) => value + 1)}>{t("Retry")}</Button>}
         >
           {loadError}
         </Alert>
@@ -332,7 +334,7 @@ function Queue() {
           </div>
           <div className="flex items-center justify-between gap-3 px-5 py-4">
             <div className="min-w-0">
-              <p className="text-xs font-medium text-ink-500">Next in line</p>
+              <p className="text-xs font-medium text-ink-500">{t("Next in line")}</p>
               <p className="truncate text-sm font-semibold text-ink-900">
                 {nextWaiting ? `#${nextWaiting.token} · ${nextWaiting.patient}` : "Nobody waiting"}
               </p>
@@ -345,7 +347,7 @@ function Queue() {
                 loading={busy === `complete-${currentPatient.token}`}
                 onClick={() => rowAction(currentPatient.token, "complete")}
               >
-                Complete
+                {t("Complete")}
               </Button>
             ) : calledPatient && (
               <Button
@@ -355,7 +357,7 @@ function Queue() {
                 loading={busy === `start-${calledPatient.token}`}
                 onClick={() => rowAction(calledPatient.token, "start")}
               >
-                Start consultation
+                {t("Start consultation")}
               </Button>
             )}
           </div>
@@ -371,15 +373,15 @@ function Queue() {
 
       <Card className="overflow-hidden">
         <CardHeader
-          title="Patient queue"
+          title={t("Patient queue")}
           description={`${filteredQueue.length} of ${hospitalQueue.length} token${hospitalQueue.length === 1 ? "" : "s"}`}
         />
         <div className="px-4 pt-1">
           <Tabs tabs={statusTabs} value={statusFilter} onChange={setStatusFilter} label="Filter by status" />
         </div>
         <Toolbar>
-          <SearchInput value={search} onChange={setSearch} placeholder="Patient, doctor or token" label="Search queue" className="w-full sm:max-w-xs" />
-          <Select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} aria-label="Filter by department" className="w-full sm:w-56">
+          <SearchInput value={search} onChange={setSearch} placeholder={t("Patient, doctor or token")} label="Search queue" className="w-full sm:max-w-xs" />
+          <Select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} aria-label={t("Filter by department")} className="w-full sm:w-56">
             <option>All Departments</option>
             {departments.map((d) => (
               <option key={d}>{d}</option>
@@ -398,17 +400,17 @@ function Queue() {
         ) : (
           <TableWrap>
             <table className="hms-table">
-              <caption className="sr-only">Patient queue at {selectedHospital.name}</caption>
+              <caption className="sr-only">{t("Patient queue at")}{" "}{selectedHospital.name}</caption>
               <thead>
                 <tr>
-                  <th scope="col">Token</th>
-                  <th scope="col">Patient</th>
-                  <th scope="col">Doctor</th>
-                  <th scope="col">Department</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Waiting</th>
-                  <th scope="col">Status</th>
-                  <th scope="col"><span className="sr-only">Actions</span></th>
+                  <th scope="col">{t("Token")}</th>
+                  <th scope="col">{t("Patient")}</th>
+                  <th scope="col">{t("Doctor")}</th>
+                  <th scope="col">{t("Department")}</th>
+                  <th scope="col">{t("Type")}</th>
+                  <th scope="col">{t("Waiting")}</th>
+                  <th scope="col">{t("Status")}</th>
+                  <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -435,31 +437,31 @@ function Queue() {
                         {item.status === "Waiting" && (
                           <>
                             <Button size="sm" variant="subtle" icon={PhoneCall} loading={busy === `call-${item.token}`} onClick={() => rowAction(item.token, "call")}>
-                              Call
+                              {t("Call")}
                             </Button>
                             <Button size="sm" variant="ghost" icon={SkipForward} loading={busy === `skip-${item.token}`} onClick={() => rowAction(item.token, "skip")}>
-                              Skip
+                              {t("Skip")}
                             </Button>
                           </>
                         )}
                         {isCalled(item.status) && (
                           <>
                             <Button size="sm" variant="subtle" icon={Stethoscope} loading={busy === `start-${item.token}`} onClick={() => rowAction(item.token, "start")}>
-                              Start consultation
+                              {t("Start consultation")}
                             </Button>
                             <Button size="sm" variant="ghost" icon={UserX} loading={busy === `noShow-${item.token}`} onClick={() => rowAction(item.token, "noShow")}>
-                              No show
+                              {t("No show")}
                             </Button>
                           </>
                         )}
                         {item.status === "In Consultation" && (
                           <Button size="sm" variant="subtle" icon={CircleCheck} loading={busy === `complete-${item.token}`} onClick={() => rowAction(item.token, "complete")}>
-                            Complete
+                            {t("Complete")}
                           </Button>
                         )}
                         {(item.status === "Skipped" || item.status === "No Show") && (
                           <Button size="sm" variant="ghost" icon={RotateCcw} loading={busy === `requeue-${item.token}`} onClick={() => rowAction(item.token, "requeue")}>
-                            Back to queue
+                            {t("Back to queue")}
                           </Button>
                         )}
                       </div>

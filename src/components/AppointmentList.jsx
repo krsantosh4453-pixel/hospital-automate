@@ -1,6 +1,8 @@
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function AppointmentList() {
+  const { t } = useLanguage()
 
   const { selectedHospital } = usePatient()
 
@@ -47,7 +49,7 @@ function AppointmentList() {
         <div>
 
           <h2 className="text-xl font-bold text-gray-800">
-            Today&apos;s Appointments
+            {t("Today's Appointments")}
           </h2>
 
           <p className="text-gray-500 mt-1">
@@ -74,11 +76,11 @@ function AppointmentList() {
           </div>
 
           <p className="font-semibold text-gray-800">
-            No hospital selected
+            {t("No hospital selected")}
           </p>
 
           <p className="text-sm text-gray-500 mt-1">
-            Select a hospital from the header.
+            {t("Select a hospital from the header.")}
           </p>
 
         </div>
@@ -92,11 +94,11 @@ function AppointmentList() {
           </div>
 
           <p className="font-semibold text-gray-800">
-            No appointments
+            {t("No appointments")}
           </p>
 
           <p className="text-sm text-gray-500 mt-1">
-            No appointments are scheduled for this hospital.
+            {t("No appointments are scheduled for this hospital.")}
           </p>
 
         </div>

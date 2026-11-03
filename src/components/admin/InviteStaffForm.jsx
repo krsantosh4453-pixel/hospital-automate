@@ -3,11 +3,13 @@ import { Check, Copy, Send } from "lucide-react"
 import api from "../../services/api.js"
 import { STAFF_ROLES } from "../../config/staffRoles.js"
 import { Alert, Button, Field, Input, Select } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const EMPTY = { name: "", phone: "", email: "", role: "Doctor", department: "" }
 
 /** The invitation link for someone who still has to set a password, with a copy button. */
 export function InviteLink({ result }) {
+  const { t } = useLanguage()
   const [copied, setCopied] = useState(false)
   if (!result?.invite_url) return null
   // The page the admin is on is the web app the person should open.
@@ -25,9 +27,9 @@ export function InviteLink({ result }) {
   return (
     <Alert tone="success" title={`Invitation for ${result.name}`}>
       <p>
-        Username <strong>{result.username}</strong>.{" "}
+        {t("Username")}{" "}<strong>{result.username}</strong>.{" "}
         {result.emailed ? "The link was emailed to them. " : "Email is not set up, so send them this link yourself. "}
-        It works once and expires in a few days.
+        {t("It works once and expires in a few days.")}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <code className="min-w-0 flex-1 break-all rounded-md bg-white/70 px-2 py-1 text-xs">{url}</code>
@@ -44,6 +46,7 @@ export function InviteLink({ result }) {
  * The backend creates the account; the person sets a password from the link.
  */
 export default function InviteStaffForm({ departments = [], onInvited }) {
+  const { t } = useLanguage()
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -80,8 +83,7 @@ export default function InviteStaffForm({ departments = [], onInvited }) {
       {error && <Alert tone="danger">{error}</Alert>}
       {result && !result.invited && (
         <Alert tone="success">
-          {result.name} already has a staff account and was added to this hospital as {result.membership?.role}. They
-          sign in with their existing password.
+          {result.name}{" "}{t("already has a staff account and was added to this hospital as")}{" "}{result.membership?.role}{t(". They sign in with their existing password.")}
         </Alert>
       )}
       <InviteLink result={result} />
@@ -122,7 +124,7 @@ export default function InviteStaffForm({ departments = [], onInvited }) {
         )}
       </div>
       <Button type="submit" icon={Send} loading={saving} disabled={!form.name.trim()}>
-        Send invitation
+        {t("Send invitation")}
       </Button>
     </form>
   )

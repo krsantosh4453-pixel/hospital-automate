@@ -23,6 +23,7 @@ import {
   Textarea,
 } from "../components/ui"
 import { ImagingReportDocument } from "../components/documents/ClinicalDocuments.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 // Radiology / imaging (requirement G4). A doctor orders, the technician
 // (Lab Staff) schedules and performs, a doctor reports and signs. The server
@@ -41,6 +42,7 @@ const TABS = [
 const when = (value) => (value ? new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—")
 
 function Radiology() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
   const { activeRoleName } = useRole()
   const toast = useToast()
@@ -116,7 +118,7 @@ function Radiology() {
 
   const footer = (label) => (
     <>
-      <Button variant="secondary" onClick={close}>Cancel</Button>
+      <Button variant="secondary" onClick={close}>{t("Cancel")}</Button>
       <Button type="submit" form="radiology-form" loading={saving}>{label}</Button>
     </>
   )
@@ -124,21 +126,21 @@ function Radiology() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Radiology"
+        title={t("Radiology")}
         description={selectedHospital ? `Imaging orders, scans and reports at ${selectedHospital.name}.` : "Select a hospital to see imaging."}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Radiology" }]}
         actions={selectedHospital && (
           <>
-            <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>
-            {isDoctor && <Button icon={Plus} onClick={() => open("order", null, EMPTY_ORDER)}>New imaging order</Button>}
+            <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>{t("Refresh")}</Button>
+            {isDoctor && <Button icon={Plus} onClick={() => open("order", null, EMPTY_ORDER)}>{t("New imaging order")}</Button>}
           </>
         )}
       />
 
       {!selectedHospital ? (
-        <Card><EmptyState icon={ScanSearch} title="Select a hospital" /></Card>
+        <Card><EmptyState icon={ScanSearch} title={t("Select a hospital")} /></Card>
       ) : error ? (
-        <Card><ErrorState title="Imaging could not be loaded" message={error} onRetry={load} /></Card>
+        <Card><ErrorState title={t("Imaging could not be loaded")} message={error} onRetry={load} /></Card>
       ) : (
         <Card className="overflow-hidden">
           <div className="px-4 pt-3">
@@ -147,19 +149,19 @@ function Radiology() {
           {loading ? (
             <SkeletonRows rows={4} />
           ) : shown.length === 0 ? (
-            <EmptyState icon={ScanSearch} title="Nothing here" />
+            <EmptyState icon={ScanSearch} title={t("Nothing here")} />
           ) : (
             <TableWrap>
               <table className="hms-table">
                 <thead>
                   <tr>
-                    <th scope="col">Accession</th>
-                    <th scope="col">Patient</th>
-                    <th scope="col">Examination</th>
-                    <th scope="col">Priority</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">When</th>
-                    <th scope="col"><span className="sr-only">Actions</span></th>
+                    <th scope="col">{t("Accession")}</th>
+                    <th scope="col">{t("Patient")}</th>
+                    <th scope="col">{t("Examination")}</th>
+                    <th scope="col">{t("Priority")}</th>
+                    <th scope="col">{t("Status")}</th>
+                    <th scope="col">{t("When")}</th>
+                    <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -183,18 +185,18 @@ function Radiology() {
                         <div className="flex flex-wrap justify-end gap-1.5">
                           {isTechnician && ["Ordered", "Scheduled"].includes(s.status) && (
                             <>
-                              <Button size="sm" variant="ghost" icon={CalendarClock} onClick={() => open("schedule", s, { scheduled_for: "" })}>Schedule</Button>
-                              <Button size="sm" variant="subtle" icon={Zap} onClick={() => open("perform", s, { technician_notes: "" })}>Performed</Button>
+                              <Button size="sm" variant="ghost" icon={CalendarClock} onClick={() => open("schedule", s, { scheduled_for: "" })}>{t("Schedule")}</Button>
+                              <Button size="sm" variant="subtle" icon={Zap} onClick={() => open("perform", s, { technician_notes: "" })}>{t("Performed")}</Button>
                             </>
                           )}
                           {isDoctor && s.status === "Performed" && (
-                            <Button size="sm" icon={FilePenLine} onClick={() => open("report", s, { findings: "", impression: "" })}>Report</Button>
+                            <Button size="sm" icon={FilePenLine} onClick={() => open("report", s, { findings: "", impression: "" })}>{t("Report")}</Button>
                           )}
                           {isDoctor && ["Ordered", "Scheduled"].includes(s.status) && (
-                            <Button size="sm" variant="danger-ghost" icon={XCircle} onClick={() => open("cancel", s)}>Cancel</Button>
+                            <Button size="sm" variant="danger-ghost" icon={XCircle} onClick={() => open("cancel", s)}>{t("Cancel")}</Button>
                           )}
                           {s.status === "Reported" && (
-                            <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting(s)}>Print</Button>
+                            <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting(s)}>{t("Print")}</Button>
                           )}
                         </div>
                       </td>
@@ -207,7 +209,7 @@ function Radiology() {
         </Card>
       )}
 
-      <Modal open={dialog?.kind === "order"} onClose={close} title="New imaging order" footer={footer("Place order")}>
+      <Modal open={dialog?.kind === "order"} onClose={close} title={t("New imaging order")} footer={footer("Place order")}>
         <form id="radiology-form" className="space-y-3" onSubmit={(e) => submit(e, () => api.imaging.create({ ...form, patient: Number(form.patient) }), "Imaging ordered.")}>
           <Field label="Patient" required>
             <Select value={form.patient || ""} onChange={set("patient")}>
@@ -223,39 +225,39 @@ function Radiology() {
               <Select value={form.priority || "Routine"} onChange={set("priority")}>{["Routine", "Urgent", "STAT"].map((p) => <option key={p}>{p}</option>)}</Select>
             </Field>
           </div>
-          <Field label="Body part / region" required><Input value={form.body_part || ""} onChange={set("body_part")} placeholder="e.g. Chest PA" maxLength={120} /></Field>
+          <Field label="Body part / region" required><Input value={form.body_part || ""} onChange={set("body_part")} placeholder={t("e.g. Chest PA")} maxLength={120} /></Field>
           <Field label="Clinical question" required><Textarea rows={3} value={form.indication || ""} onChange={set("indication")} /></Field>
         </form>
       </Modal>
 
-      <Modal open={dialog?.kind === "schedule"} onClose={close} title="Schedule scan" description={study && `${study.patient_name} · ${study.modality} ${study.body_part}`} footer={footer("Schedule")}>
+      <Modal open={dialog?.kind === "schedule"} onClose={close} title={t("Schedule scan")} description={study && `${study.patient_name} · ${study.modality} ${study.body_part}`} footer={footer("Schedule")}>
         <form id="radiology-form" onSubmit={(e) => submit(e, () => api.imaging.schedule(study.id, { scheduled_for: new Date(form.scheduled_for).toISOString() }), "Scan scheduled.")}>
           <Field label="Date and time" required><Input type="datetime-local" value={form.scheduled_for || ""} onChange={set("scheduled_for")} /></Field>
         </form>
       </Modal>
 
-      <Modal open={dialog?.kind === "perform"} onClose={close} title="Mark scan performed" description={study && `${study.patient_name} · ${study.modality} ${study.body_part}`} footer={footer("Mark performed")}>
+      <Modal open={dialog?.kind === "perform"} onClose={close} title={t("Mark scan performed")} description={study && `${study.patient_name} · ${study.modality} ${study.body_part}`} footer={footer("Mark performed")}>
         <form id="radiology-form" onSubmit={(e) => submit(e, () => api.imaging.perform(study.id, form), "Scan performed; awaiting report.")}>
           <Field label="Technician notes"><Textarea rows={3} value={form.technician_notes || ""} onChange={set("technician_notes")} /></Field>
         </form>
       </Modal>
 
-      <Modal open={dialog?.kind === "report"} onClose={close} size="lg" title="Report and sign" description={study && `${study.patient_name} · ${study.modality} ${study.body_part} · ${study.accession_number}`} footer={footer("Sign report")}>
+      <Modal open={dialog?.kind === "report"} onClose={close} size="lg" title={t("Report and sign")} description={study && `${study.patient_name} · ${study.modality} ${study.body_part} · ${study.accession_number}`} footer={footer("Sign report")}>
         <form id="radiology-form" className="space-y-3" onSubmit={(e) => submit(e, () => api.imaging.report(study.id, form), "Report signed.")}>
-          {study && <Alert tone="info" title="Clinical question">{study.indication}{study.technician_notes ? ` · Technician: ${study.technician_notes}` : ""}</Alert>}
+          {study && <Alert tone="info" title={t("Clinical question")}>{study.indication}{study.technician_notes ? ` · Technician: ${study.technician_notes}` : ""}</Alert>}
           <Field label="Findings" required><Textarea rows={5} value={form.findings || ""} onChange={set("findings")} /></Field>
           <Field label="Impression" required><Textarea rows={2} value={form.impression || ""} onChange={set("impression")} /></Field>
-          <p className="text-xs text-ink-500">Signing locks the report; it cannot be edited afterwards.</p>
+          <p className="text-xs text-ink-500">{t("Signing locks the report; it cannot be edited afterwards.")}</p>
         </form>
       </Modal>
 
-      <Modal open={dialog?.kind === "cancel"} onClose={close} title="Cancel imaging order?" description={study && `${study.patient_name} · ${study.modality} ${study.body_part}`} footer={footer("Cancel order")}>
+      <Modal open={dialog?.kind === "cancel"} onClose={close} title={t("Cancel imaging order?")} description={study && `${study.patient_name} · ${study.modality} ${study.body_part}`} footer={footer("Cancel order")}>
         <form id="radiology-form" onSubmit={(e) => submit(e, () => api.imaging.cancel(study.id), "Order cancelled.")}>
-          <p className="text-sm text-ink-700">The order stays on record as cancelled.</p>
+          <p className="text-sm text-ink-700">{t("The order stays on record as cancelled.")}</p>
         </form>
       </Modal>
 
-      <PrintSheet open={Boolean(printing)} onClose={() => setPrinting(null)} title="Radiology report">
+      <PrintSheet open={Boolean(printing)} onClose={() => setPrinting(null)} title={t("Radiology report")}>
         {printing && <ImagingReportDocument study={printing} />}
       </PrintSheet>
     </div>

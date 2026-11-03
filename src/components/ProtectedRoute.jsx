@@ -2,13 +2,15 @@ import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import { backendRoleCanView } from "../assets/context/RoleContext.jsx"
 import { getAuthenticatedStaffRole, mapBackendRoleToUi, staffModuleForPath } from "../utils/roleRouting.js"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function AuthLoading() {
+  const { t } = useLanguage()
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-gray-500">{t("Loading...")}</p>
       </div>
     </div>
   )

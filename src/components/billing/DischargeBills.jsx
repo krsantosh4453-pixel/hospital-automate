@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { BedDouble } from "lucide-react"
 import api from "../../services/api.js"
 import { Alert, Button, Card, CardHeader, Field, Input } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Final bills of inpatient stays being discharged (E12, H8). The server
 // counts the bed days and allows one live final bill per stay; payment is
@@ -10,6 +11,7 @@ import { Alert, Button, Card, CardHeader, Field, Input } from "../ui"
 const emptyForm = { dailyRate: "", otherDescription: "", otherAmount: "" }
 
 export default function DischargeBills({ hospitalId, refreshKey, onCreated }) {
+  const { t } = useLanguage()
   const [rows, setRows] = useState([])
   const [error, setError] = useState("")
   const [forms, setForms] = useState({})
@@ -58,7 +60,7 @@ export default function DischargeBills({ hospitalId, refreshKey, onCreated }) {
     <Card className="mb-6">
       <CardHeader
         icon={BedDouble}
-        title="Discharge bills"
+        title={t("Discharge bills")}
         description="Inpatients being discharged. Their discharge completes only after the final bill is paid."
       />
       {error && <Alert tone="danger" className="m-4">{error}</Alert>}
@@ -71,12 +73,12 @@ export default function DischargeBills({ hospitalId, refreshKey, onCreated }) {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium text-ink-900">{row.patient_name}</p>
                 <p className="text-[13px] text-ink-500">
-                  Admitted {new Date(row.admission_date).toLocaleDateString("en-IN")} · {row.days} day(s)
+                  {t("Admitted")}{" "}{new Date(row.admission_date).toLocaleDateString("en-IN")} · {row.days}{" "}{t("day(s)")}
                 </p>
               </div>
               {bill ? (
                 <p className={`mt-1 text-sm ${Number(bill.balance_due) > 0 ? "text-amber-700" : "text-green-700"}`}>
-                  Final bill {bill.invoice_number}: ₹{bill.total}
+                  {t("Final bill")}{" "}{bill.invoice_number}: ₹{bill.total}
                   {Number(bill.balance_due) > 0 ? `, ₹${bill.balance_due} due. Take the payment on the invoice below.` : ", paid."}
                 </p>
               ) : (
@@ -85,12 +87,12 @@ export default function DischargeBills({ hospitalId, refreshKey, onCreated }) {
                     <Input type="number" min="0" step="0.01" inputMode="decimal" value={form.dailyRate} onChange={setField(row.admission, "dailyRate")} />
                   </Field>
                   <Field label="Other charges">
-                    <Input value={form.otherDescription} onChange={setField(row.admission, "otherDescription")} placeholder="e.g. Medicines" maxLength={200} />
+                    <Input value={form.otherDescription} onChange={setField(row.admission, "otherDescription")} placeholder={t("e.g. Medicines")} maxLength={200} />
                   </Field>
                   <Field label="Amount (₹)">
                     <Input type="number" min="0" step="0.01" inputMode="decimal" value={form.otherAmount} onChange={setField(row.admission, "otherAmount")} />
                   </Field>
-                  <Button type="submit" loading={saving === row.admission}>Create final bill</Button>
+                  <Button type="submit" loading={saving === row.admission}>{t("Create final bill")}</Button>
                 </form>
               )}
             </li>

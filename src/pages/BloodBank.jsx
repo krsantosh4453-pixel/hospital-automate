@@ -20,6 +20,7 @@ import {
   TableWrap,
   useConfirm,
 } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 const COMPONENTS = ["Whole Blood", "Packed Red Cells", "Platelets", "Fresh Frozen Plasma", "Cryoprecipitate"]
@@ -29,6 +30,7 @@ const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 const daysUntil = (date) => (date ? Math.ceil((new Date(date) - new Date()) / 86400000) : null)
 
 function BloodBank() {
+  const { t } = useLanguage()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
   const { selectedHospital } = usePatient()
@@ -148,14 +150,14 @@ function BloodBank() {
 
   const header = (
     <PageHeader
-      title="Blood bank"
+      title={t("Blood bank")}
       description={selectedHospital ? `Stock and requests at ${selectedHospital.name}.` : undefined}
       breadcrumbs={[{ label: "Home", to: "/" }, { label: "Blood bank" }]}
       actions={
         selectedHospital && (
           <>
-            <Button variant="secondary" icon={RefreshCw} onClick={fetchData} disabled={loading}>Refresh</Button>
-            <Button icon={Plus} onClick={() => { resetForms(); setShowRequestModal(true) }}>New request</Button>
+            <Button variant="secondary" icon={RefreshCw} onClick={fetchData} disabled={loading}>{t("Refresh")}</Button>
+            <Button icon={Plus} onClick={() => { resetForms(); setShowRequestModal(true) }}>{t("New request")}</Button>
           </>
         )
       }
@@ -166,7 +168,7 @@ function BloodBank() {
     return (
       <>{confirmDialog}<div className="space-y-5">
         {header}
-        <Card><EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header to view its blood bank." /></Card>
+        <Card><EmptyState icon={Hospital} title={t("Select a hospital")} description="Choose a hospital in the header to view its blood bank." /></Card>
       </div></>
     )
   }
@@ -190,11 +192,11 @@ function BloodBank() {
       {header}
 
       {loadError && (
-        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={fetchData}>Retry</Button>}>{loadError}</Alert>
+        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={fetchData}>{t("Retry")}</Button>}>{loadError}</Alert>
       )}
 
       <Card>
-        <CardHeader title="Stock by blood group" description="All components, in units. Groups with stock expiring within 7 days are flagged." />
+        <CardHeader title={t("Stock by blood group")} description="All components, in units. Groups with stock expiring within 7 days are flagged." />
         {loading && inventory.length === 0 ? (
           <SkeletonRows rows={2} />
         ) : (
@@ -216,22 +218,22 @@ function BloodBank() {
 
       <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_28rem]">
         <Card className="overflow-hidden">
-          <CardHeader title="Requests" description={`${openRequests.length} open`} />
+          <CardHeader title={t("Requests")} description={`${openRequests.length} open`} />
           {loading && requests.length === 0 ? (
             <SkeletonRows rows={4} />
           ) : requests.length === 0 ? (
-            <EmptyState icon={Droplet} title="No blood requests yet" />
+            <EmptyState icon={Droplet} title={t("No blood requests yet")} />
           ) : (
             <TableWrap>
               <table className="hms-table">
                 <thead>
                   <tr>
-                    <th scope="col">Patient</th>
-                    <th scope="col">Group</th>
-                    <th scope="col">Component</th>
-                    <th scope="col" className="num">Units</th>
-                    <th scope="col">Status</th>
-                    <th scope="col"><span className="sr-only">Actions</span></th>
+                    <th scope="col">{t("Patient")}</th>
+                    <th scope="col">{t("Group")}</th>
+                    <th scope="col">{t("Component")}</th>
+                    <th scope="col" className="num">{t("Units")}</th>
+                    <th scope="col">{t("Status")}</th>
+                    <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -249,16 +251,16 @@ function BloodBank() {
                         <div className="flex items-center justify-end gap-1">
                           {req.status === "Requested" && (
                             <>
-                              <Button size="sm" variant="subtle" icon={Check} loading={busy === `approve-${req.id}`} onClick={() => runAction(req, "approve")}>Approve</Button>
-                              <Button size="icon-sm" variant="ghost" icon={X} onClick={() => runAction(req, "reject")} aria-label="Reject request" title="Reject" />
-                              <Button size="icon-sm" variant="ghost" icon={Pencil} onClick={() => handleEdit(req)} aria-label="Edit request" title="Edit" />
+                              <Button size="sm" variant="subtle" icon={Check} loading={busy === `approve-${req.id}`} onClick={() => runAction(req, "approve")}>{t("Approve")}</Button>
+                              <Button size="icon-sm" variant="ghost" icon={X} onClick={() => runAction(req, "reject")} aria-label={t("Reject request")} title={t("Reject")} />
+                              <Button size="icon-sm" variant="ghost" icon={Pencil} onClick={() => handleEdit(req)} aria-label={t("Edit request")} title={t("Edit")} />
                             </>
                           )}
                           {req.status === "Approved" && (
-                            <Button size="sm" icon={PackageCheck} loading={busy === `issue-${req.id}`} onClick={() => runAction(req, "issue")}>Issue</Button>
+                            <Button size="sm" icon={PackageCheck} loading={busy === `issue-${req.id}`} onClick={() => runAction(req, "issue")}>{t("Issue")}</Button>
                           )}
                           {req.status === "Requested" && (
-                            <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => handleDelete(req)} aria-label="Delete request" title="Delete" />
+                            <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => handleDelete(req)} aria-label={t("Delete request")} title={t("Delete")} />
                           )}
                         </div>
                       </td>
@@ -271,18 +273,18 @@ function BloodBank() {
         </Card>
 
         <Card className="self-start overflow-hidden">
-          <CardHeader title="Inventory lots" />
+          <CardHeader title={t("Inventory lots")} />
           {inventory.length === 0 ? (
-            <EmptyState compact icon={Droplet} title="No inventory recorded" />
+            <EmptyState compact icon={Droplet} title={t("No inventory recorded")} />
           ) : (
             <TableWrap>
               <table className="hms-table">
                 <thead>
                   <tr>
-                    <th scope="col">Group</th>
-                    <th scope="col">Component</th>
-                    <th scope="col" className="num">Units</th>
-                    <th scope="col">Expiry</th>
+                    <th scope="col">{t("Group")}</th>
+                    <th scope="col">{t("Component")}</th>
+                    <th scope="col" className="num">{t("Units")}</th>
+                    <th scope="col">{t("Expiry")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -313,7 +315,7 @@ function BloodBank() {
         title={editingRequest ? "Edit blood request" : "New blood request"}
         footer={
           <>
-            <Button variant="secondary" onClick={resetForms}>Cancel</Button>
+            <Button variant="secondary" onClick={resetForms}>{t("Cancel")}</Button>
             <Button type="submit" form="blood-form" loading={saving}>{editingRequest ? "Save changes" : "Create request"}</Button>
           </>
         }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { History } from "lucide-react"
 import api from "../../services/api.js"
 import { Alert, Badge, EmptyState, Select, SkeletonRows } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Longitudinal record (requirements B9, D12): every event of one patient at
 // this hospital (the patient's own view: all their hospitals), newest first.
@@ -16,6 +17,7 @@ const dayOf = (value) => new Date(value).toLocaleDateString("en-IN", { weekday: 
 const timeOf = (value) => new Date(value).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
 
 export default function PatientTimeline({ patientId }) {
+  const { t } = useLanguage()
   const [events, setEvents] = useState(null)
   const [error, setError] = useState("")
   const [kind, setKind] = useState("")
@@ -49,14 +51,14 @@ export default function PatientTimeline({ patientId }) {
   if (error) return <Alert tone="danger">{error}</Alert>
   if (events === null) return <SkeletonRows rows={5} />
   if (events.length === 0) {
-    return <EmptyState icon={History} title="No history yet" description="Visits, results and treatment appear here as they are recorded." />
+    return <EmptyState icon={History} title={t("No history yet")} description="Visits, results and treatment appear here as they are recorded." />
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[13px] text-ink-500">{events.length} event(s), newest first</p>
-        <Select aria-label="Show only" className="w-44" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <p className="text-[13px] text-ink-500">{events.length}{" "}{t("event(s), newest first")}</p>
+        <Select aria-label={t("Show only")} className="w-44" value={kind} onChange={(e) => setKind(e.target.value)}>
           <option value="">Everything</option>
           {kinds.map((k) => <option key={k}>{k}</option>)}
         </Select>

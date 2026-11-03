@@ -5,6 +5,7 @@ import api from "../../services/api.js"
 import { Alert, Button, EmptyState, Field, Input, Modal, PrintSheet, PrintedDocument, PrintedFacts, Select, Textarea } from "../ui"
 import { formatPrintDate } from "../../utils/printDate.js"
 import { EMERGENCY_FORM_CODES, ER_ACTIONS, GENERIC_FORM_CODES, patientLink } from "./erActionList.js"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // The 24 emergency row actions of requirement J3 (spec Part 4 §13). The ER is
 // a hub: actions that belong to the ER visit run here, the existing ER
@@ -16,6 +17,7 @@ const IN_CARE = ["Under Consultation", "Investigations", "Treatment", "Observati
 
 
 export default function ErActions({ visit, open, onClose, onOpenDialog, onChanged }) {
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const [panel, setPanel] = useState(null)
   const [error, setError] = useState("")
@@ -93,7 +95,7 @@ export default function ErActions({ visit, open, onClose, onOpenDialog, onChange
         </div>
       ) : (
         <div className="space-y-4">
-          <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={() => setPanel(null)}>All actions</Button>
+          <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={() => setPanel(null)}>{t("All actions")}</Button>
           <ActionPanel id={panel} visit={visit} onDone={done} onError={setError} />
         </div>
       )}
@@ -149,6 +151,7 @@ function useSubmit(onError) {
 }
 
 function NotesPanel({ visit, onDone, onError }) {
+  const { t } = useLanguage()
   const [note, setNote] = useState("")
   const [notes, setNotes] = useState(visit.notes || [])
   const [saving, run] = useSubmit(onError)
@@ -165,10 +168,10 @@ function NotesPanel({ visit, onDone, onError }) {
     <div className="space-y-3">
       <form onSubmit={save} className="space-y-2">
         <Field label="New note" required><Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-        <Button type="submit" loading={saving}>Add note</Button>
+        <Button type="submit" loading={saving}>{t("Add note")}</Button>
       </form>
       {notes.length === 0 ? (
-        <EmptyState compact title="No notes yet" />
+        <EmptyState compact title={t("No notes yet")} />
       ) : (
         <ul className="divide-y divide-line text-sm">
           {notes.map((n) => (
@@ -184,6 +187,7 @@ function NotesPanel({ visit, onDone, onError }) {
 }
 
 function AllergyPanel({ visit, onDone, onError }) {
+  const { t } = useLanguage()
   const [form, setForm] = useState({ name: "", reaction: "", severity: "Moderate" })
   const [allergies, setAllergies] = useState([])
   const [saving, run] = useSubmit(onError)
@@ -202,7 +206,7 @@ function AllergyPanel({ visit, onDone, onError }) {
   return (
     <div className="space-y-3">
       {allergies.length > 0 && (
-        <Alert tone="warning" title="Known allergies">{allergies.map((a) => `${a.name}${a.severity ? ` (${a.severity})` : ""}`).join(", ")}</Alert>
+        <Alert tone="warning" title={t("Known allergies")}>{allergies.map((a) => `${a.name}${a.severity ? ` (${a.severity})` : ""}`).join(", ")}</Alert>
       )}
       <form onSubmit={save} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="Allergen" required><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={150} /></Field>
@@ -212,13 +216,14 @@ function AllergyPanel({ visit, onDone, onError }) {
             {["Mild", "Moderate", "Severe"].map((s) => <option key={s}>{s}</option>)}
           </Select>
         </Field>
-        <Button type="submit" loading={saving} className="sm:col-span-3 sm:justify-self-start">Record allergy</Button>
+        <Button type="submit" loading={saving} className="sm:col-span-3 sm:justify-self-start">{t("Record allergy")}</Button>
       </form>
     </div>
   )
 }
 
 function ResultsPanel({ visit, onError }) {
+  const { t } = useLanguage()
   const [labTests, setLabTests] = useState(null)
   useEffect(() => {
     api.laboratory.tests
@@ -230,16 +235,16 @@ function ResultsPanel({ visit, onError }) {
   return (
     <div className="space-y-3 text-sm">
       <section>
-        <h4 className="font-medium text-ink-800">ER orders</h4>
-        {erResults.length === 0 ? <p className="text-ink-500">No ER order has a result yet.</p> : (
+        <h4 className="font-medium text-ink-800">{t("ER orders")}</h4>
+        {erResults.length === 0 ? <p className="text-ink-500">{t("No ER order has a result yet.")}</p> : (
           <ul className="divide-y divide-line">
             {erResults.map((o) => <li key={o.id} className="py-1.5"><span className="font-medium">{o.description}</span>: {o.result || "Completed"}</li>)}
           </ul>
         )}
       </section>
       <section>
-        <h4 className="font-medium text-ink-800">Laboratory</h4>
-        {labTests === null ? <p className="text-ink-500">Loading…</p> : labTests.length === 0 ? <p className="text-ink-500">No lab tests.</p> : (
+        <h4 className="font-medium text-ink-800">{t("Laboratory")}</h4>
+        {labTests === null ? <p className="text-ink-500">{t("Loading…")}</p> : labTests.length === 0 ? <p className="text-ink-500">{t("No lab tests.")}</p> : (
           <ul className="divide-y divide-line">
             {labTests.map((t) => (
               <li key={t.id} className="py-1.5">
@@ -254,6 +259,7 @@ function ResultsPanel({ visit, onError }) {
 }
 
 function ConsentPanel({ visit, codes, onDone, onError }) {
+  const { t } = useLanguage()
   const [forms, setForms] = useState([])
   const [records, setRecords] = useState([])
   const [form, setForm] = useState({ code: "", signedName: visit.patient_name || "", proxy: false, relationship: "" })
@@ -288,7 +294,7 @@ function ConsentPanel({ visit, codes, onDone, onError }) {
   return (
     <div className="space-y-3">
       {active.length > 0 && (
-        <p className="text-sm text-green-700">Signed: {active.map((r) => `${r.form_name} (${formatPrintDate(r.signed_at)})`).join(", ")}</p>
+        <p className="text-sm text-green-700">{t("Signed:")}{" "}{active.map((r) => `${r.form_name} (${formatPrintDate(r.signed_at)})`).join(", ")}</p>
       )}
       <form onSubmit={sign} className="space-y-3">
         <Field label="Form" required>
@@ -299,16 +305,17 @@ function ConsentPanel({ visit, codes, onDone, onError }) {
         <Field label="Signed by (full name)" required><Input value={form.signedName} onChange={(e) => setForm({ ...form, signedName: e.target.value })} /></Field>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={form.proxy} onChange={(e) => setForm({ ...form, proxy: e.target.checked })} />
-          Signed by a relative or guardian (patient unable to sign)
+          {t("Signed by a relative or guardian (patient unable to sign)")}
         </label>
         {form.proxy && <Field label="Relationship to patient" required><Input value={form.relationship} onChange={(e) => setForm({ ...form, relationship: e.target.value })} /></Field>}
-        <Button type="submit" loading={saving} disabled={!form.code}>Record signed consent</Button>
+        <Button type="submit" loading={saving} disabled={!form.code}>{t("Record signed consent")}</Button>
       </form>
     </div>
   )
 }
 
 function DrugReceivePanel({ visit, onDone, onError }) {
+  const { t } = useLanguage()
   const [meds, setMeds] = useState(visit.medications || [])
   const [saving, run] = useSubmit(onError)
   const pending = meds.filter((m) => !m.administered)
@@ -319,13 +326,13 @@ function DrugReceivePanel({ visit, onDone, onError }) {
       onDone(`${med.name} marked as received and given.`)
     })
   return pending.length === 0 ? (
-    <EmptyState compact title="Nothing waiting" description="Every prescribed ER medicine has been given." />
+    <EmptyState compact title={t("Nothing waiting")} description="Every prescribed ER medicine has been given." />
   ) : (
     <ul className="divide-y divide-line text-sm">
       {pending.map((m) => (
         <li key={m.id} className="flex items-center justify-between gap-3 py-2">
           <span>{m.name} · {m.dose} · {m.route} · {m.frequency}</span>
-          <Button size="sm" loading={saving} onClick={() => give(m)}>Received and given</Button>
+          <Button size="sm" loading={saving} onClick={() => give(m)}>{t("Received and given")}</Button>
         </li>
       ))}
     </ul>
@@ -333,6 +340,7 @@ function DrugReceivePanel({ visit, onDone, onError }) {
 }
 
 function AdmitPanel({ visit, onDone, onError }) {
+  const { t } = useLanguage()
   const [beds, setBeds] = useState(null)
   const [bedId, setBedId] = useState("")
   const [saving, run] = useSubmit(onError)
@@ -346,8 +354,8 @@ function AdmitPanel({ visit, onDone, onError }) {
       onDone(`Admitted to ${result.admission?.bed || "the ward"}.`)
     })
   }
-  if (beds === null) return <p className="text-sm text-ink-500">Loading free beds…</p>
-  if (beds.length === 0) return <EmptyState compact title="No free bed" description="Free a bed in IPD first." />
+  if (beds === null) return <p className="text-sm text-ink-500">{t("Loading free beds…")}</p>
+  if (beds.length === 0) return <EmptyState compact title={t("No free bed")} description="Free a bed in IPD first." />
   return (
     <form onSubmit={admit} className="space-y-3">
       <Field label="Bed" required>
@@ -356,12 +364,13 @@ function AdmitPanel({ visit, onDone, onError }) {
           {beds.map((b) => <option key={b.id} value={b.id}>{b.ward} · Room {b.room} · Bed {b.bed_number}</option>)}
         </Select>
       </Field>
-      <Button type="submit" loading={saving} disabled={!bedId}>Admit to this bed</Button>
+      <Button type="submit" loading={saving} disabled={!bedId}>{t("Admit to this bed")}</Button>
     </form>
   )
 }
 
 function ChargeSlipPanel({ visit, onError, startPrinting = false }) {
+  const { t } = useLanguage()
   const [slip, setSlip] = useState(null)
   const [printing, setPrinting] = useState(false)
   useEffect(() => {
@@ -373,22 +382,22 @@ function ChargeSlipPanel({ visit, onError, startPrinting = false }) {
       })
       .catch((err) => onError(err.message))
   }, [visit.id, startPrinting, onError])
-  if (!slip) return <p className="text-sm text-ink-500">Loading charge slip…</p>
+  if (!slip) return <p className="text-sm text-ink-500">{t("Loading charge slip…")}</p>
   return (
     <div className="space-y-3">
-      {slip.lines.length === 0 ? <EmptyState compact title="Nothing charged yet" /> : (
+      {slip.lines.length === 0 ? <EmptyState compact title={t("Nothing charged yet")} /> : (
         <ul className="divide-y divide-line text-sm">
           {slip.lines.map((line, i) => (
             <li key={i} className="flex justify-between gap-3 py-1.5"><span>{line.kind}: {line.description}</span><span className="text-ink-500">{line.status}</span></li>
           ))}
         </ul>
       )}
-      <Button variant="secondary" icon={Printer} onClick={() => setPrinting(true)}>Bill preview / print</Button>
-      <PrintSheet open={printing} onClose={() => setPrinting(false)} title="ER charge slip">
-        <PrintedDocument hospitalName={slip.hospital_name} title="ER charge slip" reference={slip.visit_number} date={formatPrintDate(slip.arrival_time)}>
+      <Button variant="secondary" icon={Printer} onClick={() => setPrinting(true)}>{t("Bill preview / print")}</Button>
+      <PrintSheet open={printing} onClose={() => setPrinting(false)} title={t("ER charge slip")}>
+        <PrintedDocument hospitalName={slip.hospital_name} title={t("ER charge slip")} reference={slip.visit_number} date={formatPrintDate(slip.arrival_time)}>
           <PrintedFacts rows={[["Patient", slip.patient_name], ["Visit status", slip.status]]} />
           <table className="w-full border-collapse text-left">
-            <thead><tr className="border-b border-black"><th className="py-1">Date</th><th className="py-1">Type</th><th className="py-1">Item</th><th className="py-1">Status</th></tr></thead>
+            <thead><tr className="border-b border-black"><th className="py-1">{t("Date")}</th><th className="py-1">{t("Type")}</th><th className="py-1">{t("Item")}</th><th className="py-1">{t("Status")}</th></tr></thead>
             <tbody>
               {slip.lines.map((line, i) => (
                 <tr key={i} className="border-b border-gray-300">
@@ -397,7 +406,7 @@ function ChargeSlipPanel({ visit, onError, startPrinting = false }) {
               ))}
             </tbody>
           </table>
-          <p className="text-xs">Prices are applied when the bill is made in Billing.</p>
+          <p className="text-xs">{t("Prices are applied when the bill is made in Billing.")}</p>
         </PrintedDocument>
       </PrintSheet>
     </div>
@@ -405,16 +414,17 @@ function ChargeSlipPanel({ visit, onError, startPrinting = false }) {
 }
 
 function DischargeSummaryPanel({ visit }) {
+  const { t } = useLanguage()
   const [printing, setPrinting] = useState(false)
   const finished = ["Discharged", "Referred", "Admitted"].includes(visit.status)
   return (
     <div className="space-y-3 text-sm">
-      {!finished && <Alert tone="info">Use Discharge first; the summary prints the diagnosis and follow-up written there.</Alert>}
-      <Button icon={Printer} disabled={!finished} onClick={() => setPrinting(true)}>Print ER discharge summary</Button>
-      <PrintSheet open={printing} onClose={() => setPrinting(false)} title="ER discharge summary">
+      {!finished && <Alert tone="info">{t("Use Discharge first; the summary prints the diagnosis and follow-up written there.")}</Alert>}
+      <Button icon={Printer} disabled={!finished} onClick={() => setPrinting(true)}>{t("Print ER discharge summary")}</Button>
+      <PrintSheet open={printing} onClose={() => setPrinting(false)} title={t("ER discharge summary")}>
         <PrintedDocument
           hospitalName={visit.hospital_name}
-          title="Emergency discharge summary"
+          title={t("Emergency discharge summary")}
           reference={visit.visit_number}
           date={formatPrintDate(visit.discharge_time)}
           signature={visit.attending_doctor_name}
@@ -429,12 +439,12 @@ function DischargeSummaryPanel({ visit }) {
           ]} />
           {(visit.medications || []).length > 0 && (
             <section>
-              <p className="font-semibold">Medicines in the ER</p>
+              <p className="font-semibold">{t("Medicines in the ER")}</p>
               <ul>{visit.medications.map((m) => <li key={m.id}>{m.name} {m.dose} {m.route}{m.administered ? "" : " (not given)"}</li>)}</ul>
             </section>
           )}
           {visit.follow_up_instructions && (
-            <section><p className="font-semibold">Follow-up</p><p className="whitespace-pre-line">{visit.follow_up_instructions}</p></section>
+            <section><p className="font-semibold">{t("Follow-up")}</p><p className="whitespace-pre-line">{visit.follow_up_instructions}</p></section>
           )}
         </PrintedDocument>
       </PrintSheet>
@@ -443,6 +453,7 @@ function DischargeSummaryPanel({ visit }) {
 }
 
 function CertificatePanel({ visit, onDone, onError }) {
+  const { t } = useLanguage()
   const today = new Date().toISOString().slice(0, 10)
   const [form, setForm] = useState({ kind: "Sick leave", diagnosis: visit.discharge_diagnosis || "", start: today, end: "" })
   const [saving, run] = useSubmit(onError)
@@ -467,7 +478,7 @@ function CertificatePanel({ visit, onDone, onError }) {
         <Field label="From" required><Input type="date" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} /></Field>
         <Field label="To" required={form.kind === "Sick leave"}><Input type="date" min={form.start} value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} /></Field>
       </div>
-      <Button type="submit" loading={saving}>Issue certificate</Button>
+      <Button type="submit" loading={saving}>{t("Issue certificate")}</Button>
     </form>
   )
 }

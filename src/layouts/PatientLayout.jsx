@@ -111,7 +111,7 @@ export default function PatientLayout() {
         href="#patient-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[80] focus:rounded-lg focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
       >
-        Skip to main content
+        {t("Skip to main content")}
       </a>
 
       {/* Desktop sidebar */}

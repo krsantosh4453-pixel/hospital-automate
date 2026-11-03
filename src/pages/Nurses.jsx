@@ -8,8 +8,10 @@ import { useToast } from "../components/Toast.jsx"
 import { Alert, Button, Card, CardHeader, EmptyState, Modal as UiModal, PageHeader as UiPageHeader, Tabs } from "../components/ui"
 import { UserPlus as UserPlusIcon } from "lucide-react"
 import { useConfirm } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Nurses() {
+  const { t } = useLanguage()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
 
@@ -836,8 +838,8 @@ function Nurses() {
   if (!selectedHospital) {
     return (
       <>{confirmDialog}<div className="space-y-5">
-        <UiPageHeader title="Nursing" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Nursing" }]} />
-        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to open the nursing workspace." /></Card>
+        <UiPageHeader title={t("Nursing")} breadcrumbs={[{ label: "Home", to: "/" }, { label: "Nursing" }]} />
+        <Card><EmptyState icon={HospitalIcon} title={t("Select a hospital")} description="Choose a hospital in the header to open the nursing workspace." /></Card>
       </div></>
     )
   }
@@ -849,18 +851,18 @@ function Nurses() {
   return (
     <>{confirmDialog}<div className="space-y-5">
       <UiPageHeader
-        title="Nursing"
+        title={t("Nursing")}
         description={`Ward work for ${selectedHospital.name} · signed in as ${profile.name}`}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Nursing" }]}
-        actions={isAdmin && <Button icon={UserPlusIcon} onClick={() => setShowAddNurse(true)}>Add nurse</Button>}
+        actions={isAdmin && <Button icon={UserPlusIcon} onClick={() => setShowAddNurse(true)}>{t("Add nurse")}</Button>}
       />
 
       {error && (
-        <Alert tone="warning" title="Some ward data did not load" action={<Button size="sm" variant="secondary" onClick={loadData}>Retry</Button>}>
+        <Alert tone="warning" title={t("Some ward data did not load")} action={<Button size="sm" variant="secondary" onClick={loadData}>{t("Retry")}</Button>}>
           {error}
         </Alert>
       )}
-      {loading && <p className="text-sm text-ink-500" role="status">Loading ward data…</p>}
+      {loading && <p className="text-sm text-ink-500" role="status">{t("Loading ward data…")}</p>}
 
       <Tabs tabs={tabs} value={activeTab} onChange={setActiveTab} label="Nursing sections" />
 
@@ -875,7 +877,7 @@ function Nurses() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
 
             <DashboardCard
-              title="Patients"
+              title={t("Patients")}
               value={
                 hospitalPatients.length
               }
@@ -884,7 +886,7 @@ function Nurses() {
             />
 
             <DashboardCard
-              title="Vitals Recorded"
+              title={t("Vitals Recorded")}
               value={
                 hospitalVitals.length
               }
@@ -893,7 +895,7 @@ function Nurses() {
             />
 
             <DashboardCard
-              title="Pending Orders"
+              title={t("Pending Orders")}
               value={
                 hospitalOrders.filter(
                   (item) =>
@@ -906,7 +908,7 @@ function Nurses() {
             />
 
             <DashboardCard
-              title="Pending MAR"
+              title={t("Pending MAR")}
               value={
                 hospitalMAR.filter(
                   (item) =>
@@ -924,7 +926,7 @@ function Nurses() {
 
             {/* Patients */}
             <SectionCard
-              title="Recent Patients"
+              title={t("Recent Patients")}
               subtitle={selectedHospital.name}
             >
 
@@ -963,7 +965,7 @@ function Nurses() {
 
             {/* MAR */}
             <SectionCard
-              title="Medicine Administration"
+              title={t("Medicine Administration")}
               subtitle="Pending medication"
             >
 
@@ -1008,7 +1010,7 @@ function Nurses() {
                         }
                         className="px-3 py-2 rounded-lg bg-green-100 text-green-700 text-sm font-medium hover:bg-green-200"
                       >
-                        Give
+                        {t("Give")}
                       </button>
 
                     </div>
@@ -1031,7 +1033,7 @@ function Nurses() {
       {activeTab === "profile" && (
 
         <SectionCard
-          title="My Profile"
+          title={t("My Profile")}
           subtitle={`Nurse profile — ${selectedHospital.name}`}
         >
 
@@ -1167,7 +1169,7 @@ function Nurses() {
                       onClick={saveProfile}
                       className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium"
                     >
-                      Save Profile
+                      {t("Save Profile")}
                     </button>
 
                     <button
@@ -1176,7 +1178,7 @@ function Nurses() {
                       }
                       className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700"
                     >
-                      Cancel
+                      {t("Cancel")}
                     </button>
 
                   </div>
@@ -1189,7 +1191,7 @@ function Nurses() {
                     }
                     className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium"
                   >
-                    Edit Profile
+                    {t("Edit Profile")}
                   </button>
 
                 )}
@@ -1212,7 +1214,7 @@ function Nurses() {
       {activeTab === "patients" && (
 
         <SectionCard
-          title="Patient List"
+          title={t("Patient List")}
           subtitle={`Patients — ${selectedHospital.name}`}
         >
 
@@ -1226,7 +1228,7 @@ function Nurses() {
                   e.target.value
                 )
               }
-              placeholder="Search patient..."
+              placeholder={t("Search patient...")}
               className="hms-input w-full"
             />
 
@@ -1241,27 +1243,27 @@ function Nurses() {
                 <tr>
 
                   <th className="text-left px-5 py-4">
-                    Patient
+                    {t("Patient")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Department
+                    {t("Department")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Doctor
+                    {t("Doctor")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Ward / Bed
+                    {t("Ward / Bed")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Status
+                    {t("Status")}
                   </th>
 
                   <th className="text-right px-5 py-4">
-                    Action
+                    {t("Action")}
                   </th>
 
                 </tr>
@@ -1286,7 +1288,7 @@ function Nurses() {
 
                         <p className="text-xs text-gray-500">
                           {patient.id} ·{" "}
-                          {patient.age} years
+                          {patient.age}{" "}{t("years")}
                         </p>
 
                       </td>
@@ -1322,7 +1324,7 @@ function Nurses() {
                           }
                           className="text-blue-600 font-medium text-sm"
                         >
-                          Assess
+                          {t("Assess")}
                         </button>
 
                       </td>
@@ -1350,7 +1352,7 @@ function Nurses() {
       {activeTab === "assessment" && (
 
         <SectionCard
-          title="Patient Assessment"
+          title={t("Patient Assessment")}
           subtitle="Nursing assessments"
           action={
             isNurse && (
@@ -1362,7 +1364,7 @@ function Nurses() {
                 }
                 className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
               >
-                + New Assessment
+                {t("+ New Assessment")}
               </button>
             )
           }
@@ -1426,7 +1428,7 @@ function Nurses() {
       {activeTab === "vitals" && (
 
         <SectionCard
-          title="Patient Vitals"
+          title={t("Patient Vitals")}
           subtitle="Record and monitor vital signs"
           action={
             <button
@@ -1435,7 +1437,7 @@ function Nurses() {
               }
               className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
             >
-              + Record Vitals
+              {t("+ Record Vitals")}
             </button>
           }
         >
@@ -1449,31 +1451,31 @@ function Nurses() {
                 <tr>
 
                   <th className="text-left px-5 py-4">
-                    Patient
+                    {t("Patient")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Temperature
+                    {t("Temperature")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    BP
+                    {t("BP")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Pulse
+                    {t("Pulse")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    SpO₂
+                    {t("SpO₂")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Resp.
+                    {t("Resp.")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Time
+                    {t("Time")}
                   </th>
 
                 </tr>
@@ -1548,7 +1550,7 @@ function Nurses() {
       {activeTab === "notes" && (
 
         <SectionCard
-          title="Nursing Notes"
+          title={t("Nursing Notes")}
           subtitle="Patient care notes"
           action={
             <button
@@ -1557,7 +1559,7 @@ function Nurses() {
               }
               className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
             >
-              + Add Note
+              {t("+ Add Note")}
             </button>
           }
         >
@@ -1597,7 +1599,7 @@ function Nurses() {
                     </p>
 
                     <p className="text-xs text-gray-500 mt-2">
-                      By {note.createdBy}
+                      {t("By")}{" "}{note.createdBy}
                     </p>
 
                   </div>
@@ -1619,7 +1621,7 @@ function Nurses() {
       {activeTab === "orders" && (
 
         <SectionCard
-          title="Orders"
+          title={t("Orders")}
           subtitle="Doctor and hospital orders"
         >
 
@@ -1683,7 +1685,7 @@ function Nurses() {
       {activeTab === "mar" && (
 
         <SectionCard
-          title="MAR — Medicine Administration Record"
+          title={t("MAR — Medicine Administration Record")}
           subtitle="Administer medicines according to authorized orders"
         >
 
@@ -1696,31 +1698,31 @@ function Nurses() {
                 <tr>
 
                   <th className="text-left px-5 py-4">
-                    Patient
+                    {t("Patient")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Medicine
+                    {t("Medicine")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Dose
+                    {t("Dose")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Route
+                    {t("Route")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Frequency
+                    {t("Frequency")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Status
+                    {t("Status")}
                   </th>
 
                   <th className="text-right px-5 py-4">
-                    Action
+                    {t("Action")}
                   </th>
 
                 </tr>
@@ -1791,13 +1793,13 @@ function Nurses() {
                               }
                               className="px-3 py-2 rounded-lg bg-green-600 text-white text-sm"
                             >
-                              Give Medicine
+                              {t("Give Medicine")}
                             </button>
 
                           ) : (
 
                             <span className="text-sm text-gray-400">
-                              Completed
+                              {t("Completed")}
                             </span>
 
                           )}
@@ -1827,7 +1829,7 @@ function Nurses() {
       {activeTab === "blood" && (
 
         <SectionCard
-          title="Blood Management"
+          title={t("Blood Management")}
           subtitle="Blood requests for selected hospital"
         >
 
@@ -1840,27 +1842,27 @@ function Nurses() {
                 <tr>
 
                   <th className="text-left px-5 py-4">
-                    Patient
+                    {t("Patient")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Blood Group
+                    {t("Blood Group")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Units
+                    {t("Units")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Urgency
+                    {t("Urgency")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Status
+                    {t("Status")}
                   </th>
 
                   <th className="text-right px-5 py-4">
-                    Action
+                    {t("Action")}
                   </th>
 
                 </tr>
@@ -1927,7 +1929,7 @@ function Nurses() {
                                 }
                                 className="text-blue-600 text-sm font-medium"
                               >
-                                Request
+                                {t("Request")}
                               </button>
 
                             )}
@@ -1957,7 +1959,7 @@ function Nurses() {
       {activeTab === "discharge" && (
 
         <SectionCard
-          title="Discharge"
+          title={t("Discharge")}
           subtitle="Discharge requests for admitted patients"
         >
 
@@ -1993,7 +1995,7 @@ function Nurses() {
                     }
                     className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium"
                   >
-                    Start Discharge
+                    {t("Start Discharge")}
                   </button>
 
                 </div>
@@ -2008,7 +2010,7 @@ function Nurses() {
             <div className="mt-6 pt-6 border-t">
 
               <h3 className="font-semibold text-gray-800 mb-3">
-                Discharge Requests
+                {t("Discharge Requests")}
               </h3>
 
               <div className="space-y-3">
@@ -2057,7 +2059,7 @@ function Nurses() {
       {activeTab === "billing" && (
 
         <SectionCard
-          title="Billing"
+          title={t("Billing")}
           subtitle={`Billing information — ${selectedHospital.name}`}
         >
 
@@ -2133,43 +2135,43 @@ function Nurses() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 
           <ReportCard
-            title="Patients"
+            title={t("Patients")}
             value={reports.patients}
             icon={<UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
-            title="Vitals"
+            title={t("Vitals")}
             value={reports.vitals}
             icon={<HeartPulseIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
-            title="Assessments"
+            title={t("Assessments")}
             value={reports.assessments}
             icon={<StethoscopeIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
-            title="Orders"
+            title={t("Orders")}
             value={reports.orders}
             icon={<ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
-            title="MAR Records"
+            title={t("MAR Records")}
             value={reports.mar}
             icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
-            title="Blood Records"
+            title={t("Blood Records")}
             value={reports.blood}
             icon={<DropletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
 
           <ReportCard
-            title="Billing Records"
+            title={t("Billing Records")}
             value={reports.billing}
             icon={<WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
           />
@@ -2186,7 +2188,7 @@ function Nurses() {
       {showAddNurse && isAdmin && (
 
         <Modal
-          title="Add Nurse"
+          title={t("Add Nurse")}
           subtitle={`Add nurse to ${selectedHospital.name}`}
           onClose={() =>
             setShowAddNurse(false)
@@ -2329,14 +2331,14 @@ function Nurses() {
                 }
                 className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700"
               >
-                Cancel
+                {t("Cancel")}
               </button>
 
               <button
                 type="submit"
                 className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium"
               >
-                Add Nurse
+                {t("Add Nurse")}
               </button>
 
             </div>
@@ -2355,7 +2357,7 @@ function Nurses() {
       {showVitalsForm && (
 
         <Modal
-          title="Record Patient Vitals"
+          title={t("Record Patient Vitals")}
           subtitle={selectedHospital.name}
           onClose={() =>
             setShowVitalsForm(false)
@@ -2458,7 +2460,7 @@ function Nurses() {
               type="submit"
               className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium"
             >
-              Save Vitals
+              {t("Save Vitals")}
             </button>
 
           </form>
@@ -2475,7 +2477,7 @@ function Nurses() {
       {showNoteForm && (
 
         <Modal
-          title="Add Nursing Note"
+          title={t("Add Nursing Note")}
           subtitle={selectedHospital.name}
           onClose={() =>
             setShowNoteForm(false)
@@ -2511,7 +2513,7 @@ function Nurses() {
             <div>
 
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nursing Note
+                {t("Nursing Note")}
               </label>
 
               <textarea
@@ -2523,7 +2525,7 @@ function Nurses() {
                     text: e.target.value,
                   })
                 }
-                placeholder="Enter nursing note..."
+                placeholder={t("Enter nursing note...")}
                 className="hms-input w-full"
               />
 
@@ -2533,7 +2535,7 @@ function Nurses() {
               type="submit"
               className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium"
             >
-              Save Note
+              {t("Save Note")}
             </button>
 
           </form>
@@ -2550,7 +2552,7 @@ function Nurses() {
       {showAssessmentForm && (
 
         <Modal
-          title="New Patient Assessment"
+          title={t("New Patient Assessment")}
           subtitle={selectedHospital.name}
           onClose={() =>
             setShowAssessmentForm(
@@ -2590,7 +2592,7 @@ function Nurses() {
             <div>
 
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Assessment
+                {t("Assessment")}
               </label>
 
               <textarea
@@ -2605,7 +2607,7 @@ function Nurses() {
                       e.target.value,
                   })
                 }
-                placeholder="Enter patient assessment..."
+                placeholder={t("Enter patient assessment...")}
                 className="hms-input w-full"
               />
 
@@ -2615,7 +2617,7 @@ function Nurses() {
               type="submit"
               className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium"
             >
-              Save Assessment
+              {t("Save Assessment")}
             </button>
 
           </form>

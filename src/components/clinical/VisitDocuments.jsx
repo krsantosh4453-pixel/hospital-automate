@@ -17,6 +17,7 @@ import {
 } from "../ui"
 import { formatPrintDate } from "../../utils/printDate.js"
 import { CertificateDocument, ReferralDocument } from "../documents/ClinicalDocuments.jsx"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Medical certificates (D10) and referrals (D11) for the patient of the
 // selected visit. Both are signed on the server by the signed-in doctor.
@@ -31,6 +32,7 @@ const emptyReferral = { target: "internal", doctorId: "", external: "", specialt
 const REFERRAL_STATUSES = ["Pending", "Accepted", "Declined", "Completed"]
 
 export default function VisitDocuments({ visit }) {
+  const { t } = useLanguage()
   const patientId = visit.patientApiId
   const [certificates, setCertificates] = useState([])
   const [referrals, setReferrals] = useState([])
@@ -133,7 +135,7 @@ export default function VisitDocuments({ visit }) {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <Card as="form" onSubmit={issueCertificate}>
-          <CardHeader title="Issue medical certificate" description={`For ${visit.patientName}. Signed by you; cannot be edited later.`} />
+          <CardHeader title={t("Issue medical certificate")} description={`For ${visit.patientName}. Signed by you; cannot be edited later.`} />
           <div className="space-y-4 px-5 py-4">
             <Field label="Type" required>
               <Select value={certificateForm.kind} onChange={setCert("kind")}>
@@ -150,12 +152,12 @@ export default function VisitDocuments({ visit }) {
               </Field>
             </div>
             <Field label="Remarks"><Textarea rows={2} value={certificateForm.remarks} onChange={setCert("remarks")} /></Field>
-            <Button type="submit" icon={FileText} loading={saving === "certificate"} className="w-full justify-center">Issue certificate</Button>
+            <Button type="submit" icon={FileText} loading={saving === "certificate"} className="w-full justify-center">{t("Issue certificate")}</Button>
           </div>
         </Card>
 
         <Card as="form" onSubmit={makeReferral}>
-          <CardHeader title="Refer patient" description="To a colleague here, or to an outside doctor or facility." />
+          <CardHeader title={t("Refer patient")} description="To a colleague here, or to an outside doctor or facility." />
           <div className="space-y-4 px-5 py-4">
             <Field label="Refer to" required>
               <Select value={referralForm.target} onChange={setRef("target")}>
@@ -186,34 +188,34 @@ export default function VisitDocuments({ visit }) {
               </Field>
             </div>
             <Field label="Reason" required><Textarea rows={3} value={referralForm.reason} onChange={setRef("reason")} /></Field>
-            <Button type="submit" icon={Send} loading={saving === "referral"} className="w-full justify-center">Send referral</Button>
+            <Button type="submit" icon={Send} loading={saving === "referral"} className="w-full justify-center">{t("Send referral")}</Button>
           </div>
         </Card>
       </div>
 
       <Card>
-        <CardHeader title="Certificates and referrals" description={`All of ${visit.patientName}'s, newest first`} />
+        <CardHeader title={t("Certificates and referrals")} description={`All of ${visit.patientName}'s, newest first`} />
         <div className="px-5 py-4">
           {loading ? (
             <SkeletonRows rows={3} />
           ) : certificates.length + referrals.length === 0 ? (
-            <EmptyState title="None yet" description="Issued certificates and referrals appear here." />
+            <EmptyState title={t("None yet")} description="Issued certificates and referrals appear here." />
           ) : (
             <ul className="divide-y divide-line">
               {certificates.map((cert) => (
                 <li key={`c${cert.id}`} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
-                    <p className="font-medium text-ink-900">Certificate: {cert.kind}</p>
+                    <p className="font-medium text-ink-900">{t("Certificate:")}{" "}{cert.kind}</p>
                     <p className="text-xs text-ink-500">{formatPrintDate(cert.issued_at)} · {cert.doctor_name}</p>
                   </div>
-                  <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting({ type: "certificate", record: cert })}>Print</Button>
+                  <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting({ type: "certificate", record: cert })}>{t("Print")}</Button>
                 </li>
               ))}
               {referrals.map((ref) => (
                 <li key={`r${ref.id}`} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
                     <p className="font-medium text-ink-900">
-                      Referral to {ref.referred_to_doctor_name || ref.referred_to_external}
+                      {t("Referral to")}{" "}{ref.referred_to_doctor_name || ref.referred_to_external}
                     </p>
                     <p className="text-xs text-ink-500">{formatPrintDate(ref.created_at)} · {ref.urgency} · {ref.referring_doctor_name}</p>
                   </div>
@@ -228,7 +230,7 @@ export default function VisitDocuments({ visit }) {
                     >
                       {REFERRAL_STATUSES.map((status) => <option key={status}>{status}</option>)}
                     </Select>
-                    <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting({ type: "referral", record: ref })}>Print</Button>
+                    <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting({ type: "referral", record: ref })}>{t("Print")}</Button>
                   </div>
                 </li>
               ))}

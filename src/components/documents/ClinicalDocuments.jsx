@@ -1,5 +1,6 @@
 import { PrintedDocument, PrintedFacts } from "../ui"
 import { formatPrintDate } from "../../utils/printDate.js"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Printable layouts for documents a patient takes away. Each takes the row
 // exactly as the API returns it; render them inside <PrintSheet>.
@@ -47,11 +48,12 @@ export function CertificateDocument({ certificate }) {
 
 /** Referral letter (requirement D11). */
 export function ReferralDocument({ referral }) {
+  const { t } = useLanguage()
   return (
     <PrintedDocument
       hospitalName={referral.hospital_name}
       hospitalAddress={referral.hospital_address}
-      title="Referral"
+      title={t("Referral")}
       reference={`REF-${referral.id}`}
       date={formatPrintDate(referral.created_at)}
       signature={referral.referring_doctor_name}
@@ -65,7 +67,7 @@ export function ReferralDocument({ referral }) {
         ]}
       />
       <section>
-        <p className="font-semibold">Reason for referral</p>
+        <p className="font-semibold">{t("Reason for referral")}</p>
         <p className="whitespace-pre-line">{referral.reason}</p>
       </section>
     </PrintedDocument>
@@ -74,13 +76,14 @@ export function ReferralDocument({ referral }) {
 
 /** Patient copy of an invoice with its payments (requirement H7). */
 export function InvoiceDocument({ invoice, hospitalAddress }) {
+  const { t } = useLanguage()
   const items = invoice.items || []
   const payments = invoice.payments || []
   return (
     <PrintedDocument
       hospitalName={invoice.hospital_name}
       hospitalAddress={hospitalAddress}
-      title="Invoice"
+      title={t("Invoice")}
       reference={invoice.invoice_number || invoice.id}
       date={formatPrintDate(invoice.created_at)}
     >
@@ -88,10 +91,10 @@ export function InvoiceDocument({ invoice, hospitalAddress }) {
       <table className="w-full border-collapse text-left">
         <thead>
           <tr className="border-b border-black">
-            <th className="py-1">Description</th>
-            <th className="py-1 text-right">Qty</th>
-            <th className="py-1 text-right">Rate</th>
-            <th className="py-1 text-right">Amount</th>
+            <th className="py-1">{t("Description")}</th>
+            <th className="py-1 text-right">{t("Qty")}</th>
+            <th className="py-1 text-right">{t("Rate")}</th>
+            <th className="py-1 text-right">{t("Amount")}</th>
           </tr>
         </thead>
         <tbody>
@@ -119,7 +122,7 @@ export function InvoiceDocument({ invoice, hospitalAddress }) {
       </div>
       {payments.length > 0 && (
         <section>
-          <p className="font-semibold">Payments</p>
+          <p className="font-semibold">{t("Payments")}</p>
           <ul>
             {payments.map((payment) => (
               <li key={payment.id}>
@@ -137,8 +140,9 @@ export function InvoiceDocument({ invoice, hospitalAddress }) {
 
 /** Released lab result (requirement G3). Unreleased results are never printed. */
 export function LabReportDocument({ test }) {
+  const { t } = useLanguage()
   if (test.status !== "Released") {
-    return <p>This result has not been released by the laboratory yet, so it cannot be printed.</p>
+    return <p>{t("This result has not been released by the laboratory yet, so it cannot be printed.")}</p>
   }
 
   const result = test.lab_result || {}
@@ -149,7 +153,7 @@ export function LabReportDocument({ test }) {
   return (
     <PrintedDocument
       hospitalName={test.hospital_name}
-      title="Laboratory report"
+      title={t("Laboratory report")}
       reference={`LAB-${test.id}`}
       date={formatPrintDate(test.released_at)}
       signature={result.verified_by_name ? `Verified by ${result.verified_by_name}` : "Verified"}
@@ -166,9 +170,9 @@ export function LabReportDocument({ test }) {
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-black">
-              <th className="py-1">Parameter</th>
-              <th className="py-1">Result</th>
-              <th className="py-1">Reference range</th>
+              <th className="py-1">{t("Parameter")}</th>
+              <th className="py-1">{t("Result")}</th>
+              <th className="py-1">{t("Reference range")}</th>
             </tr>
           </thead>
           <tbody>
@@ -194,8 +198,9 @@ export function LabReportDocument({ test }) {
 
 /** Signed radiology report (requirement G4). Unsigned studies are never printed. */
 export function ImagingReportDocument({ study }) {
+  const { t } = useLanguage()
   if (study.status !== "Reported") {
-    return <p>This study has no signed report yet, so it cannot be printed.</p>
+    return <p>{t("This study has no signed report yet, so it cannot be printed.")}</p>
   }
   return (
     <PrintedDocument
@@ -215,11 +220,11 @@ export function ImagingReportDocument({ study }) {
         ]}
       />
       <section>
-        <p className="font-semibold">Findings</p>
+        <p className="font-semibold">{t("Findings")}</p>
         <p className="whitespace-pre-line">{study.findings}</p>
       </section>
       <section>
-        <p className="font-semibold">Impression</p>
+        <p className="font-semibold">{t("Impression")}</p>
         <p className="whitespace-pre-line">{study.impression}</p>
       </section>
     </PrintedDocument>

@@ -6,8 +6,10 @@ import { useToast } from "../components/Toast.jsx"
 import { Alert, Button, Card, CardHeader, EmptyState, Modal as UiModal, PageHeader as UiPageHeader, Tabs } from "../components/ui"
 import { UserPlus as UserPlusIcon } from "lucide-react"
 import { useConfirm } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Compounder() {
+  const { t } = useLanguage()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
 
@@ -733,8 +735,8 @@ function Compounder() {
   if (!selectedHospital) {
     return (
       <>{confirmDialog}<div className="space-y-5">
-        <UiPageHeader title="Compounder" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Compounder" }]} />
-        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to open the compounder workspace." /></Card>
+        <UiPageHeader title={t("Compounder")} breadcrumbs={[{ label: "Home", to: "/" }, { label: "Compounder" }]} />
+        <Card><EmptyState icon={HospitalIcon} title={t("Select a hospital")} description="Choose a hospital in the header to open the compounder workspace." /></Card>
       </div></>
     )
   }
@@ -746,15 +748,14 @@ function Compounder() {
   return (
     <>{confirmDialog}<div className="space-y-5">
       <UiPageHeader
-        title="Compounder"
+        title={t("Compounder")}
         description={`${selectedHospital.name} · signed in as ${profile.name}`}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Compounder" }]}
-        actions={isAdmin && <Button icon={UserPlusIcon} onClick={() => setShowAddCompounder(true)}>Add compounder</Button>}
+        actions={isAdmin && <Button icon={UserPlusIcon} onClick={() => setShowAddCompounder(true)}>{t("Add compounder")}</Button>}
       />
 
-      <Alert tone="warning" title="Most sections here are not saved">
-        The patient, vitals, notes, orders and medicine sections on this page are not connected to the hospital record yet. Record vitals and
-        notes on the Nursing page, dispense from Pharmacy, and view prescriptions on the Prescriptions page.
+      <Alert tone="warning" title={t("Most sections here are not saved")}>
+        {t("The patient, vitals, notes, orders and medicine sections on this page are not connected to the hospital record yet. Record vitals and notes on the Nursing page, dispense from Pharmacy, and view prescriptions on the Prescriptions page.")}
       </Alert>
 
       <Tabs tabs={tabs} value={activeTab} onChange={setActiveTab} label="Compounder sections" />
@@ -770,7 +771,7 @@ function Compounder() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
 
             <DashboardCard
-              title="Patients"
+              title={t("Patients")}
               value={
                 hospitalPatients.length
               }
@@ -779,7 +780,7 @@ function Compounder() {
             />
 
             <DashboardCard
-              title="Medicines"
+              title={t("Medicines")}
               value={
                 hospitalMedicines.length
               }
@@ -788,7 +789,7 @@ function Compounder() {
             />
 
             <DashboardCard
-              title="Pending Orders"
+              title={t("Pending Orders")}
               value={
                 hospitalOrders.filter(
                   (item) =>
@@ -801,7 +802,7 @@ function Compounder() {
             />
 
             <DashboardCard
-              title="Blood Requests"
+              title={t("Blood Requests")}
               value={
                 hospitalBlood.length
               }
@@ -815,7 +816,7 @@ function Compounder() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
             <SectionCard
-              title="Recent Patients"
+              title={t("Recent Patients")}
               subtitle={selectedHospital.name}
             >
 
@@ -853,7 +854,7 @@ function Compounder() {
 
 
             <SectionCard
-              title="Pending Medicines"
+              title={t("Pending Medicines")}
               subtitle="Medicine administration"
             >
 
@@ -899,7 +900,7 @@ function Compounder() {
                         }
                         className="px-3 py-2 rounded-lg bg-green-100 text-green-700 text-sm font-medium"
                       >
-                        Give
+                        {t("Give")}
                       </button>
 
                     </div>
@@ -922,7 +923,7 @@ function Compounder() {
       {activeTab === "profile" && (
 
         <SectionCard
-          title="My Profile"
+          title={t("My Profile")}
           subtitle={`Compounder profile — ${selectedHospital.name}`}
         >
 
@@ -1062,7 +1063,7 @@ function Compounder() {
                       onClick={saveProfile}
                       className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium"
                     >
-                      Save Profile
+                      {t("Save Profile")}
                     </button>
 
                     <button
@@ -1073,7 +1074,7 @@ function Compounder() {
                       }
                       className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700"
                     >
-                      Cancel
+                      {t("Cancel")}
                     </button>
 
                   </div>
@@ -1088,7 +1089,7 @@ function Compounder() {
                     }
                     className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium"
                   >
-                    Edit Profile
+                    {t("Edit Profile")}
                   </button>
 
                 )}
@@ -1111,7 +1112,7 @@ function Compounder() {
       {activeTab === "patients" && (
 
         <SectionCard
-          title="Patient List"
+          title={t("Patient List")}
           subtitle={`Patients — ${selectedHospital.name}`}
         >
 
@@ -1123,7 +1124,7 @@ function Compounder() {
                 e.target.value
               )
             }
-            placeholder="Search patient..."
+            placeholder={t("Search patient...")}
             className="hms-input w-full mb-5"
           />
 
@@ -1136,23 +1137,23 @@ function Compounder() {
                 <tr>
 
                   <th className="text-left px-5 py-4">
-                    Patient
+                    {t("Patient")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Department
+                    {t("Department")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Doctor
+                    {t("Doctor")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Ward / Bed
+                    {t("Ward / Bed")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Status
+                    {t("Status")}
                   </th>
 
                 </tr>
@@ -1177,7 +1178,7 @@ function Compounder() {
 
                         <p className="text-xs text-gray-500">
                           {patient.id} ·{" "}
-                          {patient.age} years
+                          {patient.age}{" "}{t("years")}
                         </p>
 
                       </td>
@@ -1226,7 +1227,7 @@ function Compounder() {
       {activeTab === "assessment" && (
 
         <SectionCard
-          title="Patient Assessment"
+          title={t("Patient Assessment")}
           subtitle="Assessment records"
           action={
             <button
@@ -1237,7 +1238,7 @@ function Compounder() {
               }
               className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
             >
-              + New Assessment
+              {t("+ New Assessment")}
             </button>
           }
         >
@@ -1292,7 +1293,7 @@ function Compounder() {
       {activeTab === "vitals" && (
 
         <SectionCard
-          title="Patient Vitals"
+          title={t("Patient Vitals")}
           subtitle="Record vital signs"
           action={
             <button
@@ -1301,7 +1302,7 @@ function Compounder() {
               }
               className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
             >
-              + Record Vitals
+              {t("+ Record Vitals")}
             </button>
           }
         >
@@ -1315,27 +1316,27 @@ function Compounder() {
                 <tr>
 
                   <th className="text-left px-5 py-4">
-                    Patient
+                    {t("Patient")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Temperature
+                    {t("Temperature")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    BP
+                    {t("BP")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Pulse
+                    {t("Pulse")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    SpO₂
+                    {t("SpO₂")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Time
+                    {t("Time")}
                   </th>
 
                 </tr>
@@ -1406,7 +1407,7 @@ function Compounder() {
       {activeTab === "notes" && (
 
         <SectionCard
-          title="Notes"
+          title={t("Notes")}
           subtitle="Patient care notes"
           action={
             <button
@@ -1415,7 +1416,7 @@ function Compounder() {
               }
               className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
             >
-              + Add Note
+              {t("+ Add Note")}
             </button>
           }
         >
@@ -1455,7 +1456,7 @@ function Compounder() {
                     </p>
 
                     <p className="text-xs text-gray-500 mt-2">
-                      By {note.createdBy}
+                      {t("By")}{" "}{note.createdBy}
                     </p>
 
                   </div>
@@ -1477,7 +1478,7 @@ function Compounder() {
       {activeTab === "orders" && (
 
         <SectionCard
-          title="Orders"
+          title={t("Orders")}
           subtitle="Doctor and hospital orders"
         >
 
@@ -1541,7 +1542,7 @@ function Compounder() {
       {activeTab === "mar" && (
 
         <SectionCard
-          title="Medicine / MAR"
+          title={t("Medicine / MAR")}
           subtitle="Medicine administration records"
         >
 
@@ -1554,31 +1555,31 @@ function Compounder() {
                 <tr>
 
                   <th className="text-left px-5 py-4">
-                    Patient
+                    {t("Patient")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Medicine
+                    {t("Medicine")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Dose
+                    {t("Dose")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Route
+                    {t("Route")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Frequency
+                    {t("Frequency")}
                   </th>
 
                   <th className="text-left px-5 py-4">
-                    Status
+                    {t("Status")}
                   </th>
 
                   <th className="text-right px-5 py-4">
-                    Action
+                    {t("Action")}
                   </th>
 
                 </tr>
@@ -1649,13 +1650,13 @@ function Compounder() {
                               }
                               className="px-3 py-2 rounded-lg bg-green-600 text-white text-sm"
                             >
-                              Give
+                              {t("Give")}
                             </button>
 
                           ) : (
 
                             <span className="text-sm text-gray-400">
-                              Given
+                              {t("Given")}
                             </span>
 
                           )}
@@ -1685,7 +1686,7 @@ function Compounder() {
       {activeTab === "blood" && (
 
         <SectionCard
-          title="Blood Management"
+          title={t("Blood Management")}
           subtitle={`Blood records — ${selectedHospital.name}`}
         >
 
@@ -1715,7 +1716,7 @@ function Compounder() {
 
                       <p className="text-sm text-gray-500">
                         {item.bloodGroup} ·{" "}
-                        {item.units} unit(s)
+                        {item.units}{" "}{t("unit(s)")}
                       </p>
 
                     </div>
@@ -1740,7 +1741,7 @@ function Compounder() {
                         }
                         className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm"
                       >
-                        Request
+                        {t("Request")}
                       </button>
 
                     </div>
@@ -1764,7 +1765,7 @@ function Compounder() {
       {activeTab === "discharge" && (
 
         <SectionCard
-          title="Discharge"
+          title={t("Discharge")}
           subtitle="Patient discharge requests"
         >
 
@@ -1800,7 +1801,7 @@ function Compounder() {
                     }
                     className="px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-medium"
                   >
-                    Start Discharge
+                    {t("Start Discharge")}
                   </button>
 
                 </div>
@@ -1822,7 +1823,7 @@ function Compounder() {
       {activeTab === "billing" && (
 
         <SectionCard
-          title="Billing"
+          title={t("Billing")}
           subtitle={`Billing — ${selectedHospital.name}`}
         >
 
@@ -1898,7 +1899,7 @@ function Compounder() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 
           <ReportCard
-            title="Patients"
+            title={t("Patients")}
             value={
               hospitalPatients.length
             }
@@ -1906,7 +1907,7 @@ function Compounder() {
           />
 
           <ReportCard
-            title="Vitals"
+            title={t("Vitals")}
             value={
               hospitalVitals.length
             }
@@ -1914,7 +1915,7 @@ function Compounder() {
           />
 
           <ReportCard
-            title="Assessments"
+            title={t("Assessments")}
             value={
               hospitalAssessments.length
             }
@@ -1922,7 +1923,7 @@ function Compounder() {
           />
 
           <ReportCard
-            title="Notes"
+            title={t("Notes")}
             value={
               hospitalNotes.length
             }
@@ -1930,7 +1931,7 @@ function Compounder() {
           />
 
           <ReportCard
-            title="Orders"
+            title={t("Orders")}
             value={
               hospitalOrders.length
             }
@@ -1938,7 +1939,7 @@ function Compounder() {
           />
 
           <ReportCard
-            title="Medicines"
+            title={t("Medicines")}
             value={
               hospitalMedicines.length
             }
@@ -1946,7 +1947,7 @@ function Compounder() {
           />
 
           <ReportCard
-            title="Blood"
+            title={t("Blood")}
             value={
               hospitalBlood.length
             }
@@ -1954,7 +1955,7 @@ function Compounder() {
           />
 
           <ReportCard
-            title="Billing"
+            title={t("Billing")}
             value={
               hospitalBilling.length
             }
@@ -1973,7 +1974,7 @@ function Compounder() {
       {showAddCompounder && isAdmin && (
 
         <Modal
-          title="Add Compounder"
+          title={t("Add Compounder")}
           subtitle={`Add to ${selectedHospital.name}`}
           onClose={() =>
             setShowAddCompounder(
@@ -2133,14 +2134,14 @@ function Compounder() {
                 }
                 className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700"
               >
-                Cancel
+                {t("Cancel")}
               </button>
 
               <button
                 type="submit"
                 className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium"
               >
-                Add Compounder
+                {t("Add Compounder")}
               </button>
 
             </div>
@@ -2159,7 +2160,7 @@ function Compounder() {
       {showVitalsForm && (
 
         <Modal
-          title="Record Vitals"
+          title={t("Record Vitals")}
           subtitle={selectedHospital.name}
           onClose={() =>
             setShowVitalsForm(false)
@@ -2262,7 +2263,7 @@ function Compounder() {
               type="submit"
               className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium"
             >
-              Save Vitals
+              {t("Save Vitals")}
             </button>
 
           </form>
@@ -2279,7 +2280,7 @@ function Compounder() {
       {showNoteForm && (
 
         <Modal
-          title="Add Note"
+          title={t("Add Note")}
           subtitle={selectedHospital.name}
           onClose={() =>
             setShowNoteForm(false)
@@ -2315,7 +2316,7 @@ function Compounder() {
             <div>
 
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Note
+                {t("Note")}
               </label>
 
               <textarea
@@ -2327,7 +2328,7 @@ function Compounder() {
                     text: e.target.value,
                   })
                 }
-                placeholder="Enter note..."
+                placeholder={t("Enter note...")}
                 className="hms-input w-full"
               />
 
@@ -2337,7 +2338,7 @@ function Compounder() {
               type="submit"
               className="w-full bg-blue-600 text-white py-3 rounded-xl"
             >
-              Save Note
+              {t("Save Note")}
             </button>
 
           </form>
@@ -2354,7 +2355,7 @@ function Compounder() {
       {showAssessmentForm && (
 
         <Modal
-          title="New Assessment"
+          title={t("New Assessment")}
           subtitle={selectedHospital.name}
           onClose={() =>
             setShowAssessmentForm(
@@ -2394,7 +2395,7 @@ function Compounder() {
             <div>
 
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Assessment
+                {t("Assessment")}
               </label>
 
               <textarea
@@ -2409,7 +2410,7 @@ function Compounder() {
                       e.target.value,
                   })
                 }
-                placeholder="Enter assessment..."
+                placeholder={t("Enter assessment...")}
                 className="hms-input w-full"
               />
 
@@ -2419,7 +2420,7 @@ function Compounder() {
               type="submit"
               className="w-full bg-blue-600 text-white py-3 rounded-xl"
             >
-              Save Assessment
+              {t("Save Assessment")}
             </button>
 
           </form>

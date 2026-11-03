@@ -16,6 +16,7 @@ import {
   Textarea,
 } from "../ui"
 import { formatPrintDate } from "../../utils/printDate.js"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Vaccination register (D15) for the patient of the selected visit.
 // Doses can be corrected (audited on the server) but not deleted.
@@ -75,6 +76,7 @@ const dueStatus = (nextDueOn) => {
 }
 
 export default function VisitImmunizations({ visit }) {
+  const { t } = useLanguage()
   const patientId = visit.patientApiId
   const [doses, setDoses] = useState([])
   const [loading, setLoading] = useState(true)
@@ -156,7 +158,7 @@ export default function VisitImmunizations({ visit }) {
             description={editingId ? "Corrections are kept in the audit log." : `For ${visit.patientName}.`}
           />
           <div className="space-y-4 px-5 py-4">
-            <Field label="Vaccine" required><Input value={form.vaccine} onChange={set("vaccine")} maxLength={150} placeholder="e.g. Hepatitis B" /></Field>
+            <Field label="Vaccine" required><Input value={form.vaccine} onChange={set("vaccine")} maxLength={150} placeholder={t("e.g. Hepatitis B")} /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Dose no." required><Input type="number" min="1" inputMode="numeric" value={form.doseNumber} onChange={set("doseNumber")} /></Field>
               <Field label="Given on" required><Input type="date" max={today()} value={form.administeredOn} onChange={set("administeredOn")} /></Field>
@@ -165,7 +167,7 @@ export default function VisitImmunizations({ visit }) {
                   {ROUTES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </Select>
               </Field>
-              <Field label="Site"><Input value={form.site} onChange={set("site")} maxLength={60} placeholder="e.g. Left deltoid" /></Field>
+              <Field label="Site"><Input value={form.site} onChange={set("site")} maxLength={60} placeholder={t("e.g. Left deltoid")} /></Field>
               <Field label="Batch no."><Input value={form.batchNumber} onChange={set("batchNumber")} maxLength={60} /></Field>
               <Field label="Manufacturer"><Input value={form.manufacturer} onChange={set("manufacturer")} maxLength={120} /></Field>
             </div>
@@ -175,29 +177,29 @@ export default function VisitImmunizations({ visit }) {
               <Button type="submit" icon={Syringe} loading={saving} className="flex-1 justify-center">
                 {editingId ? "Save correction" : "Record dose"}
               </Button>
-              {editingId && <Button type="button" variant="secondary" onClick={reset}>Cancel</Button>}
+              {editingId && <Button type="button" variant="secondary" onClick={reset}>{t("Cancel")}</Button>}
             </div>
           </div>
         </Card>
 
         <Card className="overflow-hidden">
-          <CardHeader title="Vaccination history" description={`All of ${visit.patientName}'s doses, newest first`} />
+          <CardHeader title={t("Vaccination history")} description={`All of ${visit.patientName}'s doses, newest first`} />
           {loading ? (
             <div className="px-5 py-4"><SkeletonRows rows={3} /></div>
           ) : doses.length === 0 ? (
-            <EmptyState compact icon={Syringe} title="No vaccinations recorded yet" />
+            <EmptyState compact icon={Syringe} title={t("No vaccinations recorded yet")} />
           ) : (
             <TableWrap>
               <table className="hms-table">
                 <thead>
                   <tr>
-                    <th scope="col">Given</th>
-                    <th scope="col">Vaccine</th>
-                    <th scope="col" className="num">Dose</th>
-                    <th scope="col">Route / site</th>
-                    <th scope="col">Batch</th>
-                    <th scope="col">Next due</th>
-                    <th scope="col"><span className="sr-only">Actions</span></th>
+                    <th scope="col">{t("Given")}</th>
+                    <th scope="col">{t("Vaccine")}</th>
+                    <th scope="col" className="num">{t("Dose")}</th>
+                    <th scope="col">{t("Route / site")}</th>
+                    <th scope="col">{t("Batch")}</th>
+                    <th scope="col">{t("Next due")}</th>
+                    <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -217,7 +219,7 @@ export default function VisitImmunizations({ visit }) {
                         ) : "—"}
                       </td>
                       <td className="text-right">
-                        <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => edit(dose)} aria-label={`Correct ${dose.vaccine} dose ${dose.dose_number}`} title="Correct" />
+                        <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => edit(dose)} aria-label={`Correct ${dose.vaccine} dose ${dose.dose_number}`} title={t("Correct")} />
                       </td>
                     </tr>
                   ))}

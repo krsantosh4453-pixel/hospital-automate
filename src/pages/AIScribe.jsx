@@ -573,7 +573,7 @@ function AIScribe() {
         <div className="mb-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
           <div className="flex items-center justify-between">
             <label className="text-sm font-semibold text-slate-700">{label}</label>
-            <span className="text-xs text-slate-400">Not extracted</span>
+            <span className="text-xs text-slate-400">{t("Not extracted")}</span>
           </div>
         </div>
       )
@@ -590,7 +590,7 @@ function AIScribe() {
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-semibold text-slate-700">{label}</label>
           <div className="flex items-center gap-2">
-            {isEdited && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">Edited by Doctor</span>}
+            {isEdited && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">{t("Edited by Doctor")}</span>}
             <select
               value={sectionReviews.length > 0 ? sectionReviews[sectionReviews.length - 1].action : "viewed"}
               onChange={(e) => handleReviewAction(e.target.value, sectionKey, value, displayValue, "")}
@@ -606,7 +606,7 @@ function AIScribe() {
         <div className="text-sm text-slate-700">{formattedValue}</div>
         {isEdited && (
           <div className="mt-2 text-xs text-amber-600">
-            Original AI: {Array.isArray(value) ? value.join(", ") : JSON.stringify(value)}
+            {t("Original AI:")}{" "}{Array.isArray(value) ? value.join(", ") : JSON.stringify(value)}
           </div>
         )}
       </div>
@@ -624,7 +624,7 @@ function AIScribe() {
   return (
     <>{confirmDialog}{promptDialog}<div className="space-y-5">
       <PageHeader
-        title="AI scribe"
+        title={t("AI scribe")}
         description="Record a consultation, transcribe it and review the AI draft. Nothing enters the medical record until a doctor approves it."
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "AI scribe" }]}
       />
@@ -636,7 +636,7 @@ function AIScribe() {
       ))}
 
       {!selectedHospital && (
-        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to start." /></Card>
+        <Card><EmptyState icon={HospitalIcon} title={t("Select a hospital")} description="Choose a hospital in the header to start." /></Card>
       )}
 
       {selectedHospital && (
@@ -644,7 +644,7 @@ function AIScribe() {
           <div className="flex flex-col md:flex-row md:items-end gap-4">
             <div className="flex-1">
               <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
-                Select Visit
+                {t("Select Visit")}
               </label>
               <select
                 value={selectedVisitId}
@@ -666,10 +666,10 @@ function AIScribe() {
 
           {selectedVisit && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-              <div><p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Patient</p><p className="text-sm text-slate-700 mt-1">{selectedVisit.patientName}</p></div>
-              <div><p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Doctor</p><p className="text-sm text-slate-700 mt-1">{selectedVisit.doctorName}</p></div>
-              <div><p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Visit Type</p><p className="text-sm text-slate-700 mt-1">{selectedVisit.visitType}</p></div>
-              <div><p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Visit Date</p><p className="text-sm text-slate-700 mt-1">{formatDateTime(selectedVisit.visitDate)}</p></div>
+              <div><p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("Patient")}</p><p className="text-sm text-slate-700 mt-1">{selectedVisit.patientName}</p></div>
+              <div><p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("Doctor")}</p><p className="text-sm text-slate-700 mt-1">{selectedVisit.doctorName}</p></div>
+              <div><p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("Visit Type")}</p><p className="text-sm text-slate-700 mt-1">{selectedVisit.visitType}</p></div>
+              <div><p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("Visit Date")}</p><p className="text-sm text-slate-700 mt-1">{formatDateTime(selectedVisit.visitDate)}</p></div>
             </div>
           )}
         </div>
@@ -682,7 +682,7 @@ function AIScribe() {
           {/* RECORDING TAB */}
           {activeTab === "recording" && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
-              <h2 className="text-xl font-semibold text-slate-800">Audio Recording</h2>
+              <h2 className="text-xl font-semibold text-slate-800">{t("Audio Recording")}</h2>
 
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="flex items-center justify-between">
@@ -697,14 +697,14 @@ function AIScribe() {
                         disabled={loadingSession}
                         className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-lg font-medium transition cursor-pointer disabled:bg-red-300"
                       >
-                        <MicIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Start Recording
+                        <MicIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Start Recording")}
                       </button>
                     ) : (
                       <button
                         onClick={handleStopRecording}
                         className="px-6 py-3 rounded-xl bg-slate-600 hover:bg-slate-700 text-white text-lg font-medium transition cursor-pointer"
                       >
-                        <SquareIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Stop Recording
+                        <SquareIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Stop Recording")}
                       </button>
                     )}
                   </div>
@@ -713,13 +713,13 @@ function AIScribe() {
 
               {audioBlob && (
                 <div className="p-4 rounded-xl bg-green-50 border border-green-200">
-                  <p className="text-sm text-green-700">Audio recorded ({formatTime(recordingTime)}). Ready to upload.</p>
+                  <p className="text-sm text-green-700">{t("Audio recorded (")}{formatTime(recordingTime)}{t("). Ready to upload.")}</p>
                 </div>
               )}
 
               {session.status === "completed" && (
                 <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
-                  <p className="text-sm text-blue-700">Recording completed. Proceed to Transcript tab.</p>
+                  <p className="text-sm text-blue-700">{t("Recording completed. Proceed to Transcript tab.")}</p>
                 </div>
               )}
             </div>
@@ -728,13 +728,13 @@ function AIScribe() {
           {/* TRANSCRIPT TAB */}
           {activeTab === "transcript" && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
-              <h2 className="text-xl font-semibold text-slate-800">Transcript</h2>
+              <h2 className="text-xl font-semibold text-slate-800">{t("Transcript")}</h2>
 
               {!transcript && (
                 <div className="text-center py-12">
-                  <p className="text-slate-500">No transcript available. Click &quot;Transcribe&quot; to generate.</p>
+                  <p className="text-slate-500">{t("No transcript available. Click \"Transcribe\" to generate.")}</p>
                   <div className="mt-4 flex items-center justify-center gap-2">
-                    <label htmlFor="spoken-language" className="text-sm font-medium text-slate-700">Spoken language</label>
+                    <label htmlFor="spoken-language" className="text-sm font-medium text-slate-700">{t("Spoken language")}</label>
                     <select
                       id="spoken-language"
                       value={spokenLanguage}
@@ -761,9 +761,9 @@ function AIScribe() {
                 <>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200">
                     <div>
-                      <p className="text-sm text-slate-500">Status: <span className="font-medium capitalize">{transcript.status}</span></p>
-                      <p className="text-sm text-slate-500">Provider: {transcript.provider} ({transcript.providerModel})</p>
-                      {transcript.detectedLanguage && <p className="text-sm text-slate-500">Language: {transcript.detectedLanguage} ({transcript.languageConfidence ? Math.round(transcript.languageConfidence * 100) + "%" : "N/A"})</p>}
+                      <p className="text-sm text-slate-500">{t("Status:")}{" "}<span className="font-medium capitalize">{transcript.status}</span></p>
+                      <p className="text-sm text-slate-500">{t("Provider:")}{" "}{transcript.provider} ({transcript.providerModel})</p>
+                      {transcript.detectedLanguage && <p className="text-sm text-slate-500">{t("Language:")}{" "}{transcript.detectedLanguage} ({transcript.languageConfidence ? Math.round(transcript.languageConfidence * 100) + "%" : "N/A"})</p>}
                     </div>
                     {transcript.status !== "completed" && (
                       <button
@@ -788,7 +788,7 @@ function AIScribe() {
           {activeTab === "draft" && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-slate-800">AI Clinical Draft</h2>
+                <h2 className="text-xl font-semibold text-slate-800">{t("AI Clinical Draft")}</h2>
                 {selectedDraft && selectedDraft.status !== "approved" && (
                   <div className="flex gap-2">
                     <button
@@ -796,7 +796,7 @@ function AIScribe() {
                       disabled={loadingDrafts}
                       className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition cursor-pointer disabled:bg-slate-100"
                     >
-                      <RefreshCwIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Regenerate
+                      <RefreshCwIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Regenerate")}
                     </button>
                     {selectedDraft.status === "generated" && (
                       <button
@@ -813,7 +813,7 @@ function AIScribe() {
 
               {drafts.length === 0 && (
                 <div className="text-center py-12">
-                  <p className="text-slate-500">No drafts yet. Generate a draft from the transcript.</p>
+                  <p className="text-slate-500">{t("No drafts yet. Generate a draft from the transcript.")}</p>
                 </div>
               )}
 
@@ -832,7 +832,7 @@ function AIScribe() {
                       <div>
                         <p className="text-sm font-semibold">{t(selectedDraft.reviewLabel)}</p>
                         {selectedDraft.status !== "approved" && (
-                          <p className="text-xs opacity-90">Generated by AI. Check every section against the consultation; it is not part of the medical record until a linked doctor approves it.</p>
+                          <p className="text-xs opacity-90">{t("Generated by AI. Check every section against the consultation; it is not part of the medical record until a linked doctor approves it.")}</p>
                         )}
                       </div>
                     </div>
@@ -840,15 +840,15 @@ function AIScribe() {
                       <span className={`px-3 py-1 rounded-full ${selectedDraft.status === "approved" ? "bg-emerald-100 text-emerald-700" : selectedDraft.status === "under_review" ? "bg-blue-100 text-blue-700" : selectedDraft.status === "edited" ? "bg-amber-100 text-amber-700" : selectedDraft.status === "rejected" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"}`}>
                         {selectedDraft.status.replace("_", " ").toUpperCase()}
                       </span>
-                      <span>Version: {selectedDraft.version}</span>
-                      <span>Provider: {selectedDraft.provider} ({selectedDraft.providerModel})</span>
-                      <span>Prompt: {selectedDraft.promptVersion}</span>
+                      <span>{t("Version:")}{" "}{selectedDraft.version}</span>
+                      <span>{t("Provider:")}{" "}{selectedDraft.provider} ({selectedDraft.providerModel})</span>
+                      <span>{t("Prompt:")}{" "}{selectedDraft.promptVersion}</span>
                     </div>
                   </div>
 
                   {selectedDraft.summary && (
                     <div className="mb-6 p-4 rounded-xl bg-blue-50 border border-blue-200">
-                      <h3 className="font-semibold text-blue-800 mb-2">AI Summary</h3>
+                      <h3 className="font-semibold text-blue-800 mb-2">{t("AI Summary")}</h3>
                       <p className="text-blue-700">{selectedDraft.summary}</p>
                     </div>
                   )}
@@ -863,13 +863,13 @@ function AIScribe() {
                         onClick={handleApproveDraft}
                         className="flex-1 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium cursor-pointer"
                       >
-                        <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Approve & Create Clinical Note
+                        <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Approve & Create Clinical Note")}
                       </button>
                       <button
                         onClick={handleRejectDraft}
                         className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium cursor-pointer"
                       >
-                        <CircleXIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Reject
+                        <CircleXIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Reject")}
                       </button>
                     </div>
                   )}
@@ -881,10 +881,10 @@ function AIScribe() {
           {/* REVIEW TAB */}
           {activeTab === "review" && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
-              <h2 className="text-xl font-semibold text-slate-800">Review History</h2>
+              <h2 className="text-xl font-semibold text-slate-800">{t("Review History")}</h2>
 
               {reviews.length === 0 ? (
-                <p className="text-slate-500 text-center py-8">No review actions recorded yet.</p>
+                <p className="text-slate-500 text-center py-8">{t("No review actions recorded yet.")}</p>
               ) : (
                 <div className="space-y-3">
                   {reviews.map((review) => (
@@ -896,9 +896,9 @@ function AIScribe() {
                               {review.action.replace("_", " ").toUpperCase()}
                             </span>
                             {review.section && (
-                              <span className="text-slate-600">Section: <strong>{SECTION_LABELS[review.section] || review.section}</strong></span>
+                              <span className="text-slate-600">{t("Section:")}{" "}<strong>{SECTION_LABELS[review.section] || review.section}</strong></span>
                             )}
-                            <span className="text-slate-400">by {review.doctorName || "Unknown"}</span>
+                            <span className="text-slate-400">{t("by")}{" "}{review.doctorName || "Unknown"}</span>
                             <span className="text-slate-400">{formatDateTime(review.createdAt)}</span>
                           </div>
                           {review.notes && <p className="mt-2 text-sm text-slate-600">{review.notes}</p>}
@@ -906,8 +906,8 @@ function AIScribe() {
                       </div>
                       {(review.action === "edited_section" || review.action === "rejected_section") && (
                         <div className="mt-3 p-3 bg-white rounded-lg border border-slate-200 text-xs">
-                          <p className="text-amber-700"><strong>AI Value:</strong> {JSON.stringify(review.aiValue)}</p>
-                          {review.doctorValue && <p className="text-emerald-700"><strong>Doctor Value:</strong> {JSON.stringify(review.doctorValue)}</p>}
+                          <p className="text-amber-700"><strong>{t("AI Value:")}</strong> {JSON.stringify(review.aiValue)}</p>
+                          {review.doctorValue && <p className="text-emerald-700"><strong>{t("Doctor Value:")}</strong> {JSON.stringify(review.doctorValue)}</p>}
                         </div>
                       )}
                     </div>
@@ -920,7 +920,7 @@ function AIScribe() {
       )}
 
       {!selectedVisitId && selectedHospital && visits.length === 0 && (
-        <Card><EmptyState compact title="No visits yet" description="A visit is created when a patient is issued a queue token." /></Card>
+        <Card><EmptyState compact title={t("No visits yet")} description="A visit is created when a patient is issued a queue token." /></Card>
       )}
     </div></>
   )

@@ -23,6 +23,7 @@ import {
   Tabs,
   Textarea,
 } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 
@@ -60,6 +61,7 @@ function TriageBadge({ level }) {
 }
 
 function Emergency() {
+  const { t } = useLanguage()
   // Doctors and nurses register visits; a Hospital Manager only views them.
   const { canAdd } = useRole()
   const toast = useToast()
@@ -243,14 +245,14 @@ function Emergency() {
 
   const header = (
     <PageHeader
-      title="Emergency"
+      title={t("Emergency")}
       description={selectedHospital ? `ER board for ${selectedHospital.name}, sorted by triage priority.` : undefined}
       breadcrumbs={[{ label: "Home", to: "/" }, { label: "Emergency" }]}
       actions={
         selectedHospital && (
           <>
-            <Button variant="secondary" icon={RefreshCw} onClick={fetchData} disabled={loading}>Refresh</Button>
-            {canAdd("Emergency") && <Button variant="danger" icon={Plus} onClick={() => open("registration")}>New ER visit</Button>}
+            <Button variant="secondary" icon={RefreshCw} onClick={fetchData} disabled={loading}>{t("Refresh")}</Button>
+            {canAdd("Emergency") && <Button variant="danger" icon={Plus} onClick={() => open("registration")}>{t("New ER visit")}</Button>}
           </>
         )
       }
@@ -261,7 +263,7 @@ function Emergency() {
     return (
       <div className="space-y-5">
         {header}
-        <Card><EmptyState icon={Ambulance} title="Select a hospital" description="Choose a hospital in the header to open its ER board." /></Card>
+        <Card><EmptyState icon={Ambulance} title={t("Select a hospital")} description="Choose a hospital in the header to open its ER board." /></Card>
       </div>
     )
   }
@@ -274,7 +276,7 @@ function Emergency() {
   const visitTitle = selectedVisit ? `${selectedVisit.visit_number || `Visit #${selectedVisit.id}`} · ${selectedVisit.patient_name}` : ""
   const footer = (form, label) => (
     <>
-      <Button variant="secondary" onClick={close}>Cancel</Button>
+      <Button variant="secondary" onClick={close}>{t("Cancel")}</Button>
       <Button type="submit" form={form} loading={saving}>{label}</Button>
     </>
   )
@@ -284,7 +286,7 @@ function Emergency() {
       {header}
 
       {error ? (
-        <Card><ErrorState title="Emergency data could not be loaded" message={error} onRetry={fetchData} /></Card>
+        <Card><ErrorState title={t("Emergency data could not be loaded")} message={error} onRetry={fetchData} /></Card>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
@@ -314,19 +316,19 @@ function Emergency() {
           ) : activeTab === "active" ? (
             <Card className="overflow-hidden">
               {activeVisits.length === 0 ? (
-                <EmptyState icon={Ambulance} title="No active emergency visits" />
+                <EmptyState icon={Ambulance} title={t("No active emergency visits")} />
               ) : (
                 <TableWrap>
                   <table className="hms-table">
-                    <caption className="sr-only">Active emergency visits, highest triage priority first</caption>
+                    <caption className="sr-only">{t("Active emergency visits, highest triage priority first")}</caption>
                     <thead>
                       <tr>
-                        <th scope="col">Triage</th>
-                        <th scope="col">Patient</th>
-                        <th scope="col">Arrived</th>
-                        <th scope="col">Status</th>
-                        <th scope="col">Doctor</th>
-                        <th scope="col"><span className="sr-only">Actions</span></th>
+                        <th scope="col">{t("Triage")}</th>
+                        <th scope="col">{t("Patient")}</th>
+                        <th scope="col">{t("Arrived")}</th>
+                        <th scope="col">{t("Status")}</th>
+                        <th scope="col">{t("Doctor")}</th>
+                        <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -347,21 +349,21 @@ function Emergency() {
                           <td>
                             <div className="flex flex-wrap justify-end gap-1.5">
                               {(visit.status === "Registered" || visit.status === "Triage") && (
-                                <Button size="sm" variant="subtle" icon={ClipboardPlus} onClick={() => open("triage", visit, { triage_level: visit.triage_level })}>Triage</Button>
+                                <Button size="sm" variant="subtle" icon={ClipboardPlus} onClick={() => open("triage", visit, { triage_level: visit.triage_level })}>{t("Triage")}</Button>
                               )}
                               {visit.status === "Waiting" && (
-                                <Button size="sm" variant="subtle" icon={Stethoscope} onClick={() => handleStartConsultation(visit)}>Start consult</Button>
+                                <Button size="sm" variant="subtle" icon={Stethoscope} onClick={() => handleStartConsultation(visit)}>{t("Start consult")}</Button>
                               )}
                               {IN_CARE.includes(visit.status) && (
                                 <>
-                                  <Button size="sm" variant="ghost" icon={HeartPulse} onClick={() => open("vitals", visit)}>Vitals</Button>
-                                  <Button size="sm" variant="ghost" icon={ClipboardPlus} onClick={() => open("order", visit)}>Order</Button>
-                                  <Button size="sm" variant="ghost" icon={Pill} onClick={() => open("medication", visit)}>Medicine</Button>
-                                  <Button size="sm" variant="secondary" icon={Send} onClick={() => open("refer", visit)}>Refer</Button>
-                                  <Button size="sm" variant="secondary" icon={LogOut} onClick={() => open("discharge", visit)}>Discharge</Button>
+                                  <Button size="sm" variant="ghost" icon={HeartPulse} onClick={() => open("vitals", visit)}>{t("Vitals")}</Button>
+                                  <Button size="sm" variant="ghost" icon={ClipboardPlus} onClick={() => open("order", visit)}>{t("Order")}</Button>
+                                  <Button size="sm" variant="ghost" icon={Pill} onClick={() => open("medication", visit)}>{t("Medicine")}</Button>
+                                  <Button size="sm" variant="secondary" icon={Send} onClick={() => open("refer", visit)}>{t("Refer")}</Button>
+                                  <Button size="sm" variant="secondary" icon={LogOut} onClick={() => open("discharge", visit)}>{t("Discharge")}</Button>
                                 </>
                               )}
-                              <Button size="sm" variant="ghost" icon={LayoutGrid} onClick={() => setActionsVisit(visit)} aria-label={`All actions for ${visit.patient_name}`}>All actions</Button>
+                              <Button size="sm" variant="ghost" icon={LayoutGrid} onClick={() => setActionsVisit(visit)} aria-label={`All actions for ${visit.patient_name}`}>{t("All actions")}</Button>
                             </div>
                           </td>
                         </tr>
@@ -374,19 +376,19 @@ function Emergency() {
           ) : activeTab === "completed" ? (
             <Card className="overflow-hidden">
               {completedVisits.length === 0 ? (
-                <EmptyState icon={Ambulance} title="No completed visits yet" />
+                <EmptyState icon={Ambulance} title={t("No completed visits yet")} />
               ) : (
                 <TableWrap>
                   <table className="hms-table">
                     <thead>
                       <tr>
-                        <th scope="col">Visit</th>
-                        <th scope="col">Patient</th>
-                        <th scope="col">Outcome</th>
-                        <th scope="col">Disposition</th>
-                        <th scope="col">Arrived</th>
-                        <th scope="col">Left</th>
-                        <th scope="col"><span className="sr-only">Actions</span></th>
+                        <th scope="col">{t("Visit")}</th>
+                        <th scope="col">{t("Patient")}</th>
+                        <th scope="col">{t("Outcome")}</th>
+                        <th scope="col">{t("Disposition")}</th>
+                        <th scope="col">{t("Arrived")}</th>
+                        <th scope="col">{t("Left")}</th>
+                        <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -399,7 +401,7 @@ function Emergency() {
                           <td className="whitespace-nowrap tabular-nums text-ink-600">{new Date(visit.arrival_time).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</td>
                           <td className="whitespace-nowrap tabular-nums text-ink-600">{visit.discharge_time ? new Date(visit.discharge_time).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—"}</td>
                           <td className="text-right">
-                            <Button size="sm" variant="ghost" icon={LayoutGrid} onClick={() => setActionsVisit(visit)} aria-label={`All actions for ${visit.patient_name}`}>All actions</Button>
+                            <Button size="sm" variant="ghost" icon={LayoutGrid} onClick={() => setActionsVisit(visit)} aria-label={`All actions for ${visit.patient_name}`}>{t("All actions")}</Button>
                           </td>
                         </tr>
                       ))}
@@ -411,17 +413,17 @@ function Emergency() {
           ) : (
             <Card className="overflow-hidden">
               {triaged.length === 0 ? (
-                <EmptyState icon={ClipboardPlus} title="No triage records yet" />
+                <EmptyState icon={ClipboardPlus} title={t("No triage records yet")} />
               ) : (
                 <TableWrap>
                   <table className="hms-table">
                     <thead>
                       <tr>
-                        <th scope="col">Visit</th>
-                        <th scope="col">Patient</th>
-                        <th scope="col">Level</th>
-                        <th scope="col">Chief complaint</th>
-                        <th scope="col">Triaged</th>
+                        <th scope="col">{t("Visit")}</th>
+                        <th scope="col">{t("Patient")}</th>
+                        <th scope="col">{t("Level")}</th>
+                        <th scope="col">{t("Chief complaint")}</th>
+                        <th scope="col">{t("Triaged")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -451,7 +453,7 @@ function Emergency() {
         onChanged={fetchData}
       />
 
-      <Modal open={dialog === "registration"} onClose={close} title="New emergency visit" footer={footer("er-reg", "Register visit")}>
+      <Modal open={dialog === "registration"} onClose={close} title={t("New emergency visit")} footer={footer("er-reg", "Register visit")}>
         <form id="er-reg" onSubmit={handleRegistration} className="space-y-4">
           <Field label="Patient" required>
             <Select value={f.registration.patient} onChange={setForm("registration")("patient")}>
@@ -469,7 +471,7 @@ function Emergency() {
         </form>
       </Modal>
 
-      <Modal open={dialog === "triage"} onClose={close} title="Triage" description={visitTitle} footer={footer("er-triage", "Complete triage")}>
+      <Modal open={dialog === "triage"} onClose={close} title={t("Triage")} description={visitTitle} footer={footer("er-triage", "Complete triage")}>
         <form id="er-triage" onSubmit={handleCompleteTriage} className="space-y-4">
           <Field label="Chief complaint" required><Textarea value={f.triage.chief_complaint} onChange={setForm("triage")("chief_complaint")} /></Field>
           <div className="grid grid-cols-2 gap-4">
@@ -482,7 +484,7 @@ function Emergency() {
         </form>
       </Modal>
 
-      <Modal open={dialog === "vitals"} onClose={close} title="Record vitals" description={visitTitle} footer={footer("er-vitals", "Save vitals")}>
+      <Modal open={dialog === "vitals"} onClose={close} title={t("Record vitals")} description={visitTitle} footer={footer("er-vitals", "Save vitals")}>
         <form id="er-vitals" onSubmit={handleAddVitals} className="grid grid-cols-2 gap-4">
           <Field label="Systolic BP (mmHg)"><Input type="number" inputMode="numeric" value={f.vitals.systolic_bp} onChange={setForm("vitals")("systolic_bp")} /></Field>
           <Field label="Diastolic BP (mmHg)"><Input type="number" inputMode="numeric" value={f.vitals.diastolic_bp} onChange={setForm("vitals")("diastolic_bp")} /></Field>
@@ -495,7 +497,7 @@ function Emergency() {
         </form>
       </Modal>
 
-      <Modal open={dialog === "order"} onClose={close} title="Add order" description={visitTitle} footer={footer("er-order", "Add order")}>
+      <Modal open={dialog === "order"} onClose={close} title={t("Add order")} description={visitTitle} footer={footer("er-order", "Add order")}>
         <form id="er-order" onSubmit={handleAddOrder} className="space-y-4">
           <Field label="Order type" required>
             <Select value={f.order.order_type} onChange={setForm("order")("order_type")}>
@@ -511,7 +513,7 @@ function Emergency() {
         </form>
       </Modal>
 
-      <Modal open={dialog === "medication"} onClose={close} title="Prescribe medicine" description={visitTitle} footer={footer("er-med", "Prescribe")}>
+      <Modal open={dialog === "medication"} onClose={close} title={t("Prescribe medicine")} description={visitTitle} footer={footer("er-med", "Prescribe")}>
         <form id="er-med" onSubmit={handleAddMedication} className="grid grid-cols-2 gap-4">
           <Field label="Medicine" required className="col-span-2"><Input value={f.medication.name} onChange={setForm("medication")("name")} /></Field>
           <Field label="Dose" required><Input value={f.medication.dose} onChange={setForm("medication")("dose")} /></Field>
@@ -526,14 +528,14 @@ function Emergency() {
         </form>
       </Modal>
 
-      <Modal open={dialog === "discharge"} onClose={close} title="Discharge from ER" description={visitTitle} footer={footer("er-discharge", "Discharge patient")}>
+      <Modal open={dialog === "discharge"} onClose={close} title={t("Discharge from ER")} description={visitTitle} footer={footer("er-discharge", "Discharge patient")}>
         <form id="er-discharge" onSubmit={handleDischarge} className="space-y-4">
           <Field label="Discharge diagnosis" required><Textarea value={f.discharge.discharge_diagnosis} onChange={setForm("discharge")("discharge_diagnosis")} /></Field>
           <Field label="Follow-up instructions"><Textarea value={f.discharge.follow_up_instructions} onChange={setForm("discharge")("follow_up_instructions")} /></Field>
         </form>
       </Modal>
 
-      <Modal open={dialog === "refer"} onClose={close} title="Refer to another facility" description={visitTitle} footer={footer("er-refer", "Refer patient")}>
+      <Modal open={dialog === "refer"} onClose={close} title={t("Refer to another facility")} description={visitTitle} footer={footer("er-refer", "Refer patient")}>
         <form id="er-refer" onSubmit={handleRefer} className="space-y-4">
           <Field label="Referred to (facility)" required><Input value={f.refer.referred_to} onChange={setForm("refer")("referred_to")} /></Field>
           <Field label="Diagnosis at referral"><Textarea value={f.refer.discharge_diagnosis} onChange={setForm("refer")("discharge_diagnosis")} /></Field>

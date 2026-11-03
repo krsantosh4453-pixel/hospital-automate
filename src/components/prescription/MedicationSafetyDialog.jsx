@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Button, Alert, Field, Modal, Textarea } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Matches MIN_OVERRIDE_REASON in backend/clinical/serializers.py.
 export const MIN_OVERRIDE_REASON = 10
@@ -22,6 +23,7 @@ const SEVERITY = {
  * }} props
  */
 export default function MedicationSafetyDialog({ result, saving, onCancel, onConfirm }) {
+  const { t } = useLanguage()
   const [reason, setReason] = useState("")
   const alerts = result?.alerts || []
   const hasHigh = alerts.some((alert) => alert.severity === "high")
@@ -41,7 +43,7 @@ export default function MedicationSafetyDialog({ result, saving, onCancel, onCon
       description="Checked against this patient's recorded allergies, the other medicines on this prescription and the hospital's interaction list."
       footer={
         <>
-          <Button variant="secondary" onClick={close}>Go back and change</Button>
+          <Button variant="secondary" onClick={close}>{t("Go back and change")}</Button>
           <Button
             variant={hasHigh ? "danger" : "primary"}
             loading={saving}
@@ -76,7 +78,7 @@ export default function MedicationSafetyDialog({ result, saving, onCancel, onCon
           </Field>
         )}
         <p className="text-xs text-ink-500">
-          {result?.review_status}. This is not a complete interaction check; use clinical judgement.
+          {result?.review_status}{t(". This is not a complete interaction check; use clinical judgement.")}
         </p>
       </div>
     </Modal>

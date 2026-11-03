@@ -3,6 +3,7 @@ import { ClipboardList, PackageCheck, Plus, Trash2 } from "lucide-react"
 import api from "../../services/api.js"
 import { useToast } from "../Toast.jsx"
 import { Button, EmptyState, Field, Input, Modal, Select, StatusBadge, TableWrap } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const RECEIVABLE = ["Draft", "Ordered", "Partial"]
 const today = () => new Date().toISOString().slice(0, 10)
@@ -17,6 +18,7 @@ const emptyLine = () => ({ medicine: "", quantity_ordered: "", unit_cost: "" })
  * @param {{ hospital: { id: number, name: string }, orders: object[], suppliers: object[], medicines: object[], canEdit: boolean, onChanged: () => void }} props
  */
 export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medicines, canEdit, onChanged }) {
+  const { t } = useLanguage()
   const toast = useToast()
   const [creating, setCreating] = useState(false)
   const [receiving, setReceiving] = useState(null)
@@ -133,29 +135,29 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
     <>
       {canEdit && orders.length > 0 && (
         <div className="flex justify-end border-b border-line px-4 py-3">
-          <Button size="sm" icon={Plus} onClick={startOrder} disabled={activeSuppliers.length === 0}>New purchase order</Button>
+          <Button size="sm" icon={Plus} onClick={startOrder} disabled={activeSuppliers.length === 0}>{t("New purchase order")}</Button>
         </div>
       )}
       {orders.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title="No purchase orders yet"
+          title={t("No purchase orders yet")}
           description={activeSuppliers.length ? "Raise an order to a supplier, then receive the goods here." : "Add a supplier first."}
-          action={canEdit && activeSuppliers.length > 0 && <Button icon={Plus} onClick={startOrder}>New purchase order</Button>}
+          action={canEdit && activeSuppliers.length > 0 && <Button icon={Plus} onClick={startOrder}>{t("New purchase order")}</Button>}
         />
       ) : (
         <TableWrap>
           <table className="hms-table">
-            <caption className="sr-only">Purchase orders of {hospital.name}</caption>
+            <caption className="sr-only">{t("Purchase orders of")}{" "}{hospital.name}</caption>
             <thead>
               <tr>
-                <th scope="col">Reference</th>
-                <th scope="col">Supplier</th>
-                <th scope="col">Date</th>
-                <th scope="col">Items</th>
-                <th scope="col" className="num">Total</th>
-                <th scope="col">Status</th>
-                {canEdit && <th scope="col"><span className="sr-only">Actions</span></th>}
+                <th scope="col">{t("Reference")}</th>
+                <th scope="col">{t("Supplier")}</th>
+                <th scope="col">{t("Date")}</th>
+                <th scope="col">{t("Items")}</th>
+                <th scope="col" className="num">{t("Total")}</th>
+                <th scope="col">{t("Status")}</th>
+                {canEdit && <th scope="col"><span className="sr-only">{t("Actions")}</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -173,7 +175,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
                     <td>
                       <div className="flex justify-end">
                         {RECEIVABLE.includes(purchase.status) && (purchase.items || []).length > 0 && (
-                          <Button size="sm" variant="subtle" icon={PackageCheck} onClick={() => startReceipt(purchase)}>Receive</Button>
+                          <Button size="sm" variant="subtle" icon={PackageCheck} onClick={() => startReceipt(purchase)}>{t("Receive")}</Button>
                         )}
                       </div>
                     </td>
@@ -189,11 +191,11 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
         open={creating}
         onClose={() => setCreating(false)}
         size="lg"
-        title="New purchase order"
+        title={t("New purchase order")}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setCreating(false)}>Cancel</Button>
-            <Button type="submit" form="po-form" loading={saving}>Raise order</Button>
+            <Button variant="secondary" onClick={() => setCreating(false)}>{t("Cancel")}</Button>
+            <Button type="submit" form="po-form" loading={saving}>{t("Raise order")}</Button>
           </>
         }
       >
@@ -205,14 +207,14 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
               </Select>
             </Field>
             <Field label="Order reference" required>
-              <Input value={order.reference} onChange={(e) => setOrder({ ...order, reference: e.target.value })} placeholder="e.g. PO-2026-014" />
+              <Input value={order.reference} onChange={(e) => setOrder({ ...order, reference: e.target.value })} placeholder={t("e.g. PO-2026-014")} />
             </Field>
             <Field label="Order date" required>
               <Input type="date" value={order.purchase_date} onChange={(e) => setOrder({ ...order, purchase_date: e.target.value })} />
             </Field>
           </div>
           <fieldset className="space-y-3">
-            <legend className="hms-label">Items</legend>
+            <legend className="hms-label">{t("Items")}</legend>
             {order.lines.map((line, index) => (
               <div key={index} className="grid grid-cols-[1fr_6rem_7rem_auto] items-end gap-2">
                 <Field label={`Item ${index + 1}`}>
@@ -237,7 +239,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
                 />
               </div>
             ))}
-            <Button size="sm" variant="secondary" icon={Plus} onClick={() => setOrder({ ...order, lines: [...order.lines, emptyLine()] })}>Add item</Button>
+            <Button size="sm" variant="secondary" icon={Plus} onClick={() => setOrder({ ...order, lines: [...order.lines, emptyLine()] })}>{t("Add item")}</Button>
           </fieldset>
         </form>
       </Modal>
@@ -250,8 +252,8 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
         description={receiving?.supplier_name}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setReceiving(null)}>Cancel</Button>
-            <Button type="submit" form="grn-form" loading={saving}>Record receipt</Button>
+            <Button variant="secondary" onClick={() => setReceiving(null)}>{t("Cancel")}</Button>
+            <Button type="submit" form="grn-form" loading={saving}>{t("Record receipt")}</Button>
           </>
         }
       >
@@ -268,7 +270,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
             <div key={line.purchase_item} className="grid grid-cols-1 gap-2 rounded-lg border border-line p-3 sm:grid-cols-[1fr_6rem_7rem_9rem]">
               <div className="text-sm">
                 <span className="block font-medium text-ink-900">{line.medicine_name}</span>
-                <span className="text-xs text-ink-500">{line.remaining} still to receive</span>
+                <span className="text-xs text-ink-500">{line.remaining}{" "}{t("still to receive")}</span>
               </div>
               <Field label="Qty now">
                 <Input type="number" min="0" max={line.remaining} inputMode="numeric" value={line.quantity_received} onChange={(e) => setReceiptLine(index, "quantity_received", e.target.value)} />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { AlertTriangle, BedDouble, Phone } from "lucide-react"
 import api from "../../services/api.js"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Who the open record belongs to, kept in view while charting (A19):
 // age, sex, phone, ward/bed when admitted and allergies, so the safety facts
@@ -9,6 +10,7 @@ import api from "../../services/api.js"
 const readResults = (data) => (Array.isArray(data) ? data : data?.results || [])
 
 export default function PatientContextStrip({ patientId }) {
+  const { t } = useLanguage()
   const [patient, setPatient] = useState(null)
   const [bed, setBed] = useState(null)
   const [allergies, setAllergies] = useState([])
@@ -50,7 +52,7 @@ export default function PatientContextStrip({ patientId }) {
   ].filter(Boolean)
 
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line px-5 py-2.5 text-[13px]" aria-label="Patient summary">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line px-5 py-2.5 text-[13px]" aria-label={t("Patient summary")}>
       {facts.length > 0 && <span className="font-medium text-ink-800">{facts.join(" · ")}</span>}
       {patient?.phone && (
         <span className="inline-flex items-center gap-1.5 text-ink-600 tabular-nums">
@@ -65,18 +67,18 @@ export default function PatientContextStrip({ patientId }) {
         </span>
       )}
       {allergyState === "loading" ? (
-        <span className="text-ink-500">Checking allergies…</span>
+        <span className="text-ink-500">{t("Checking allergies…")}</span>
       ) : allergyState === "failed" ? (
         <span className="inline-flex items-center gap-1.5 font-medium text-amber-700">
           <AlertTriangle aria-hidden="true" className="h-4 w-4" />
-          Allergies could not be checked — confirm with the patient
+          {t("Allergies could not be checked — confirm with the patient")}
         </span>
       ) : allergies.length === 0 ? (
-        <span className="text-ink-600">No known allergies</span>
+        <span className="text-ink-600">{t("No known allergies")}</span>
       ) : (
         <span className="inline-flex flex-wrap items-center gap-1.5" role="note">
           <AlertTriangle aria-hidden="true" className="h-4 w-4" />
-          <span className="font-semibold">Allergies:</span>
+          <span className="font-semibold">{t("Allergies:")}</span>
           {allergies.map((allergy) => (
             <span key={allergy.id} className="rounded-full bg-red-700 px-2 py-0.5 font-medium text-white">
               {allergy.name}

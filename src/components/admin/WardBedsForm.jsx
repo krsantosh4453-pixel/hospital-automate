@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Plus, Trash2 } from "lucide-react"
 import api from "../../services/api.js"
 import { Alert, Button, Field, Input, Select } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const WARD_TYPES = ["General", "Private", "Semi-Private", "ICU", "NICU", "Maternity", "Emergency", "Isolation"]
 const MAX_BEDS_PER_ROOM = 50
@@ -12,6 +13,7 @@ const newRoom = (number = "") => ({ room_number: number, beds: 4 })
  * <room>-1, <room>-2, … by the server. Everything is saved together.
  */
 export default function WardBedsForm({ hospitalId, onCreated }) {
+  const { t } = useLanguage()
   const [name, setName] = useState("")
   const [wardType, setWardType] = useState("General")
   const [rooms, setRooms] = useState([newRoom("101")])
@@ -57,7 +59,7 @@ export default function WardBedsForm({ hospitalId, onCreated }) {
       {error && <Alert tone="danger">{error}</Alert>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Ward name" required>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. General Ward A" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("e.g. General Ward A")} />
         </Field>
         <Field label="Ward type">
           <Select value={wardType} onChange={(e) => setWardType(e.target.value)}>
@@ -69,7 +71,7 @@ export default function WardBedsForm({ hospitalId, onCreated }) {
       </div>
 
       <div className="space-y-2">
-        <p className="hms-label">Rooms and beds</p>
+        <p className="hms-label">{t("Rooms and beds")}</p>
         {rooms.map((room, index) => (
           <div key={index} className="flex flex-wrap items-end gap-3">
             <Field label={`Room ${index + 1}`} className="min-w-[8rem] flex-1">
@@ -95,12 +97,12 @@ export default function WardBedsForm({ hospitalId, onCreated }) {
           </div>
         ))}
         <Button variant="ghost" size="sm" icon={Plus} onClick={addRoom}>
-          Add room
+          {t("Add room")}
         </Button>
       </div>
 
       <Button type="submit" icon={Plus} loading={saving} disabled={!name.trim() || totalBeds < 1}>
-        Create ward with {totalBeds} {totalBeds === 1 ? "bed" : "beds"}
+        {t("Create ward with")}{" "}{totalBeds} {totalBeds === 1 ? "bed" : "beds"}
       </Button>
     </form>
   )

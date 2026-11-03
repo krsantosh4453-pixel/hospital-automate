@@ -25,7 +25,7 @@ export default function Breadcrumbs() {
   const crumbs = [t(match.group.label), t(match.item.label)]
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-4">
+    <nav aria-label={t("Breadcrumb")} className="mb-4">
       <ol className="flex flex-wrap items-center gap-1 text-sm text-ink-500">
         <li>
           <Link to="/" className="rounded hover:text-ink-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">

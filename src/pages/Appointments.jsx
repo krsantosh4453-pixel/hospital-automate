@@ -27,6 +27,7 @@ import {
   Toolbar,
 } from "../components/ui"
 import { APPOINTMENT_STATUSES, CLOSED_STATUSES } from "../config/appointmentStatus.js"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 // =====================================================
 // Helpers — keep the existing (flat, display-oriented) UI
@@ -123,6 +124,7 @@ const notSavedMessage = (error) =>
 const toList = (data) => (Array.isArray(data) ? data : data?.results || [])
 
 function Appointments() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
 
   // Always loaded from the Django API. Nothing is kept in the browser: an
@@ -533,12 +535,12 @@ function Appointments() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Appointments"
+        title={t("Appointments")}
         description={selectedHospital ? `Bookings at ${selectedHospital.name}.` : "Select a hospital from the header to see its appointments."}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Appointments" }]}
         actions={
           <Button icon={CalendarPlus} onClick={openNew} disabled={!selectedHospital}>
-            New appointment
+            {t("New appointment")}
           </Button>
         }
       />
@@ -552,7 +554,7 @@ function Appointments() {
       {loadError && (
         <Alert
           tone="danger"
-          action={<Button size="sm" variant="secondary" onClick={() => setReloadToken((token) => token + 1)}>Retry</Button>}
+          action={<Button size="sm" variant="secondary" onClick={() => setReloadToken((token) => token + 1)}>{t("Retry")}</Button>}
         >
           {loadError}
         </Alert>
@@ -560,7 +562,7 @@ function Appointments() {
 
       {!selectedHospital ? (
         <Card>
-          <EmptyState icon={Hospital} title="No hospital selected" description="Choose a hospital in the header to manage its appointments." />
+          <EmptyState icon={Hospital} title={t("No hospital selected")} description="Choose a hospital in the header to manage its appointments." />
         </Card>
       ) : (
         <Card className="overflow-hidden">
@@ -571,14 +573,14 @@ function Appointments() {
             <SearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Patient, phone or appointment ID"
+              placeholder={t("Patient, phone or appointment ID")}
               label="Search appointments"
               className="w-full sm:max-w-xs"
             />
             <Select
               value={doctorFilter}
               onChange={(e) => setDoctorFilter(e.target.value)}
-              aria-label="Filter by doctor"
+              aria-label={t("Filter by doctor")}
               className="w-full sm:w-52"
             >
               <option>All Doctors</option>
@@ -605,22 +607,22 @@ function Appointments() {
               icon={CalendarDays}
               title={hospitalAppointments.length ? "No appointments match these filters" : "No appointments yet"}
               description={hospitalAppointments.length ? "Change the status, doctor or date filter." : "Booked appointments for this hospital will appear here."}
-              action={!hospitalAppointments.length && <Button icon={CalendarPlus} onClick={openNew}>New appointment</Button>}
+              action={!hospitalAppointments.length && <Button icon={CalendarPlus} onClick={openNew}>{t("New appointment")}</Button>}
             />
           ) : (
             <>
               <TableWrap className="hidden lg:block">
                 <table className="hms-table">
-                  <caption className="sr-only">Appointments at {selectedHospital.name}</caption>
+                  <caption className="sr-only">{t("Appointments at")}{" "}{selectedHospital.name}</caption>
                   <thead>
                     <tr>
-                      <th scope="col">When</th>
-                      <th scope="col">Patient</th>
-                      <th scope="col">Doctor</th>
-                      <th scope="col">Contact</th>
-                      <th scope="col">Token</th>
-                      <th scope="col">Status</th>
-                      <th scope="col"><span className="sr-only">Actions</span></th>
+                      <th scope="col">{t("When")}</th>
+                      <th scope="col">{t("Patient")}</th>
+                      <th scope="col">{t("Doctor")}</th>
+                      <th scope="col">{t("Contact")}</th>
+                      <th scope="col">{t("Token")}</th>
+                      <th scope="col">{t("Status")}</th>
+                      <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -649,14 +651,14 @@ function Appointments() {
                           <div className="flex flex-wrap items-center gap-1.5">
                             <StatusBadge status={appointment.status} />
                             {appointment.apiId === undefined && (
-                              <Badge tone="warning" className="normal-case">On this device only</Badge>
+                              <Badge tone="warning" className="normal-case">{t("On this device only")}</Badge>
                             )}
                           </div>
                         </td>
                         <td>
                           <div className="flex items-center justify-end gap-0.5">
-                            <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(appointment)} aria-label={`View appointment ${appointment.id}`} title="View" />
-                            <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => handleEdit(appointment)} aria-label={`Edit appointment ${appointment.id}`} title="Edit" />
+                            <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(appointment)} aria-label={`View appointment ${appointment.id}`} title={t("View")} />
+                            <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => handleEdit(appointment)} aria-label={`Edit appointment ${appointment.id}`} title={t("Edit")} />
                             <Button
                               variant="ghost"
                               size="icon-sm"
@@ -664,9 +666,9 @@ function Appointments() {
                               disabled={!canChange(appointment)}
                               onClick={() => setConfirm({ type: "cancel", appointment })}
                               aria-label={`Cancel appointment ${appointment.id}`}
-                              title="Cancel appointment"
+                              title={t("Cancel appointment")}
                             />
-                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setConfirm({ type: "delete", appointment })} aria-label={`Delete appointment ${appointment.id}`} title="Delete" />
+                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setConfirm({ type: "delete", appointment })} aria-label={`Delete appointment ${appointment.id}`} title={t("Delete")} />
                           </div>
                         </td>
                       </tr>
@@ -693,7 +695,7 @@ function Appointments() {
                 ))}
               </ul>
               <p className="border-t border-line px-4 py-2.5 text-xs text-ink-500">
-                Showing {filteredAppointments.length} of {hospitalAppointments.length} appointments
+                {t("Showing")}{" "}{filteredAppointments.length}{" "}{t("of")}{" "}{hospitalAppointments.length}{" "}{t("appointments")}
               </p>
             </>
           )}
@@ -709,7 +711,7 @@ function Appointments() {
         description={selectedHospital ? `At ${selectedHospital.name}` : undefined}
         footer={
           <>
-            <Button variant="secondary" onClick={resetForm} disabled={saving}>Cancel</Button>
+            <Button variant="secondary" onClick={resetForm} disabled={saving}>{t("Cancel")}</Button>
             <Button type="submit" form="appointment-form" loading={saving} disabled={doctorsLoaded && doctorChoices.length === 0}>
               {selectedAppointment ? "Save changes" : "Book appointment"}
             </Button>
@@ -717,14 +719,14 @@ function Appointments() {
         }
       >
         <form id="appointment-form" onSubmit={selectedAppointment ? handleUpdate : handleSubmit} className="space-y-6">
-          {formError && <Alert tone="danger" title="Not saved">{formError}</Alert>}
+          {formError && <Alert tone="danger" title={t("Not saved")}>{formError}</Alert>}
           {doctorsLoaded && doctorChoices.length === 0 && (
-            <Alert tone="warning" title="No doctors registered">
-              Add a doctor for this hospital before booking. <Link to="/doctors" className="font-medium underline">Go to Doctors</Link>
+            <Alert tone="warning" title={t("No doctors registered")}>
+              {t("Add a doctor for this hospital before booking.")}{" "}<Link to="/doctors" className="font-medium underline">{t("Go to Doctors")}</Link>
             </Alert>
           )}
 
-          <FormSection title="Patient" description="Start typing to pick an existing patient; a new record is created only if none matches.">
+          <FormSection title={t("Patient")} description="Start typing to pick an existing patient; a new record is created only if none matches.">
             <Field label="Patient name" required className="sm:col-span-2">
               <Input name="patient" value={formData.patient} onChange={handleChange} list="appointment-patient-suggestions" autoComplete="off" />
             </Field>
@@ -751,7 +753,7 @@ function Appointments() {
             </Field>
           </FormSection>
 
-          <FormSection title="Visit">
+          <FormSection title={t("Visit")}>
             <Field label="Doctor" required className="sm:col-span-2">
               <Select name="doctor" value={formData.doctor} onChange={handleChange}>
                 <option value="">{doctorsLoaded ? "Select doctor" : "Loading doctors…"}</option>
@@ -777,20 +779,20 @@ function Appointments() {
       <Modal
         open={showView && Boolean(selectedAppointment)}
         onClose={() => setShowView(false)}
-        title="Appointment details"
+        title={t("Appointment details")}
         description={selectedAppointment?.id}
         footer={
           selectedAppointment && (
             <>
               <Button variant="danger-ghost" icon={Trash2} onClick={() => setConfirm({ type: "delete", appointment: selectedAppointment })} className="mr-auto">
-                Delete
+                {t("Delete")}
               </Button>
               {canChange(selectedAppointment) && (
                 <Button variant="secondary" icon={Ban} onClick={() => setConfirm({ type: "cancel", appointment: selectedAppointment })}>
-                  Cancel appointment
+                  {t("Cancel appointment")}
                 </Button>
               )}
-              <Button icon={Pencil} onClick={() => handleEdit(selectedAppointment)}>Edit</Button>
+              <Button icon={Pencil} onClick={() => handleEdit(selectedAppointment)}>{t("Edit")}</Button>
             </>
           )
         }
@@ -830,9 +832,9 @@ function Appointments() {
         message={
           confirm && (
             <>
-              {confirm.type === "delete" ? "This permanently removes" : "This cancels"} the appointment for{" "}
-              <strong className="font-semibold text-ink-900">{confirm.appointment.patient}</strong> on{" "}
-              {confirm.appointment.date} at {confirm.appointment.time}.
+              {confirm.type === "delete" ? "This permanently removes" : "This cancels"}{" "}{t("the appointment for")}{" "}
+              <strong className="font-semibold text-ink-900">{confirm.appointment.patient}</strong>{" "}{t("on")}{" "}
+              {confirm.appointment.date}{" "}{t("at")}{" "}{confirm.appointment.time}.
               {confirm.type === "delete" && " It cannot be undone."}
             </>
           )

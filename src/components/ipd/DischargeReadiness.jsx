@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react"
 import { CircleCheck, CircleDashed, ReceiptIndianRupee } from "lucide-react"
 import api from "../../services/api.js"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Discharge checklist (E7) and final-bill state (E12, H8) of one admission.
 // The server decides readiness; this panel shows it and ticks checklist items.
 // onChange(readiness) lets the page enable "Complete discharge".
 
 export default function DischargeReadiness({ admissionId, reloadToken, canTick, onChange }) {
+  const { t } = useLanguage()
   const [state, setState] = useState(null)
   const [error, setError] = useState("")
   const [saving, setSaving] = useState("")
@@ -47,7 +49,7 @@ export default function DischargeReadiness({ admissionId, reloadToken, canTick, 
   }
 
   if (error) return <p className="text-[13px] text-red-700">{error}</p>
-  if (!state) return <p className="text-[13px] text-ink-500">Loading checklist…</p>
+  if (!state) return <p className="text-[13px] text-ink-500">{t("Loading checklist…")}</p>
 
   const bill = state.final_invoice
   const billDone = bill && Number(bill.balance_due) <= 0
@@ -55,7 +57,7 @@ export default function DischargeReadiness({ admissionId, reloadToken, canTick, 
   return (
     <div className="space-y-2 text-[13px]">
       <fieldset>
-        <legend className="mb-1 font-medium text-ink-700">Discharge checklist</legend>
+        <legend className="mb-1 font-medium text-ink-700">{t("Discharge checklist")}</legend>
         <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
           {state.checklist.map((item) => (
             <li key={item.field}>

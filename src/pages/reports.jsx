@@ -3,9 +3,11 @@ import api from "../services/api.js"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { Alert, Card, EmptyState, PageHeader, SegmentedControl } from "../components/ui"
 import { CalendarDaysIcon, FlaskConicalIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, StethoscopeIcon, UsersIcon, WalletIcon } from "lucide-react"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 
 function Reports() {
+  const { t } = useLanguage()
 
   // =====================================
   // SELECTED HOSPITAL
@@ -83,8 +85,8 @@ function Reports() {
     return (
 
       <div className="space-y-5">
-        <PageHeader title="Reports" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Reports" }]} />
-        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to view its reports." /></Card>
+        <PageHeader title={t("Reports")} breadcrumbs={[{ label: "Home", to: "/" }, { label: "Reports" }]} />
+        <Card><EmptyState icon={HospitalIcon} title={t("Select a hospital")} description="Choose a hospital in the header to view its reports." /></Card>
       </div>
 
     )
@@ -136,7 +138,7 @@ function Reports() {
 
 
       <PageHeader
-        title="Reports"
+        title={t("Reports")}
         description={`Operational and financial figures for ${selectedHospital.name}, counted on the server.`}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Reports" }]}
         actions={
@@ -150,12 +152,12 @@ function Reports() {
       />
 
       {loadError && <Alert tone="warning">{loadError}</Alert>}
-      {loading && <p className="text-sm text-ink-500" role="status">Loading report figures…</p>}
+      {loading && <p className="text-sm text-ink-500" role="status">{t("Loading report figures…")}</p>}
 
       <div>
 
         <h2 className="text-xl font-bold text-gray-800 mb-4">
-          Overview
+          {t("Overview")}
         </h2>
 
 
@@ -163,7 +165,7 @@ function Reports() {
 
 
           <ReportCard
-            title="Patients"
+            title={t("Patients")}
             value={
               patientsTotal
             }
@@ -174,7 +176,7 @@ function Reports() {
 
 
           <ReportCard
-            title="Doctors"
+            title={t("Doctors")}
             value={
               doctorsTotal
             }
@@ -185,7 +187,7 @@ function Reports() {
 
 
           <ReportCard
-            title="Appointments"
+            title={t("Appointments")}
             value={
               appointmentsTotal
             }
@@ -196,7 +198,7 @@ function Reports() {
 
 
           <ReportCard
-            title="Prescriptions"
+            title={t("Prescriptions")}
             value={
               prescriptionTotal
             }
@@ -217,7 +219,7 @@ function Reports() {
       <div>
 
         <h2 className="text-xl font-bold text-gray-800 mb-4">
-          Financial Report
+          {t("Financial Report")}
         </h2>
 
 
@@ -225,7 +227,7 @@ function Reports() {
 
 
           <ReportCard
-            title="Total Revenue"
+            title={t("Total Revenue")}
             value={`₹${totalRevenue.toLocaleString("en-IN")}`}
             subtitle="Overall revenue"
             icon={<WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
@@ -234,7 +236,7 @@ function Reports() {
 
 
           <ReportCard
-            title="Pharmacy"
+            title={t("Pharmacy")}
             value={`₹${pharmacyRevenue.toLocaleString("en-IN")}`}
             subtitle="Medicine sales"
             icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
@@ -243,7 +245,7 @@ function Reports() {
 
 
           <ReportCard
-            title="Laboratory"
+            title={t("Laboratory")}
             value={laboratoryRevenue === null ? "Not tracked" : `₹${laboratoryRevenue.toLocaleString("en-IN")}`}
             subtitle="Laboratory revenue"
             icon={<FlaskConicalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
@@ -252,7 +254,7 @@ function Reports() {
 
 
           <ReportCard
-            title="Bills"
+            title={t("Bills")}
             value={
               billsTotal
             }
@@ -276,11 +278,11 @@ function Reports() {
         <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
 
           <h2 className="text-lg font-bold text-gray-800">
-            Appointment Report
+            {t("Appointment Report")}
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Current appointment status.
+            {t("Current appointment status.")}
           </p>
 
 
@@ -292,7 +294,7 @@ function Reports() {
               <div className="flex justify-between mb-2">
 
                 <span className="text-sm text-gray-600">
-                  Completed
+                  {t("Completed")}
                 </span>
 
                 <span className="font-semibold text-green-600">
@@ -324,7 +326,7 @@ function Reports() {
               <div className="flex justify-between mb-2">
 
                 <span className="text-sm text-gray-600">
-                  Waiting
+                  {t("Waiting")}
                 </span>
 
                 <span className="font-semibold text-orange-600">
@@ -356,7 +358,7 @@ function Reports() {
               <div className="flex justify-between mb-2">
 
                 <span className="text-sm text-gray-600">
-                  Confirmed
+                  {t("Confirmed")}
                 </span>
 
                 <span className="font-semibold text-blue-600">
@@ -394,11 +396,11 @@ function Reports() {
         <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
 
           <h2 className="text-lg font-bold text-gray-800">
-            Bed Report
+            {t("Bed Report")}
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Current hospital bed occupancy.
+            {t("Current hospital bed occupancy.")}
           </p>
 
 
@@ -408,7 +410,7 @@ function Reports() {
             <div className="bg-blue-50 rounded-xl p-4 text-center">
 
               <p className="text-xs text-gray-500">
-                Total
+                {t("Total")}
               </p>
 
               <p className="text-2xl font-bold text-blue-600 mt-2">
@@ -421,7 +423,7 @@ function Reports() {
             <div className="bg-green-50 rounded-xl p-4 text-center">
 
               <p className="text-xs text-gray-500">
-                Available
+                {t("Available")}
               </p>
 
               <p className="text-2xl font-bold text-green-600 mt-2">
@@ -434,7 +436,7 @@ function Reports() {
             <div className="bg-orange-50 rounded-xl p-4 text-center">
 
               <p className="text-xs text-gray-500">
-                Occupied
+                {t("Occupied")}
               </p>
 
               <p className="text-2xl font-bold text-orange-600 mt-2">
@@ -451,7 +453,7 @@ function Reports() {
             <div className="flex justify-between text-sm mb-2">
 
               <span className="text-gray-600">
-                Occupancy
+                {t("Occupancy")}
               </span>
 
               <span className="font-semibold">
@@ -499,11 +501,11 @@ function Reports() {
         <div className="p-6 border-b">
 
           <h2 className="text-lg font-bold text-gray-800">
-            Doctor Departments
+            {t("Doctor Departments")}
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Doctors working in this hospital.
+            {t("Doctors working in this hospital.")}
           </p>
 
         </div>
@@ -518,15 +520,15 @@ function Reports() {
               <tr>
 
                 <th className="text-left px-6 py-4 text-sm">
-                  Doctor
+                  {t("Doctor")}
                 </th>
 
                 <th className="text-left px-6 py-4 text-sm">
-                  Department
+                  {t("Department")}
                 </th>
 
                 <th className="text-left px-6 py-4 text-sm">
-                  Status
+                  {t("Status")}
                 </th>
 
               </tr>
@@ -583,11 +585,11 @@ function Reports() {
         <div className="p-6 border-b">
 
           <h2 className="text-lg font-bold text-gray-800">
-            Laboratory Report
+            {t("Laboratory Report")}
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Laboratory activity for this hospital.
+            {t("Laboratory activity for this hospital.")}
           </p>
 
         </div>
@@ -602,23 +604,23 @@ function Reports() {
               <tr>
 
                 <th className="text-left px-6 py-4 text-sm">
-                  Test ID
+                  {t("Test ID")}
                 </th>
 
                 <th className="text-left px-6 py-4 text-sm">
-                  Patient
+                  {t("Patient")}
                 </th>
 
                 <th className="text-left px-6 py-4 text-sm">
-                  Test
+                  {t("Test")}
                 </th>
 
                 <th className="text-left px-6 py-4 text-sm">
-                  Amount
+                  {t("Amount")}
                 </th>
 
                 <th className="text-left px-6 py-4 text-sm">
-                  Status
+                  {t("Status")}
                 </th>
 
               </tr>
@@ -686,11 +688,11 @@ function Reports() {
         <div className="p-6 border-b">
 
           <h2 className="text-lg font-bold text-gray-800">
-            Recent Hospital Activity
+            {t("Recent Hospital Activity")}
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Latest activities for {selectedHospital.name}.
+            {t("Latest activities for")}{" "}{selectedHospital.name}.
           </p>
 
         </div>
@@ -749,7 +751,7 @@ function Reports() {
           <div>
 
             <p className="font-semibold text-blue-800">
-              Report Period
+              {t("Report Period")}
             </p>
 
             <p className="text-sm text-blue-600">
@@ -760,7 +762,7 @@ function Reports() {
 
 
           <p className="text-sm text-blue-600">
-            Hospital data is isolated using hospital ID.
+            {t("Hospital data is isolated using hospital ID.")}
           </p>
 
         </div>

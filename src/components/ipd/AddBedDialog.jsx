@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import api from "../../services/api"
 import { Alert, Button, Field, Input, Modal, Select } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 /*
  * Add a bed to a room of the selected hospital. The ward and the room can be
@@ -16,6 +17,7 @@ const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 
 /** @param {{ open: boolean, onClose: () => void, hospitalId?: number|string, onAdded: (bed: object) => void }} props */
 export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
+  const { t } = useLanguage()
   const [wards, setWards] = useState([])
   const [rooms, setRooms] = useState([])
   const [wardId, setWardId] = useState("")
@@ -115,12 +117,12 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
     <Modal
       open={open}
       onClose={close}
-      title="Add bed"
+      title={t("Add bed")}
       description="Pick or create the ward and room, then enter the bed."
       footer={
         <>
-          <Button variant="secondary" onClick={close} disabled={saving}>Cancel</Button>
-          <Button type="submit" form="ipd-add-bed" loading={saving}>Add bed</Button>
+          <Button variant="secondary" onClick={close} disabled={saving}>{t("Cancel")}</Button>
+          <Button type="submit" form="ipd-add-bed" loading={saving}>{t("Add bed")}</Button>
         </>
       }
     >
@@ -139,10 +141,10 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
         {wardId === NEW && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="New ward name" required>
-              <Input value={newWard.name} onChange={(e) => setNewWard({ ...newWard, name: e.target.value })} placeholder="General Ward" required disabled={saving} />
+              <Input value={newWard.name} onChange={(e) => setNewWard({ ...newWard, name: e.target.value })} placeholder={t("General Ward")} required disabled={saving} />
             </Field>
             <Field label="Ward type">
-              <Input value={newWard.ward_type} onChange={(e) => setNewWard({ ...newWard, ward_type: e.target.value })} placeholder="General, ICU…" disabled={saving} />
+              <Input value={newWard.ward_type} onChange={(e) => setNewWard({ ...newWard, ward_type: e.target.value })} placeholder={t("General, ICU…")} disabled={saving} />
             </Field>
           </div>
         )}
@@ -161,7 +163,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
               <Input value={newRoom.room_number} onChange={(e) => setNewRoom({ ...newRoom, room_number: e.target.value })} placeholder="101" required disabled={saving} />
             </Field>
             <Field label="Room type">
-              <Input value={newRoom.room_type} onChange={(e) => setNewRoom({ ...newRoom, room_type: e.target.value })} placeholder="Private, Shared…" disabled={saving} />
+              <Input value={newRoom.room_type} onChange={(e) => setNewRoom({ ...newRoom, room_type: e.target.value })} placeholder={t("Private, Shared…")} disabled={saving} />
             </Field>
           </div>
         )}

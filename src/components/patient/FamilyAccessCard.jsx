@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { UserPlus, UsersRound } from "lucide-react"
 import api from "../../services/api.js"
 import { Alert, Button, Card, CardHeader, Field, Input, SkeletonRows, useConfirm } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const EMPTY_FORM = { name: "", relationship: "", phone: "" }
 
@@ -14,6 +15,7 @@ function formatDate(value) {
  * They sign in from the login page ("Family" tab) with their own mobile OTP.
  */
 export default function FamilyAccessCard() {
+  const { t } = useLanguage()
   const [confirm, confirmDialog] = useConfirm()
   const [grants, setGrants] = useState([])
   const [loading, setLoading] = useState(true)
@@ -80,7 +82,7 @@ export default function FamilyAccessCard() {
       {confirmDialog}
       <CardHeader
         icon={UsersRound}
-        title="Family access"
+        title={t("Family access")}
         description="Let a family member or caregiver view your appointments, prescriptions, lab reports and bills. They sign in with an OTP on their own mobile and cannot change anything."
       />
 
@@ -94,7 +96,7 @@ export default function FamilyAccessCard() {
               value={form.name}
               maxLength={100}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. Ravi Kumar"
+              placeholder={t("e.g. Ravi Kumar")}
               required
             />
           </Field>
@@ -103,7 +105,7 @@ export default function FamilyAccessCard() {
               value={form.relationship}
               maxLength={50}
               onChange={(e) => setForm({ ...form, relationship: e.target.value })}
-              placeholder="e.g. Son"
+              placeholder={t("e.g. Son")}
               required
             />
           </Field>
@@ -113,11 +115,11 @@ export default function FamilyAccessCard() {
               inputMode="numeric"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
-              placeholder="10-digit number"
+              placeholder={t("10-digit number")}
               required
             />
           </Field>
-          <Button type="submit" icon={UserPlus} loading={saving}>Give access</Button>
+          <Button type="submit" icon={UserPlus} loading={saving}>{t("Give access")}</Button>
         </form>
       </div>
 
@@ -125,7 +127,7 @@ export default function FamilyAccessCard() {
         {loading ? (
           <SkeletonRows rows={2} />
         ) : grants.length === 0 ? (
-          <p className="p-5 text-sm text-ink-500">No family member has access to your records.</p>
+          <p className="p-5 text-sm text-ink-500">{t("No family member has access to your records.")}</p>
         ) : (
           <ul className="divide-y divide-line">
             {grants.map((grant) => (
@@ -135,11 +137,11 @@ export default function FamilyAccessCard() {
                     {grant.name} <span className="font-normal text-ink-500">· {grant.relationship}</span>
                   </p>
                   <p className="mt-0.5 text-[13px] text-ink-500">
-                    +91 {grant.phone} · added {formatDate(grant.created_at)}
+                    +91 {grant.phone}{" "}{t("· added")}{" "}{formatDate(grant.created_at)}
                     {grant.last_used_at ? ` · last signed in ${formatDate(grant.last_used_at)}` : " · has not signed in yet"}
                   </p>
                 </div>
-                <Button variant="danger-ghost" size="sm" onClick={() => handleRevoke(grant)}>Remove access</Button>
+                <Button variant="danger-ghost" size="sm" onClick={() => handleRevoke(grant)}>{t("Remove access")}</Button>
               </li>
             ))}
           </ul>

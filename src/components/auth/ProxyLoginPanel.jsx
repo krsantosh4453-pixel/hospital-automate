@@ -2,6 +2,7 @@ import { useState } from "react"
 import { UsersIcon } from "lucide-react"
 import api from "../../services/api.js"
 import { Alert } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const PRIMARY_BUTTON =
   "inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -14,6 +15,7 @@ const LINK_BUTTON = "rounded text-[13px] font-medium text-brand-700 hover:underl
  * @param {{ onSignedIn: (session: object) => void }} props
  */
 export default function ProxyLoginPanel({ onSignedIn }) {
+  const { t } = useLanguage()
   const [step, setStep] = useState("mobile") // "mobile" | "otp" | "choose"
   const [mobile, setMobile] = useState("")
   const [otp, setOtp] = useState("")
@@ -94,11 +96,10 @@ export default function ProxyLoginPanel({ onSignedIn }) {
     <div>
       <div className="mb-5">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-ink-900">
-          <UsersIcon size="1em" aria-hidden="true" /> Family member or caregiver
+          <UsersIcon size="1em" aria-hidden="true" />{" "}{t("Family member or caregiver")}
         </h2>
         <p className="mt-0.5 text-[13px] text-ink-500">
-          View a relative&apos;s records with the access they gave you. Use your own mobile number. View only: you
-          cannot change anything.
+          {t("View a relative's records with the access they gave you. Use your own mobile number. View only: you cannot change anything.")}
         </p>
       </div>
 
@@ -107,7 +108,7 @@ export default function ProxyLoginPanel({ onSignedIn }) {
       {step === "mobile" && (
         <form onSubmit={handleSendOtp} className="space-y-4">
           <div>
-            <label htmlFor="proxy-mobile" className="hms-label">Your mobile number</label>
+            <label htmlFor="proxy-mobile" className="hms-label">{t("Your mobile number")}</label>
             <div className="flex">
               <span className="flex items-center rounded-l-lg border border-r-0 border-line-strong bg-ink-50 px-3 text-sm text-ink-600">
                 +91
@@ -120,7 +121,7 @@ export default function ProxyLoginPanel({ onSignedIn }) {
                   const val = e.target.value.replace(/\D/g, "")
                   if (val.length <= 10) setMobile(val)
                 }}
-                placeholder="Enter 10-digit number"
+                placeholder={t("Enter 10-digit number")}
                 className="hms-input w-full rounded-l-none"
                 required
               />
@@ -130,7 +131,7 @@ export default function ProxyLoginPanel({ onSignedIn }) {
             {loading ? "Sending..." : "Send OTP"}
           </button>
           <p className="text-xs text-ink-500">
-            No access yet? Ask the patient to add you under Consent &amp; Sharing → Family access in their portal.
+            {t("No access yet? Ask the patient to add you under Consent & Sharing → Family access in their portal.")}
           </p>
         </form>
       )}
@@ -140,14 +141,13 @@ export default function ProxyLoginPanel({ onSignedIn }) {
           <p className="mb-4 text-[13px] text-ink-500">
             {notice || (
               <>
-                If <span className="font-semibold text-ink-800">+91 {mobile}</span> has family access, a 6-digit code
-                was sent to it.
+                {t("If")}{" "}<span className="font-semibold text-ink-800">+91 {mobile}</span>{" "}{t("has family access, a 6-digit code was sent to it.")}
               </>
             )}
           </p>
           <form onSubmit={handleVerify} className="space-y-4">
             <div>
-              <label htmlFor="proxy-otp" className="hms-label">6-Digit OTP Code</label>
+              <label htmlFor="proxy-otp" className="hms-label">{t("6-Digit OTP Code")}</label>
               <input
                 id="proxy-otp"
                 type="text"
@@ -168,9 +168,9 @@ export default function ProxyLoginPanel({ onSignedIn }) {
             </button>
           </form>
           <div className="mt-4 flex items-center justify-between text-xs">
-            <button type="button" onClick={restart} className={LINK_BUTTON}>Change number</button>
+            <button type="button" onClick={restart} className={LINK_BUTTON}>{t("Change number")}</button>
             <button type="button" onClick={handleSendOtp} className="rounded text-[13px] font-medium text-ink-600 hover:text-ink-900">
-              Resend code
+              {t("Resend code")}
             </button>
           </div>
         </>
@@ -178,7 +178,7 @@ export default function ProxyLoginPanel({ onSignedIn }) {
 
       {step === "choose" && (
         <>
-          <p className="mb-3 text-[13px] text-ink-500">Whose records do you want to view?</p>
+          <p className="mb-3 text-[13px] text-ink-500">{t("Whose records do you want to view?")}</p>
           <ul className="space-y-2">
             {grants.map((grant) => (
               <li key={grant.id}>
@@ -189,12 +189,12 @@ export default function ProxyLoginPanel({ onSignedIn }) {
                   className="flex w-full items-center justify-between rounded-lg border border-line-strong bg-white px-4 py-3 text-left hover:bg-ink-50 disabled:opacity-50"
                 >
                   <span className="text-sm font-semibold text-ink-900">{grant.patient_name}</span>
-                  <span className="text-xs text-ink-500">You: {grant.relationship}</span>
+                  <span className="text-xs text-ink-500">{t("You:")}{" "}{grant.relationship}</span>
                 </button>
               </li>
             ))}
           </ul>
-          <button type="button" onClick={restart} className={`mt-4 ${LINK_BUTTON}`}>Use a different number</button>
+          <button type="button" onClick={restart} className={`mt-4 ${LINK_BUTTON}`}>{t("Use a different number")}</button>
         </>
       )}
     </div>
