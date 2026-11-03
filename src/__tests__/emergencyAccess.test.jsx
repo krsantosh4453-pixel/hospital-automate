@@ -21,7 +21,7 @@ vi.mock("../services/api.js", () => ({
 }))
 
 import api from "../services/api.js"
-import { LanguageProvider } from "../assets/context/LanguageContext.jsx"
+import { LanguageProvider } from "../assets/context/LanguageProvider.jsx"
 import EmergencyAccess from "../pages/EmergencyAccess.jsx"
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true

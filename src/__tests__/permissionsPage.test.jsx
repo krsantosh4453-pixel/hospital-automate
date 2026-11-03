@@ -2,8 +2,8 @@ import React, { act } from "react"
 import { createRoot } from "react-dom/client"
 import { MemoryRouter } from "react-router-dom"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { LanguageProvider } from "../assets/context/LanguageContext.jsx"
-import { RoleProvider } from "../assets/context/RoleContext.jsx"
+import { LanguageProvider } from "../assets/context/LanguageProvider.jsx"
+import { RoleProvider } from "../assets/context/RoleProvider.jsx"
 import Permissions from "../pages/admin/Permissions.jsx"
 
 vi.mock("../assets/context/AuthContext.jsx", () => ({

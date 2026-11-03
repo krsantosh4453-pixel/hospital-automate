@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react"
-import { LanguageProvider } from "./assets/context/LanguageContext.jsx"
+import { LanguageProvider } from "./assets/context/LanguageProvider.jsx"
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom"
 
 import Layout from "./layouts/layout.jsx"
@@ -14,13 +14,13 @@ import { ProtectedRoute } from "./components/ProtectedRoute.jsx"
 import AppBackground from "./components/AppBackground.jsx"
 import { PageLoading } from "./components/LoadingSpinner.jsx"
 
-import { AuthProvider } from "./assets/context/AuthContext.jsx"
-import { PatientProvider } from "./assets/context/PatientContext.jsx"
-import { PrescriptionProvider } from "./assets/context/PrescriptionContext.jsx"
-import { PharmacyProvider } from "./assets/context/PharmacyContext.jsx"
+import { AuthProvider } from "./assets/context/AuthProvider.jsx"
+import { PatientProvider } from "./assets/context/PatientProvider.jsx"
+import { PrescriptionProvider } from "./assets/context/PrescriptionProvider.jsx"
+import { PharmacyProvider } from "./assets/context/PharmacyProvider.jsx"
 import { HospitalsProvider } from "./assets/context/HospitalsContext.jsx"
 import { SidebarProvider } from "./assets/context/SidebarContext.jsx"
-import { RoleProvider } from "./assets/context/RoleContext.jsx"
+import { RoleProvider } from "./assets/context/RoleProvider.jsx"
 import { RoleAuthBridge } from "./assets/context/RoleAuthBridge.jsx"
 
 // Pages load on first visit; sign-in pages and Home stay in the main bundle.
