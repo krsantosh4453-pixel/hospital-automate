@@ -49,6 +49,7 @@ function expiryDate(monthYear) {
 function storeSettings(form) {
   return {
     unit: (form.unit || "").trim() || "Unit",
+    generic_name: (form.genericName || "").trim(),
     reorder_level: Math.max(0, Number(form.minStock) || 0),
     supplier: form.supplier ? Number(form.supplier) : null,
   }
@@ -99,6 +100,7 @@ function Inventory() {
         name: m.name || "",
         category: m.category || "General",
         unit: m.unit || "Unit",
+        genericName: m.generic_name || "",
         quantity: Number(m.quantity || 0),
         minStock: Number(m.reorder_level ?? DEFAULT_REORDER_LEVEL),
         supplier: m.supplier_name || "",
@@ -271,6 +273,7 @@ function Inventory() {
       quantity: String(item.quantity),
       minStock: String(item.minStock),
       supplier: item.supplierId ? String(item.supplierId) : "",
+      genericName: item.genericName,
       expiry: item.expiry,
     })
     setShowForm(true)
@@ -371,7 +374,7 @@ function Inventory() {
 
   const openNew = () => {
     setSelectedItem(null)
-    setFormData({ name: "", category: "", unit: "Unit", quantity: "", minStock: String(DEFAULT_REORDER_LEVEL), supplier: "", expiry: "" })
+    setFormData({ name: "", category: "", unit: "Unit", quantity: "", minStock: String(DEFAULT_REORDER_LEVEL), supplier: "", genericName: "", expiry: "" })
     setShowForm(true)
   }
 
@@ -536,6 +539,9 @@ function Inventory() {
           <Field label="Item name" required>
             <Input name="name" value={formData.name} onChange={handleChange} />
           </Field>
+          <Field label="Salt (generic name)" hint="e.g. ibuprofen, or paracetamol, caffeine for a combination. Used by the prescription safety check.">
+            <Input name="genericName" value={formData.genericName || ""} onChange={handleChange} />
+          </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Category" required>
               <Select name="category" value={formData.category} onChange={handleChange}>
@@ -614,6 +620,7 @@ function Inventory() {
               { label: "In stock", value: `${selectedItem.quantity} ${selectedItem.unit}` },
               { label: "Reorder level", value: selectedItem.minStock },
               { label: "Usual supplier", value: selectedItem.supplier || "—" },
+              { label: "Salt (generic name)", value: selectedItem.genericName || "—" },
               { label: "Status", value: selectedItem.status },
               { label: "Category", value: selectedItem.category },
               { label: "Batch", value: selectedItem.batch },

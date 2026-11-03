@@ -20,6 +20,8 @@ class Medicine(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     expiry_date = models.DateField(null=True, blank=True, db_index=True)
     status = models.CharField(max_length=20, default="Available", db_index=True)
+    # Generic (salt) names, comma-separated for combinations; used by the prescription safety check.
+    generic_name = models.CharField(max_length=255, blank=True, default="")
     # Store settings: how stock is counted, when it is low, and who usually supplies it.
     unit = models.CharField(max_length=30, default="Unit")
     reorder_level = models.PositiveIntegerField(default=10)

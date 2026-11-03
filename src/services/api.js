@@ -1240,6 +1240,17 @@ const api = {
       get: async (id) =>
         request(`${API_BASE_URL}/clinical/prescriptions/${id}/`),
 
+      // POST /api/clinical/prescriptions/safety-check/ — allergy, duplicate and interaction alerts
+      // before saving ({ hospital, patient, items: [{ name }] }).
+      safetyCheck: async (data) =>
+        request(`${API_BASE_URL}/clinical/prescriptions/safety-check/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        }),
+
       // POST /api/clinical/prescriptions/
       create: async (data) =>
         request(`${API_BASE_URL}/clinical/prescriptions/`, {

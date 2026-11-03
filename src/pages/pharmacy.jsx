@@ -89,6 +89,7 @@ function Pharmacy() {
 
   const [formData, setFormData] = useState({
     name: "",
+    genericName: "",
     category: "",
     batch: "",
     stock: "",
@@ -322,6 +323,7 @@ function Pharmacy() {
 
     setFormData({
       name: "",
+      genericName: "",
       category: "",
       batch: "",
       stock: "",
@@ -371,6 +373,9 @@ function Pharmacy() {
 
         name:
           formData.name,
+
+        generic_name:
+          formData.genericName.trim(),
 
         category:
           formData.category,
@@ -427,6 +432,9 @@ function Pharmacy() {
       name:
         medicine.name,
 
+      genericName:
+        medicine.genericName || "",
+
       category:
         medicine.category,
 
@@ -471,6 +479,9 @@ function Pharmacy() {
 
           name:
             formData.name,
+
+          generic_name:
+            formData.genericName.trim(),
 
           category:
             formData.category,
@@ -986,7 +997,7 @@ function Pharmacy() {
                 icon={PlusIcon}
                 onClick={() => {
                   setSelectedMedicine(null)
-                  setFormData({ name: "", category: "", batch: "", stock: "", expiry: "", price: "" })
+                  setFormData({ name: "", genericName: "", category: "", batch: "", stock: "", expiry: "", price: "" })
                   setShowForm(true)
                 }}
               >
@@ -1930,6 +1941,25 @@ function Pharmacy() {
                     required
 
                     placeholder="Medicine Name"
+
+                    className="hms-input w-full"
+
+                  />
+
+
+                  <input
+
+                    type="text"
+
+                    name="genericName"
+
+                    value={formData.genericName}
+
+                    onChange={handleChange}
+
+                    placeholder="Salt (generic name), e.g. ibuprofen"
+
+                    aria-label="Salt (generic name)"
 
                     className="hms-input w-full"
 

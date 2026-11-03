@@ -2,6 +2,8 @@ from config.hospital_time import hospital_today
 
 from django.db import transaction
 from rest_framework import serializers
+
+from .medication_safety import blocking
 from .models import (
     Immunization,
     VitalSign,
@@ -183,10 +185,15 @@ class PrescriptionItemSerializer(serializers.ModelSerializer):
         return value
 
 
+MIN_OVERRIDE_REASON = 10
+
+
 class PrescriptionSerializer(serializers.ModelSerializer):
     # Nested write/read items so the Prescription page can create a
     # prescription and its medicines in a single request.
     items = PrescriptionItemSerializer(many=True)
+    # The doctor's reason to prescribe despite a high-severity safety alert.
+    safety_override_reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)
 
     # Read-only display helpers so the list/table can render without extra
     # round trips (mirrors VisitSerializer in the encounters app).
@@ -211,8 +218,10 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             "doctor_name",
             "hospital_name",
             "visit_label",
+            "safety_alerts",
+            "safety_override_reason",
         ]
-        read_only_fields = ["id", "created_at", "dispensed_at"]
+        read_only_fields = ["id", "created_at", "dispensed_at", "safety_alerts"]
 
     def get_visit_label(self, obj):
         return f"Visit #{obj.visit_id}" if obj.visit_id else ""
@@ -256,7 +265,42 @@ class PrescriptionSerializer(serializers.ModelSerializer):
                     "visit": "This visit does not belong to the selected patient."
                 })
 
+        if "items" in attrs and hospital:
+            self._check_medication_safety(attrs, hospital, patient)
+
         return attrs
+
+    def _check_medication_safety(self, attrs, hospital, patient):
+        """High-severity alerts block the prescription unless the doctor records why."""
+        from .medication_safety import blocking, check_items
+
+        alerts = check_items(hospital, patient, [item["name"] for item in attrs["items"]])
+        reason = (attrs.get("safety_override_reason") or "").strip()
+        high = blocking(alerts)
+        if high and len(reason) < MIN_OVERRIDE_REASON:
+            summary = "; ".join(f"{', '.join(alert['medicines'])}: {alert['message']}" for alert in high)
+            raise serializers.ValidationError({
+                "safety_override_reason": (
+                    f"High-risk medication alert: {summary} "
+                    f"To prescribe anyway, record your reason (at least {MIN_OVERRIDE_REASON} characters)."
+                )
+            })
+        attrs["safety_alerts"] = alerts
+        attrs["safety_override_reason"] = reason if high else ""
+
+    def _audit_override(self, prescription):
+        if not blocking(prescription.safety_alerts):
+            return
+        from audit.services import record_audit
+
+        record_audit(
+            self.context.get("request"), "clinical.prescription.safety_override", prescription,
+            hospital=prescription.hospital_id,
+            details={
+                "rules": [alert["rule"] for alert in blocking(prescription.safety_alerts)],
+                "reason": prescription.safety_override_reason,
+            },
+        )
 
     def validate_hospital(self, value):
         """Ensure user has access to the hospital."""
@@ -278,6 +322,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             PrescriptionItem(prescription=prescription, **item)
             for item in items_data
         ])
+        self._audit_override(prescription)
         return prescription
 
     @transaction.atomic
@@ -294,6 +339,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
                 PrescriptionItem(prescription=instance, **item)
                 for item in items_data
             ])
+            self._audit_override(instance)
 
         return instance
 

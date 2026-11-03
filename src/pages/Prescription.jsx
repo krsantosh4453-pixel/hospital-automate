@@ -4,6 +4,7 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
+import MedicationSafetyDialog from "../components/prescription/MedicationSafetyDialog.jsx"
 import { FilePlus2, Hospital, PackageCheck, Pill, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import {
   Alert,
@@ -135,6 +136,8 @@ function Prescription() {
   // ---------------------------------------------------------
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  // Safety check result waiting for the doctor's decision, with the payload it was run on.
+  const [safetyCheck, setSafetyCheck] = useState(null)
   const [formError, setFormError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
   const [actionError, setActionError] = useState("")
@@ -370,13 +373,37 @@ function Prescription() {
     setSaving(true)
 
     try {
+      const result = await api.prescriptions.safetyCheck({
+        hospital: payload.hospital,
+        patient: payload.patient,
+        items: payload.items.map((item) => ({ name: item.name })),
+      })
+      if (result?.alerts?.length) {
+        setSafetyCheck({ result, payload })
+        setSaving(false)
+        return
+      }
+    } catch (err) {
+      setFormError(err?.message || "Could not run the medication safety check. Please try again.")
+      setSaving(false)
+      return
+    }
+
+    await savePrescription(payload)
+  }
+
+  const savePrescription = async (payload) => {
+    setSaving(true)
+    try {
       const created = await createPrescription(payload)
 
       setSuccessMessage(
         `Prescription ${created?.id || ""} created successfully.`
       )
       setForm(emptyForm())
+      setSafetyCheck(null)
     } catch (err) {
+      setSafetyCheck(null)
       setFormError(
         err?.message || "Unable to save the prescription. Please try again."
       )
@@ -460,6 +487,12 @@ function Prescription() {
 
   return (
     <div className="space-y-5">
+      <MedicationSafetyDialog
+        result={safetyCheck?.result || null}
+        saving={saving}
+        onCancel={() => setSafetyCheck(null)}
+        onConfirm={(reason) => savePrescription({ ...safetyCheck.payload, safety_override_reason: reason })}
+      />
       {header}
 
       {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}

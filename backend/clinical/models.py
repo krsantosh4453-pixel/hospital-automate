@@ -252,6 +252,10 @@ class Prescription(models.Model):
     )
     status = models.CharField(max_length=30, default="Confirmed", db_index=True)
     dispensed_at = models.DateTimeField(null=True, blank=True)
+    # Medication safety check at the time of writing (clinical/medication_safety.py):
+    # the alerts shown and, for high-severity ones, the doctor's reason to go ahead.
+    safety_alerts = models.JSONField(default=list, blank=True)
+    safety_override_reason = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:

@@ -40,7 +40,9 @@ const mapMedicineFromApi = (record = {}) => {
     stock,
     expiry: formatExpiry(record.expiry_date),
     price: num(record.price),
-    status: stock <= 20 ? "Low Stock" : "In Stock",
+    genericName: record.generic_name || "",
+    // Same rule as Inventory: low at or below the item's own reorder level (server default 10).
+    status: stock <= num(record.reorder_level ?? 10) ? "Low Stock" : "In Stock",
     hospitalId: record.hospital,
   }
 }

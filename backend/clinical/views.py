@@ -1,4 +1,6 @@
-from rest_framework.exceptions import ValidationError
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.response import Response
 
 from doctors.models import Doctor
 from .models import (
@@ -100,6 +102,9 @@ class MedicalRecordViewSet(HospitalScopedViewSet):
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
 
 
+MAX_SAFETY_CHECK_ITEMS = 50
+
+
 class PrescriptionViewSet(HospitalScopedViewSet):
     queryset = Prescription.objects.select_related(
         "patient", "doctor", "hospital", "visit"
@@ -132,6 +137,44 @@ class PrescriptionViewSet(HospitalScopedViewSet):
             queryset = queryset.filter(status=status_filter)
 
         return queryset
+
+    @action(detail=False, methods=["post"], url_path="safety-check")
+    def safety_check(self, request):
+        """
+        Medication safety alerts for a prescription before it is saved.
+
+        Body: {"hospital": id, "patient": id, "items": [{"name": "Tab Ibuprofen 400"}, ...]}
+        """
+        from hospital.models import Hospital
+        from patients.models import Patient
+        from users.permissions import get_user_hospital_ids
+
+        from . import safety_rules
+        from .medication_safety import check_items
+        from .serializers import _patient_belongs_to_hospital
+
+        try:
+            hospital_id = int(request.data.get("hospital"))
+            patient_id = int(request.data.get("patient"))
+        except (TypeError, ValueError):
+            raise ValidationError({"detail": "hospital and patient are required."})
+        if hospital_id not in get_user_hospital_ids(request.user):
+            raise PermissionDenied("You do not have access to this hospital.")
+        items = request.data.get("items") or []
+        if not isinstance(items, list) or len(items) > MAX_SAFETY_CHECK_ITEMS:
+            raise ValidationError({"items": f"Send a list of at most {MAX_SAFETY_CHECK_ITEMS} medicines."})
+
+        hospital = Hospital.objects.filter(pk=hospital_id).first()
+        patient = Patient.objects.filter(pk=patient_id).first()
+        if hospital is None or patient is None or not _patient_belongs_to_hospital(patient, hospital):
+            raise ValidationError({"patient": "This patient is not registered in this hospital."})
+
+        names = [str(item.get("name") or "")[:200] for item in items if isinstance(item, dict)]
+        return Response({
+            "alerts": check_items(hospital, patient, names),
+            "rules_version": safety_rules.RULES_VERSION,
+            "review_status": safety_rules.REVIEW_STATUS,
+        })
 
 
 class PrescriptionItemViewSet(HospitalScopedViewSet):

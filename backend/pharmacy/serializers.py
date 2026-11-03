@@ -25,6 +25,7 @@ class MedicineSerializer(serializers.ModelSerializer):
             "price",
             "expiry_date",
             "status",
+            "generic_name",
             "unit",
             "reorder_level",
             "supplier",
