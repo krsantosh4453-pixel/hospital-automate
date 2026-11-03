@@ -1,8 +1,9 @@
-import { useEffect } from "react"
+import { Suspense, useEffect } from "react"
 import { Outlet, useLocation } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import Sidebar from "../components/Sidebar"
 import Breadcrumbs, { ShellBreadcrumbsProvider } from "../components/Breadcrumbs.jsx"
+import { PageLoading } from "../components/LoadingSpinner.jsx"
 import { useSidebar } from "../assets/context/SidebarContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { findNavItem } from "../config/navigation.js"
@@ -35,7 +36,9 @@ function Layout() {
           <div className="mx-auto w-full max-w-[1600px] min-w-0">
             <ShellBreadcrumbsProvider>
               <Breadcrumbs />
-              <Outlet />
+              <Suspense fallback={<PageLoading />}>
+                <Outlet />
+              </Suspense>
             </ShellBreadcrumbsProvider>
           </div>
         </main>
