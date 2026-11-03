@@ -1719,6 +1719,7 @@ const HI_PAGES = {
   "This Year": "इस वर्ष",
   "In today": "आज आए",
   "Not tracked": "दर्ज नहीं किया जाता",
+  "Restricted": "प्रतिबंधित",
   "Semi-Urgent": "अर्ध-तत्काल",
   "Non-Urgent": "गैर-तत्काल",
   "Triage log": "ट्राइएज लॉग",

@@ -10,6 +10,7 @@ import logging
 import os
 
 import magic
+from django.db.models import Q
 from django.http import FileResponse
 from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied
@@ -20,11 +21,13 @@ from rest_framework.views import APIView
 
 from audit.services import record_audit
 from patients.models import Patient, PatientDocument
+from users.care_scope import limit_to_patients_in_care
 from users.permissions import (
     get_linked_patient,
     get_request_hospital_id,
     get_user_hospital_ids,
     get_user_roles,
+    hospitals_with_role,
     is_active_staff,
 )
 from users.models import StaffRole
@@ -78,6 +81,8 @@ UPLOAD_ROLES = {
     StaffRole.RECEPTIONIST, StaffRole.LAB_STAFF,
 }
 DELETE_ROLES = {StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER}
+# Roles that read patient documents: the same staff who add them.
+READ_ROLES = UPLOAD_ROLES
 
 
 def validate_file_upload(file):
@@ -114,11 +119,20 @@ def _acting_hospital_ids(request):
 
 
 def visible_documents(request):
-    """Documents the requesting user may see."""
+    """
+    Documents the requesting user may see. Staff read only in hospitals where
+    their role works with documents, and a Doctor or Nurse only for patients
+    in their care.
+    """
     if is_active_staff(request.user):
-        return PatientDocument.objects.filter(
-            hospital_id__in=_acting_hospital_ids(request)
-        ).select_related('patient', 'hospital')
+        hospital_ids = hospitals_with_role(request.user, _acting_hospital_ids(request), READ_ROLES)
+        if not hospital_ids:
+            raise PermissionDenied("Your role cannot read patient documents.")
+        documents = PatientDocument.objects.filter(hospital_id__in=hospital_ids)
+        documents = limit_to_patients_in_care(
+            documents, request.user, hospital_ids, lambda ids: Q(hospital_id__in=list(ids))
+        )
+        return documents.select_related('patient', 'hospital')
     linked_patient = get_linked_patient(request.user)
     if linked_patient:
         return PatientDocument.objects.filter(patient=linked_patient).select_related('patient', 'hospital')

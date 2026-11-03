@@ -107,9 +107,12 @@ function Reports() {
   const billsTotal = k.billing?.period_invoices ?? 0
   const paidBills = k.billing?.paid ?? 0
   const pendingBills = (k.billing?.unpaid ?? 0) + (k.billing?.partial ?? 0)
+  // The server blanks money figures (null) for roles that do not handle payments.
+  const revenueHidden = Boolean(kpis) && k.billing?.period_revenue === null
   const pharmacyRevenue = Number(k.pharmacy?.period_revenue ?? 0)
   const billingRevenue = Number(k.billing?.period_revenue ?? 0)
   const totalRevenue = billingRevenue + pharmacyRevenue
+  const money = (amount) => (revenueHidden ? t("Restricted") : `₹${amount.toLocaleString("en-IN")}`)
   const totalBeds = k.ipd?.total_beds ?? 0
   const availableBeds = k.ipd?.available_beds ?? 0
   const occupiedBeds = k.ipd?.occupied_beds ?? 0
@@ -228,7 +231,7 @@ function Reports() {
 
           <ReportCard
             title={t("Total Revenue")}
-            value={`₹${totalRevenue.toLocaleString("en-IN")}`}
+            value={money(totalRevenue)}
             subtitle="Overall revenue"
             icon={<WalletIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-green-100"
@@ -237,7 +240,7 @@ function Reports() {
 
           <ReportCard
             title={t("Pharmacy")}
-            value={`₹${pharmacyRevenue.toLocaleString("en-IN")}`}
+            value={money(pharmacyRevenue)}
             subtitle="Medicine sales"
             icon={<PillIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-purple-100"

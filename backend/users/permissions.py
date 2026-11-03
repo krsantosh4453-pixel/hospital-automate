@@ -159,6 +159,18 @@ def user_has_any_role(user, role_names):
     return any(role in user_roles for role in role_names)
 
 
+def hospitals_with_role(user, hospital_ids, role_names):
+    """The hospitals among ``hospital_ids`` where the user holds one of ``role_names``."""
+    return [h for h in hospital_ids if set(get_user_roles(user, h)) & set(role_names)]
+
+
+# Roles that see money collected: the front desk takes payments, and
+# billing and management account for them.
+REVENUE_ROLES = frozenset({
+    StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER, StaffRole.BILLING_STAFF, StaffRole.RECEPTIONIST,
+})
+
+
 def get_linked_patient(user):
     """Return the Patient row linked to this login, if any."""
     if not user or not getattr(user, "is_authenticated", False):
