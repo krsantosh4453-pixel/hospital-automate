@@ -23,10 +23,12 @@ from rest_framework.test import APIClient
 
 from billing.models import Invoice, InvoiceItem, Payment
 from billing.services import record_payment
+from clinical.models import Prescription, PrescriptionItem
 from doctors.models import Doctor
 from hospital.models import Bed, Hospital, Room, Ward
 from ipd.models import Admission, BedAllocation
 from patients.models import Patient, PatientHospital
+from pharmacy.models import Medicine, Sale
 from users.models import StaffRole
 
 from .test_tenant_isolation import make_staff
@@ -173,3 +175,48 @@ class ConcurrentWriteTests(WardMixin, TransactionTestCase):
         self.assertTrue(set(statuses) <= {201, 400}, statuses)
         self.assertEqual(BedAllocation.objects.filter(admission=admission, is_active=True).count(), 1)
         self.assertEqual(Bed.objects.filter(status="Occupied").count(), 1)
+
+    # Pharmacy: dispensing a whole prescription (G-9)
+
+    def dispense_setup(self, prescriptions, stock, per_item=10):
+        pharmacist, _ = make_staff("race_pharmacist", self.hospital, role=StaffRole.PHARMACIST)
+        medicine = Medicine.objects.create(name="Paracetamol", hospital=self.hospital, batch="RACE-P1",
+                                           quantity=stock, price=Decimal("2.00"))
+        rx_items = []
+        for index in range(prescriptions):
+            prescription = Prescription.objects.create(hospital=self.hospital, patient=self.make_patient(index))
+            item = PrescriptionItem.objects.create(prescription=prescription, name="Paracetamol", quantity=per_item)
+            rx_items.append((prescription, item))
+        return pharmacist, medicine, rx_items
+
+    def dispense(self, user, prescription, item, medicine):
+        client = APIClient()
+        client.force_authenticate(user)
+        client.credentials(HTTP_X_HOSPITAL_ID=str(self.hospital.id))
+        return client.post("/api/pharmacy-sales/dispense-prescription/", {
+            "prescription": prescription.id, "lines": [{"item": item.id, "medicine": medicine.id}],
+        }, format="json").status_code
+
+    def test_one_prescription_is_dispensed_once_however_many_try(self):
+        user, medicine, [(prescription, item)] = self.dispense_setup(prescriptions=1, stock=100)
+
+        statuses = run_together(lambda i: self.dispense(user, prescription, item, medicine))
+
+        self.assertEqual((statuses.count(201), statuses.count(409)), (1, THREADS - 1), statuses)
+        medicine.refresh_from_db()
+        self.assertEqual(medicine.quantity, 90)
+        self.assertEqual(Sale.objects.filter(prescription=prescription).count(), 1)
+
+    def test_parallel_dispenses_never_oversell_and_roll_back_cleanly(self):
+        # Stock for two prescriptions of 10; eight pharmacists try at once.
+        user, medicine, rx_items = self.dispense_setup(prescriptions=THREADS, stock=25)
+
+        statuses = run_together(lambda i: self.dispense(user, *rx_items[i], medicine))
+
+        self.assertEqual((statuses.count(201), statuses.count(400)), (2, THREADS - 2), statuses)
+        medicine.refresh_from_db()
+        self.assertEqual(medicine.quantity, 5)
+        self.assertEqual(Sale.objects.filter(medicine=medicine).count(), 2)
+        # A refused dispense leaves its prescription undispensed (the mark rolled back).
+        self.assertEqual(Prescription.objects.filter(dispensed_at__isnull=False).count(), 2)
+
