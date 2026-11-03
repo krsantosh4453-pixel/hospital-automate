@@ -48,6 +48,22 @@ class HomeStatsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["statistics"]["laboratory"]["total"], 1)
 
+    def test_lab_counts_follow_the_real_test_statuses(self):
+        # R-16: pending/completed/urgent once filtered on statuses a LabTest never has.
+        patient = Patient.objects.get(hospital=self.hospital)
+        for status in ("Ordered", "Processing", "Result Entered", "Verified", "Released", "Cancelled"):
+            LabTest.objects.create(name=f"Synthetic {status}", patient=patient, hospital=self.hospital, status=status)
+        LabTest.objects.create(name="Synthetic urgent", patient=patient, hospital=self.hospital,
+                               status="Collected", priority="Urgent")
+        LabTest.objects.create(name="Synthetic urgent done", patient=patient, hospital=self.hospital,
+                               status="Released", priority="Urgent")
+        response = self.client.get(f"/api/home/stats/detail/?hospital={self.hospital.id}")
+        lab = response.data["statistics"]["laboratory"]
+        self.assertEqual(lab["total"], 8)
+        self.assertEqual(lab["pending"], 4)  # Ordered, Processing, Result Entered, Collected
+        self.assertEqual(lab["completed"], 3)  # Verified, Released, urgent Released
+        self.assertEqual(lab["urgent"], 1)
+
     def test_other_hospital_is_refused(self):
         for url in ("/api/home/stats/", "/api/home/stats/detail/"):
             response = self.client.get(f"{url}?hospital={self.other.id}")

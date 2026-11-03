@@ -20,6 +20,9 @@ class LabTest(models.Model):
         ("Released", "Released"),
         ("Cancelled", "Cancelled"),
     ]
+    # A result is done once verified; until then the test is still pending.
+    DONE_STATUSES = ("Verified", "Released")
+    CLOSED_STATUSES = DONE_STATUSES + ("Cancelled",)
 
     hospital = models.ForeignKey(
         "hospital.Hospital",

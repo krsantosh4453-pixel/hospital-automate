@@ -111,9 +111,10 @@ def home_dashboard(request):
     
     # Lab stats
     total_lab_tests = lab_qs.count()
-    pending_lab_tests = lab_qs.filter(status="Pending").count()
-    completed_lab_tests = lab_qs.filter(status="Completed").count()
-    urgent_lab_tests = lab_qs.filter(priority="Urgent", status__in=["Pending", "Processing"]).count()
+    open_lab_qs = lab_qs.exclude(status__in=LabTest.CLOSED_STATUSES)
+    pending_lab_tests = open_lab_qs.count()
+    completed_lab_tests = lab_qs.filter(status__in=LabTest.DONE_STATUSES).count()
+    urgent_lab_tests = open_lab_qs.filter(priority="Urgent").count()
     
     # Billing stats
     total_invoices = invoice_qs.count()
