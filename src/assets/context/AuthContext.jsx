@@ -91,7 +91,6 @@ export function AuthProvider({ children }) {
     setIsStaff(false)
     setIsPatient(true)
     setIsLoggedIn(true)
-    localStorage.setItem("patient", JSON.stringify(session.patient))
     window.dispatchEvent(new Event("auth:login"))
     return session
   }, [])
@@ -145,7 +144,6 @@ export function AuthProvider({ children }) {
         setIsStaff(false)
         setIsPatient(true)
         setIsLoggedIn(true)
-        localStorage.setItem("patient", JSON.stringify(patientData.patient))
       }
     } catch {
       api.auth.clearTokens()

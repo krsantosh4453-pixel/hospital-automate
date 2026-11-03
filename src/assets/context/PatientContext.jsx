@@ -1,5 +1,18 @@
 import { createContext, useContext, useEffect, useState } from "react"
-import { withoutDemoRows } from "../../utils/demoData.js"
+import { clearCachedPatientData } from "../../services/api.js"
+
+// Hospital PCs are shared: patient rows, appointments and tokens stay in
+// memory and never reach localStorage. Only the selected hospital is kept.
+const LEGACY_PATIENT_KEYS = ["patientToken", "patient"]
+
+function forgetStoredPatientRows() {
+  clearCachedPatientData()
+  try {
+    for (const key of LEGACY_PATIENT_KEYS) localStorage.removeItem(key)
+  } catch {
+    // Storage may be unavailable (private mode); nothing to clear.
+  }
+}
 
 const PatientContext = createContext()
 
@@ -23,59 +36,36 @@ export function PatientProvider({ children }) {
   // CURRENT LOGGED-IN / SELECTED PATIENT
   // =====================================================
 
-  const [patient, setPatient] = useState(() => {
-    const savedPatient =
-      localStorage.getItem("patientData")
-
-    return savedPatient
-      ? JSON.parse(savedPatient)
-      : null
-  })
+  const [patient, setPatient] = useState(null)
 
 
   // =====================================================
   // PATIENT LIST
   // =====================================================
 
-  const [patients, setPatients] = useState(() => {
-
-    const savedPatients =
-      localStorage.getItem("hospitalPatients")
-
-    return savedPatients
-      ? withoutDemoRows(JSON.parse(savedPatients), "patients")
-      : []
-  })
+  const [patients, setPatients] = useState([])
 
 
   // =====================================================
   // CURRENT APPOINTMENT
   // =====================================================
 
-  const [appointment, setAppointment] = useState(() => {
-
-    const savedAppointment =
-      localStorage.getItem("patientAppointment")
-
-    return savedAppointment
-      ? JSON.parse(savedAppointment)
-      : null
-  })
+  const [appointment, setAppointment] = useState(null)
 
 
   // =====================================================
   // CURRENT TOKEN
   // =====================================================
 
-  const [token, setToken] = useState(() => {
-
-    return localStorage.getItem("patientToken") || null
-
-  })
+  const [token, setToken] = useState(null)
 
 
-  // Signing out (or an expired session) drops patient rows held in memory;
-  // services/api.js clears their localStorage copies.
+  // Signing out (or an expired session) drops patient rows held in memory.
+  // Copies an older version stored are removed once, on start.
+  useEffect(() => {
+    forgetStoredPatientRows()
+  }, [])
+
   useEffect(() => {
     const forgetPatients = () => {
       setPatients([])
@@ -94,11 +84,6 @@ export function PatientProvider({ children }) {
   const savePatients = (updatedPatients) => {
 
     setPatients(updatedPatients)
-
-    localStorage.setItem(
-      "hospitalPatients",
-      JSON.stringify(updatedPatients)
-    )
   }
 
 
@@ -119,14 +104,6 @@ export function PatientProvider({ children }) {
     // current appointment/token reset
     setAppointment(null)
     setToken(null)
-
-    localStorage.removeItem(
-      "patientAppointment"
-    )
-
-    localStorage.removeItem(
-      "patientToken"
-    )
   }
 
 
@@ -137,11 +114,6 @@ export function PatientProvider({ children }) {
   const savePatient = (patientData) => {
 
     setPatient(patientData)
-
-    localStorage.setItem(
-      "patientData",
-      JSON.stringify(patientData)
-    )
   }
 
 
@@ -252,11 +224,6 @@ export function PatientProvider({ children }) {
   const saveAppointment = (appointmentData) => {
 
     setAppointment(appointmentData)
-
-    localStorage.setItem(
-      "patientAppointment",
-      JSON.stringify(appointmentData)
-    )
   }
 
 
@@ -267,11 +234,6 @@ export function PatientProvider({ children }) {
   const saveToken = (tokenNumber) => {
 
     setToken(tokenNumber)
-
-    localStorage.setItem(
-      "patientToken",
-      tokenNumber
-    )
   }
 
 
@@ -286,10 +248,8 @@ export function PatientProvider({ children }) {
     setAppointment(null)
     setToken(null)
 
-    localStorage.removeItem("patientData")
     localStorage.removeItem("selectedHospital")
-    localStorage.removeItem("patientAppointment")
-    localStorage.removeItem("patientToken")
+    forgetStoredPatientRows()
   }
 
 
