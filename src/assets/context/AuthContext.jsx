@@ -1,23 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import api from "../../services/api.js"
+import { isDevelopmentAuthBypassEnabled } from "../../utils/devAuthBypass.js"
 
 const AuthContext = createContext()
 const DEV_AUTH_BYPASS_KEY = "hms_dev_auth_bypass"
-
-function isDevelopmentAuthBypassEnabled() {
-  if (!import.meta.env.DEV) {
-    return false
-  }
-
-  // Off unless explicitly enabled: when on, anyone opening the dev server is
-  // signed in as a fake Admin and sees every add/create action.
-  const configured = import.meta.env.VITE_DEV_AUTH_BYPASS
-  if (configured === undefined || configured === null || configured === "") {
-    return false
-  }
-
-  return String(configured).toLowerCase() === "true"
-}
 
 function buildDevAuthUser() {
   const user = {
