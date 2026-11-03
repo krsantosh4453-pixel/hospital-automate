@@ -145,3 +145,20 @@ Test-only additions: dispensing a prescription under parallel requests on Postgr
 Verification (clean copy, synthetic data): backend 650 tests OK, 7 skipped (the PostgreSQL row-lock tests), which pass 9/9 on PostgreSQL 16 with `REQUIRE_ROW_LOCK_TESTS=1`; coverage 81%; Vitest 63/63; Playwright 23/23; ESLint 0 errors; `manage.py check` and `makemigrations --check` clean.
 
 **Counting after this update:** remaining open: R-03 (Medium, owner decision); R-06, R-08, R-12, R-13 partly fixed; R-09 open (mitigated); R-10 deploy steps. R-05, R-11, R-14, R-15 and R-16 are closed.
+
+## Update 2026-11-03 (evening): items from the release-candidate audit
+
+| ID | Status | Change | Evidence |
+|---|---|---|---|
+| Sign-in rate limit | **Fixed** | Staff sign-in (password and OTP steps) is limited to 5 a minute per account plus 60 a minute per address, so staff behind one hospital NAT address can sign in at shift change (`b4600a0`) | `config/test_ratelimit.py` (3 new tests failed before) |
+| R-13 | **Fixed** | The remaining half: the Queue page now reads every page of today's Scheduled appointments and issues tokens earliest first; it read only the first 50, newest first, so a later-dated booking could get today's token (`c91da85`) | `src/__tests__/queueAppointments.test.js`, `e2e/opd-to-bill.spec.js` |
+| R-09 | **Fixed** | Production `STORAGES` uses `ManifestStaticFilesStorage` (content-hashed names for nginx's one-year immutable cache); nginx hides its version (`3c1b84e`) | `test_settings_loading.test_production_static_files_get_content_hashed_names` (failed before) |
+| R-12 | **Partly fixed** | ESLint 70 -> 22 warnings; billing load errors are now shown (`ef153f7`) | Remaining 22 are deliberate (see KNOWN_LIMITATIONS) |
+| D-32 | **Fixed** | FHIR: lab Observation performer referenced a login id as a Practitioner; booleans were exported as quantities; MedicationRequest referenced an unserved Medication resource (`8b6b1c6`) | `fhir/test_fhir_mappers.py` (9 tests; 3 failed before) |
+| R-17 | Open (Low) | "Active doctors" counted with `status="Active"`, never used, so always 0 (`home/views.py`, `reports/services.py`) | Code read; not yet fixed |
+| R-18 | Open (Low) | UTC "today" in several screens defaults to yesterday before 05:30 IST | Code read; not yet fixed |
+
+Still open from the audit: CI deploy steps (need staging), the `(hospital, uhid)` constraint (needs `report_duplicate_uhids` on real data), the MAR order screen (owner decides who enters orders). FHIR mappers that the API does not serve (discharge, admission and emergency encounters, nurse practitioner, AI drafts) and the unused `interoperability/fhir/serializers.py` remain untested; keep or remove them as a separate decision.
+
+Verification: backend 663 tests OK, 7 skipped (PostgreSQL-only); coverage 81%; Vitest 65/65; Playwright 23/23; ESLint 0 errors, 22 warnings; build OK; Ruff gate, Bandit (Medium+), `makemigrations --check` clean.
+
