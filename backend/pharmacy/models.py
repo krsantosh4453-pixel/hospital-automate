@@ -20,6 +20,16 @@ class Medicine(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     expiry_date = models.DateField(null=True, blank=True, db_index=True)
     status = models.CharField(max_length=20, default="Available", db_index=True)
+    # Store settings: how stock is counted, when it is low, and who usually supplies it.
+    unit = models.CharField(max_length=30, default="Unit")
+    reorder_level = models.PositiveIntegerField(default=10)
+    supplier = models.ForeignKey(
+        "procurement.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="medicines",
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __str__(self):

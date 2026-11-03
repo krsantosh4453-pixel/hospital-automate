@@ -111,15 +111,23 @@ class PurchaseItemNestedSerializer(serializers.ModelSerializer):
     ``quantity_received`` / ``line_total`` are always server-side.
     """
 
+    medicine_name = serializers.CharField(source="medicine.name", read_only=True)
+
     class Meta:
         model = PurchaseItem
         fields = [
+            "id",
             "medicine",
+            "medicine_name",
             "batch",
             "expiry_date",
             "quantity_ordered",
+            "quantity_received",
             "unit_cost",
+            "line_total",
         ]
+        # The receiving UI needs the line id and progress; the server owns them.
+        read_only_fields = ["id", "quantity_received", "line_total"]
 
     def validate_quantity_ordered(self, value):
         if value is None or value <= 0:

@@ -2191,19 +2191,22 @@ api.consent = {
   },
 }
 
+const queryForHospital = (hospitalId) => (hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : "")
+
 api.procurement = {
   suppliers: {
     list: async (hospitalId) => {
       const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
       return request(`${API_BASE_URL}/procurement/suppliers/${query}`)
     },
-    get: async (id) => request(`${API_BASE_URL}/procurement/suppliers/${id}/`),
+    get: async (id, hospitalId) => request(`${API_BASE_URL}/procurement/suppliers/${id}/${queryForHospital(hospitalId)}`),
     create: async (data) =>
       request(`${API_BASE_URL}/procurement/suppliers/`, { method: "POST", ...jsonBody(data) }),
-    update: async (id, data) =>
-      request(`${API_BASE_URL}/procurement/suppliers/${id}/`, { method: "PUT", ...jsonBody(data) }),
-    delete: async (id) => {
-      await request(`${API_BASE_URL}/procurement/suppliers/${id}/`, { method: "DELETE" })
+    // Procurement detail and write routes require ?hospital= (procurement/views.py RequiresHospitalScope).
+    update: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/suppliers/${id}/${queryForHospital(hospitalId)}`, { method: "PUT", ...jsonBody(data) }),
+    delete: async (id, hospitalId) => {
+      await request(`${API_BASE_URL}/procurement/suppliers/${id}/${queryForHospital(hospitalId)}`, { method: "DELETE" })
       return true
     },
   },
@@ -2212,13 +2215,13 @@ api.procurement = {
       const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
       return request(`${API_BASE_URL}/procurement/purchases/${query}`)
     },
-    get: async (id) => request(`${API_BASE_URL}/procurement/purchases/${id}/`),
+    get: async (id, hospitalId) => request(`${API_BASE_URL}/procurement/purchases/${id}/${queryForHospital(hospitalId)}`),
     create: async (data) =>
       request(`${API_BASE_URL}/procurement/purchases/`, { method: "POST", ...jsonBody(data) }),
-    update: async (id, data) =>
-      request(`${API_BASE_URL}/procurement/purchases/${id}/`, { method: "PUT", ...jsonBody(data) }),
-    receive: async (id, data) =>
-      request(`${API_BASE_URL}/procurement/purchases/${id}/receive/`, { method: "POST", ...jsonBody(data) }),
+    update: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/purchases/${id}/${queryForHospital(hospitalId)}`, { method: "PUT", ...jsonBody(data) }),
+    receive: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/purchases/${id}/receive/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
   },
   purchaseItems: {
     list: async (hospitalId, purchaseId) => {
