@@ -4,6 +4,7 @@ import { useHospitals } from "../../assets/context/HospitalsContext.jsx"
 import api from "../../services/api.js"
 import { CircleCheckIcon, ClipboardListIcon, PenLineIcon, XIcon } from "lucide-react"
 import { Alert, Card, SkeletonRows, useConfirm } from "../../components/ui"
+import FamilyAccessCard from "../../components/patient/FamilyAccessCard.jsx"
 
 const SCOPE_LABELS = {
   visits: "Visit history",
@@ -25,7 +26,8 @@ const inDays = (days) => {
 function PatientConsent() {
   const [confirm, confirmDialog] = useConfirm()
 
-  const { patient } = useAuth()
+  // A family member (proxy) may read this page but not sign, share or manage access.
+  const { patient, isProxy } = useAuth()
   const { hospitals } = useHospitals()
   const [consentForms, setConsentForms] = useState([])
   const [consentRecords, setConsentRecords] = useState([])
@@ -195,25 +197,29 @@ function PatientConsent() {
                           <span className="px-4 py-2 bg-green-100 text-green-700 rounded-xl text-sm font-medium flex items-center gap-2">
                             <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Signed on {formatDate(record.signed_at)}
                           </span>
-                          <button
-                            onClick={() => handleRevokeConsent(record)}
-                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200"
-                          >
-                            Withdraw
-                          </button>
+                          {!isProxy && (
+                            <button
+                              onClick={() => handleRevokeConsent(record)}
+                              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200"
+                            >
+                              Withdraw
+                            </button>
+                          )}
                         </>
                       ) : (
                         <>
                           <span className="px-4 py-2 bg-red-100 text-red-700 rounded-xl text-sm font-medium">
                             <ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Not Signed
                           </span>
-                          <button
-                            onClick={() => handleSign(form)}
-                            disabled={signing}
-                            className="px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50"
-                          >
-                            Review &amp; Sign
-                          </button>
+                          {!isProxy && (
+                            <button
+                              onClick={() => handleSign(form)}
+                              disabled={signing}
+                              className="px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              Review &amp; Sign
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -254,6 +260,7 @@ function PatientConsent() {
             </p>
           </div>
 
+          {!isProxy && (
           <form onSubmit={handleCreateShare} className="p-5 grid gap-4 md:grid-cols-2">
             <div>
               <label htmlFor="share-hospital" className="block text-xs font-medium text-gray-700 mb-1.5">Share with hospital</label>
@@ -317,6 +324,7 @@ function PatientConsent() {
               </button>
             </div>
           </form>
+          )}
 
           <div className="border-t border-gray-100">
             {shares.length === 0 ? (
@@ -337,7 +345,7 @@ function PatientConsent() {
                       </p>
                       <p className="text-xs text-gray-400 mt-1">{share.purpose}</p>
                     </div>
-                    {share.is_active && (
+                    {share.is_active && !isProxy && (
                       <button
                         onClick={() => handleRevokeShare(share)}
                         className="px-4 py-2 bg-red-50 text-red-700 rounded-xl text-sm font-medium hover:bg-red-100"
@@ -352,6 +360,8 @@ function PatientConsent() {
           </div>
         </div>
       )}
+
+      {!loading && !isProxy && <FamilyAccessCard />}
 
       {showSignModal && selectedForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="consent-sign-title">

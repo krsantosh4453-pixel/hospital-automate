@@ -163,6 +163,10 @@ def get_linked_patient(user):
     """Return the Patient row linked to this login, if any."""
     if not user or not getattr(user, "is_authenticated", False):
         return None
+    # A family member signed in with an active grant (users.proxy_access).
+    proxy_patient = getattr(user, "proxy_patient", None)
+    if proxy_patient is not None:
+        return proxy_patient
     try:
         return user.patient_account
     except Exception:

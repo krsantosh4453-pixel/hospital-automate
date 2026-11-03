@@ -113,6 +113,7 @@ function shouldAttemptRefresh(url) {
     '/auth/patient/email-otp/',
     '/auth/patient/login/',
     '/auth/patient/token/',
+    '/auth/proxy/',
     '/auth/google/',
     '/auth/dev/',
     '/auth/register/',
@@ -360,6 +361,36 @@ const api = {
       return data
     },
     patientMe: async () => request(`${API_BASE_URL}/auth/patient/me/`),
+    // Family / caregiver sign-in (view-only): OTP to the family member's own mobile,
+    // then pick which patient's records to open.
+    requestProxyOtp: async (phone) =>
+      request(`${API_BASE_URL}/auth/proxy/otp/request/`, {
+        method: 'POST',
+        timeout: DELIVERY_TIMEOUT_MS,
+        ...jsonBody({ phone }),
+      }),
+    verifyProxyOtp: async (phone, otp) =>
+      request(`${API_BASE_URL}/auth/proxy/otp/verify/`, {
+        method: 'POST',
+        ...jsonBody({ phone, otp }),
+      }),
+    proxyLogin: async (ticket, grant) => {
+      const data = await request(`${API_BASE_URL}/auth/proxy/login/`, {
+        method: 'POST',
+        ...jsonBody({ ticket, grant }),
+      })
+      setTokens({ access: data.access, refresh: data.refresh })
+      return data
+    },
+    // Family members the signed-in patient has given view-only access.
+    listFamilyAccess: async () => request(`${API_BASE_URL}/auth/patient/family-access/`),
+    grantFamilyAccess: async ({ name, relationship, phone }) =>
+      request(`${API_BASE_URL}/auth/patient/family-access/`, {
+        method: 'POST',
+        ...jsonBody({ name, relationship, phone }),
+      }),
+    revokeFamilyAccess: async (id) =>
+      request(`${API_BASE_URL}/auth/patient/family-access/${id}/revoke/`, { method: 'POST' }),
     // POST /api/auth/google/ with the ID token from Google Identity Services.
     googleLogin: async (credential) =>
       request(`${API_BASE_URL}/auth/google/`, {
@@ -2263,6 +2294,7 @@ api.patients.documents = {
   },
 }
 
+
 // Discharge readiness and the final bill of a stay (E7, E12, H8).
 // GET /api/ipd/admissions/{id}/readiness/
 api.ipd.admissions.readiness = async (id) =>
@@ -2341,4 +2373,3 @@ api.imaging = {
 api.patients.timeline = async (id) => request(`${API_BASE_URL}/patients/${id}/timeline/`)
 
 export default api
-

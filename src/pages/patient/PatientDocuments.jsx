@@ -7,7 +7,8 @@ import { Alert, Badge, Button, Card, EmptyState, Field, Input, Modal, Select, Sk
 function PatientDocuments() {
   const [confirm, confirmDialog] = useConfirm()
 
-  const { patient } = useAuth()
+  // A family member (proxy) can view documents but not upload or delete them.
+  const { patient, isProxy } = useAuth()
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -111,7 +112,7 @@ function PatientDocuments() {
           <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">Medical records</h1>
           <p className="mt-1 text-sm text-ink-500">Documents you or the hospital have added to your record.</p>
         </div>
-        <Button icon={Upload} onClick={() => setShowUpload(true)}>Upload document</Button>
+        {!isProxy && <Button icon={Upload} onClick={() => setShowUpload(true)}>Upload document</Button>}
       </header>
 
       {error && <Alert tone="danger" onDismiss={() => setError(null)}>{error}</Alert>}
@@ -124,7 +125,7 @@ function PatientDocuments() {
             icon={FileText}
             title="No documents yet"
             description="Upload reports or prescriptions from other clinics so your doctors can see them."
-            action={<Button icon={Upload} onClick={() => setShowUpload(true)}>Upload document</Button>}
+            action={!isProxy && <Button icon={Upload} onClick={() => setShowUpload(true)}>Upload document</Button>}
           />
         </Card>
       ) : (
@@ -155,7 +156,9 @@ function PatientDocuments() {
                     <td>
                       <div className="flex items-center justify-end gap-1">
                         <Button size="sm" variant="subtle" icon={Eye} onClick={() => handleView(doc)}>View</Button>
-                        <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => handleDelete(doc.id)} aria-label={`Delete ${doc.title}`} title="Delete" />
+                        {!isProxy && (
+                          <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => handleDelete(doc.id)} aria-label={`Delete ${doc.title}`} title="Delete" />
+                        )}
                       </div>
                     </td>
                   </tr>

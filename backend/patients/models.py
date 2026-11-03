@@ -126,3 +126,39 @@ class PatientDocument(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ProxyAccess(models.Model):
+    """
+    View-only access a patient gives a family member or caregiver. The proxy
+    signs in with an OTP to their own mobile number; revoking ends it at once.
+    """
+
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="proxy_grants")
+    name = models.CharField(max_length=100)
+    relationship = models.CharField(max_length=50)
+    # Last 10 digits, as normalised for OTP sign-in.
+    phone = models.CharField(max_length=15, db_index=True)
+    proxy_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="proxy_grants",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["patient", "phone"],
+                condition=models.Q(revoked_at__isnull=True),
+                name="unique_active_proxy_phone_per_patient",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.relationship}) for {self.patient.name}"

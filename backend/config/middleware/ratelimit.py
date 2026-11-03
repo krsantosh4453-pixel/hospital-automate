@@ -34,6 +34,7 @@ class RateLimitMiddleware(MiddlewareMixin):
         '/api/auth/patient/email-otp/': {'limit': 5, 'window': 60, 'scope': 'ip'},
         '/api/auth/patient/login/': {'limit': 5, 'window': 60, 'scope': 'ip'},
         '/api/auth/patient/token/': {'limit': 5, 'window': 60, 'scope': 'ip'},
+        '/api/auth/proxy/': {'limit': 5, 'window': 60, 'scope': 'ip'},
         '/api/auth/register/': {'limit': 5, 'window': 300, 'scope': 'ip'},
         '/api/auth/staff/logout/': {'limit': 30, 'window': 60, 'scope': 'user'},
 

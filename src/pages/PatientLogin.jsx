@@ -9,11 +9,12 @@ import {
   getSelectedLoginRole,
   saveSelectedLoginRole,
 } from "../utils/roleRouting.js"
-import { MailIcon, SmartphoneIcon, TicketIcon } from "lucide-react"
+import { MailIcon, SmartphoneIcon, TicketIcon, UsersIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import { BrandMark } from "../components/Sidebar.jsx"
 import { Alert } from "../components/ui"
 import DevLoginPanel from "../components/DevLoginPanel.jsx"
+import ProxyLoginPanel from "../components/auth/ProxyLoginPanel.jsx"
 import { useInSignInDialog } from "../components/auth/SignInDialog.jsx"
 
 function PatientLogin() {
@@ -205,6 +206,14 @@ function PatientLogin() {
     }
   }
 
+  // Family member / caregiver signed in with view-only access to a patient.
+  const handleProxySignedIn = (data) => {
+    patientLogin(data)
+    if (data.patient) savePatient(data.patient)
+    switchRole("Patient")
+    navigate("/patient")
+  }
+
   const handleTokenLogin = async (e) => {
     e.preventDefault()
     setTokenError("")
@@ -372,7 +381,19 @@ function PatientLogin() {
             >
               <MailIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Email
             </button>
+            <button
+              type="button"
+              onClick={() => setLoginMode("family")}
+              role="tab"
+              aria-selected={loginMode === "family"}
+              title="Family member or caregiver (view only)"
+              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors ${loginMode === "family" ? "bg-white text-brand-700 shadow-sm" : "text-ink-600 hover:text-ink-900"}`}
+            >
+              <UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Family
+            </button>
           </div>
+
+          {loginMode === "family" && <ProxyLoginPanel onSignedIn={handleProxySignedIn} />}
 
           {/* ==================================================== */}
           {/* TAB 1: MOBILE NUMBER & OTP */}

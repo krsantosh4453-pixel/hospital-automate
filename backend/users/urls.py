@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenVerifyView
 from config.auth_cookie_views import CookieTokenRefreshView, csrf_token
 
 from .dev_login import dev_login
+from .proxy_views import family_access, proxy_login, proxy_otp_request, proxy_otp_verify, revoke_family_access
 from .security_settings import security_settings
 from .staff_invite import accept_staff_invite
 from .views import (
@@ -54,4 +55,10 @@ urlpatterns = [
     path("patient/login/", patient_email_login, name="patient-email-login"),
     path("patient/token/", patient_token_login, name="patient-token-login"),
     path("patient/me/", patient_me, name="patient-me"),
+    # Family / caregiver (proxy) access: granted by the patient, view-only
+    path("patient/family-access/", family_access, name="patient-family-access"),
+    path("patient/family-access/<int:grant_id>/revoke/", revoke_family_access, name="patient-family-access-revoke"),
+    path("proxy/otp/request/", proxy_otp_request, name="proxy-otp-request"),
+    path("proxy/otp/verify/", proxy_otp_verify, name="proxy-otp-verify"),
+    path("proxy/login/", proxy_login, name="proxy-login"),
 ]

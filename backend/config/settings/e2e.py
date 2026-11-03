@@ -45,3 +45,19 @@ LOGGING["handlers"]["console"]["level"] = "WARNING"  # noqa: F405
 LOGGING["root"]["level"] = "WARNING"  # noqa: F405
 for _logger in LOGGING["loggers"].values():  # noqa: F405
     _logger["level"] = "WARNING"
+
+# Console-mode OTP codes are random and live in this server's memory. The browser
+# tests read them back from this file (e2e/helpers.js readOtp). E2E only.
+E2E_OTP_LOG = os.environ.get("E2E_OTP_LOG")
+if E2E_OTP_LOG:
+    LOGGING["handlers"]["e2e_otp"] = {  # noqa: F405
+        "class": "logging.FileHandler",
+        "filename": E2E_OTP_LOG,
+        "formatter": "simple",
+        "level": "WARNING",
+    }
+    LOGGING["loggers"]["users.sms"] = {  # noqa: F405
+        "handlers": ["console", "e2e_otp"],
+        "level": "WARNING",
+        "propagate": False,
+    }

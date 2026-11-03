@@ -48,10 +48,13 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [patient, setPatient] = useState(null)
+  // Set when a family member is signed in with view-only access to `patient`.
+  const [proxy, setProxy] = useState(null)
 
   const clearSessionState = useCallback(() => {
     setUser(null)
     setPatient(null)
+    setProxy(null)
     setIsLoggedIn(false)
     setIsStaff(false)
     setIsPatient(false)
@@ -84,6 +87,7 @@ export function AuthProvider({ children }) {
     api.auth.applySession(session)
     setUser(null)
     setPatient(session.patient)
+    setProxy(session.proxy || null)
     setIsStaff(false)
     setIsPatient(true)
     setIsLoggedIn(true)
@@ -95,6 +99,7 @@ export function AuthProvider({ children }) {
   const applyStaffSession = useCallback((userData) => {
     setUser(userData)
     setPatient(null)
+    setProxy(null)
     setIsStaff(true)
     setIsPatient(false)
     setIsLoggedIn(true)
@@ -136,6 +141,7 @@ export function AuthProvider({ children }) {
         }
         setUser(null)
         setPatient(patientData.patient)
+        setProxy(patientData.proxy || null)
         setIsStaff(false)
         setIsPatient(true)
         setIsLoggedIn(true)
@@ -217,6 +223,8 @@ export function AuthProvider({ children }) {
       value={{
         user,
         patient,
+        proxy,
+        isProxy: Boolean(proxy),
         isLoggedIn,
         isAuthenticated,
         isStaff,

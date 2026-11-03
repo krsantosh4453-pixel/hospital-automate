@@ -995,15 +995,21 @@ def patient_token_login(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def patient_me(request):
-    patient = getattr(request.user, "patient_account", None)
+    from .permissions import get_linked_patient
+    from .proxy_access import get_proxy_grant, proxy_payload
+
+    patient = get_linked_patient(request.user)
     if patient is None:
         return Response(
             {"error": "Not authorized as a patient."},
             status=status.HTTP_403_FORBIDDEN,
         )
+    grant = get_proxy_grant(request.user)
     return Response({
         "role": "Patient",
         "patient": patient_payload(patient),
+        # Set when a family member is signed in with view-only access.
+        "proxy": proxy_payload(grant) if grant else None,
         "user": {
             "id": request.user.id,
             "username": request.user.username,

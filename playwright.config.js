@@ -8,6 +8,8 @@ import { E2E_PASSWORD } from "./e2e/helpers.js"
 // npm run test:e2e. Both servers start fresh; stop anything on 8020/5185.
 const PYTHON = process.env.E2E_PYTHON || "venv/bin/python"
 const DB_PATH = process.env.E2E_DB_PATH || "e2e.sqlite3"
+// Relative to backend/; e2e/helpers.js reads OTP codes from it.
+const OTP_LOG = "e2e-otp.log"
 const BACKEND_PORT = 8020
 const FRONTEND_PORT = 5185
 
@@ -25,13 +27,13 @@ export default defineConfig({
   webServer: [
     {
       command: [
-        `rm -f ${DB_PATH}`,
+        `rm -f ${DB_PATH} ${OTP_LOG}`,
         `${PYTHON} manage.py migrate -v0`,
         `${PYTHON} manage.py seed_demo --password ${E2E_PASSWORD}`,
         `${PYTHON} manage.py runserver 127.0.0.1:${BACKEND_PORT} --noreload`,
       ].join(" && "),
       cwd: "backend",
-      env: { DJANGO_SETTINGS_MODULE: "config.settings.e2e", E2E_DB_PATH: DB_PATH },
+      env: { DJANGO_SETTINGS_MODULE: "config.settings.e2e", E2E_DB_PATH: DB_PATH, E2E_OTP_LOG: OTP_LOG },
       url: `http://127.0.0.1:${BACKEND_PORT}/health/live/`,
       timeout: 180000,
       reuseExistingServer: false,

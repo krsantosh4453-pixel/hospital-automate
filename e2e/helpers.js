@@ -27,3 +27,26 @@ export function uniqueName(prefix) {
 export function hospitalToday() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date())
 }
+
+/**
+ * The latest console-mode OTP the e2e backend logged for a 10-digit number
+ * (config/settings/e2e.py writes those log lines to backend/e2e-otp.log).
+ */
+export async function readOtp(phone) {
+  const { readFile } = await import("node:fs/promises")
+  let code = null
+  await expect
+    .poll(async () => {
+      const log = await readFile("backend/e2e-otp.log", "utf8").catch(() => "")
+      const matches = [...log.matchAll(new RegExp(`OTP for \\+?9?1?${phone}\\b.*?: (\\d{6})`, "g"))]
+      code = matches.length ? matches[matches.length - 1][1] : null
+      return code
+    })
+    .not.toBeNull()
+  return code
+}
+
+/** A 10-digit mobile number no earlier run has used. */
+export function uniquePhone() {
+  return `8${Date.now().toString().slice(-9)}`
+}
