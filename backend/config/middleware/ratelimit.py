@@ -4,6 +4,7 @@ Custom rate limiting middleware for Django.
 Provides additional rate limiting beyond DRF throttling.
 """
 
+import hashlib
 import time
 import logging
 from django.utils.deprecation import MiddlewareMixin
@@ -26,7 +27,14 @@ class RateLimitMiddleware(MiddlewareMixin):
     # Endpoint patterns and their limits (requests per window)
     RATE_LIMITS = {
         # Auth endpoints - strict limits
-        '/api/auth/staff/login/': {'limit': 5, 'window': 60, 'scope': 'ip'},  # 5/min per IP
+        # Staff sign-in (password, OTP start/verify/resend): 5/min per account, so a
+        # whole hospital behind one NAT address can sign in at shift change; the
+        # per-IP ceiling still stops one address spraying many accounts. Failed
+        # passwords also lock the account (users.security).
+        '/api/auth/staff/login/': [
+            {'limit': 5, 'window': 60, 'scope': 'account'},
+            {'limit': 60, 'window': 60, 'scope': 'ip'},
+        ],
         '/api/auth/token/refresh/': {'limit': 20, 'window': 60, 'scope': 'user'},
         '/api/auth/token/verify/': {'limit': 30, 'window': 60, 'scope': 'user'},
         '/api/auth/google/': {'limit': 5, 'window': 60, 'scope': 'ip'},
@@ -81,55 +89,52 @@ class RateLimitMiddleware(MiddlewareMixin):
         if not matches:
             return None
         matched_pattern = max(matches, key=len)
-        matched_rule = self.RATE_LIMITS[matched_pattern]
+        rule = self.RATE_LIMITS[matched_pattern]
+        # A rule is one budget or several; a request must fit within all of them.
+        budgets = rule if isinstance(rule, list) else [rule]
 
-        # Determine rate limit key
-        scope = matched_rule.get('scope', 'ip')
-        limit = matched_rule['limit']
-        window = matched_rule['window']
+        # One budget per rule and scope: paths under the same prefix share it
+        counted = []
+        for budget in budgets:
+            scope = budget.get('scope', 'ip')
+            key = self._rate_key(request, scope)
+            cache_key = f"ratelimit:{scope}:{key}:{matched_pattern}"
+            current = cache.get(cache_key, 0)
+            if current >= budget['limit']:
+                logger.warning(f"Rate limit exceeded: {scope} {key} for {request.path}")
+                return JsonResponse({
+                    'error': {
+                        'code': 'RATE_LIMITED',
+                        'message': f"Rate limit exceeded. Maximum {budget['limit']} requests per {budget['window']} seconds.",
+                        'retry_after': budget['window'],
+                    }
+                }, status=429)
+            counted.append((budget, cache_key, current))
 
-        if scope == 'ip':
-            key = self._get_client_ip(request)
-        elif scope == 'user':
-            if request.user.is_authenticated:
-                key = f"user:{request.user.id}"
-            else:
-                key = self._get_client_ip(request)
-        elif scope == 'phone':
-            # Extract phone from request body for OTP endpoints
-            key = self._extract_phone(request) or self._get_client_ip(request)
-        elif scope == 'email':
-            key = self._extract_email(request) or self._get_client_ip(request)
-        else:
-            key = self._get_client_ip(request)
+        for budget, cache_key, current in counted:
+            cache.set(cache_key, current + 1, budget['window'])
 
-        # One budget per rule: paths under the same prefix share it
-        cache_key = f"ratelimit:{scope}:{key}:{matched_pattern}"
-
-        # Check current count
-        current = cache.get(cache_key, 0)
-
-        if current >= limit:
-            logger.warning(f"Rate limit exceeded: {key} for {request.path}")
-            return JsonResponse({
-                'error': {
-                    'code': 'RATE_LIMITED',
-                    'message': f'Rate limit exceeded. Maximum {limit} requests per {window} seconds.',
-                    'retry_after': window,
-                }
-            }, status=429)
-
-        # Increment counter
-        cache.set(cache_key, current + 1, window)
-
-        # Add rate limit headers to response (added in process_response)
+        # Headers report the first (tightest) budget; added in process_response
+        budget, _, current = counted[0]
         request._rate_limit = {
-            'limit': limit,
-            'remaining': max(0, limit - current - 1),
-            'reset': int(time.time()) + window,
+            'limit': budget['limit'],
+            'remaining': max(0, budget['limit'] - current - 1),
+            'reset': int(time.time()) + budget['window'],
         }
 
         return None
+
+    def _rate_key(self, request, scope):
+        """The identity a budget counts against; the client IP when the request names none."""
+        if scope == 'user' and request.user.is_authenticated:
+            return f"user:{request.user.id}"
+        if scope == 'phone':
+            return self._extract_phone(request) or self._get_client_ip(request)
+        if scope == 'email':
+            return self._extract_email(request) or self._get_client_ip(request)
+        if scope == 'account':
+            return self._extract_account(request) or self._get_client_ip(request)
+        return self._get_client_ip(request)
 
     def process_response(self, request, response):
         # Add rate limit headers if available
@@ -155,6 +160,25 @@ class RateLimitMiddleware(MiddlewareMixin):
             except (json.JSONDecodeError, AttributeError):
                 pass
         return None
+
+    def _extract_account(self, request):
+        """
+        The staff account a sign-in step is for: the username or email typed
+        (case-insensitive), or for the OTP steps the signed challenge, which
+        belongs to one user. Hashed so the cache key holds no identifier.
+        """
+        if request.method not in ['POST', 'PUT', 'PATCH']:
+            return None
+        try:
+            import json
+            body = json.loads(request.body)
+        except (json.JSONDecodeError, AttributeError, ValueError):
+            return None
+        if not isinstance(body, dict):
+            return None
+        name = str(body.get('username') or body.get('email') or '').strip().lower()
+        value = f"name:{name}" if name else (f"challenge:{body['challenge']}" if body.get('challenge') else '')
+        return hashlib.sha256(value.encode()).hexdigest()[:32] if value else None
 
     def _extract_email(self, request):
         """Extract email from request body."""
