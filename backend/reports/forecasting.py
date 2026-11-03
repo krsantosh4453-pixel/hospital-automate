@@ -14,7 +14,8 @@ from decimal import Decimal
 from statistics import mean, stdev
 from typing import Any, Optional
 
-from django.db.models import Avg, Count, Sum
+from django.db.models import Avg, Count, DateTimeField, F, Sum
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 from appointments.models import Appointment
@@ -40,26 +41,21 @@ class ForecastingService:
                           start_date=None, end_date=None, days=90):
         """Get daily aggregated time series from a queryset."""
         if end_date is None:
-            end_date = timezone.now().date()
+            # The last complete day: a partial today would read as a sudden drop.
+            end_date = timezone.localdate() - timedelta(days=1)
         if start_date is None:
             start_date = end_date - timedelta(days=days)
 
-        # Filter by hospital and date range
-        qs = queryset.filter(**{f"{date_field}__gte": start_date, f"{date_field}__lte": end_date})
+        # Timestamps are grouped by local calendar day; date fields as they are.
+        is_timestamp = isinstance(queryset.model._meta.get_field(date_field), DateTimeField)
+        lookup = f"{date_field}__date" if is_timestamp else date_field
+        qs = queryset.filter(**{f"{lookup}__gte": start_date, f"{lookup}__lte": end_date})
+        day = TruncDate(date_field) if is_timestamp else F(date_field)
+        qs = qs.annotate(day=day).values("day")
 
-        # Aggregate by date
-        if value_field:
-            daily = qs.values(date_field).annotate(value=Sum(value_field)).order_by(date_field)
-        else:
-            daily = qs.values(date_field).annotate(value=Count("id")).order_by(date_field)
-
-        # Convert to list of (date, value) tuples
-        series = []
-        for item in daily:
-            date_val = item[date_field]
-            if hasattr(date_val, "date"):
-                date_val = date_val.date()
-            series.append((date_val, float(item["value"] or 0)))
+        aggregate = Sum(value_field) if value_field else Count("id")
+        daily = qs.annotate(value=aggregate).order_by("day")
+        series = [(item["day"], float(item["value"] or 0)) for item in daily]
 
         # Fill missing dates with 0
         filled_series = []
@@ -200,16 +196,13 @@ class ForecastingService:
         upper = []
 
         for i in range(forecast_days):
-            seasonal_idx = len(values) - season_length + i
-            if seasonal_idx >= 0:
-                pred = values[seasonal_idx]
-            else:
-                pred = values[-1]  # Fallback to last value
-            pred = max(0, pred)
+            # Same position in the last observed season, repeated for longer horizons
+            seasonal_idx = len(values) - season_length + (i % season_length)
+            pred = max(0, values[seasonal_idx])
             forecast.append(round(pred, 2))
 
-            # Simple confidence based on variation in same weekday
-            same_weekday_vals = values[i::season_length] if len(values) > season_length else values
+            # Simple confidence based on variation on the same weekday in the history
+            same_weekday_vals = values[seasonal_idx % season_length::season_length]
             if len(same_weekday_vals) > 1:
                 std = stdev(same_weekday_vals)
                 margin = 1.96 * std

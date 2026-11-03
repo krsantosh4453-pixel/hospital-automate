@@ -36,6 +36,16 @@ def _get_authorized_hospital(request):
     return hospital_id
 
 
+def _forecast_days(request, default, maximum):
+    """The ``forecast_days`` query parameter as an int clamped to 1..maximum; 400 if not a number."""
+    raw = request.query_params.get("forecast_days", default)
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        raise serializers.ValidationError({"forecast_days": "Must be a whole number of days."})
+    return min(max(days, 1), maximum)
+
+
 class AnalyticsViewSet(viewsets.ViewSet):
     """Main analytics endpoints for hospital KPIs and dashboards."""
 
@@ -474,9 +484,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        # Parse forecast_days parameter
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)  # Clamp between 1 and 90
+        forecast_days = _forecast_days(request, default=7, maximum=90)
 
         forecasting_service = ForecastingService(hospital_id)
         forecasts = forecasting_service.get_all_forecasts(forecast_days)
@@ -489,8 +497,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -504,8 +511,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -519,8 +525,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -534,8 +539,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -549,8 +553,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 30))
-        forecast_days = min(max(forecast_days, 1), 180)
+        forecast_days = _forecast_days(request, default=30, maximum=180)
         method = request.query_params.get("method", "auto")
         medicine_id = request.query_params.get("medicine_id")
 
@@ -569,8 +572,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -584,8 +586,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -599,8 +600,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 30))
-        forecast_days = min(max(forecast_days, 1), 180)
+        forecast_days = _forecast_days(request, default=30, maximum=180)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
