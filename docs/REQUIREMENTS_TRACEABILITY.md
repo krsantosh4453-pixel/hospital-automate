@@ -1,6 +1,6 @@
 # Requirements Traceability Matrix
 
-Status as of 2026-10-25, branch `audit/production-readiness-2026-10-24` (commit after `fd3ff71`).
+Status as of 2026-10-25 (A12, B13, D15 updated 2026-11-03), branch `audit/production-readiness-2026-10-24` (commit after `fd3ff71`).
 
 **Sources**
 
@@ -46,7 +46,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | A9 | Hospital switcher for staff | UI 1.1, 2 | VERIFIED | Navbar → selectedHospital → X-Hospital-ID | B, T (header tests) |
 | A10 | User management | UI 3.1 | VERIFIED | `/api/users/` + `pages/admin/Users.jsx` | T:test_staff_admin, B |
 | A11 | Roles and permissions matrix | UI 3.1 | VERIFIED | Server-side role classes per membership; read-only matrix page | T (role-per-hospital tests), B |
-| A12 | Delegated / proxy access rules | UI 3.1, P1 10 | MISSING | — | Consent forms record proxy signature only |
+| A12 | Delegated / proxy access rules | UI 3.1, P1 10 | VERIFIED | `users/proxy_access.py`: grant-scoped, view-only tokens re-checked on every request (`config/auth_cookies.py`); writes refused; separate proxy identities (2026-11-03) | T:test_proxy_access, E2E `family-access.spec.js` |
 | A13 | Departments / clinics setup | UI 3.2 | VERIFIED | Department API (code, head) + page | T, B |
 | A14 | Security settings screen | UI 3.1 | VERIFIED | Admin → Security settings (`/admin/security`): effective OTP, dev sign-in, token lifetimes, cookie/HTTPS/HSTS, password rules and rate limits, each marked recommended or not for production. Read only by design (environment variables); no secrets returned | users.test_security_settings (4); browser 2026-10-28 |
 | A15 | Audit log viewer (admin only) | UI 3.1, 6 | VERIFIED | Admin → Audit log (`/admin/audit`): filters by action, record type, user and dates; newest first; read only | T:test_rbac_and_writes (AuditTrail), audit.tests.AuditLogFilterTests (5); browser 2026-10-28 |
@@ -73,7 +73,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | B10 | Prescriptions / lab reports (released only) | UI 4 | VERIFIED | Patients see only Released lab results | T:test_e2e_workflows |
 | B11 | Documents upload / view by folder | P4 11, UI 4 | VERIFIED | Hospital-scoped, content-checked, audited downloads | T:test_documents |
 | B12 | Consent and record sharing (recipient, scope, expiry, revoke, audit) | UI 4, P1 10 | VERIFIED | `consent/` app + PatientConsent page | T:test_consent_sharing, B (signing) |
-| B13 | Proxy / caregiver management | UI 4 | MISSING | — | — |
+| B13 | Proxy / caregiver management | UI 4 | VERIFIED | Patient adds/removes up to 5 family members (`users/proxy_views.py`, `components/patient/FamilyAccessCard.jsx`); Family tab on the patient login (`components/auth/ProxyLoginPanel.jsx`) (2026-11-03) | T:test_proxy_access, E2E `family-access.spec.js` |
 | B14 | Language / communication preferences | UI 4 | PARTIAL | Language: yes. Channel opt-in/out: API only (`consents/grant`, `revoke`) | T:test_notifications |
 | B15 | Notification history (SMS / WhatsApp / voice log) | UI 4 | PARTIAL | `/api/notifications/deliveries/` (staff); no patient page | T:test_notifications |
 
@@ -108,7 +108,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | D12 | Previous visits / timeline | UI 3.4 | VERIFIED | Consultation → History tab and Patients → Medical record (Doctor/Nurse/Admin, care scope applies; the ER "Patient medical record" action opens it) | patients.test_timeline; browser 2026-10-28 |
 | D13 | Discharge summary authoring and finalization | P3, P4 7 | VERIFIED | Finalize action (linked doctor), locked after; discharge requires it | T:test_e2e_workflows |
 | D14 | Corrections and history of clinical records | Brief 7 | IMPLEMENTED | Audit stores old → new values on every update | T (audit) |
-| D15 | Vaccination | P1 5 | MISSING | — | — |
+| D15 | Vaccination | P1 5 | VERIFIED | `clinical.Immunization`, `/api/clinical/immunizations/`; recorded from `Consultation.jsx` | T:clinical/test_vitals_immunizations |
 
 ## E. Nursing and inpatient
 
