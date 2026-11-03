@@ -1,5 +1,6 @@
 """Patient registration, email OTP, and email/password login."""
 
+import hashlib
 import re
 from datetime import timedelta
 from unittest.mock import patch
@@ -14,7 +15,7 @@ from rest_framework.test import APIClient
 
 from notifications.models import OTPVerification
 from patients.models import Patient
-from users.patient_auth import hash_email_otp
+from users.patient_auth import hash_email_otp, verify_email_otp
 
 User = get_user_model()
 
@@ -277,3 +278,46 @@ class PatientRegistrationTests(TestCase):
         stored = OTPVerification.objects.get(email="asha@example.com")
         self.assertNotIn("123456", stored.otp_hash)
         self.assertEqual(stored.otp, "")
+
+
+SYNTHETIC_KEY_OLD = "synthetic-email-otp-key-old-0123456789abcdefghijklmnopqrstuvwxyz"
+SYNTHETIC_KEY_NEW = "synthetic-email-otp-key-new-0123456789abcdefghijklmnopqrstuvwxyz"
+
+
+class EmailOtpHashTests(TestCase):
+    """R-08: the stored email OTP is a keyed HMAC, not a plain SHA-256 of the code."""
+
+    def store(self, address, code):
+        return OTPVerification.objects.create(
+            phone="9811111112", email=address, channel="email", purpose="verify_email", otp="",
+            otp_hash=hash_email_otp(address, code), expires_at=timezone.now() + timedelta(minutes=5),
+        )
+
+    def test_hash_is_not_a_plain_sha256_of_the_code(self):
+        plain = hashlib.sha256(b"email:asha@example.com:123456").hexdigest()
+        self.assertNotEqual(hash_email_otp("asha@example.com", "123456"), plain)
+
+    def test_hash_depends_on_the_server_key(self):
+        with override_settings(SECRET_KEY=SYNTHETIC_KEY_OLD):
+            old = hash_email_otp("asha@example.com", "123456")
+        with override_settings(SECRET_KEY=SYNTHETIC_KEY_NEW):
+            new = hash_email_otp("asha@example.com", "123456")
+        self.assertNotEqual(old, new)
+
+    def test_wrong_code_counts_an_attempt_and_right_code_verifies(self):
+        record = self.store("ravi@example.com", "123456")
+        self.assertEqual(verify_email_otp("ravi@example.com", "654321")[1], "Invalid OTP.")
+        record.refresh_from_db()
+        self.assertEqual(record.attempts, 1)
+        self.assertFalse(record.is_verified)
+        verify_email_otp("ravi@example.com", "123456")
+        record.refresh_from_db()
+        self.assertTrue(record.is_verified)
+
+    def test_code_issued_before_a_key_rotation_still_verifies(self):
+        with override_settings(SECRET_KEY=SYNTHETIC_KEY_OLD):
+            record = self.store("meera@example.com", "246810")
+        with override_settings(SECRET_KEY=SYNTHETIC_KEY_NEW, SECRET_KEY_FALLBACKS=[SYNTHETIC_KEY_OLD]):
+            verify_email_otp("meera@example.com", "246810")
+        record.refresh_from_db()
+        self.assertTrue(record.is_verified)
