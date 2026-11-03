@@ -565,6 +565,9 @@ STAFF_LOGIN_REQUIRE_OTP = os.environ.get('STAFF_LOGIN_REQUIRE_OTP', 'False').low
 # Audit rows older than this are purged daily; 0 keeps them forever.
 AUDIT_LOG_RETENTION_DAYS = int(os.environ.get('AUDIT_LOG_RETENTION_DAYS', '0'))
 
+# How long a break-glass grant to a patient outside the clinician's care lasts.
+BREAK_GLASS_DURATION_MINUTES = int(os.environ.get('BREAK_GLASS_DURATION_MINUTES', '60'))
+
 # Celery beat schedule for periodic tasks
 # Only tasks that exist in the codebase are scheduled. Daily report generation
 # and backup verification are run by the ops scripts in docs/OPERATIONS_RUNBOOK.md.

@@ -15,8 +15,10 @@ A Receptionist or Nurse whose membership names a department sees only that
 department's OPD queue (and tokens of doctors with no department).
 
 Both roles see patients with an open emergency visit, so that no emergency is
-hidden. Other roles, and other hospitals where the same user holds another
-role, are not affected.
+hidden, and patients they opened an active break-glass grant for
+(audit.BreakGlassAccess: a written reason, time-limited and reviewed).
+Other roles, and other hospitals where the same user holds another role, are
+not affected.
 """
 
 from collections import deque
@@ -145,6 +147,11 @@ def patients_in_care(user, hospital_ids):
             .exclude(status__in=CLOSED_EMERGENCY_STATUSES)
         )
         in_care |= Q(pk__in=open_emergencies.values("patient_id"))
+        break_glass = (
+            apps.get_model("audit.BreakGlassAccess").objects.active()
+            .filter(user=user, hospital_id__in=list(roles))
+        )
+        in_care |= Q(pk__in=break_glass.values("patient_id"))
     return apps.get_model(PATIENT_LABEL).objects.filter(in_care).values("pk")
 
 
