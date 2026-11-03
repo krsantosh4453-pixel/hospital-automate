@@ -32,6 +32,7 @@ INSTALLED_APPS = [
 
     # REST API
     "rest_framework",
+    "drf_spectacular",
     "corsheaders",
     "rest_framework_simplejwt.token_blacklist",
     # Required by CELERY_BEAT_SCHEDULER (DatabaseScheduler); without it beat cannot start.
@@ -210,6 +211,7 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.MultiPartParser',
@@ -597,6 +599,10 @@ HEALTH_CHECK = {
 # API Documentation (DRF Spectacular)
 # ============================================================
 
+# Schema, Swagger UI and ReDoc: open to anyone when True, otherwise platform admins
+# (is_staff) only. production.py defaults it to False (R-11).
+API_DOCS_PUBLIC = os.environ.get('API_DOCS_PUBLIC', 'True').lower() == 'true'
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Hospital Management System API',
     'DESCRIPTION': 'Comprehensive API for Hospital Management System including patient management, clinical workflows, pharmacy, laboratory, billing, and interoperability.',
@@ -604,6 +610,8 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': '/api/',
+    # Schema warnings are documentation gaps; keep them out of `manage.py check --deploy`.
+    'ENABLE_DJANGO_DEPLOY_CHECK': False,
     'TAGS': [
         {'name': 'Authentication', 'description': 'Staff authentication, JWT tokens, Google OAuth'},
         {'name': 'Hospitals', 'description': 'Hospital and department management'},

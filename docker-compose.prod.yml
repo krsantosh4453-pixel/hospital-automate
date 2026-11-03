@@ -1,5 +1,4 @@
 # Production docker-compose
-version: '3.8'
 
 # Every Django process (web, worker, beat) loads the same production settings,
 # so they share one env file. Copy .env.production.example to .env.production

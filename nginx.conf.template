@@ -64,6 +64,8 @@ http {
     # Many staff share one hospital NAT address; per-account lockout is in Django.
     limit_req_zone $binary_remote_addr zone=auth:10m rate=30r/m;
     limit_req_zone $binary_remote_addr zone=ai:10m rate=30r/m;
+    # 429, not the default 503: a throttled client is not a server outage.
+    limit_req_status 429;
 
     # Upstreams are re-resolved through Docker's DNS: a recreated backend or
     # frontend container gets a new IP, and nginx would otherwise keep
@@ -129,6 +131,16 @@ http {
         add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; frame-src https://accounts.google.com/gsi/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';" always;
         # Microphone is allowed for this origin only: the AI consultation recorder needs it.
         add_header Permissions-Policy "geolocation=(), microphone=(self), camera=()" always;
+
+        # The frontend container and Django send some of these headers too. Drop
+        # their copies so each header reaches the browser once, from here.
+        proxy_hide_header Strict-Transport-Security;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header X-Content-Type-Options;
+        proxy_hide_header X-XSS-Protection;
+        proxy_hide_header Referrer-Policy;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header Permissions-Policy;
 
         # OCSP Stapling
         ssl_stapling on;

@@ -579,3 +579,7 @@ try:
     from .local import *  # noqa: F403,F401
 except ImportError:
     pass
+
+# API schema and docs list every endpoint; keep them behind a platform-admin
+# sign-in unless explicitly opened (R-11).
+API_DOCS_PUBLIC = os.environ.get('API_DOCS_PUBLIC', 'False').lower() == 'true'

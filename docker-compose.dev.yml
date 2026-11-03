@@ -1,5 +1,4 @@
 # Development docker-compose
-version: '3.8'
 
 services:
   # PostgreSQL Database
@@ -73,7 +72,7 @@ services:
           target: /app
           ignore:
             - __pycache__/
-            - *.pyc
+            - "*.pyc"
             - .pytest_cache/
             - db.sqlite3
 
