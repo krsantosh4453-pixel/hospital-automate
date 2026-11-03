@@ -1,4 +1,6 @@
-from django.db import models
+import uuid
+
+from django.db import models, transaction
 from django.utils import timezone
 
 
@@ -60,6 +62,17 @@ class EmergencyVisit(models.Model):
 
     def __str__(self):
         return f"{self.visit_number} - {self.patient.name}"
+
+    def save(self, *args, **kwargs):
+        if self.visit_number:
+            return super().save(*args, **kwargs)
+        # The readable number needs the id, so insert under a unique
+        # placeholder and set ER-<id> in the same transaction.
+        self.visit_number = f"ER-PENDING-{uuid.uuid4().hex}"
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            self.visit_number = f"ER-{self.pk}"
+            type(self).objects.filter(pk=self.pk).update(visit_number=self.visit_number)
 
     class Meta:
         ordering = ["-arrival_time"]
