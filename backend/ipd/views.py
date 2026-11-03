@@ -71,14 +71,6 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check if already has active bed allocation
-        active_allocation = admission.bed_allocations.filter(is_active=True).first()
-        if active_allocation:
-            return Response(
-                {"detail": f"Patient already allocated to bed {active_allocation.bed}."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         bed_id = request.data.get("bed_id")
         if not bed_id:
             return Response(
@@ -88,6 +80,16 @@ class AdmissionViewSet(HospitalScopedViewSet):
 
         try:
             with transaction.atomic():
+                # Lock the admission before checking for an active bed, so
+                # parallel requests for different beds cannot all pass the check.
+                type(admission).objects.select_for_update().filter(pk=admission.pk).first()
+                active_allocation = admission.bed_allocations.filter(is_active=True).select_related("bed").first()
+                if active_allocation:
+                    return Response(
+                        {"detail": f"Patient already allocated to bed {active_allocation.bed}."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 bed = BedAllocation._meta.get_field("bed").related_model.objects.select_for_update().get(
                     id=bed_id, room__ward__hospital=admission.hospital
                 )
@@ -157,16 +159,28 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        active_allocation = admission.bed_allocations.filter(is_active=True).first()
-        if not active_allocation:
-            return Response(
-                {"detail": "No active bed allocation to transfer from."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         try:
             with transaction.atomic():
-                # Release old bed
+                # Lock the admission so parallel transfers cannot each move the
+                # patient into a bed, then check the new bed before releasing
+                # the old one: a refused transfer must leave the patient in place.
+                type(admission).objects.select_for_update().filter(pk=admission.pk).first()
+                active_allocation = admission.bed_allocations.filter(is_active=True).select_related("bed").first()
+                if not active_allocation:
+                    return Response(
+                        {"detail": "No active bed allocation to transfer from."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                new_bed = BedAllocation._meta.get_field("bed").related_model.objects.select_for_update().get(
+                    id=new_bed_id, room__ward__hospital=admission.hospital
+                )
+                if new_bed.status != "Available":
+                    return Response(
+                        {"detail": f"Bed {new_bed} is not available."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 old_bed = active_allocation.bed
                 old_bed.status = "Available"
                 old_bed.save()
@@ -174,17 +188,6 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 active_allocation.is_active = False
                 active_allocation.released_at = timezone.now()
                 active_allocation.save()
-
-                # Allocate new bed
-                new_bed = BedAllocation._meta.get_field("bed").related_model.objects.select_for_update().get(
-                    id=new_bed_id, room__ward__hospital=admission.hospital
-                )
-
-                if new_bed.status != "Available":
-                    return Response(
-                        {"detail": f"Bed {new_bed} is not available."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
 
                 new_bed.status = "Occupied"
                 new_bed.save()
@@ -343,7 +346,9 @@ class BedAllocationViewSet(HospitalScopedViewSet):
 
 
 class DischargePlanViewSet(HospitalScopedViewSet):
-    queryset = DischargePlan.objects.select_related("admission__hospital", "admission__patient", "created_by")
+    queryset = DischargePlan.objects.select_related(
+        "admission__hospital", "admission__patient", "created_by"
+    ).order_by("-created_at", "-id")
     serializer_class = DischargePlanSerializer
     permission_classes = [IsDoctor | IsNurse | IsHospitalManagerReadOnly]
 
