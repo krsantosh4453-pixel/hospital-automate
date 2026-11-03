@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import api from "../services/api.js"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { Alert, Card, EmptyState, PageHeader, SegmentedControl } from "../components/ui"
-import { CalendarDaysIcon, FlaskConicalIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, StethoscopeIcon, UsersIcon, WalletIcon } from "lucide-react"
+import { CalendarDaysIcon, FlaskConicalIcon, HospitalIcon, PillIcon, ReceiptIcon, StethoscopeIcon, UsersIcon, WalletIcon } from "lucide-react"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 

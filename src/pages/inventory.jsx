@@ -70,7 +70,7 @@ function Inventory() {
   const [medicines, setMedicines] = useState([])
   const [suppliers, setSuppliers] = useState([])
   const [purchaseOrders, setPurchaseOrders] = useState([])
-  const [grns, setGrns] = useState([])
+  const [, setGrns] = useState([])
   const [stockTransactions, setStockTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -136,7 +136,6 @@ function Inventory() {
     fetchAllData()
   }, [fetchAllData])
 
-  const [transactions, setTransactions] = useState([])
 
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("All Categories")
@@ -167,12 +166,6 @@ function Inventory() {
   const hospitalItems = useMemo(
     () => medicines.filter((item) => item.hospitalId === selectedHospital?.id),
     [medicines, selectedHospital]
-  )
-
-  const hospitalTransactions = useMemo(
-    () =>
-      transactions.filter((t) => t.hospitalId === selectedHospital?.id),
-    [transactions, selectedHospital]
   )
 
   const categories = useMemo(

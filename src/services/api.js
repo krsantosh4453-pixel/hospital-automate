@@ -211,7 +211,7 @@ async function request(url, options = {}) {
     try {
       body = await response.json()
       detail = parseErrorDetail(body, response.status)
-    } catch (parseError) {
+    } catch {
       // Response body was not JSON — keep the default message.
     }
 
@@ -304,7 +304,7 @@ const api = {
           method: 'POST',
           ...jsonBody({}),
         })
-      } catch (error) {
+      } catch {
         // Keep logout local even if the server call fails.
       }
       clearTokens()
@@ -1958,7 +1958,7 @@ api.hospitals = {
     try {
       const me = await api.auth.getMe()
       return me.hospitals || []
-    } catch (error) {
+    } catch {
       return []
     }
   },

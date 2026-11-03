@@ -2,9 +2,9 @@ import { useEffect, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import { useLinkedPatient } from "../utils/linkedPatient.js"
-import { CreditCardIcon, HospitalIcon, MapPinIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react"
+import { CreditCardIcon, HospitalIcon, PrinterIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
-import { Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
+import { Alert, Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
 import DischargeBills from "../components/billing/DischargeBills.jsx"
 import { Plus as PlusIcon } from "lucide-react"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
@@ -20,7 +20,7 @@ function Billing() {
   const [billsReloadToken, setBillsReloadToken] = useState(0)
 
   const [bills, setBills] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [, setLoading] = useState(false)
   const [loadError, setLoadError] = useState("")
 
   // Opened from another module (e.g. the ER) with ?q=<patient name>.
@@ -74,8 +74,6 @@ function Billing() {
         const mappedBills = results.map((inv) => {
           const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
             (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
-          
-          const subtotal = inv.items?.reduce((sum, item) => sum + Number(item.subtotal), 0) || 0
           
           return {
             id: inv.invoice_number,
@@ -339,36 +337,6 @@ function Billing() {
 
 
     return services
-  }
-
-
-  // =========================
-  // Get Status
-  // =========================
-
-  const getStatus = (
-    total,
-    paid
-  ) => {
-
-    if (
-      Number(paid) >=
-      Number(total)
-    ) {
-
-      return "Paid"
-    }
-
-
-    if (
-      Number(paid) > 0
-    ) {
-
-      return "Partial"
-    }
-
-
-    return "Pending"
   }
 
 
@@ -949,6 +917,7 @@ function Billing() {
             )
           }
         />
+        {loadError && <Alert tone="danger" className="mb-4">{t(loadError)}</Alert>}
 
         {!selectedHospital ? (
           <Card><EmptyState icon={CreditCardIcon} title={t("Select a hospital")} description="Choose a hospital in the header to view its invoices." /></Card>

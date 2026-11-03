@@ -25,7 +25,7 @@ function StaffLogin() {
   const [notice, setNotice] = useState("")
   const [resetCode, setResetCode] = useState("")
   const [newPassword, setNewPassword] = useState("")
-  const [staffRole, setStaffRole] = useState("")
+  const [, setStaffRole] = useState("")
   const [maskedPhone, setMaskedPhone] = useState("")
 
   const handleCredentialsSubmit = async (e) => {

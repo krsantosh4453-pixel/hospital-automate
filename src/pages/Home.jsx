@@ -2,7 +2,6 @@ import { Link, useLocation } from "react-router-dom"
 import { useState, useEffect, useCallback, useRef } from "react"
 import {
   BedDouble,
-  CalendarCheck,
   CalendarDays,
   CalendarPlus,
   ChevronRight,
@@ -10,7 +9,6 @@ import {
   FlaskConical,
   Hospital,
   ListOrdered,
-  LogIn,
   Pill,
   ReceiptIndianRupee,
   Search,

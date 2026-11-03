@@ -34,9 +34,6 @@ function Compounder() {
   }
 
   const isAdmin = currentUser.role === "Admin"
-  const isCompounder =
-    currentUser.role === "Compounder"
-
   // =====================================================
   // COMPOUNDER DATA
   // =====================================================
@@ -121,7 +118,7 @@ function Compounder() {
   // DISCHARGE
   // =====================================================
 
-  const [discharges, setDischarges] = useState([])
+  const [, setDischarges] = useState([])
 
   // =====================================================
   // BILLING
@@ -132,16 +129,6 @@ function Compounder() {
   // =====================================================
   // HOSPITAL DATA
   // =====================================================
-
-  const hospitalCompounders = useMemo(() => {
-    if (!selectedHospital) return []
-
-    return compounders.filter(
-      (item) =>
-        item.hospitalId ===
-        selectedHospital.id
-    )
-  }, [compounders, selectedHospital])
 
   const hospitalPatients = useMemo(() => {
     if (!selectedHospital) return []
@@ -347,44 +334,6 @@ function Compounder() {
     })
 
     setShowAddCompounder(false)
-  }
-
-  // =====================================================
-  // REMOVE COMPOUNDER - ADMIN ONLY
-  // =====================================================
-
-  const removeCompounder = async (compounder) => {
-    if (!isAdmin) {
-      toast.warning(
-        "Only Admin can remove a compounder."
-      )
-      return
-    }
-
-    if (
-      !selectedHospital ||
-      compounder.hospitalId !==
-      selectedHospital.id
-    ) {
-      toast.warning(
-        "You can only remove compounders from the selected hospital."
-      )
-      return
-    }
-
-    const confirmed =
-      (await confirm(
-        `Remove ${compounder.name}?`
-      ))
-
-    if (!confirmed) return
-
-    setCompounders((prev) =>
-      prev.filter(
-        (item) =>
-          item.id !== compounder.id
-      )
-    )
   }
 
   // =====================================================

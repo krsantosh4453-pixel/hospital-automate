@@ -2,8 +2,7 @@ import { useEffect, useState, useMemo } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
-import { LoadingSpinner } from "../components/LoadingSpinner.jsx"
-import { AlarmClockIcon, CheckIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, SearchIcon, TrendingDownIcon, TriangleAlertIcon } from "lucide-react"
+import { AlarmClockIcon, CheckIcon, HospitalIcon, PillIcon, ReceiptIcon, SearchIcon, TrendingDownIcon, TriangleAlertIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import { Alert, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, useConfirm } from "../components/ui"
 import { Plus as PlusIcon } from "lucide-react"
@@ -21,14 +20,6 @@ const toApiDate = (value) => {
   if (!Number.isInteger(monthNum) || !Number.isInteger(yearNum)) return null
   if (monthNum < 1 || monthNum > 12) return null
   return `${String(yearNum).padStart(4, "0")}-${String(monthNum).padStart(2, "0")}-01`
-}
-
-const formatExpiry = (value) => {
-  if (!value) return ""
-  const parts = String(value).split("-")
-  if (parts.length < 2) return value
-  const [year, month] = parts
-  return `${month}/${year}`
 }
 
 const parseExpiry = (value) => {
@@ -52,20 +43,6 @@ function Pharmacy() {
     loadSales,
     createSale,
     dispensePrescriptionSales,
-    loadSuppliers,
-    createSupplier,
-    updateSupplier,
-    deleteSupplier,
-    loadPurchases,
-    createPurchase,
-    receivePurchase,
-    loadGRNs,
-    loadStockTransactions,
-    adjustStock,
-    suppliers,
-    purchaseOrders,
-    grns,
-    stockTransactions,
   } = usePharmacy()
 
   const { selectedHospital } = usePatient()
@@ -340,17 +317,6 @@ function Pharmacy() {
     setShowForm(false)
   }
 
-
-  const getStatus = (stock) => {
-
-    if (
-      Number(stock) <= 20
-    ) {
-      return "Low Stock"
-    }
-
-    return "In Stock"
-  }
 
 
   // =========================

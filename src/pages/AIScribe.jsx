@@ -2,15 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import api from "../services/api.js"
-import { CircleCheckIcon, CircleXIcon, HospitalIcon, MicIcon, NotebookPenIcon, RefreshCwIcon, SparklesIcon, SquareIcon, TriangleAlertIcon, XIcon } from "lucide-react"
+import { CircleCheckIcon, CircleXIcon, HospitalIcon, MicIcon, NotebookPenIcon, RefreshCwIcon, SparklesIcon, SquareIcon } from "lucide-react"
 import { Alert, Card, EmptyState, PageHeader, Tabs, useConfirm, usePrompt } from "../components/ui"
-
-const DIAGNOSIS_TYPES = [
-  "Provisional",
-  "Differential",
-  "Final",
-  "Confirmed",
-]
 
 // Codes match backend ai_scribe/services/languages.py.
 const SPOKEN_LANGUAGES = [
@@ -169,13 +162,13 @@ function AIScribe() {
 
   // Reviews for selected draft
   const [reviews, setReviews] = useState([])
-  const [loadingReviews, setLoadingReviews] = useState(false)
+  const [, setLoadingReviews] = useState(false)
 
   // UI state
   const [activeTab, setActiveTab] = useState("recording")
   const [successMessage, setSuccessMessage] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
-  const [reloadToken, setReloadToken] = useState(0)
+  const [reloadToken] = useState(0)
 
   // Audio recording state
   const [isRecording, setIsRecording] = useState(false)

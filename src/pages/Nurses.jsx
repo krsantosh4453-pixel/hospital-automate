@@ -50,7 +50,7 @@ function Nurses() {
   // STATE - loaded from the API only (no demo data)
   // =====================================================
 
-  const [nurses, setNurses] = useState([])
+  const [, setNurses] = useState([])
   const [patients, setPatients] = useState([])
   const [vitals, setVitals] = useState([])
   const [assessments, setAssessments] = useState([])
@@ -62,7 +62,7 @@ function Nurses() {
   const [billing, setBilling] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [saving, setSaving] = useState(false)
+  const [, setSaving] = useState(false)
 
   const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
   const fmtTime = (value) =>
@@ -197,11 +197,9 @@ function Nurses() {
   }, [selectedHospital?.id])
 
   // Data shown on the page is exactly what the API returned.
-  const nursesData = nurses
   const patientsData = patients
   const vitalsData = vitals
   const assessmentsData = assessments
-  const notesData = notes
   const ordersData = orders
   const marData = mar
   const bloodData = bloodRequests
@@ -281,16 +279,6 @@ function Nurses() {
   // =====================================================
   // SELECTED HOSPITAL DATA
   // =====================================================
-
-  const hospitalNurses = useMemo(() => {
-    if (!selectedHospital) return []
-
-    return nurses.filter(
-      (nurse) =>
-        nurse.hospitalId ===
-        selectedHospital.id
-    )
-  }, [nurses, selectedHospital])
 
   const hospitalPatients = useMemo(() => {
     if (!selectedHospital) return []
@@ -485,45 +473,6 @@ function Nurses() {
       toast.error(t("Could not add nurse: {reason}", { reason: err.message }))
     } finally {
       setSaving(false)
-    }
-  }
-
-  // =====================================================
-  // REMOVE NURSE
-  // ADMIN ONLY
-  // =====================================================
-
-  const removeNurse = async (nurse) => {
-    if (!isAdmin) {
-      toast.warning(
-        "Only Admin can remove a nurse."
-      )
-      return
-    }
-
-    if (
-      !selectedHospital ||
-      nurse.hospitalId !==
-      selectedHospital.id
-    ) {
-      toast.warning(
-        "You can only remove nurses from the selected hospital."
-      )
-      return
-    }
-
-    const confirmRemove =
-      (await confirm(
-        `Remove ${nurse.name}?`
-      ))
-
-    if (!confirmRemove) return
-
-    try {
-      await api.nurses.delete(nurse.id)
-      await loadData()
-    } catch (err) {
-      toast.error(t("Could not remove nurse: {reason}", { reason: err.message }))
     }
   }
 
