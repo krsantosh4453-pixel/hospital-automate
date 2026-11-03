@@ -11,6 +11,7 @@ import {
   ScanSearch,
   HeartPulse,
   History,
+  ShieldAlert,
   House,
   KeyRound,
   LayoutDashboard,
@@ -100,6 +101,8 @@ export const STAFF_NAV = [
       { to: "/admin/nurse-duty", label: "Nurse duty", icon: CalendarClock, module: "Departments" },
       { to: "/admin/permissions", label: "Permissions", icon: KeyRound, module: "Permissions" },
       { to: "/admin/audit", label: "Audit log", icon: History, module: "Permissions" },
+      // Review queue for break-glass grants; Doctors and Nurses reach it from their home page.
+      { to: "/emergency-access", label: "Emergency access", icon: ShieldAlert, module: null },
       { to: "/admin/security", label: "Security settings", icon: ShieldCheck, module: "Permissions" },
     ],
   },

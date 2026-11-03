@@ -11,6 +11,7 @@ import {
   Pill,
   ReceiptIndianRupee,
   Search,
+  ShieldAlert,
   Siren,
   Sparkles,
   Stethoscope,
@@ -38,6 +39,7 @@ export const ROLE_HOMES = {
       { to: "/consultation", icon: Stethoscope, label: "Start consultation", module: "Doctors" },
       { to: "/prescription", icon: FileText, label: "Prescriptions", module: "Prescriptions" },
       { to: "/ai-scribe", icon: Sparkles, label: "AI scribe", module: "AIScribe" },
+      { to: "/emergency-access", icon: ShieldAlert, label: "Emergency access", module: "Dashboard" },
       { to: "/laboratory", icon: FlaskConical, label: "Lab results", module: "Laboratory" },
     ],
   },
@@ -49,6 +51,7 @@ export const ROLE_HOMES = {
       { to: "/ipd", icon: BedDouble, label: "Ward and beds", module: "IPD" },
       { to: "/queue", icon: ListOrdered, label: "Open queue", module: "Queue" },
       { to: "/emergency", icon: Siren, label: "Emergency", module: "Emergency" },
+      { to: "/emergency-access", icon: ShieldAlert, label: "Emergency access", module: "Dashboard" },
     ],
   },
   Receptionist: {

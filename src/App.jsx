@@ -54,6 +54,7 @@ const Departments = lazy(() => import("./pages/admin/Departments.jsx"))
 const NurseDuty = lazy(() => import("./pages/admin/NurseDuty.jsx"))
 const Permissions = lazy(() => import("./pages/admin/Permissions.jsx"))
 const AuditLog = lazy(() => import("./pages/admin/AuditLog.jsx"))
+const EmergencyAccess = lazy(() => import("./pages/EmergencyAccess.jsx"))
 const SecuritySettings = lazy(() => import("./pages/admin/SecuritySettings.jsx"))
 const HospitalSetup = lazy(() => import("./pages/admin/HospitalSetup.jsx"))
 const PatientDashboard = lazy(() => import("./pages/patient/PatientDashboard.jsx"))
@@ -154,6 +155,7 @@ function App() {
                           <Route path="/admin/nurse-duty" element={<NurseDuty />} />
                           <Route path="/admin/permissions" element={<Permissions />} />
                           <Route path="/admin/audit" element={<AuditLog />} />
+                          <Route path="/emergency-access" element={<EmergencyAccess />} />
                           <Route path="/admin/security" element={<SecuritySettings />} />
                           <Route path="/admin/setup" element={<HospitalSetup />} />
                           <Route path="/settings" element={<Settings />} />

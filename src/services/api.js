@@ -1795,6 +1795,39 @@ api.audit = {
   },
 }
 
+// Break-glass emergency access (audit.BreakGlassAccess). A Doctor or Nurse
+// opens time-limited access to a patient outside their care with a written
+// reason; an Admin or Hospital Manager reviews every grant. The server
+// enforces roles, duration and audit.
+api.breakGlass = {
+  // GET /api/audit/break-glass/?hospital=&pending_review=true
+  list: async (hospitalId, { pendingReview = false } = {}) => {
+    const params = new URLSearchParams({ hospital: hospitalId })
+    if (pendingReview) params.set('pending_review', 'true')
+    return request(`${API_BASE_URL}/audit/break-glass/?${params.toString()}`)
+  },
+
+  // POST /api/audit/break-glass/ {hospital, patient, reason}
+  open: async (hospitalId, patientId, reason) =>
+    request(`${API_BASE_URL}/audit/break-glass/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hospital: hospitalId, patient: patientId, reason }),
+    }),
+
+  // POST /api/audit/break-glass/{id}/end/
+  end: async (id) =>
+    request(`${API_BASE_URL}/audit/break-glass/${id}/end/`, { method: 'POST' }),
+
+  // POST /api/audit/break-glass/{id}/review/ {note}
+  review: async (id, note) =>
+    request(`${API_BASE_URL}/audit/break-glass/${id}/review/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    }),
+}
+
 // Staff administration for the selected hospital (Admin / Hospital Manager).
 api.users = {
   me: async () => api.auth.getMe(),
