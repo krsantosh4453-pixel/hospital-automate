@@ -1,6 +1,6 @@
 # Known Limitations
 
-State as of 2026-10-25, updated 2026-11-03, branch `audit/production-readiness-2026-10-24`. Row ids refer to `REQUIREMENTS_TRACEABILITY.md`. Nothing here is presented in the UI as working.
+State as of 2026-10-25, updated 2026-11-03, branch `ui/redesign-2026-10-25`. Row ids refer to `REQUIREMENTS_TRACEABILITY.md`. Nothing here is presented in the UI as working.
 
 ## Release blockers (must be resolved before real patient use)
 
@@ -11,7 +11,7 @@ State as of 2026-10-25, updated 2026-11-03, branch `audit/production-readiness-2
 | L4 | No clinical safety review of the workflows | MAR, discharge, lab release, AI-draft, break-glass and family-access rules were designed by engineering only | Sign-off by a clinical safety officer / pharmacist using `CLINICAL_SAFETY_REVIEW_PACK.md` (updated 2026-11-03) |
 | L5 | No penetration test or DPDP Act privacy assessment | Required for health data in India | Commission both; brief and baseline in `PRIVACY_AND_PENTEST_PACK.md` (updated 2026-11-03) |
 
-## Missing features (16 MISSING rows on 2026-11-03; A12, B13 and D15 are now done)
+## Missing features (14 MISSING rows, recounted 2026-11-03; A12, B13 and D15 are now done)
 
 - **Access / portal:** breadcrumbs (A18); sticky patient context strip (A19).
 - **EMR:** extra vitals set (D2); ICD-10 terminology search (D6).
@@ -21,7 +21,9 @@ State as of 2026-10-25, updated 2026-11-03, branch `audit/production-readiness-2
 - **Other services:** ambulance, mortuary, phlebotomy, OT (J5); HR, feedback, templates (J6).
 - **AI / notifications:** discharge-summary AI assist (K6); voice-call fallback workflow (K8).
 
-## Partial features (23 PARTIAL rows, main ones)
+D6, K6 and K8 have finished implementations with tests on the unmerged branch `claude/intelligent-keller-502e5b` (28 Oct). K6 was written inside `backend/ai_advanced`, which has since been removed, so it needs a new home. Merging or retiring that branch is the owner's decision.
+
+## Partial features (8 PARTIAL rows, recounted 2026-11-03; main ones)
 
 - Hindi (A17, 2026-11-03): every page shows its own text in Hindi, including Laboratory and Pharmacy, dropdown options, filter and role labels kept in JavaScript lists, server status values, toast messages and sentences with names or numbers (through `t()` `{placeholders}`). A Hindi pass over 30 pages leaves 63 distinct English strings, nearly all names, dates, IDs and abbreviations (MAR, OPD, AVPU). Still English: "just now" in notification times, audit-entry text from the server, and a few sentence fragments split around links. Clinical and patient data (diagnoses, bill lines, document titles, notifications) stay exactly as entered. The translations were written by engineering and need review by Hindi-speaking clinical staff.
 - Notifications: in-app works; SMS/WhatsApp need consent and credentials (K7).
@@ -42,11 +44,14 @@ State as of 2026-10-25, updated 2026-11-03, branch `audit/production-readiness-2
 
 - SMS, WhatsApp and voice delivery are not implemented and need provider credentials. External channels already go through the Celery retry task (`notifications.tasks.send_notification_channel`: 5 retries, exponential backoff, every attempt logged), so adding a provider needs no queue changes.
 - Row-lock tests (`security_tests/test_concurrency.py`) run only on PostgreSQL (`TEST_DATABASE_URL`); on SQLite they are skipped. CI runs them on PostgreSQL 16 with `REQUIRE_ROW_LOCK_TESTS=1`, which fails the run instead of skipping. They found and fixed two IPD races: one admission getting several beds, and parallel transfers. A refused transfer no longer releases the patient's current bed.
-- Frontend tests: 51 Vitest unit tests plus 22 Playwright E2E tests in `e2e/`, run in CI. Since 2026-11-03 these include lab order to release, pharmacy dispensing, emergency registration and triage, and a nurse giving a MAR dose.
+- Frontend tests: 63 Vitest unit tests plus 23 Playwright E2E tests in `e2e/`, run in CI. Since 2026-11-03 these include lab order to release, pharmacy dispensing, emergency registration and triage, a nurse giving a MAR dose, and break-glass access opened by a doctor and signed off by an administrator.
 - Route-level code-splitting brings the main JS bundle to 310 kB (89.5 kB gzip). Lint has 70 warnings and 0 errors: unused variables in page files and the context-plus-hook pattern, which only affects dev hot reload.
 - API schema / Swagger / ReDoc work again (they returned 500 before 2026-11-03) and are platform-admin only in production (`API_DOCS_PUBLIC`). drf-spectacular reports 241 documentation warnings (mostly missing type hints).
 - Django errors are written to `django_errors.log` in the `app_logs` volume, not to container output; log shipping must collect that volume.
-- Sensitive reads are audited: every list or detail read of patient data by staff writes `<model>.list` / `<model>.read` with the patient ids. That is one row per request, so plan audit retention (`AUDIT_LOG_RETENTION_DAYS`). Break-glass access (`/api/audit/break-glass/`) is API-only; there is no screen for it yet.
-- `backend/db.sqlite3` remains in git history; removing it needs a history rewrite and a force-push, which the owner must decide.
+- Sensitive reads are audited: every list or detail read of patient data by staff writes `<model>.list` / `<model>.read` with the patient ids. That is one row per request, so plan audit retention (`AUDIT_LOG_RETENTION_DAYS`). Break-glass access has a screen at `/emergency-access` (2026-11-03): a Doctor or Nurse opens time-limited access by patient number with a written reason and can end it; an Admin or Hospital Manager signs each grant off. Its rules still need clinical sign-off (L4).
+- `backend/db.sqlite3` was purged from the GitHub history on 2026-10-26 (R-02). Old local `agents/*` branches on the development machine still contain it; delete them locally when they are no longer needed. GitHub's read-only `refs/pull/1/*` may still reference the old commits until GitHub Support purges them.
+- Reads are limited by role (R-15, 2026-11-03): consent records and shares go to Admin, Hospital Manager, Receptionist, Doctor and Nurse; patient documents to the roles that upload them; Doctors and Nurses see only patients in their care. Money figures (billing and pharmacy revenue, revenue forecast) go to Admin, Hospital Manager, Billing Staff and Receptionist; other roles get counts only.
+- UHIDs are refused when already used at the hospital (R-08). Existing duplicates are not removed: run `python manage.py report_duplicate_uhids` (read only) on the real database and settle each group before a `(hospital, uhid)` unique constraint is added.
+- Email OTPs are stored as a keyed HMAC since 2026-11-03; codes issued before the deploy (5-minute lifetime) stop working and the patient asks for a new one.
 - Rows the tenancy backfill could not assign stay invisible until assigned. `python manage.py assign_tenant_hospital` reports them and assigns the unambiguous ones (see `DATABASE.md`).
 - The project folder is iCloud-synced, which stalls Python/Node; move it before further development.

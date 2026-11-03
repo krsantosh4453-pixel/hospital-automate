@@ -120,3 +120,28 @@ Every function view, `APIView`, `viewsets.ViewSet` and custom permission class w
 Verification: full backend suite in a clean copy, `manage.py test` with `config.settings.testing`: **388 tests, OK (3 skipped)**. Both reproduced defects failed before the fix.
 
 **Counting after this update:** 31 defects fixed (D-01 to D-31). Remaining: R-02 (High, see its row), R-03 to R-06 and R-15 (Medium), R-08 to R-14 and R-16 (Low).
+
+## Update 2026-11-03: post-audit remediation
+
+Status of every item still listed as open above, after the work recorded in `POST_AUDIT_RECONCILIATION_2026-11-03.md` and the commits below. Earlier rows are left as they were written.
+
+| ID | Status now | Change | Evidence |
+|---|---|---|---|
+| R-03 | **Open: owner decision** | Patient and clinical records can still be hard-deleted by Doctor/Nurse/Receptionist as described | Needs a policy (soft delete / "entered in error" / admin-only) before any code change |
+| R-05 | **Fixed** | Sensitive reads are audited (P0, 2026-11-03); break-glass API (P0) and its screen `/emergency-access` (G-8, `5c3a7e7`) | `security_tests/test_break_glass.py`, `src/__tests__/emergencyAccess.test.jsx`, `e2e/break-glass.spec.js` |
+| R-06 | **Partly fixed** | External channels go through a Celery retry task with a delivery log (`1e76cfa`) | SMS/WhatsApp/voice sending still needs provider credentials (KNOWN_LIMITATIONS L2) |
+| R-08 | **Partly fixed** | Email OTP stored as keyed HMAC-SHA256, checked against `SECRET_KEY` and `SECRET_KEY_FALLBACKS` (`bfdc6b6`); the membership API refuses a UHID already used at the hospital, and `report_duplicate_uhids` lists existing duplicates (`fe6529d`) | `users/test_stage1a_patient_registration.EmailOtpHashTests` (2 of 4 failed before), `patients/test_uhid.py` (failed before). Remaining: the `(hospital, uhid)` database constraint, after the report is clean on the real data |
+| R-09 | Open (mitigated) | `STATICFILES_STORAGE` still ignored by Django 6; nginx serves the collected files | Switch to `STORAGES` after a Docker `collectstatic` run |
+| R-10 | **Fixed except deploy steps** | Trivy pinned to the v0.36.0 commit (its tags were re-pointed in a 2026 supply-chain attack); Bandit fails the build on Medium/High (7 Medium triaged, 0 High); frontend image on Node 24 (`b900be0`) | Bandit 1.9.4 `-ll`: no findings. Deploy jobs still only `echo` until a staging target exists |
+| R-11 | **Fixed** | Swagger/ReDoc gated by `ApiDocsAccess`; off in production unless `API_DOCS_PUBLIC` | `config/test_api_docs.py` |
+| R-12 | **Partly fixed** | Route-level code splitting (main bundle 311 kB); CI Ruff correctness gate clean | ESLint 70 warnings and Ruff style findings remain (no errors) |
+| R-13 | **Partly fixed** | Patient rows, appointments, tokens and the patient profile are no longer written to `localStorage`, and old copies are removed on start (`1e18f4b`) | `src/__tests__/patientStorage.test.jsx` (2 of 3 failed before). Remaining: the Queue page still reads only the first page of appointments |
+| R-14 | **Fixed** | `.env.example` ships `VITE_DEV_AUTH_BYPASS=false`; the rule (dev build and explicit `true` only) lives in `src/utils/devAuthBypass.js` (`bf2d6f1`) | `src/__tests__/devAuthBypass.test.js` |
+| R-15 | **Fixed** | Reads limited by role per hospital: consent and shares (Admin, Hospital Manager, Receptionist, Doctor, Nurse), documents (the upload roles), Doctors and Nurses only for patients in their care; money figures only for Admin, Hospital Manager, Billing Staff and Receptionist (`6e460df`) | `security_tests/test_read_roles.py` (12 tests; 17 sub-checks failed before the fix) |
+| R-16 | **Fixed** | Home lab counts use the real `LabTest` statuses (`f19d19b`) | `test_home_stats.test_lab_counts_follow_the_real_test_statuses` (failed before: 0 instead of 4) |
+
+Test-only additions: dispensing a prescription under parallel requests on PostgreSQL (G-9, `b1748a6`; fails if the dispensed guard is removed), and the MAR model test no longer skipped (G-10, `dddf875`).
+
+Verification (clean copy, synthetic data): backend 650 tests OK, 7 skipped (the PostgreSQL row-lock tests), which pass 9/9 on PostgreSQL 16 with `REQUIRE_ROW_LOCK_TESTS=1`; coverage 81%; Vitest 63/63; Playwright 23/23; ESLint 0 errors; `manage.py check` and `makemigrations --check` clean.
+
+**Counting after this update:** remaining open: R-03 (Medium, owner decision); R-06, R-08, R-12, R-13 partly fixed; R-09 open (mitigated); R-10 deploy steps. R-05, R-11, R-14, R-15 and R-16 are closed.

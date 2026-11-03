@@ -199,20 +199,20 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | K7 | Waiting-list notifications with consent and delivery log | CALL 1, 7 | PARTIAL | In-app sent and logged; SMS/WhatsApp need consent and credentials | T:test_notifications. Real channels: BLOCKED |
 | K8 | Voice-call fallback, acknowledgement, "no answer ≠ left" | CALL 3 | MISSING | VoiceProvider class only; no call workflow | — |
 | K9 | ML / DL use cases | P2 12 | N/A | Not implemented on purpose: no labelled data, validation or monitoring available, and the PDF itself says "only after validation". Queue estimates are rule-based. | — |
-| K10 | ABDM / ABHA | P1 3.5 | BLOCKED | Code present, routes not mounted; needs ABDM sandbox credentials and approval | — |
-| K11 | FHIR / HL7 interoperability | P1 2 | BLOCKED | Code present, routes not mounted; needs a conformance and security review | — |
+| K10 | ABDM / ABHA | P1 3.5 | BLOCKED | Mounted at `/api/abdm/` behind `ABDM_ENABLED` (off in production); needs ABDM sandbox credentials and approval | — |
+| K11 | FHIR / HL7 interoperability | P1 2 | BLOCKED | FHIR R4 read API mounted at `/api/fhir/` behind `FHIR_ENABLED` (off in production, Admin only); needs a conformance and security review | — |
 
 ## Totals
 
-Counted by script from the rows above; each row is counted once.
+Counted by script from the rows above; each row is counted once. Recounted 2026-11-03 (the table had not followed the row updates).
 
 | Status | Count | Share |
 |---|---|---|
-| VERIFIED (2 of these are "software only": real provider not tested) | 42 | 36.2% |
-| IMPLEMENTED | 24 | 20.7% |
-| PARTIAL | 23 | 19.8% |
+| VERIFIED (2 of these are "software only": real provider not tested) | 64 | 55.2% |
+| IMPLEMENTED | 26 | 22.4% |
+| PARTIAL | 8 | 6.9% |
 | PLACEHOLDER | 0 | 0% |
-| MISSING | 23 | 19.8% |
+| MISSING | 14 | 12.1% |
 | BROKEN | 0 known | 0% |
 | BLOCKED | 3 | 2.6% |
 | N/A | 1 | 0.9% |
