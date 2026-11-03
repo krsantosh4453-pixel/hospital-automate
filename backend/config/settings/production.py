@@ -194,7 +194,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # For private media (patient documents, medical reports), use protected storage
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# PRIVATE_MEDIA_STORAGE = 'config.storage.PrivateMediaStorage'
 
 
 # ============================================================
@@ -517,9 +516,6 @@ BACKUP_ENCRYPTION_KEY = os.environ.get('BACKUP_ENCRYPTION_KEY')
 # AWS_S3_OBJECT_PARAMETERS = {
 #     'CacheControl': 'max-age=86400',
 # }
-
-# Private media storage for sensitive documents
-# PRIVATE_MEDIA_STORAGE = 'config.storage.PrivateMediaStorage'
 
 
 # ============================================================

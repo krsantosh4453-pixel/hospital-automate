@@ -95,8 +95,6 @@ MIDDLEWARE = [
     "config.middleware.ratelimit.RateLimitMiddleware",
 ]
 
-# Custom middleware will be added in production/development settings
-# Health check middleware
 
 
 # ============================================================

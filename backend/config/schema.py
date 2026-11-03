@@ -235,10 +235,6 @@ SCHEMA_TAGS = [
         'description': 'FHIR R4 interoperability endpoints for patient, observation, encounter resources',
     },
     {
-        'name': 'HL7',
-        'description': 'HL7 v2 messaging endpoints for ADT, ORM, ORU messages',
-    },
-    {
         'name': 'ABDM',
         'description': 'ABDM/ABHA integration endpoints for health ID, consent, records',
     },

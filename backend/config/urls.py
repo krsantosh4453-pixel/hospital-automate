@@ -110,14 +110,8 @@ urlpatterns = [
     # FHIR R4 read API (Admin only, off unless FHIR_ENABLED)
     path("api/fhir/", include("fhir.urls")),
 
-    # HL7 Messaging (not implemented)
-    # path("api/hl7/", include("hl7.urls")),
-
     # ABDM/ABHA: verify and link an existing ABHA (off unless ABDM_ENABLED)
     path("api/abdm/", include("abdm.urls")),
-
-    # Reports (not implemented)
-    # path("api/reports/", include("reports.urls")),
 
     # Documents
     path("api/documents/", include("documents.urls")),
@@ -125,8 +119,6 @@ urlpatterns = [
     # Consent
     path("api/consent/", include("consent.urls")),
 
-# Monitoring (if enabled)
-    # path("metrics/", include("config.monitoring.metrics_view")),
 ]
 
 # Serve media files in development
