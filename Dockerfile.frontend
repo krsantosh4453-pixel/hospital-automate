@@ -1,5 +1,6 @@
 # Build stage
-FROM node:20-alpine AS builder
+# Same Node major as CI (NODE_VERSION in .github/workflows/ci.yml); Node 20 is end of life.
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 

@@ -1,5 +1,7 @@
 """Role, write-path and audit checks across two synthetic hospitals."""
 
+import tempfile
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
@@ -259,7 +261,7 @@ class AuditTrailTests(TwoHospitalCase):
         self.assertEqual(log.object_id, str(resp.json()["id"]))
 
 
-@override_settings(MEDIA_ROOT="/tmp/hms-test-media")
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="hms-test-media-"))
 class SharedPatientDocumentTests(TwoHospitalCase):
     @classmethod
     def setUpTestData(cls):

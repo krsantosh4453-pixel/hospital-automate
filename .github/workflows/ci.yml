@@ -211,8 +211,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
-        # TODO(security): pin to a reviewed commit SHA; a moving ref can be re-pointed.
-        uses: aquasecurity/trivy-action@master
+        # Pinned to a commit: trivy-action tags were re-pointed in a 2026 supply-chain
+        # attack. ed142fd0 is v0.36.0 (2026-04-22), released after the clean-up.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -224,11 +225,13 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # Report only: Bandit has not been triaged for this codebase yet.
-      - name: Run Bandit (Python security, report only)
+      # Full report kept as JSON; the build fails on any Medium or High finding.
+      # Triaged 2026-11-03: the existing Medium findings carry a "# nosec <id>: reason".
+      - name: Run Bandit (Python security)
         run: |
-          pip install bandit
-          bandit -r backend/ -x backend/venv -f json -o bandit-results.json || true
+          pip install bandit==1.9.4
+          bandit -r backend/ -x backend/venv -f json -o bandit-results.json --exit-zero
+          bandit -r backend/ -x backend/venv -ll -q
 
       - name: Run pip-audit
         run: |

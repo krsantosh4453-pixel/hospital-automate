@@ -36,7 +36,8 @@ PUBLIC_KEY_B64 = base64.b64encode(PRIVATE_KEY.public_key().public_bytes(
 def decrypt(value):
     return PRIVATE_KEY.decrypt(
         base64.b64decode(value),
-        padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA1()), algorithm=hashes.SHA1(), label=None),
+        # Mirrors the ABHA v3 cipher (Bandit B303 reviewed).
+        padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA1()), algorithm=hashes.SHA1(), label=None),  # nosec B303
     ).decode()
 
 

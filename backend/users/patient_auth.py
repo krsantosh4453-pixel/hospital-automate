@@ -372,7 +372,8 @@ def verify_google_identity(token):
             url,
             headers={"User-Agent": "HospitalManagementSystem/1.0"},
         )
-        with urllib.request.urlopen(request, timeout=5) as response:
+        # Fixed https URL (Google tokeninfo), not user input (Bandit B310 reviewed).
+        with urllib.request.urlopen(request, timeout=5) as response:  # nosec B310
             if response.status != 200:
                 return None
             data = json.loads(response.read().decode("utf-8"))

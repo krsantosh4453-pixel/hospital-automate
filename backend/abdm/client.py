@@ -148,7 +148,8 @@ class ABDMClient:
             key = serialization.load_der_public_key(base64.b64decode(key_text))
         cipher = key.encrypt(
             str(text).encode(),
-            padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA1()), algorithm=hashes.SHA1(), label=None),
+            # SHA-1 OAEP is mandated by ABHA v3 (Bandit B303 reviewed).
+            padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA1()), algorithm=hashes.SHA1(), label=None),  # nosec B303
         )
         return base64.b64encode(cipher).decode()
 
