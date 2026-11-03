@@ -13,6 +13,8 @@ events {
 }
 
 http {
+    # Do not advertise the nginx version in headers or error pages.
+    server_tokens off;
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
 

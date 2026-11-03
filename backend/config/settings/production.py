@@ -173,14 +173,20 @@ if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
 
 
 # ============================================================
-# Static Files - Production (WhiteNoise or CDN)
+# Static Files - Production (served by nginx)
 # ============================================================
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# nginx caches /static/ for a year as immutable, so collectstatic writes
+# content-hashed names (staticfiles.json maps them). Django 6 reads STORAGES;
+# the old STATICFILES_STORAGE setting is ignored.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'},
+}
 
-# If using CDN/Cloud Storage (AWS S3, GCS, Azure Blob)
-# STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# If using CDN/Cloud Storage (AWS S3, GCS, Azure Blob), set STORAGES['staticfiles']
+# to 'storages.backends.s3boto3.S3Boto3Storage'
 # AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')
 # AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
 # AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
