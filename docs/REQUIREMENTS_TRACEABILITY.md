@@ -118,7 +118,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | E2 | Admission, ward / room / bed allocation | P3 | VERIFIED | allocate_bed (row-locked) | T:test_e2e_workflows |
 | E3 | Nursing notes, shift assessments | P3 36 | VERIFIED | API + Nurses page (saves to server) | T:test_e2e_workflows, B |
 | E4 | Nursing vitals (on admitted patients) | P3 36 | IMPLEMENTED | Saved as Focused nursing assessment with vitals | R (UI wired; not browser-saved) |
-| E5 | MAR states: due, next due, delay, administered, not given, excluded, PRN | P4 5 | VERIFIED | Scheduled / Administered / Held / Refused / Missed / Vomited / Excluded, is_delayed, PRN | T:test_mar_safety, B (dose given via UI) |
+| E5 | MAR states: due, next due, delay, administered, not given, excluded, PRN | P4 5 | VERIFIED | Scheduled / Administered / Held / Refused / Missed / Vomited / Excluded, is_delayed, PRN | T:test_mar_safety, E2E nurse-mar.spec.js (dose given via UI). No screen creates MAR orders yet: see KNOWN_LIMITATIONS |
 | E6 | Bed transfer / doctor transfer | P3 | IMPLEMENTED | admissions transfer action | Existing tests |
 | E7 | Discharge planning checklist | P3 34, P4 7 | VERIFIED | Four-item checklist on DischargePlan, ticked from IPD → Discharges; `complete_discharge` refuses until every item, the signed summary and the paid final bill are done (`readiness` lists what is left). Ward nurses keep the patient in care during discharge | ipd.test_discharge_readiness (11), ipd.tests, test_e2e_workflows; browser 2026-10-28 |
 | E8 | Discharge notes | P4 7 | IMPLEMENTED | DischargeNote | R |
@@ -131,7 +131,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 
 | ID | Requirement | Source | Status | Implementation | Evidence |
 |---|---|---|---|---|---|
-| F1 | Prescription queue → dispensing | P2 4 | VERIFIED | Sale linked to prescription; stock deducted atomically | T:test_e2e_workflows |
+| F1 | Prescription queue → dispensing | P2 4 | VERIFIED | Sale linked to prescription; stock deducted atomically. The RX lookup asks the server (before 2026-11-03 it searched a list the pharmacy page never loaded) | T:test_e2e_workflows, E2E pharmacy.spec.js |
 | F2 | Stock deduction with ledger | P2 7 | VERIFIED | StockTransaction OUT / IN / ADJUST | T:test_financial_integrity |
 | F3 | Batch and expiry tracking; expired batches blocked | P2 4 | VERIFIED | Expired sale refused | T |
 | F4 | OPD sale | P2 4 | VERIFIED | Server-side price | T |
@@ -145,7 +145,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | ID | Requirement | Source | Status | Implementation | Evidence |
 |---|---|---|---|---|---|
 | G1 | Orders, collection, lab number, dispatch, receive, process | P4 3 | VERIFIED | LabTest actions; lab number generated | T:test_e2e_workflows, B (page) |
-| G2 | Result entry, verification, release (lab staff only) | UI 3.7 | VERIFIED | Role-restricted actions; status not editable directly | T |
+| G2 | Result entry, verification, release (lab staff only) | UI 3.7 | VERIFIED | Role-restricted actions; status not editable directly | T, E2E laboratory.spec.js |
 | G3 | Result printing / export | UI 3.7 | IMPLEMENTED | `PrintSheet.test.jsx` (released-only, abnormal flags) | Added 2026-10-28: print / Save-as-PDF on the Laboratory page and patient Lab reports, released results only. Not clicked through in a browser |
 | G4 | Radiology | P1 | VERIFIED | Radiology page (`/radiology`) and `/api/laboratory/imaging/`: doctor orders (modality, region, clinical question, priority), technician (Lab Staff) schedules and performs, a doctor reports and signs (findings + impression, then locked); radiologists see studies awaiting report outside their own care, never via another hospital's role; patients see only signed reports in Lab reports; printable report | laboratory.test_imaging (8); browser 2026-10-28 |
 | G5 | Collection queue view (patient, UHID, lab no., ward, count) | P4 3 | PARTIAL | Lab page list; no ward / UHID columns | B |
