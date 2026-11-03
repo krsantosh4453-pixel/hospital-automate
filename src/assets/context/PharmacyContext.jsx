@@ -217,6 +217,14 @@ export function PharmacyProvider({ children }) {
     return created
   }, [])
 
+  // Issues every medicine on a prescription in one server transaction.
+  const dispensePrescriptionSales = useCallback(async (payload) => {
+    const response = await api.pharmacy.sales.dispensePrescription(payload)
+    const created = (response?.sales || []).map(mapSaleFromApi)
+    setSales((prev) => [...created, ...prev])
+    return created
+  }, [])
+
   // =====================================
   // PROCUREMENT APIs
   // =====================================
@@ -329,6 +337,7 @@ export function PharmacyProvider({ children }) {
         deleteMedicine,
         loadSales,
         createSale,
+        dispensePrescriptionSales,
         suppliers,
         loadSuppliers,
         createSupplier,

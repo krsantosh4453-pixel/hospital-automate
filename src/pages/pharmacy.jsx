@@ -5,8 +5,9 @@ import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
 import { LoadingSpinner } from "../components/LoadingSpinner.jsx"
 import { AlarmClockIcon, CheckIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, SearchIcon, TrendingDownIcon, TriangleAlertIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
-import { Alert, Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
+import { Alert, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, useConfirm } from "../components/ui"
 import { Plus as PlusIcon } from "lucide-react"
+import { defaultBatches, missingBatches, usableBatches } from "../utils/dispenseBatches.js"
 
 // Convert "MM/YYYY" (UI) to "YYYY-MM-01" (API DateField). Returns null if invalid.
 const toApiDate = (value) => {
@@ -48,6 +49,7 @@ function Pharmacy() {
     deleteMedicine,
     loadSales,
     createSale,
+    dispensePrescriptionSales,
     loadSuppliers,
     createSupplier,
     updateSupplier,
@@ -68,7 +70,6 @@ function Pharmacy() {
 
   const {
     fetchPrescription,
-    dispensePrescription,
   } = usePrescription()
 
   // =========================
@@ -105,6 +106,8 @@ function Pharmacy() {
 
   const [prescriptionId, setPrescriptionId] = useState("")
   const [foundPrescription, setFoundPrescription] = useState(null)
+  // Prescription item id -> stock batch (medicine id) to issue it from.
+  const [dispenseBatchIds, setDispenseBatchIds] = useState({})
 
   // =========================
   // EXPIRY & LOW STOCK ALERTS
@@ -792,6 +795,9 @@ function Pharmacy() {
     setFoundPrescription(
       prescription
     )
+    setDispenseBatchIds(
+      defaultBatches(prescription.medicines || [], hospitalMedicines)
+    )
   }
 
 
@@ -838,94 +844,37 @@ function Pharmacy() {
     }
 
 
-    // Multi-medicine prescriptions are NOT supported here.
-    // The backend Sale API dispenses one medicine atomically,
-    // so we refuse rather than risk a partial dispense.
-    if (
-      prescribedMedicines.length > 1
-    ) {
+    const missing =
+      missingBatches(prescribedMedicines, dispenseBatchIds)
 
-      toast.error(
-        "This prescription contains multiple medicines. Automatic dispensing is not supported yet — please issue each medicine from the Issue Medicine section."
+    if (missing.length > 0) {
+
+      toast.warning(
+        `Choose a stock batch for: ${missing.join(", ")}.`
       )
 
       return
     }
 
 
-    const prescriptionMedicine =
-      prescribedMedicines[0]
-
-
-    const inventoryMedicine =
-      hospitalMedicines.find(
-        (medicine) =>
-
-          medicine.name
-            .toLowerCase() ===
-          prescriptionMedicine.name
-            .toLowerCase()
-      )
-
-
-    if (!inventoryMedicine) {
-
-      toast.error(
-        `${prescriptionMedicine.name} is not available in ${selectedHospital.name} pharmacy stock.`
-      )
-
-      return
-    }
-
-
-    const quantity =
-      Number(
-        prescriptionMedicine.quantity
-      )
-
-
-    if (
-      Number(
-        inventoryMedicine.stock
-      ) <
-      quantity
-    ) {
-
-      toast.info(
-        `Insufficient stock for ${prescriptionMedicine.name}. Available: ${inventoryMedicine.stock}`
-      )
-
-      return
-    }
-
-
+    // One server transaction: every medicine is issued, or none is.
     try {
 
-      await createSale({
-
-        medicine:
-          inventoryMedicine.id,
-
-        hospital:
-          selectedHospital.id,
-
-        patient_name:
-          foundPrescription.patientName,
-
-        quantity,
+      await dispensePrescriptionSales({
 
         prescription:
           foundPrescription.apiId,
+
+        lines:
+          prescribedMedicines.map((item) => ({
+            item: item.id,
+            medicine: Number(dispenseBatchIds[item.id]),
+          })),
 
       })
 
 
       await reloadPharmacyData()
-
-
-      await dispensePrescription(
-        foundPrescription.id
-      )
 
 
       setFoundPrescription({
@@ -1188,13 +1137,18 @@ function Pharmacy() {
                             index
                           ) => {
 
+                            const batches =
+                              usableBatches(
+                                hospitalMedicines,
+                                medicine.name
+                              )
+
+
                             const stockMedicine =
-                              hospitalMedicines.find(
+                              batches.find(
                                 (item) =>
-                                  item.name
-                                    .toLowerCase() ===
-                                  medicine.name
-                                    .toLowerCase()
+                                  String(item.id) ===
+                                  String(dispenseBatchIds[medicine.id])
                               )
 
 
@@ -1218,7 +1172,7 @@ function Pharmacy() {
                               <div
 
                                 key={
-                                  index
+                                  medicine.id ?? index
                                 }
 
                                 className="border border-gray-200 rounded-xl p-4"
@@ -1298,6 +1252,49 @@ function Pharmacy() {
 
                                 </div>
 
+
+                                {foundPrescription.status !==
+                                  "Dispensed" && (
+
+                                    <div className="mt-3">
+
+                                      <label
+                                        htmlFor={`dispense-batch-${medicine.id}`}
+                                        className="block text-xs text-gray-500 mb-1"
+                                      >
+                                        Stock batch for {medicine.name}
+                                      </label>
+
+                                      <select
+                                        id={`dispense-batch-${medicine.id}`}
+                                        value={dispenseBatchIds[medicine.id] ?? ""}
+                                        onChange={(e) =>
+                                          setDispenseBatchIds({
+                                            ...dispenseBatchIds,
+                                            [medicine.id]: e.target.value,
+                                          })
+                                        }
+                                        className="hms-input w-full md:w-auto"
+                                      >
+                                        <option value="">
+                                          {batches.length > 0
+                                            ? "Choose a batch"
+                                            : "Not in stock"}
+                                        </option>
+                                        {batches.map((batch) => (
+                                          <option
+                                            key={batch.id}
+                                            value={batch.id}
+                                          >
+                                            {batch.batch || "No batch no."} · Exp {batch.expiry || "—"} · {batch.stock} in stock
+                                          </option>
+                                        ))}
+                                      </select>
+
+                                    </div>
+
+                                  )}
+
                               </div>
 
                             )
@@ -1308,20 +1305,6 @@ function Pharmacy() {
                     </div>
 
                   </div>
-
-
-                  {/* Multi-medicine limitation */}
-
-                  {foundPrescription.medicines &&
-                    foundPrescription.medicines.length > 1 && (
-
-                      <div className="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 text-sm">
-
-                        <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> This prescription has multiple medicines. Automatic one-click dispensing is not supported yet — please use the Issue Medicine section for each medicine.
-
-                      </div>
-
-                    )}
 
 
                   {/* Dispense */}
@@ -1871,315 +1854,61 @@ function Pharmacy() {
               ADD / EDIT MODAL
           ========================= */}
 
-          {showForm && (
-
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-
-              <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-
-
-                <div className="flex justify-between items-center p-6 border-b">
-
-                  <div>
-
-                    <h2 className="text-xl font-bold text-gray-800">
-
-                      {
-                        selectedMedicine
-                          ? "Edit Medicine"
-                          : "Add Medicine"
-                      }
-
-                    </h2>
-
-                    <p className="text-sm text-gray-500 mt-1">
-                      {
-                        selectedHospital.name
-                      }
-                    </p>
-
-                  </div>
-
-
-                  <button
-
-                    onClick={
-                      resetForm
-                    }
-
-                    className="text-2xl text-gray-500"
-
-                  >
-                    ×
-                  </button>
-
-                </div>
-
-
-                <form
-
-                  onSubmit={
-                    selectedMedicine
-                      ? handleUpdate
-                      : handleSubmit
-                  }
-
-                  className="p-6 space-y-4"
-
-                >
-
-
-                  <input
-
-                    type="text"
-
-                    name="name"
-
-                    value={
-                      formData.name
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    placeholder="Medicine Name"
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <input
-
-                    type="text"
-
-                    name="genericName"
-
-                    value={formData.genericName}
-
-                    onChange={handleChange}
-
-                    placeholder="Salt (generic name), e.g. ibuprofen"
-
-                    aria-label="Salt (generic name)"
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <select
-
-                    name="category"
-
-                    value={
-                      formData.category
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    className="hms-input w-full"
-
-                  >
-
-                    <option value="">
-                      Select Category
-                    </option>
-
-                    <option>
-                      Tablet
-                    </option>
-
-                    <option>
-                      Capsule
-                    </option>
-
-                    <option>
-                      Injection
-                    </option>
-
-                    <option>
-                      Syrup
-                    </option>
-
-                  </select>
-
-
-                  <input
-
-                    type="text"
-
-                    name="batch"
-
-                    value={
-                      formData.batch
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    placeholder="Batch Number"
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <input
-
-                    type="number"
-
-                    name="stock"
-
-                    min="0"
-
-                    value={
-                      formData.stock
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    placeholder="Stock Quantity"
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <input
-
-                    type="month"
-
-                    value={
-
-                      formData.expiry
-
-                        ? formData.expiry
-                          .split("/")
-                          .reverse()
-                          .join("-")
-                          .slice(
-                            0,
-                            7
-                          )
-
-                        : ""
-
-                    }
-
-                    onChange={(e) => {
-
-                      const [
-                        year,
-                        month,
-                      ] =
-                        e.target.value.split(
-                          "-"
-                        )
-
-
-                      setFormData({
-
-                        ...formData,
-
-                        expiry:
-                          `${month}/${year}`,
-
-                      })
-
-                    }}
-
-                    required
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <input
-
-                    type="number"
-
-                    name="price"
-
-                    min="0"
-
-                    step="0.01"
-
-                    value={
-                      formData.price
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    placeholder="Price"
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <div className="flex justify-end gap-3 pt-4">
-
-                    <button
-
-                      type="button"
-
-                      onClick={
-                        resetForm
-                      }
-
-                      className="px-5 py-3 border border-gray-300 rounded-xl"
-
-                    >
-                      Cancel
-                    </button>
-
-
-                    <button
-
-                      type="submit"
-
-                      className="px-5 py-3 bg-blue-600 text-white rounded-xl"
-
-                    >
-
-                      {
-                        selectedMedicine
-                          ? "Save Changes"
-                          : "Add Medicine"
-                      }
-
-                    </button>
-
-                  </div>
-
-
-                </form>
-
-              </div>
-
-            </div>
-
-          )}
+          <Modal
+            open={showForm}
+            onClose={resetForm}
+            title={selectedMedicine ? "Edit Medicine" : "Add Medicine"}
+            description={selectedHospital?.name}
+            footer={
+              <>
+                <Button variant="secondary" onClick={resetForm}>Cancel</Button>
+                <Button type="submit" form="medicine-form">
+                  {selectedMedicine ? "Save Changes" : "Add Medicine"}
+                </Button>
+              </>
+            }
+          >
+            <form
+              id="medicine-form"
+              onSubmit={selectedMedicine ? handleUpdate : handleSubmit}
+              className="space-y-4"
+            >
+              <Field label="Medicine Name" required>
+                <Input type="text" name="name" value={formData.name} onChange={handleChange} />
+              </Field>
+              <Field label="Salt (generic name)" hint="Used by the prescription safety check, e.g. ibuprofen.">
+                <Input type="text" name="genericName" value={formData.genericName} onChange={handleChange} />
+              </Field>
+              <Field label="Category" required>
+                <Select name="category" value={formData.category} onChange={handleChange}>
+                  <option value="">Select Category</option>
+                  <option>Tablet</option>
+                  <option>Capsule</option>
+                  <option>Injection</option>
+                  <option>Syrup</option>
+                </Select>
+              </Field>
+              <Field label="Batch Number" required>
+                <Input type="text" name="batch" value={formData.batch} onChange={handleChange} />
+              </Field>
+              <Field label="Stock Quantity" required>
+                <Input type="number" name="stock" min="0" value={formData.stock} onChange={handleChange} />
+              </Field>
+              <Field label="Expiry (month)" required>
+                <Input
+                  type="month"
+                  value={formData.expiry ? formData.expiry.split("/").reverse().join("-").slice(0, 7) : ""}
+                  onChange={(e) => {
+                    const [year, month] = e.target.value.split("-")
+                    setFormData({ ...formData, expiry: e.target.value ? `${month}/${year}` : "" })
+                  }}
+                />
+              </Field>
+              <Field label="Price" required>
+                <Input type="number" name="price" min="0" step="0.01" value={formData.price} onChange={handleChange} />
+              </Field>
+            </form>
+          </Modal>
 
 
           {/* =========================

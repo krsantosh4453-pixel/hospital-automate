@@ -206,3 +206,14 @@ class SaleSerializer(serializers.ModelSerializer):
             Decimal(validated_data["quantity"]) * Decimal(unit_price)
         ).quantize(Decimal("0.01"))
         return super().create(validated_data)
+
+class DispenseLineSerializer(serializers.Serializer):
+    item = serializers.IntegerField(min_value=1)
+    medicine = serializers.IntegerField(min_value=1)
+
+
+class DispensePrescriptionSerializer(serializers.Serializer):
+    """Request body for dispensing a whole prescription at once."""
+
+    prescription = serializers.IntegerField(min_value=1)
+    lines = DispenseLineSerializer(many=True)

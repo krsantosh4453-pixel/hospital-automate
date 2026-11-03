@@ -425,6 +425,14 @@ const api = {
 
     get: async (id) => request(`${API_BASE_URL}/patients/${id}/`),
 
+    // GET /api/patients/lookup/?search= : at most 20 matches, minimal fields,
+    // for staff who may not browse the list (Lab Staff placing walk-in orders).
+    lookup: async (hospitalId, search) => {
+      const params = new URLSearchParams({ search })
+      if (hospitalId) params.set('hospital', hospitalId)
+      return request(`${API_BASE_URL}/patients/lookup/?${params.toString()}`)
+    },
+
     // POST /api/patients/
     create: async (data) =>
       request(`${API_BASE_URL}/patients/`, {
@@ -1415,6 +1423,17 @@ const api = {
         // POST /api/pharmacy-sales/
         create: async (data) =>
           request(`${API_BASE_URL}/pharmacy-sales/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+          }),
+
+        // POST /api/pharmacy-sales/dispense-prescription/
+        // { prescription, lines: [{ item, medicine }] }: all medicines or none.
+        dispensePrescription: async (data) =>
+          request(`${API_BASE_URL}/pharmacy-sales/dispense-prescription/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

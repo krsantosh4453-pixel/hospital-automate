@@ -7,6 +7,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 
 from .models import Patient, PatientDocument, PatientHospital
 from .serializers import PatientSerializer, PatientHospitalSerializer
+from audit.read_audit import audit_patient_read
 from audit.services import record_audit
 from users.care_scope import limit_to_patients_in_care
 from users.viewsets import HospitalScopedViewSet
@@ -18,6 +19,7 @@ from users.permissions import (
     IsBillingStaffReadOnly,
     IsHospitalManager,
     IsHospitalManagerReadOnly,
+    IsLabStaff,
     IsPatientReadOnly,
     IsLinkedPatient,
     get_linked_patient,
@@ -29,6 +31,18 @@ from users.permissions import (
 
 def _is_true(value):
     return str(value).lower() in ("1", "true", "yes", "on")
+
+
+LOOKUP_MIN_CHARS = 3
+LOOKUP_MAX_RESULTS = 20
+VISIBLE_PHONE_DIGITS = 4
+
+
+def _masked_phone(phone):
+    phone = phone or ""
+    if len(phone) <= VISIBLE_PHONE_DIGITS:
+        return ""
+    return "*" * (len(phone) - VISIBLE_PHONE_DIGITS) + phone[-VISIBLE_PHONE_DIGITS:]
 
 
 class PatientViewSet(HospitalScopedViewSet):
@@ -45,6 +59,9 @@ class PatientViewSet(HospitalScopedViewSet):
             return [(IsAdmin | IsHospitalManager)()]
         if action_name == "documents":
             return [(IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
+        if action_name == "lookup":
+            # Finding a patient to order for; Lab Staff may not browse the list.
+            return [(IsLabStaff | IsReceptionist | IsDoctor | IsNurse | IsAdmin)()]
         if action_name == "timeline":
             # Clinical history: clinicians, and the patient for their own record.
             return [(IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
@@ -99,6 +116,41 @@ class PatientViewSet(HospitalScopedViewSet):
         )
         record_audit(request, "documents.document.upload", document, hospital=hospital_id)
         return Response(self._document_payload(document), status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"])
+    def lookup(self, request):
+        """Find a patient to place an order for (walk-in lab orders).
+
+        For staff who may not browse the patient list: needs at least three
+        characters of a name, phone or UHID, returns at most 20 matches with
+        only what tells patients apart, and every lookup is audited.
+        """
+        search = (request.query_params.get("search") or "").strip()
+        if len(search) < LOOKUP_MIN_CHARS:
+            return Response(
+                {"error": f"Type at least {LOOKUP_MIN_CHARS} characters of a name, phone or UHID."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        uhid_match = Patient.objects.filter(
+            hospital_memberships__hospital_id__in=self.get_acting_hospital_ids(),
+            hospital_memberships__uhid__icontains=search,
+        ).values("pk")
+        patients = list(
+            self.get_queryset()
+            .filter(Q(name__icontains=search) | Q(phone__icontains=search) | Q(pk__in=uhid_match))
+            .order_by("name", "pk")[:LOOKUP_MAX_RESULTS]
+        )
+        audit_patient_read(self, "lookup", [patient.pk for patient in patients])
+        return Response([
+            {
+                "id": patient.pk,
+                "name": patient.name,
+                "age": patient.age,
+                "gender": patient.gender,
+                "phone": _masked_phone(patient.phone),
+            }
+            for patient in patients
+        ])
 
     @action(detail=True, methods=["get"])
     def timeline(self, request, pk=None):
@@ -203,7 +255,8 @@ class PatientViewSet(HospitalScopedViewSet):
 
         # Search filter
         search = (self.request.query_params.get("search") or "").strip()
-        if search:
+        # lookup() applies its own, narrower search.
+        if search and self.action != "lookup":
             # UHIDs are issued per hospital: match only the acting hospitals'.
             uhid_match = Patient.objects.filter(
                 hospital_memberships__hospital_id__in=hospital_ids,

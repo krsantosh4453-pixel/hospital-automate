@@ -31,6 +31,10 @@ import { LabReportDocument } from "../components/documents/ClinicalDocuments.jsx
 import SampleLabel from "../components/laboratory/SampleLabel.jsx"
 import SampleScanDialog from "../components/laboratory/SampleScanDialog.jsx"
 
+// Staff who may not list patients (Lab Staff) find one by search instead.
+const LOOKUP_MIN_CHARS = 3
+const LOOKUP_DELAY_MS = 300
+
 function Laboratory() {
   // Doctors order tests; a Hospital Manager only views them.
   const { canAdd } = useRole()
@@ -43,6 +47,8 @@ function Laboratory() {
 
   const [tests, setTests] = useState([])
   const [patientOptions, setPatientOptions] = useState([])
+  const [canListPatients, setCanListPatients] = useState(true)
+  const [patientSearch, setPatientSearch] = useState("")
   const [doctorOptions, setDoctorOptions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -103,7 +109,10 @@ function Laboratory() {
         api.laboratory.tests.list(selectedHospital.id),
         // Only the new-order form needs patients; Lab Staff may not list them,
         // and that must not hide the lab's own worklist.
-        api.patients.list(selectedHospital.id).catch(() => []),
+        api.patients.list(selectedHospital.id).catch((err) => {
+          if (err?.status === 403) setCanListPatients(false)
+          return []
+        }),
         api.doctors.list(selectedHospital.id),
       ])
       setTests(rows(testData).map(toRow))
@@ -120,6 +129,27 @@ function Laboratory() {
     loadTests()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedHospital?.id])
+
+  // Search-only patient picker: ask the server once typing pauses.
+  useEffect(() => {
+    if (canListPatients || !selectedHospital) return undefined
+    const term = patientSearch.trim()
+    if (term.length < LOOKUP_MIN_CHARS) {
+      setPatientOptions([])
+      return undefined
+    }
+    let current = true
+    const timer = setTimeout(() => {
+      api.patients.lookup(selectedHospital.id, term)
+        .then((found) => { if (current) setPatientOptions(rows(found)) })
+        .catch((err) => { if (current) toast.error(err.message || "Unable to search patients.") })
+    }, LOOKUP_DELAY_MS)
+    return () => {
+      current = false
+      clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canListPatients, patientSearch, selectedHospital?.id])
 
   const testsData = tests
 
@@ -433,6 +463,7 @@ function Laboratory() {
     }
     setSelectedTest(null)
     setFormData({ patient: "", test: "", doctor: "", date: "", priority: "Normal" })
+    setPatientSearch("")
     setShowForm(true)
   }
 
@@ -599,9 +630,24 @@ function Laboratory() {
         }
       >
         <form id="lab-form" onSubmit={selectedTest ? handleUpdate : handleSubmit} className="space-y-4">
+          {!canListPatients && !selectedTest && (
+            <SearchInput
+              value={patientSearch}
+              onChange={setPatientSearch}
+              label="Find patient"
+              placeholder="Name, phone or UHID (3+ characters)"
+            />
+          )}
           <Field label="Patient" required hint={selectedTest ? "The patient of an existing order cannot be changed." : undefined}>
             <Select name="patient" disabled={Boolean(selectedTest)} value={formData.patient} onChange={handleChange}>
-              <option value="">Select patient</option>
+              <option value="">
+                {!canListPatients && !selectedTest && patientSearch.trim().length >= LOOKUP_MIN_CHARS && patientOptions.length === 0
+                  ? "No matching patient"
+                  : "Select patient"}
+              </option>
+              {selectedTest && !patientOptions.some((patient) => String(patient.id) === String(formData.patient)) && (
+                <option value={formData.patient}>{selectedTest.patient}</option>
+              )}
               {patientOptions.map((patient) => (
                 <option key={patient.id} value={patient.id}>{patient.name}{patient.phone ? ` · ${patient.phone}` : ""}</option>
               ))}

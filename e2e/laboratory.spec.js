@@ -16,7 +16,7 @@ const STAGES = [
 
 test("doctor orders a test, lab releases the result, doctor reads it", async ({ browser }) => {
   // Two sign-ins and eight stages: about 8 s normally, more on a loaded machine.
-  test.setTimeout(60_000)
+  test.setTimeout(60000)
   const doctor = await (await browser.newContext()).newPage()
   await signInAs(doctor, "demo.doctor1")
   await doctor.goto("/laboratory")
@@ -59,4 +59,22 @@ test("doctor orders a test, lab releases the result, doctor reads it", async ({ 
   const view = doctor.getByRole("dialog", { name: "Laboratory order" })
   await expect(view.getByText(RESULT)).toBeVisible()
   await expect(view.getByText("Released")).toBeVisible()
+})
+
+test("lab staff find a walk-in patient by search and place the order", async ({ page }) => {
+  await signInAs(page, "demo.lab")
+  await page.goto("/laboratory")
+  await page.getByRole("button", { name: "New lab order" }).first().click()
+  const order = page.getByRole("dialog", { name: "New lab order" })
+  // Lab Staff may not browse patients: the picker is empty until they search.
+  await order.getByLabel("Find patient").fill("Demo Ravi")
+  const walkIn = "Demo Ravi (Cardiology OPD) · ******3011"
+  await expect(order.getByRole("option", { name: walkIn })).toBeAttached()
+  await order.locator("select[name=patient]").selectOption({ label: walkIn })
+  await order.getByLabel("Test").selectOption({ label: "Blood Sugar" })
+  await order.getByLabel("Priority").selectOption("Urgent")
+  await order.getByRole("button", { name: "Create order" }).click()
+
+  await expect(order).toBeHidden()
+  await expect(page.getByRole("row", { name: /Blood Sugar Urgent Ordered/ }).first()).toBeVisible()
 })
