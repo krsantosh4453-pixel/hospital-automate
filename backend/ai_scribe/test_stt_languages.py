@@ -4,6 +4,7 @@ No real provider is called: HTTP is mocked. A live check with a real key is
 a separate manual step (see AI_SCRIBE_STT_* in .env.example).
 """
 
+import atexit
 import shutil
 import tempfile
 from types import SimpleNamespace
@@ -26,6 +27,9 @@ from security_tests.test_tenant_isolation import make_staff
 from users.models import StaffRole
 
 MEDIA = tempfile.mkdtemp(prefix="hms-stt-test-")
+# pytest-django runs database tests before the others, so a class or module teardown
+# would remove MEDIA while later classes here still write into it. Clean up at exit.
+atexit.register(shutil.rmtree, MEDIA, ignore_errors=True)
 FAKE_KEY = "test-key-not-real"
 
 
@@ -84,11 +88,6 @@ class WhisperOptionTests(SimpleTestCase):
     AI_SCRIBE_STT_MODEL="whisper-large-v3",
 )
 class WhisperApiClientTests(SimpleTestCase):
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        shutil.rmtree(MEDIA, ignore_errors=True)
-
     def setUp(self):
         self.audio = _audio_file()
         self.provider = WhisperSTTProvider(use_api=True)

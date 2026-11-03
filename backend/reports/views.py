@@ -310,17 +310,14 @@ class AnalyticsViewSet(viewsets.ViewSet):
             period_serializer.validated_data.get("custom_start"),
             period_serializer.validated_data.get("custom_end"),
         )
-        lab_data = service.get_laboratory_kpis(
-            period_serializer.validated_data["period"],
-            period_serializer.validated_data.get("custom_start"),
-            period_serializer.validated_data.get("custom_end"),
-        )
 
         return Response(
             {
                 "billing": billing_data,
                 "pharmacy_revenue": pharmacy_data.get("period_revenue", 0),
-                "laboratory_revenue": 0,  # Lab revenue would come from billing items
+                # Lab tests carry no price; lab charges are billed on invoices, so they are
+                # already inside billing revenue and are not tracked separately.
+                "laboratory_revenue": None,
                 "total_revenue": billing_data.get("period_revenue", 0)
                 + pharmacy_data.get("period_revenue", 0),
                 "period": billing_data.get("period"),

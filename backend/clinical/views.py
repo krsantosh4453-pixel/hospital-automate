@@ -45,13 +45,13 @@ from users.permissions import (
 
 
 class VitalSignViewSet(HospitalScopedViewSet):
-    queryset = VitalSign.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital")
+    queryset = VitalSign.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-recorded_at", "-id")
     serializer_class = VitalSignSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
 
 
 class AllergyViewSet(HospitalScopedViewSet):
-    queryset = Allergy.objects.select_related("patient")
+    queryset = Allergy.objects.select_related("patient").order_by("-created_at", "-id")
     serializer_class = AllergySerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
 
@@ -64,13 +64,15 @@ class AllergyViewSet(HospitalScopedViewSet):
 
 
 class ClinicalNoteViewSet(HospitalScopedViewSet):
-    queryset = ClinicalNote.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital", "doctor")
+    queryset = ClinicalNote.objects.select_related(
+        "visit", "visit__patient", "visit__doctor", "visit__hospital", "doctor"
+    ).order_by("-created_at", "-id")
     serializer_class = ClinicalNoteSerializer
     permission_classes = [IsAdmin | IsDoctor]
 
 
 class DiagnosisViewSet(HospitalScopedViewSet):
-    queryset = Diagnosis.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital")
+    queryset = Diagnosis.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-created_at", "-id")
     serializer_class = DiagnosisSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
 
@@ -81,19 +83,19 @@ class DiagnosisViewSet(HospitalScopedViewSet):
 
 
 class ServiceOrderViewSet(HospitalScopedViewSet):
-    queryset = ServiceOrder.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital")
+    queryset = ServiceOrder.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-created_at", "-id")
     serializer_class = ServiceOrderSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
 
 
 class ProcedureViewSet(HospitalScopedViewSet):
-    queryset = Procedure.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital")
+    queryset = Procedure.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-created_at", "-id")
     serializer_class = ProcedureSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
 
 
 class MedicalRecordViewSet(HospitalScopedViewSet):
-    queryset = MedicalRecord.objects.select_related("patient", "visit", "visit__hospital")
+    queryset = MedicalRecord.objects.select_related("patient", "visit", "visit__hospital").order_by("-created_at", "-id")
     serializer_class = MedicalRecordSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
 

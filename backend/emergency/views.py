@@ -386,7 +386,9 @@ class EmergencyVisitViewSet(HospitalScopedViewSet):
 
 
 class EmergencyTriageViewSet(HospitalScopedViewSet):
-    queryset = EmergencyTriage.objects.select_related("visit__hospital", "visit__patient", "triaged_by")
+    queryset = EmergencyTriage.objects.select_related(
+        "visit__hospital", "visit__patient", "triaged_by"
+    ).order_by("-triaged_at", "-id")
     serializer_class = EmergencyTriageSerializer
     permission_classes = [IsNurse | IsDoctor | IsHospitalManagerReadOnly]
 

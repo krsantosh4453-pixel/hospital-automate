@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class VisitViewSet(HospitalScopedViewSet):
-    queryset = Visit.objects.select_related("patient", "doctor", "hospital")
+    queryset = Visit.objects.select_related("patient", "doctor", "hospital").order_by("-visit_date", "-id")
     serializer_class = VisitSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsReceptionist | IsDoctor | IsNurse]
 
@@ -116,7 +116,7 @@ class QueueTokenViewSet(HospitalScopedViewSet):
 
         # A notification problem must never undo or fail the queue change.
         try:
-            self._notification_engine.send(NotificationPayload(
+            self._notification_engine.send_async(NotificationPayload(
                 event=event,
                 patient_id=token.patient_id,
                 hospital_id=token.hospital_id,
@@ -491,4 +491,4 @@ class DoctorScheduleViewSet(HospitalScopedViewSet):
         if hospital_id:
             queryset = queryset.filter(doctor__hospital_id=hospital_id)
 
-        return queryset
+        return queryset.order_by("doctor_id", "day", "start_time", "id")
