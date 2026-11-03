@@ -818,6 +818,20 @@ const api = {
       return request(`${API_BASE_URL}/appointments/${query}`)
     },
 
+    // One day's appointments of the hospital across all result pages,
+    // earliest first (the list endpoint pages 50 at a time, newest first).
+    listForDay: async (hospitalId, date, { status } = {}) => {
+      const rows = []
+      for (let page = 1; ; page += 1) {
+        const params = new URLSearchParams({ hospital: hospitalId, appointment_date: date, page: String(page) })
+        if (status) params.set('status', status)
+        const data = await request(`${API_BASE_URL}/appointments/?${params.toString()}`)
+        rows.push(...(Array.isArray(data) ? data : data?.results || []))
+        if (Array.isArray(data) || !data?.next) break
+      }
+      return rows.sort((a, b) => String(a.appointment_time || '').localeCompare(String(b.appointment_time || '')))
+    },
+
     get: async (id) => request(`${API_BASE_URL}/appointments/${id}/`),
 
     // POST /api/appointments/

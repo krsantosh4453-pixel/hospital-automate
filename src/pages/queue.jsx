@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { BellRing, CircleCheck, Hospital, ListOrdered, Megaphone, PhoneCall, RotateCcw, SkipForward, Stethoscope, Ticket, UserX } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
+import { hospitalToday } from "../utils/hospitalDate.js"
 import {
   Alert,
   Button,
@@ -104,7 +105,8 @@ function Queue() {
       try {
         const [data, appointmentData] = await Promise.all([
           api.queue.list(selectedHospital.id),
-          api.appointments.list(selectedHospital.id),
+          // Every booked appointment of today, earliest first: tokens go in that order.
+          api.appointments.listForDay(selectedHospital.id, hospitalToday(), { status: "Scheduled" }),
         ])
         if (cancelled) return
         const records = Array.isArray(data) ? data : data?.results || []

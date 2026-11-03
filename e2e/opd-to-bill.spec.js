@@ -34,12 +34,15 @@ test("front desk issues the queue token", async ({ page }) => {
   await signInAs(page, "demo.desk.main")
   await page.goto("/queue")
 
-  // Issue token serves booked appointments in order; seed data may be ahead of ours.
+  // Issue token serves today's booked appointments earliest first; seed
+  // appointments may be ahead of ours. After each token the queue reloads from
+  // the server, so give the row a moment to appear before issuing the next one.
   const row = page.getByRole("row", { name: new RegExp(patient) })
   const issue = page.getByRole("button", { name: /^Issue token/ })
   for (let attempt = 0; attempt < 5 && !(await row.isVisible()); attempt += 1) {
     await issue.click()
     await expect(page.getByText(/Token #\d+ generated/)).toBeVisible()
+    await row.waitFor({ state: "visible", timeout: 3000 }).catch(() => {})
   }
   await expect(row).toBeVisible()
   await expect(row.getByText("Waiting")).toBeVisible()
