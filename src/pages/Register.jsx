@@ -247,9 +247,9 @@ function Register() {
                     value={form.gender}
                     onChange={(e) => setField("gender", e.target.value)}
                   >
-                    <option>Male</option>
-                    <option>Female</option>
-                    <option>Other</option>
+                    <option value="Male">{t("Male")}</option>
+                    <option value="Female">{t("Female")}</option>
+                    <option value="Other">{t("Other")}</option>
                   </select>
                 </div>
                 <div>
@@ -307,7 +307,7 @@ function Register() {
               disabled={loading || Boolean(pendingEmail)}
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Creating account..." : "Create Account"}
+              {loading ? t("Creating account...") : t("Create Account")}
             </button>
           </form>
 
@@ -336,7 +336,7 @@ function Register() {
                 disabled={loading || verified}
                 className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {verified ? "Email verified" : "Verify OTP"}
+                {verified ? t("Email verified") : t("Verify OTP")}
               </button>
               <div className="flex items-center justify-between text-xs">
                 <button

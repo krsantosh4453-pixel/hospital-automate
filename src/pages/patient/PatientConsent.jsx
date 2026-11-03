@@ -190,8 +190,8 @@ function PatientConsent() {
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                       <h3 className="text-base font-semibold text-ink-900">{form.name}</h3>
-                      <p className="text-sm text-gray-500 mt-1">{form.description}</p>
-                      {form.version && <p className="text-xs text-gray-400 mt-1">{t("Version")}{" "}{form.version}{form.required ? " • Required" : ""}</p>}
+                      <p className="text-sm text-gray-500 mt-1">{t(form.description)}</p>
+                      {form.version && <p className="text-xs text-gray-400 mt-1">{t("Version")}{" "}{form.version}{form.required ? t(" • Required") : ""}</p>}
                     </div>
                     <div className="flex items-center gap-3">
                       {isSigned ? (
@@ -233,7 +233,7 @@ function PatientConsent() {
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600"><PenLineIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
                       <div>
-                        <p className="font-medium text-green-800">{t("Signed by")}{" "}{record.signed_by_proxy ? `proxy (${record.proxy_relationship})` : "Patient"}</p>
+                        <p className="font-medium text-green-800">{t("Signed by")}{" "}{record.signed_by_proxy ? `proxy (${record.proxy_relationship})` : t("Patient")}</p>
                         <p className="text-sm text-green-600">{record.signed_name}</p>
                       </div>
                     </div>
@@ -272,7 +272,7 @@ function PatientConsent() {
                 className="hms-input w-full"
                 required
               >
-                <option value="">Select a hospital</option>
+                <option value="">{t("Select a hospital")}</option>
                 {hospitals.map((hospital) => (
                   <option key={hospital.id} value={hospital.id}>{hospital.name}</option>
                 ))}
@@ -297,7 +297,7 @@ function PatientConsent() {
                 {Object.entries(SCOPE_LABELS).map(([key, label]) => (
                   <label key={key} className="flex items-center gap-2 text-sm text-gray-700">
                     <input type="checkbox" checked={shareForm.scope.includes(key)} onChange={() => toggleScope(key)} />
-                    {label}
+                    {t(label)}
                   </label>
                 ))}
               </div>
@@ -321,7 +321,7 @@ function PatientConsent() {
                 disabled={sharing}
                 className="px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50"
               >
-                {sharing ? "Sharing…" : "Share Records"}
+                {sharing ? t("Sharing…") : t("Share Records")}
               </button>
             </div>
           </form>
@@ -338,7 +338,7 @@ function PatientConsent() {
                       <p className="font-medium text-gray-800">
                         {share.recipient_hospital_name}
                         <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${share.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
-                          {share.is_active ? "Active" : share.revoked_at ? "Stopped" : "Expired"}
+                          {share.is_active ? t("Active") : share.revoked_at ? t("Stopped") : t("Expired")}
                         </span>
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
@@ -373,7 +373,7 @@ function PatientConsent() {
             </div>
             <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
               <div className="prose prose-sm max-w-none text-gray-700 border border-gray-200 rounded-xl p-4 bg-gray-50">
-                {selectedForm.description}
+                {t(selectedForm.description)}
                 <p className="text-xs text-gray-500 mt-2">{t("Version")}{" "}{selectedForm.version}{t(". You can withdraw this consent later on this page.")}</p>
               </div>
               <div className="border-t pt-4">
@@ -396,7 +396,7 @@ function PatientConsent() {
             </div>
             <div className="p-5 border-t border-gray-100 flex justify-end gap-3">
               <button onClick={() => setShowSignModal(false)} className="px-5 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200">{t("Cancel")}</button>
-              <button onClick={handleSubmitSignature} disabled={signing || !signature.trim() || !confirmed} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50">{signing ? "Signing..." : "Sign Document"}</button>
+              <button onClick={handleSubmitSignature} disabled={signing || !signature.trim() || !confirmed} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50">{signing ? t("Signing...") : t("Sign Document")}</button>
             </div>
           </div>
         </div>

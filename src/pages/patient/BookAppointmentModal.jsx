@@ -104,7 +104,7 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
         )}
         <Field label="Hospital" required>
           <Select value={form.hospital} onChange={(e) => set("hospital", e.target.value)}>
-            <option value="">Select hospital</option>
+            <option value="">{t("Select hospital")}</option>
             {options.hospitals.map((h) => (
               <option key={h.id} value={h.id}>
                 {h.name}
@@ -114,7 +114,7 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
         </Field>
         <Field label="Doctor" required>
           <Select value={form.doctor} onChange={(e) => set("doctor", e.target.value)} disabled={!form.hospital}>
-            <option value="">Select doctor</option>
+            <option value="">{t("Select doctor")}</option>
             {options.doctors.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name} — {d.specialization}
@@ -135,7 +135,7 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
         <Field
           label="Time"
           required
-          hint={form.doctor && !loading && freeSlots.length === 0 ? "No free time on this day. Try another date." : undefined}
+          hint={form.doctor && !loading && freeSlots.length === 0 ? t("No free time on this day. Try another date.") : undefined}
         >
           <Select value={form.time} onChange={(e) => set("time", e.target.value)} disabled={!form.doctor || loading}>
             <option value="">{loading ? "Loading free times…" : "Select time"}</option>

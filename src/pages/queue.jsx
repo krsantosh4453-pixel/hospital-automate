@@ -292,7 +292,7 @@ function Queue() {
               onClick={generateToken}
               loading={busy === "generate"}
               disabled={loading}
-              title={issueableAppointments.length ? t("{count} booked appointment(s) without a token", { count: issueableAppointments.length }) : "No booked appointment is waiting for a token"}
+              title={issueableAppointments.length ? t("{count} booked appointment(s) without a token", { count: issueableAppointments.length }) : t("No booked appointment is waiting for a token")}
             >
               {t("Issue token")}{issueableAppointments.length ? ` (${issueableAppointments.length})` : ""}
             </Button>
@@ -320,12 +320,12 @@ function Queue() {
         <Card className="flex flex-col justify-between overflow-hidden">
           <div className="bg-brand-900 px-5 py-5 text-white">
             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-200">
-              {currentPatient || !calledPatient ? "Now serving" : "Called · on the way"}
+              {currentPatient || !calledPatient ? t("Now serving") : t("Called · on the way")}
             </p>
             <p className="mt-2 text-5xl font-semibold tracking-tight tabular-nums" aria-live="polite">
               {servingPatient ? `#${servingPatient.token}` : "—"}
             </p>
-            <p className="mt-2 truncate text-[15px] font-medium text-brand-50">{servingPatient ? servingPatient.patient : "No patient in consultation"}</p>
+            <p className="mt-2 truncate text-[15px] font-medium text-brand-50">{servingPatient ? servingPatient.patient : t("No patient in consultation")}</p>
             {servingPatient && (
               <p className="mt-0.5 truncate text-[13px] text-brand-200">
                 {[servingPatient.doctor, servingPatient.department].filter(Boolean).join(" · ")}
@@ -336,7 +336,7 @@ function Queue() {
             <div className="min-w-0">
               <p className="text-xs font-medium text-ink-500">{t("Next in line")}</p>
               <p className="truncate text-sm font-semibold text-ink-900">
-                {nextWaiting ? `#${nextWaiting.token} · ${nextWaiting.patient}` : "Nobody waiting"}
+                {nextWaiting ? `#${nextWaiting.token} · ${nextWaiting.patient}` : t("Nobody waiting")}
               </p>
             </div>
             {currentPatient ? (
@@ -374,7 +374,7 @@ function Queue() {
       <Card className="overflow-hidden">
         <CardHeader
           title={t("Patient queue")}
-          description={`${filteredQueue.length} of ${hospitalQueue.length} token${hospitalQueue.length === 1 ? "" : "s"}`}
+          description={t(hospitalQueue.length === 1 ? "{shown} of {total} token" : "{shown} of {total} tokens", { shown: filteredQueue.length, total: hospitalQueue.length })}
         />
         <div className="px-4 pt-1">
           <Tabs tabs={statusTabs} value={statusFilter} onChange={setStatusFilter} label="Filter by status" />
@@ -382,9 +382,9 @@ function Queue() {
         <Toolbar>
           <SearchInput value={search} onChange={setSearch} placeholder={t("Patient, doctor or token")} label="Search queue" className="w-full sm:max-w-xs" />
           <Select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} aria-label={t("Filter by department")} className="w-full sm:w-56">
-            <option>All Departments</option>
+            <option value="All Departments">{t("All Departments")}</option>
             {departments.map((d) => (
-              <option key={d}>{d}</option>
+              <option value={d} key={d}>{t(d)}</option>
             ))}
           </Select>
         </Toolbar>
@@ -394,8 +394,8 @@ function Queue() {
         ) : filteredQueue.length === 0 ? (
           <EmptyState
             icon={Ticket}
-            title={hospitalQueue.length ? "No tokens match these filters" : "The queue is empty"}
-            description={hospitalQueue.length ? "Change the status or department filter." : "Issue a token from a booked appointment to start the queue."}
+            title={hospitalQueue.length ? t("No tokens match these filters") : t("The queue is empty")}
+            description={hospitalQueue.length ? t("Change the status or department filter.") : t("Issue a token from a booked appointment to start the queue.")}
           />
         ) : (
           <TableWrap>

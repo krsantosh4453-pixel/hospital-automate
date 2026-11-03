@@ -59,7 +59,7 @@ function StaffInvite() {
         <div className="hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-700">{t("Staff invitation")}</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">
-            {invite ? `Welcome, ${invite.name}` : "Set your password"}
+            {invite ? `Welcome, ${invite.name}` : t("Set your password")}
           </h1>
 
           <div className="mt-6 space-y-4">

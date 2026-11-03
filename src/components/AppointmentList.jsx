@@ -56,7 +56,7 @@ function AppointmentList() {
 
             {selectedHospital
               ? t("Scheduled appointments for {hospital}", { hospital: selectedHospital.name })
-              : "Select a hospital to view appointments"}
+              : t("Select a hospital to view appointments")}
 
           </p>
 

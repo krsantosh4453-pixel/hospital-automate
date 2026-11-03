@@ -164,9 +164,9 @@ function Departments() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="hms-input"
           >
-            <option value="All">All Status</option>
-            <option>Active</option>
-            <option>Inactive</option>
+            <option value="All">{t("All Status")}</option>
+            <option value="Active">{t("Active")}</option>
+            <option value="Inactive">{t("Inactive")}</option>
           </select>
         </div>
 
@@ -199,7 +199,7 @@ function Departments() {
                         onClick={() => toggleStatus(dept)}
                         className={`px-3 py-1 rounded-full text-xs font-medium ${dept.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}
                       >
-                        {dept.is_active ? "Active" : "Inactive"}
+                        {dept.is_active ? t("Active") : t("Inactive")}
                       </button>
                     </td>
                     <td className="py-3 text-right">
@@ -218,7 +218,7 @@ function Departments() {
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true">
           <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">{editing ? "Edit Department" : "Add Department"}</h2>
+            <h2 className="text-xl font-bold text-gray-800">{editing ? t("Edit Department") : t("Add Department")}</h2>
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm" role="alert">
                 {error}
@@ -235,7 +235,7 @@ function Departments() {
             <label className="block text-sm font-medium text-gray-700">
               {t("Head of Department")}
               <select name="head" value={formData.head} onChange={handleChange} className="hms-input mt-1 w-full">
-                <option value="">Not assigned</option>
+                <option value="">{t("Not assigned")}</option>
                 {doctors.map((doctor) => (
                   <option key={doctor.id} value={doctor.id}>{doctor.name}</option>
                 ))}
@@ -248,14 +248,14 @@ function Departments() {
             <label className="block text-sm font-medium text-gray-700">
               {t("Status")}
               <select name="status" value={formData.status} onChange={handleChange} className="hms-input mt-1 w-full">
-                <option>Active</option>
-                <option>Inactive</option>
+                <option value="Active">{t("Active")}</option>
+                <option value="Inactive">{t("Inactive")}</option>
               </select>
             </label>
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => { setShowModal(false); setError("") }} className="px-5 py-2.5 bg-gray-100 rounded-lg">{t("Cancel")}</button>
               <button type="submit" disabled={saving} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50">
-                {saving ? "Saving…" : editing ? "Update Department" : "Add Department"}
+                {saving ? t("Saving…") : editing ? t("Update Department") : t("Add Department")}
               </button>
             </div>
           </form>

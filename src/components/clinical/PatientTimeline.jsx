@@ -59,8 +59,8 @@ export default function PatientTimeline({ patientId }) {
       <div className="flex items-center justify-between gap-3">
         <p className="text-[13px] text-ink-500">{events.length}{" "}{t("event(s), newest first")}</p>
         <Select aria-label={t("Show only")} className="w-44" value={kind} onChange={(e) => setKind(e.target.value)}>
-          <option value="">Everything</option>
-          {kinds.map((k) => <option key={k}>{k}</option>)}
+          <option value="">{t("Everything")}</option>
+          {kinds.map((k) => <option value={k} key={k}>{t(k)}</option>)}
         </Select>
       </div>
       <ol className="space-y-5">

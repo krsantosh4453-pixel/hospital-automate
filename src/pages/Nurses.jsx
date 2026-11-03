@@ -2636,13 +2636,14 @@ function Nurses() {
 // =======================================================
 
 function DashboardCard({ title, value, icon, subtitle }) {
+  const { t } = useLanguage()
   return (
     <div className="flex items-start gap-3.5 rounded-2xl border border-line bg-white p-4">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-xl text-brand-700">{icon}</span>
       <div className="min-w-0">
-        <p className="text-[13px] font-medium text-ink-500">{title}</p>
+        <p className="text-[13px] font-medium text-ink-500">{t(title)}</p>
         <p className="mt-0.5 text-2xl font-semibold leading-8 tracking-tight text-ink-900 tabular-nums">{value}</p>
-        {subtitle && <p className="mt-0.5 text-xs text-ink-500">{subtitle}</p>}
+        {subtitle && <p className="mt-0.5 text-xs text-ink-500">{t(subtitle)}</p>}
       </div>
     </div>
   )
@@ -2658,11 +2659,12 @@ function SectionCard({ title, subtitle, action, children }) {
 }
 
 function Input({ label, name, value, onChange, type = "text", placeholder = "", required = false }) {
+  const { t } = useLanguage()
   const id = useId()
   return (
     <div>
       <label htmlFor={id} className="hms-label">
-        {label}
+        {t(label)}
         {required && <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>}
       </label>
       <input id={id} type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} required={required} className="hms-input w-full" />
@@ -2671,11 +2673,12 @@ function Input({ label, name, value, onChange, type = "text", placeholder = "", 
 }
 
 function Select({ label, value, onChange, options, optionLabels }) {
+  const { t } = useLanguage()
   const id = useId()
   return (
     <div>
       <label htmlFor={id} className="hms-label">
-        {label}
+        {t(label)}
         <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>
       </label>
       <select id={id} value={value} onChange={onChange} className="hms-input w-full" required>
@@ -2689,9 +2692,10 @@ function Select({ label, value, onChange, options, optionLabels }) {
 }
 
 function Info({ label, value }) {
+  const { t } = useLanguage()
   return (
     <div className="rounded-xl bg-ink-50 px-4 py-3">
-      <p className="text-xs font-medium text-ink-500">{label}</p>
+      <p className="text-xs font-medium text-ink-500">{t(label)}</p>
       <p className="mt-0.5 font-medium text-ink-900">{value || "—"}</p>
     </div>
   )

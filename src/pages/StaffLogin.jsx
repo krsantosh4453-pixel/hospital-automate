@@ -155,8 +155,8 @@ function StaffLogin() {
 
           <div className={inDialog ? "" : "hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8"}>
             {!inDialog && <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-700">{t("Staff portal")}</p>}
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">{title}</h2>
-            <p className="mt-1 text-sm text-ink-500">{subtitle}</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">{t(title)}</h2>
+            <p className="mt-1 text-sm text-ink-500">{t(subtitle)}</p>
 
             <div className="mt-6 space-y-4">
               {error && <Alert tone="danger">{error}</Alert>}
@@ -197,7 +197,7 @@ function StaffLogin() {
                     </>
                   )}
                   <Button type="submit" size="lg" loading={loading} className="w-full justify-center">
-                    {step === "reset-request" ? "Send reset code" : "Set new password"}
+                    {step === "reset-request" ? t("Send reset code") : t("Set new password")}
                   </Button>
                   <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={goBackToCredentials} disabled={loading}>
                     {t("Back to sign in")}

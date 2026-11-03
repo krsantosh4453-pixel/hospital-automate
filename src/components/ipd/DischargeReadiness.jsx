@@ -69,7 +69,7 @@ export default function DischargeReadiness({ admissionId, reloadToken, canTick, 
                   disabled={!canTick || !state.plan || saving === item.field}
                   onChange={() => tick(item)}
                 />
-                {item.label}
+                {t(item.label)}
               </label>
             </li>
           ))}
@@ -79,11 +79,11 @@ export default function DischargeReadiness({ admissionId, reloadToken, canTick, 
         <ReceiptIndianRupee size={15} aria-hidden="true" />
         {bill
           ? `Final bill ${bill.invoice_number}: ₹${bill.total}${billDone ? ", paid" : `, ₹${bill.balance_due} due`}`
-          : "Final bill not created yet (Billing creates it)"}
+          : t("Final bill not created yet (Billing creates it)")}
       </p>
       <p className={`flex items-center gap-1.5 font-medium ${state.ready ? "text-green-700" : "text-ink-600"}`}>
         {state.ready ? <CircleCheck size={15} aria-hidden="true" /> : <CircleDashed size={15} aria-hidden="true" />}
-        {state.ready ? "Ready to complete" : `${state.blockers.length} step(s) left`}
+        {state.ready ? t("Ready to complete") : `${state.blockers.length} step(s) left`}
       </p>
     </div>
   )

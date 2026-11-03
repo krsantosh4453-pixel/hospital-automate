@@ -119,7 +119,7 @@ function Radiology() {
   const footer = (label) => (
     <>
       <Button variant="secondary" onClick={close}>{t("Cancel")}</Button>
-      <Button type="submit" form="radiology-form" loading={saving}>{label}</Button>
+      <Button type="submit" form="radiology-form" loading={saving}>{t(label)}</Button>
     </>
   )
 
@@ -127,7 +127,7 @@ function Radiology() {
     <div className="space-y-5">
       <PageHeader
         title={t("Radiology")}
-        description={selectedHospital ? t("Imaging orders, scans and reports at {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital to see imaging."}
+        description={selectedHospital ? t("Imaging orders, scans and reports at {hospital}.", { hospital: selectedHospital.name }) : t("Select a hospital to see imaging.")}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Radiology" }]}
         actions={selectedHospital && (
           <>
@@ -213,16 +213,16 @@ function Radiology() {
         <form id="radiology-form" className="space-y-3" onSubmit={(e) => submit(e, () => api.imaging.create({ ...form, patient: Number(form.patient) }), "Imaging ordered.")}>
           <Field label="Patient" required>
             <Select value={form.patient || ""} onChange={set("patient")}>
-              <option value="">Choose a patient</option>
+              <option value="">{t("Choose a patient")}</option>
               {patients.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.phone}</option>)}
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Modality" required>
-              <Select value={form.modality || "X-ray"} onChange={set("modality")}>{MODALITIES.map((m) => <option key={m}>{m}</option>)}</Select>
+              <Select value={form.modality || "X-ray"} onChange={set("modality")}>{MODALITIES.map((m) => <option value={m} key={m}>{t(m)}</option>)}</Select>
             </Field>
             <Field label="Priority">
-              <Select value={form.priority || "Routine"} onChange={set("priority")}>{["Routine", "Urgent", "STAT"].map((p) => <option key={p}>{p}</option>)}</Select>
+              <Select value={form.priority || "Routine"} onChange={set("priority")}>{["Routine", "Urgent", "STAT"].map((p) => <option value={p} key={p}>{t(p)}</option>)}</Select>
             </Field>
           </div>
           <Field label="Body part / region" required><Input value={form.body_part || ""} onChange={set("body_part")} placeholder={t("e.g. Chest PA")} maxLength={120} /></Field>

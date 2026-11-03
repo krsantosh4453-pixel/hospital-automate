@@ -139,9 +139,9 @@ export default function VisitDocuments({ visit }) {
           <div className="space-y-4 px-5 py-4">
             <Field label="Type" required>
               <Select value={certificateForm.kind} onChange={setCert("kind")}>
-                <option>Sick leave</option>
-                <option>Fitness</option>
-                <option>Other</option>
+                <option value="Sick leave">{t("Sick leave")}</option>
+                <option value="Fitness">{t("Fitness")}</option>
+                <option value="Other">{t("Other")}</option>
               </Select>
             </Field>
             <Field label="Diagnosis"><Input value={certificateForm.diagnosis} onChange={setCert("diagnosis")} maxLength={255} /></Field>
@@ -161,14 +161,14 @@ export default function VisitDocuments({ visit }) {
           <div className="space-y-4 px-5 py-4">
             <Field label="Refer to" required>
               <Select value={referralForm.target} onChange={setRef("target")}>
-                <option value="internal">A doctor at this hospital</option>
-                <option value="external">Outside doctor or facility</option>
+                <option value="internal">{t("A doctor at this hospital")}</option>
+                <option value="external">{t("Outside doctor or facility")}</option>
               </Select>
             </Field>
             {referralForm.target === "internal" ? (
               <Field label="Doctor" required>
                 <Select value={referralForm.doctorId} onChange={setRef("doctorId")}>
-                  <option value="">Choose a doctor</option>
+                  <option value="">{t("Choose a doctor")}</option>
                   {otherDoctors.map((doctor) => (
                     <option key={doctor.id} value={doctor.id}>{doctor.name} ({doctor.specialization})</option>
                   ))}
@@ -181,9 +181,9 @@ export default function VisitDocuments({ visit }) {
               <Field label="Specialty"><Input value={referralForm.specialty} onChange={setRef("specialty")} maxLength={100} /></Field>
               <Field label="Urgency">
                 <Select value={referralForm.urgency} onChange={setRef("urgency")}>
-                  <option>Routine</option>
-                  <option>Urgent</option>
-                  <option>Emergency</option>
+                  <option value="Routine">{t("Routine")}</option>
+                  <option value="Urgent">{t("Urgent")}</option>
+                  <option value="Emergency">{t("Emergency")}</option>
                 </Select>
               </Field>
             </div>
@@ -228,7 +228,7 @@ export default function VisitDocuments({ visit }) {
                       disabled={saving === `status-${ref.id}`}
                       onChange={(event) => changeStatus(ref, event.target.value)}
                     >
-                      {REFERRAL_STATUSES.map((status) => <option key={status}>{status}</option>)}
+                      {REFERRAL_STATUSES.map((status) => <option value={status} key={status}>{t(status)}</option>)}
                     </Select>
                     <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting({ type: "referral", record: ref })}>{t("Print")}</Button>
                   </div>
@@ -242,7 +242,7 @@ export default function VisitDocuments({ visit }) {
       <PrintSheet
         open={Boolean(printing)}
         onClose={() => setPrinting(null)}
-        title={printing?.type === "referral" ? "Referral letter" : "Medical certificate"}
+        title={printing?.type === "referral" ? t("Referral letter") : t("Medical certificate")}
       >
         {printing?.type === "certificate" && <CertificateDocument certificate={printing.record} />}
         {printing?.type === "referral" && <ReferralDocument referral={printing.record} />}

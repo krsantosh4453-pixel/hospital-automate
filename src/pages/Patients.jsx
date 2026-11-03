@@ -404,7 +404,7 @@ function Patients() {
         description={
           selectedHospital
             ? t("Patients registered at {hospital}.", { hospital: selectedHospital.name })
-            : "Select a hospital from the header to see its patients."
+            : t("Select a hospital from the header to see its patients.")
         }
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Patients" }]}
         actions={
@@ -444,8 +444,9 @@ function Patients() {
           <Toolbar
             actions={
               <p className="text-[13px] text-ink-500">
-                <span className="font-semibold text-ink-800 tabular-nums">{totalRecords}</span>{" "}
-                {debouncedSearch ? "matching" : "registered"}{" "}{t("patient")}{totalRecords === 1 ? "" : "s"}
+                {t(debouncedSearch
+                  ? (totalRecords === 1 ? "{count} matching patient" : "{count} matching patients")
+                  : (totalRecords === 1 ? "{count} registered patient" : "{count} registered patients"), { count: totalRecords })}
               </p>
             }
           >
@@ -548,8 +549,8 @@ function Patients() {
           ) : (
             <EmptyState
               icon={UsersRound}
-              title={search ? "No patients match your search" : "No patients registered yet"}
-              description={search ? "Try a different name or phone number." : "Registered patients for this hospital will appear here."}
+              title={search ? t("No patients match your search") : t("No patients registered yet")}
+              description={search ? t("Try a different name or phone number.") : t("Registered patients for this hospital will appear here.")}
               action={
                 search ? (
                   <Button variant="secondary" onClick={() => setSearch("")}>{t("Clear search")}</Button>
@@ -566,13 +567,13 @@ function Patients() {
       <Modal
         open={showForm}
         onClose={closeForm}
-        title={editingPatient ? "Edit patient" : "Register patient"}
+        title={editingPatient ? t("Edit patient") : t("Register patient")}
         description={selectedHospital ? `At ${selectedHospital.name}` : undefined}
         footer={
           <>
             <Button variant="secondary" onClick={closeForm} disabled={saving}>{t("Cancel")}</Button>
             <Button type="submit" form="patient-form" loading={saving}>
-              {editingPatient ? "Save changes" : "Register patient"}
+              {editingPatient ? t("Save changes") : t("Register patient")}
             </Button>
           </>
         }
@@ -605,10 +606,10 @@ function Patients() {
             </Field>
             <Field label="Gender" required error={formErrors.gender}>
               <Select name="gender" value={formData.gender} onChange={handleFormChange}>
-                <option value="">Select</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="">{t("Select")}</option>
+                <option value="Male">{t("Male")}</option>
+                <option value="Female">{t("Female")}</option>
+                <option value="Other">{t("Other")}</option>
               </Select>
             </Field>
           </div>
@@ -641,8 +642,8 @@ function Patients() {
                 </Field>
                 <Field label="Marital status">
                   <Select name="maritalStatus" value={formData.maritalStatus} onChange={handleFormChange}>
-                    <option value="">Not recorded</option>
-                    {["Single", "Married", "Widowed", "Divorced", "Separated"].map((v) => <option key={v}>{v}</option>)}
+                    <option value="">{t("Not recorded")}</option>
+                    {["Single", "Married", "Widowed", "Divorced", "Separated"].map((v) => <option value={v} key={v}>{t(v)}</option>)}
                   </Select>
                 </Field>
               </div>
@@ -658,8 +659,8 @@ function Patients() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="ID type" error={formErrors.idType}>
                   <Select name="idType" value={formData.idType} onChange={handleFormChange}>
-                    <option value="">None</option>
-                    {["Aadhaar", "PAN", "Voter ID", "Passport", "Driving licence", "ABHA", "Other"].map((v) => <option key={v}>{v}</option>)}
+                    <option value="">{t("None")}</option>
+                    {["Aadhaar", "PAN", "Voter ID", "Passport", "Driving licence", "ABHA", "Other"].map((v) => <option value={v} key={v}>{t(v)}</option>)}
                   </Select>
                 </Field>
                 <Field label="Last 4 of ID" error={formErrors.idLast4} hint="Only the last 4 characters are kept, never the full number.">
@@ -669,8 +670,8 @@ function Patients() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Field label="Who pays">
                   <Select name="payerType" value={formData.payerType} onChange={handleFormChange}>
-                    <option value="">Not recorded</option>
-                    {["Self", "Insurance", "Government scheme", "Corporate"].map((v) => <option key={v}>{v}</option>)}
+                    <option value="">{t("Not recorded")}</option>
+                    {["Self", "Insurance", "Government scheme", "Corporate"].map((v) => <option value={v} key={v}>{t(v)}</option>)}
                   </Select>
                 </Field>
                 <Field label="Insurer / scheme / company" error={formErrors.payerName}><Input name="payerName" value={formData.payerName} onChange={handleFormChange} maxLength={120} /></Field>
@@ -685,7 +686,7 @@ function Patients() {
         open={Boolean(recordPatient)}
         onClose={() => setRecordPatient(null)}
         size="xl"
-        title={recordPatient ? t("Medical record · {patient}", { patient: recordPatient.name }) : "Medical record"}
+        title={recordPatient ? t("Medical record · {patient}", { patient: recordPatient.name }) : t("Medical record")}
         description="Visits, diagnoses, results and treatment at this hospital, newest first. Every view is recorded in the audit log."
       >
         {recordPatient && <PatientTimeline patientId={recordPatient.id} />}

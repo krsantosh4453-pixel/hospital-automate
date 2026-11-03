@@ -183,7 +183,7 @@ function HospitalSwitcher({ hospitals, selectedHospital, onSelect, t }) {
               className="mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50 disabled:opacity-60"
             >
               <LocateFixed size={14} aria-hidden="true" />
-              {locationLoading ? "Detecting location…" : userLocation ? "Sorted by distance" : "Sort by distance from me"}
+              {locationLoading ? t("Detecting location…") : userLocation ? t("Sorted by distance") : t("Sort by distance from me")}
             </button>
             {locationError && <p className="mt-1 px-1.5 text-xs text-amber-700">{locationError}</p>}
           </div>
@@ -191,7 +191,7 @@ function HospitalSwitcher({ hospitals, selectedHospital, onSelect, t }) {
           <ul className="max-h-80 overflow-y-auto p-1.5">
             {list.length === 0 && (
               <li className="px-3 py-8 text-center text-[13px] text-ink-500">
-                {hospitals.length === 0 ? "You are not a member of any hospital yet." : "No hospital matches your search."}
+                {hospitals.length === 0 ? t("You are not a member of any hospital yet.") : t("No hospital matches your search.")}
               </li>
             )}
             {list.map((h) => {

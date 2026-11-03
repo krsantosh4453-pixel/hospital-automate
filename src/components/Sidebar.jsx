@@ -98,7 +98,7 @@ function GuestFooter({ collapsed }) {
     <div className={`border-t border-white/10 ${collapsed ? "flex justify-center py-3" : "px-4 py-3"}`}>
       <SignInLink
         to="/staff-login"
-        title={collapsed ? "Sign in" : undefined}
+        title={collapsed ? t("Sign in") : undefined}
         className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-ink-200 hover:bg-white/[0.05] hover:text-white"
       >
         <LogIn size={15} aria-hidden="true" />

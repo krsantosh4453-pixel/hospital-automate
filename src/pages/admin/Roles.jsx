@@ -85,12 +85,12 @@ function Roles() {
         {ROLES.map((role) => (
           <div key={role} className="rounded-2xl border border-line bg-white p-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-800">{role}</h2>
+              <h2 className="text-lg font-semibold text-gray-800">{t(role)}</h2>
               <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                 {counts[role] || 0}{" "}{t("active")}
               </span>
             </div>
-            <p className="text-sm text-gray-500 mt-2">{ROLE_DESCRIPTIONS[role]}</p>
+            <p className="text-sm text-gray-500 mt-2">{t(ROLE_DESCRIPTIONS[role])}</p>
           </div>
         ))}
       </div>
@@ -103,7 +103,7 @@ function Roles() {
             <tr className="text-left text-gray-500 border-b">
               <th className="py-2 pr-3 sticky left-0 bg-white">{t("Module")}</th>
               {ROLES.map((role) => (
-                <th key={role} className="py-2 px-2 whitespace-nowrap">{role}</th>
+                <th key={role} className="py-2 px-2 whitespace-nowrap">{t(role)}</th>
               ))}
             </tr>
           </thead>

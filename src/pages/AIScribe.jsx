@@ -572,7 +572,7 @@ function AIScribe() {
       return (
         <div className="mb-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-semibold text-slate-700">{label}</label>
+            <label className="text-sm font-semibold text-slate-700">{t(label)}</label>
             <span className="text-xs text-slate-400">{t("Not extracted")}</span>
           </div>
         </div>
@@ -588,7 +588,7 @@ function AIScribe() {
     return (
       <div className="mb-4 p-4 bg-white rounded-xl border border-slate-200">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-semibold text-slate-700">{label}</label>
+          <label className="text-sm font-semibold text-slate-700">{t(label)}</label>
           <div className="flex items-center gap-2">
             {isEdited && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded">{t("Edited by Doctor")}</span>}
             <select
@@ -596,10 +596,10 @@ function AIScribe() {
               onChange={(e) => handleReviewAction(e.target.value, sectionKey, value, displayValue, "")}
               className="hms-input"
             >
-              <option value="viewed">Viewed</option>
-              <option value="accepted_section">Accept</option>
-              <option value="edited_section">Edit</option>
-              <option value="rejected_section">Reject</option>
+              <option value="viewed">{t("Viewed")}</option>
+              <option value="accepted_section">{t("Accept")}</option>
+              <option value="edited_section">{t("Edit")}</option>
+              <option value="rejected_section">{t("Reject")}</option>
             </select>
           </div>
         </div>
@@ -653,7 +653,7 @@ function AIScribe() {
                 className="hms-input w-full disabled:bg-slate-100"
               >
                 <option value="">
-                  {loadingVisits ? "Loading visits…" : visits.length ? "-- Choose a visit --" : "No visits available"}
+                  {t(loadingVisits ? "Loading visits…" : visits.length ? "-- Choose a visit --" : "No visits available")}
                 </option>
                 {visits.map((visit) => (
                   <option key={visit.apiId} value={visit.apiId}>
@@ -688,7 +688,7 @@ function AIScribe() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-4xl font-mono font-bold text-blue-600">{formatTime(recordingTime)}</p>
-                    <p className="text-sm text-slate-500">{isRecording ? "Recording in progress..." : "Ready to record"}</p>
+                    <p className="text-sm text-slate-500">{isRecording ? t("Recording in progress...") : t("Ready to record")}</p>
                   </div>
                   <div className="flex gap-3">
                     {!isRecording ? (
@@ -743,7 +743,7 @@ function AIScribe() {
                       className="hms-input"
                     >
                       {SPOKEN_LANGUAGES.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
+                        <option key={value} value={value}>{t(label)}</option>
                       ))}
                     </select>
                   </div>
@@ -752,7 +752,7 @@ function AIScribe() {
                     disabled={loadingTranscript || !session?.audio_file}
                     className="mt-4 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:bg-blue-300 cursor-pointer"
                   >
-                    {loadingTranscript ? "Transcribing…" : "Transcribe Audio"}
+                    {loadingTranscript ? t("Transcribing…") : t("Transcribe Audio")}
                   </button>
                 </div>
               )}
@@ -771,13 +771,13 @@ function AIScribe() {
                         disabled={loadingTranscript}
                         className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:bg-blue-300 cursor-pointer"
                       >
-                        {loadingTranscript ? "Processing…" : "Re-transcribe"}
+                        {loadingTranscript ? t("Processing…") : t("Re-transcribe")}
                       </button>
                     )}
                   </div>
 
                   <div className="prose max-w-none p-4 bg-white border border-slate-200 rounded-xl whitespace-pre-wrap font-mono text-sm">
-                    {transcript.text || "No transcript text available"}
+                    {transcript.text || t("No transcript text available")}
                   </div>
                 </>
               )}
@@ -804,7 +804,7 @@ function AIScribe() {
                         disabled={loadingDrafts || !transcript}
                         className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition cursor-pointer disabled:bg-blue-300"
                       >
-                        {loadingDrafts ? "Generating…" : "Generate Draft"}
+                        {loadingDrafts ? t("Generating…") : t("Generate Draft")}
                       </button>
                     )}
                   </div>
@@ -898,7 +898,7 @@ function AIScribe() {
                             {review.section && (
                               <span className="text-slate-600">{t("Section:")}{" "}<strong>{SECTION_LABELS[review.section] || review.section}</strong></span>
                             )}
-                            <span className="text-slate-400">{t("by")}{" "}{review.doctorName || "Unknown"}</span>
+                            <span className="text-slate-400">{t("by")}{" "}{review.doctorName || t("Unknown")}</span>
                             <span className="text-slate-400">{formatDateTime(review.createdAt)}</span>
                           </div>
                           {review.notes && <p className="mt-2 text-sm text-slate-600">{review.notes}</p>}

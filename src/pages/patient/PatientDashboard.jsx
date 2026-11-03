@@ -74,7 +74,7 @@ function PatientDashboard() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">{firstName ? `Hello, ${firstName}` : "Welcome"}</h1>
+        <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">{firstName ? `Hello, ${firstName}` : t("Welcome")}</h1>
         <p className="mt-1 text-sm text-ink-500">{t("Your appointments, medicines, reports and bills in one place.")}</p>
       </header>
 
@@ -104,7 +104,7 @@ function PatientDashboard() {
                     <span className="text-base font-semibold leading-tight tabular-nums">{appt.appointment_date ? new Date(appt.appointment_date).getDate() : "—"}</span>
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-ink-900">{appt.doctor_name || "Doctor"}</p>
+                    <p className="truncate font-medium text-ink-900">{appt.doctor_name || t("Doctor")}</p>
                     <p className="text-[13px] text-ink-500 tabular-nums">
                       {formatDate(appt.appointment_date)}
                       {appt.appointment_time ? ` · ${String(appt.appointment_time).slice(0, 5)}` : ""}
@@ -132,7 +132,7 @@ function PatientDashboard() {
                 <Link to={to} className="group flex items-center gap-3 px-5 py-3 hover:bg-ink-50">
                   <Icon size={18} className="text-brand-600" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-ink-900">{title}</span>
+                    <span className="block text-sm font-medium text-ink-900">{t(title)}</span>
                     <span className="block truncate text-xs text-ink-500">{text}</span>
                   </span>
                   <ChevronRight size={16} className="text-ink-300 group-hover:text-ink-500" aria-hidden="true" />

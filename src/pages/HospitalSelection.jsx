@@ -206,7 +206,7 @@ function HospitalSelection() {
         <Toolbar
           actions={
             <Button variant="secondary" icon={LocateFixed} onClick={handleGetLocation} loading={locationLoading}>
-              {userLocation ? "Sorted by distance" : "Use my location"}
+              {userLocation ? t("Sorted by distance") : t("Use my location")}
             </Button>
           }
         >
@@ -223,7 +223,7 @@ function HospitalSelection() {
         </div>
       ) : filteredHospitals.length === 0 ? (
         <Card>
-          <EmptyState icon={SearchIcon} title={t("No hospitals found")} description={search ? "Try another name or location." : "No active hospitals are listed yet."} />
+          <EmptyState icon={SearchIcon} title={t("No hospitals found")} description={search ? t("Try another name or location.") : t("No active hospitals are listed yet.")} />
         </Card>
       ) : (
         <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2" role="radiogroup" aria-label={t("Hospitals")}>

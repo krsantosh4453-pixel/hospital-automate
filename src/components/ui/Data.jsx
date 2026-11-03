@@ -134,7 +134,7 @@ export function DescriptionList({ items, columns = 2, className = "" }) {
           <dt className="text-xs font-medium text-ink-500">{tr(item.label)}</dt>
           <dd className="mt-0.5 break-words text-sm text-ink-900">
             {item.value === null || item.value === undefined || item.value === "" ? (
-              <span className="text-ink-400">Not recorded</span>
+              <span className="text-ink-400">{tr("Not recorded")}</span>
             ) : (
               item.value
             )}

@@ -208,7 +208,7 @@ function BloodBank() {
                 </p>
                 <p className={`mt-1 text-2xl font-semibold tabular-nums ${units === 0 ? "text-red-700" : "text-ink-900"}`}>{units}</p>
                 <p className={`text-xs ${expiringSoon ? "font-medium text-amber-700" : units === 0 ? "text-red-700" : "text-ink-500"}`}>
-                  {expiringSoon ? "Expiring soon" : units === 0 ? "None in stock" : "units"}
+                  {expiringSoon ? t("Expiring soon") : units === 0 ? t("None in stock") : t("units")}
                 </p>
               </li>
             ))}
@@ -218,7 +218,7 @@ function BloodBank() {
 
       <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_28rem]">
         <Card className="overflow-hidden">
-          <CardHeader title={t("Requests")} description={`${openRequests.length} open`} />
+          <CardHeader title={t("Requests")} description={t("{count} open", { count: openRequests.length })} />
           {loading && requests.length === 0 ? (
             <SkeletonRows rows={4} />
           ) : requests.length === 0 ? (
@@ -297,7 +297,7 @@ function BloodBank() {
                         <td className="num">{item.units}</td>
                         <td className={`whitespace-nowrap tabular-nums ${d !== null && d < 0 ? "font-medium text-red-700" : d !== null && d <= 7 ? "font-medium text-amber-700" : "text-ink-600"}`}>
                           {item.expiry_date ? new Date(item.expiry_date).toLocaleDateString("en-IN") : "—"}
-                          {d !== null && d < 0 && " (expired)"}
+                          {d !== null && d < 0 && t(" (expired)")}
                         </td>
                       </tr>
                     )
@@ -312,26 +312,26 @@ function BloodBank() {
       <Modal
         open={showRequestModal}
         onClose={resetForms}
-        title={editingRequest ? "Edit blood request" : "New blood request"}
+        title={editingRequest ? t("Edit blood request") : t("New blood request")}
         footer={
           <>
             <Button variant="secondary" onClick={resetForms}>{t("Cancel")}</Button>
-            <Button type="submit" form="blood-form" loading={saving}>{editingRequest ? "Save changes" : "Create request"}</Button>
+            <Button type="submit" form="blood-form" loading={saving}>{editingRequest ? t("Save changes") : t("Create request")}</Button>
           </>
         }
       >
         <form id="blood-form" onSubmit={handleRequestSubmit} className="space-y-4">
           <Field label="Patient" required>
             <Select value={requestForm.patient} onChange={(e) => setRequestForm({ ...requestForm, patient: e.target.value })}>
-              <option value="">Select patient</option>
+              <option value="">{t("Select patient")}</option>
               {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.phone ? ` · ${p.phone}` : ""}</option>)}
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Blood group" required>
               <Select value={requestForm.blood_group} onChange={(e) => setRequestForm({ ...requestForm, blood_group: e.target.value })}>
-                <option value="">Select</option>
-                {BLOOD_GROUPS.map((g) => <option key={g}>{g}</option>)}
+                <option value="">{t("Select")}</option>
+                {BLOOD_GROUPS.map((g) => <option value={g} key={g}>{t(g)}</option>)}
               </Select>
             </Field>
             <Field label="Units" required>
@@ -340,7 +340,7 @@ function BloodBank() {
           </div>
           <Field label="Component" required>
             <Select value={requestForm.component} onChange={(e) => setRequestForm({ ...requestForm, component: e.target.value })}>
-              {COMPONENTS.map((c) => <option key={c}>{c}</option>)}
+              {COMPONENTS.map((c) => <option value={c} key={c}>{t(c)}</option>)}
               {requestForm.component && !COMPONENTS.includes(requestForm.component) && <option>{requestForm.component}</option>}
             </Select>
           </Field>

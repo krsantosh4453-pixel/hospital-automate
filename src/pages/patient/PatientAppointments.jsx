@@ -102,8 +102,8 @@ function PatientAppointments() {
         <Card>
           <EmptyState
             icon={CalendarDays}
-            title={appointments.length ? "No appointments match this filter" : "No appointments yet"}
-            description={appointments.length ? undefined : "Use Book appointment to choose a doctor and a time."}
+            title={appointments.length ? t("No appointments match this filter") : t("No appointments yet")}
+            description={appointments.length ? undefined : t("Use Book appointment to choose a doctor and a time.")}
           />
         </Card>
       ) : (
@@ -120,7 +120,7 @@ function PatientAppointments() {
                   </span>
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-ink-900">{appt.doctor_name || "Doctor"}</p>
+                  <p className="truncate font-medium text-ink-900">{appt.doctor_name || t("Doctor")}</p>
                   <p className="text-[13px] text-ink-500 tabular-nums">
                     {formatDate(appt.appointment_date)}
                     {appt.appointment_time ? ` · ${String(appt.appointment_time).slice(0, 5)}` : ""}

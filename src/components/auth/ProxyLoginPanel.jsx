@@ -128,7 +128,7 @@ export default function ProxyLoginPanel({ onSignedIn }) {
             </div>
           </div>
           <button type="submit" className={PRIMARY_BUTTON} disabled={loading}>
-            {loading ? "Sending..." : "Send OTP"}
+            {loading ? t("Sending...") : t("Send OTP")}
           </button>
           <p className="text-xs text-ink-500">
             {t("No access yet? Ask the patient to add you under Consent & Sharing → Family access in their portal.")}
@@ -164,7 +164,7 @@ export default function ProxyLoginPanel({ onSignedIn }) {
               />
             </div>
             <button type="submit" className={PRIMARY_BUTTON} disabled={loading}>
-              {loading ? "Verifying..." : "Verify & Continue"}
+              {loading ? t("Verifying...") : t("Verify & Continue")}
             </button>
           </form>
           <div className="mt-4 flex items-center justify-between text-xs">

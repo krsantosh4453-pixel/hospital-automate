@@ -291,17 +291,11 @@ function Hospitals() {
             }
             className="hms-input"
           >
-            <option value="All">
-              All Types
-            </option>
+            <option value="All">{t("All Types")}</option>
 
-            <option value="Government">
-              Government
-            </option>
+            <option value="Government">{t("Government")}</option>
 
-            <option value="Private">
-              Private
-            </option>
+            <option value="Private">{t("Private")}</option>
           </select>
 
           <select
@@ -311,17 +305,11 @@ function Hospitals() {
             }
             className="hms-input"
           >
-            <option value="All">
-              All Status
-            </option>
+            <option value="All">{t("All Status")}</option>
 
-            <option value="Active">
-              Active
-            </option>
+            <option value="Active">{t("Active")}</option>
 
-            <option value="Inactive">
-              Inactive
-            </option>
+            <option value="Inactive">{t("Inactive")}</option>
           </select>
 
         </div>
@@ -536,8 +524,8 @@ function Hospitals() {
 
                   <h2 className="text-xl font-bold">
                     {editingHospital
-                      ? "Edit Hospital"
-                      : "Add Hospital"}
+                      ? t("Edit Hospital")
+                      : t("Add Hospital")}
                   </h2>
 
                   <p className="text-sm text-gray-500 mt-1">
@@ -673,13 +661,9 @@ function Hospitals() {
                   className="hms-input w-full"
                 >
 
-                  <option value="Private">
-                    Private
-                  </option>
+                  <option value="Private">{t("Private")}</option>
 
-                  <option value="Government">
-                    Government
-                  </option>
+                  <option value="Government">{t("Government")}</option>
 
                 </select>
 
@@ -699,13 +683,9 @@ function Hospitals() {
                   className="hms-input w-full"
                 >
 
-                  <option value="Active">
-                    Active
-                  </option>
+                  <option value="Active">{t("Active")}</option>
 
-                  <option value="Inactive">
-                    Inactive
-                  </option>
+                  <option value="Inactive">{t("Inactive")}</option>
 
                 </select>
 
@@ -728,10 +708,10 @@ function Hospitals() {
                   className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
                 >
                   {saving
-                    ? "Saving…"
+                    ? t("Saving…")
                     : editingHospital
-                      ? "Update Hospital"
-                      : "Add Hospital"}
+                      ? t("Update Hospital")
+                      : t("Add Hospital")}
                 </button>
 
               </div>

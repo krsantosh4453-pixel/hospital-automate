@@ -39,7 +39,7 @@ export default function MedicationSafetyDialog({ result, saving, onCancel, onCon
       open={Boolean(result)}
       onClose={close}
       size="lg"
-      title={hasHigh ? "High-risk medication alert" : "Medication check"}
+      title={hasHigh ? t("High-risk medication alert") : t("Medication check")}
       description="Checked against this patient's recorded allergies, the other medicines on this prescription and the hospital's interaction list."
       footer={
         <>
@@ -50,7 +50,7 @@ export default function MedicationSafetyDialog({ result, saving, onCancel, onCon
             disabled={!reasonOk}
             onClick={() => onConfirm(reason.trim())}
           >
-            {hasHigh ? "Prescribe anyway" : "Save prescription"}
+            {hasHigh ? t("Prescribe anyway") : t("Save prescription")}
           </Button>
         </>
       }

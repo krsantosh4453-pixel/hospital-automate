@@ -138,7 +138,7 @@ export default function FamilyAccessCard() {
                   </p>
                   <p className="mt-0.5 text-[13px] text-ink-500">
                     +91 {grant.phone}{" "}{t("· added")}{" "}{formatDate(grant.created_at)}
-                    {grant.last_used_at ? t(" · last signed in {lastUsedAt}", { lastUsedAt: formatDate(grant.last_used_at) }) : " · has not signed in yet"}
+                    {grant.last_used_at ? t(" · last signed in {lastUsedAt}", { lastUsedAt: formatDate(grant.last_used_at) }) : t(" · has not signed in yet")}
                   </p>
                 </div>
                 <Button variant="danger-ghost" size="sm" onClick={() => handleRevoke(grant)}>{t("Remove access")}</Button>

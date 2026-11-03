@@ -78,7 +78,7 @@ function DevLoginPanel({ role: chosenRole, onRoleChange, defaultRole = "Admin", 
         <Field label="Sign in as" required>
           <Select value={role} onChange={(e) => setRole(e.target.value)} disabled={loading}>
             {roles.map((name) => (
-              <option key={name} value={name}>{name}</option>
+              <option key={name} value={name}>{t(name)}</option>
             ))}
           </Select>
         </Field>

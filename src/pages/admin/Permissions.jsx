@@ -42,7 +42,7 @@ function Permissions() {
             onChange={setSelectedName}
             tabs={staffRoles.map((role) => ({ id: role.name, label: role.name }))}
           />
-          {selectedRole?.description && <p className="py-3 text-[13px] text-ink-500">{selectedRole.description}</p>}
+          {selectedRole?.description && <p className="py-3 text-[13px] text-ink-500">{t(selectedRole.description)}</p>}
         </div>
         <TableWrap>
           <table className="hms-table">
@@ -72,7 +72,7 @@ function Permissions() {
           </table>
         </TableWrap>
         <p className="border-t border-line px-4 py-3 text-xs text-ink-500">
-          {isAdmin ? "Admin has full access to every module of their hospital." : t("Modules not listed are not available to {name}.", { name: selectedRole?.name })}
+          {isAdmin ? t("Admin has full access to every module of their hospital.") : t("Modules not listed are not available to {name}.", { name: selectedRole?.name })}
         </p>
       </Card>
     </div>

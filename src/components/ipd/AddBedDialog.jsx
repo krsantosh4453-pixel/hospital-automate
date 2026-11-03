@@ -135,7 +135,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
             {wards.map((w) => (
               <option key={w.id} value={w.id}>{w.name}{w.ward_type ? ` (${w.ward_type})` : ""}</option>
             ))}
-            <option value={NEW}>+ New ward</option>
+            <option value={NEW}>{t("+ New ward")}</option>
           </Select>
         </Field>
         {wardId === NEW && (
@@ -154,7 +154,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
             {rooms.map((r) => (
               <option key={r.id} value={r.id}>Room {r.room_number}{r.room_type ? ` (${r.room_type})` : ""}</option>
             ))}
-            <option value={NEW}>+ New room</option>
+            <option value={NEW}>{t("+ New room")}</option>
           </Select>
         </Field>
         {roomId === NEW && (
@@ -174,12 +174,12 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
           </Field>
           <Field label="Bed type">
             <Select value={bed.bed_type} onChange={(e) => setBed({ ...bed, bed_type: e.target.value })} disabled={saving}>
-              {BED_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+              {BED_TYPES.map((type) => <option key={type} value={type}>{t(type)}</option>)}
             </Select>
           </Field>
           <Field label="Status">
             <Select value={bed.status} onChange={(e) => setBed({ ...bed, status: e.target.value })} disabled={saving}>
-              {START_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {START_STATUSES.map((s) => <option key={s} value={s}>{t(s)}</option>)}
             </Select>
           </Field>
         </div>

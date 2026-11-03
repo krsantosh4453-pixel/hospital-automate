@@ -149,8 +149,8 @@ function Home() {
           title={patient?.name ? t("Welcome, {name}", { name: patient.name }) : t("Welcome")}
           description={
             newAdmin
-              ? "Add your hospital, its wards and beds, and invite your staff."
-              : "Select a hospital from the header to see its dashboard."
+              ? t("Add your hospital, its wards and beds, and invite your staff.")
+              : t("Select a hospital from the header to see its dashboard.")
           }
           action={
             <Link
@@ -384,7 +384,7 @@ function Home() {
                 ))}
               </ul>
             ) : (
-              <EmptyState compact icon={UsersRound} title={loading ? "Loading…" : "No patients registered yet"} />
+              <EmptyState compact icon={UsersRound} title={loading ? t("Loading…") : t("No patients registered yet")} />
             )}
           </Card>
           )}
@@ -411,8 +411,8 @@ function Home() {
               <EmptyState
                 compact
                 icon={ShieldCheck}
-                title={loading && !dashboardStats ? "Checking…" : "Nothing needs attention"}
-                description={dashboardStats ? "No waiting patients, urgent tests or active emergencies right now." : undefined}
+                title={loading && !dashboardStats ? t("Checking…") : t("Nothing needs attention")}
+                description={dashboardStats ? t("No waiting patients, urgent tests or active emergencies right now.") : undefined}
               />
             )}
           </Card>

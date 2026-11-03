@@ -536,7 +536,7 @@ function Appointments() {
     <div className="space-y-5">
       <PageHeader
         title={t("Appointments")}
-        description={selectedHospital ? t("Bookings at {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital from the header to see its appointments."}
+        description={selectedHospital ? t("Bookings at {hospital}.", { hospital: selectedHospital.name }) : t("Select a hospital from the header to see its appointments.")}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Appointments" }]}
         actions={
           <Button icon={CalendarPlus} onClick={openNew} disabled={!selectedHospital}>
@@ -583,9 +583,9 @@ function Appointments() {
               aria-label={t("Filter by doctor")}
               className="w-full sm:w-52"
             >
-              <option>All Doctors</option>
+              <option value="All Doctors">{t("All Doctors")}</option>
               {doctorChoices.map((doctor) => (
-                <option key={doctor} value={doctor}>{doctor}</option>
+                <option key={doctor} value={doctor}>{t(doctor)}</option>
               ))}
             </Select>
             <SegmentedControl
@@ -605,8 +605,8 @@ function Appointments() {
           ) : filteredAppointments.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
-              title={hospitalAppointments.length ? "No appointments match these filters" : "No appointments yet"}
-              description={hospitalAppointments.length ? "Change the status, doctor or date filter." : "Booked appointments for this hospital will appear here."}
+              title={hospitalAppointments.length ? t("No appointments match these filters") : t("No appointments yet")}
+              description={hospitalAppointments.length ? t("Change the status, doctor or date filter.") : t("Booked appointments for this hospital will appear here.")}
               action={!hospitalAppointments.length && <Button icon={CalendarPlus} onClick={openNew}>{t("New appointment")}</Button>}
             />
           ) : (
@@ -707,13 +707,13 @@ function Appointments() {
         open={showForm}
         onClose={resetForm}
         size="lg"
-        title={selectedAppointment ? t("Edit appointment {appointmentId}", { appointmentId: selectedAppointment.id }) : "New appointment"}
+        title={selectedAppointment ? t("Edit appointment {appointmentId}", { appointmentId: selectedAppointment.id }) : t("New appointment")}
         description={selectedHospital ? `At ${selectedHospital.name}` : undefined}
         footer={
           <>
             <Button variant="secondary" onClick={resetForm} disabled={saving}>{t("Cancel")}</Button>
             <Button type="submit" form="appointment-form" loading={saving} disabled={doctorsLoaded && doctorChoices.length === 0}>
-              {selectedAppointment ? "Save changes" : "Book appointment"}
+              {selectedAppointment ? t("Save changes") : t("Book appointment")}
             </Button>
           </>
         }
@@ -758,7 +758,7 @@ function Appointments() {
               <Select name="doctor" value={formData.doctor} onChange={handleChange}>
                 <option value="">{doctorsLoaded ? "Select doctor" : "Loading doctors…"}</option>
                 {doctorChoices.map((doctor) => (
-                  <option key={doctor} value={doctor}>{doctor}</option>
+                  <option key={doctor} value={doctor}>{t(doctor)}</option>
                 ))}
               </Select>
             </Field>
@@ -826,7 +826,7 @@ function Appointments() {
         onCancel={() => setConfirm(null)}
         onConfirm={runConfirmed}
         destructive
-        title={confirm?.type === "delete" ? "Delete appointment?" : "Cancel appointment?"}
+        title={confirm?.type === "delete" ? t("Delete appointment?") : t("Cancel appointment?")}
         confirmLabel={confirm?.type === "delete" ? "Delete" : "Cancel appointment"}
         cancelLabel="Keep"
         message={

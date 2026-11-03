@@ -38,7 +38,7 @@ export default function Breadcrumbs() {
             <li key={index} className="flex items-center gap-1">
               <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 text-ink-400" />
               <span aria-current={isCurrent ? "page" : undefined} className={isCurrent ? "font-medium text-ink-800" : undefined}>
-                {label}
+                {t(label)}
               </span>
             </li>
           )

@@ -142,7 +142,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
         <EmptyState
           icon={ClipboardList}
           title={t("No purchase orders yet")}
-          description={activeSuppliers.length ? "Raise an order to a supplier, then receive the goods here." : "Add a supplier first."}
+          description={activeSuppliers.length ? t("Raise an order to a supplier, then receive the goods here.") : t("Add a supplier first.")}
           action={canEdit && activeSuppliers.length > 0 && <Button icon={Plus} onClick={startOrder}>{t("New purchase order")}</Button>}
         />
       ) : (
@@ -219,7 +219,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
               <div key={index} className="grid grid-cols-[1fr_6rem_7rem_auto] items-end gap-2">
                 <Field label={`Item ${index + 1}`}>
                   <Select value={line.medicine} onChange={(e) => setLine(index, "medicine", e.target.value)}>
-                    <option value="">Select item</option>
+                    <option value="">{t("Select item")}</option>
                     {medicines.map((m) => <option key={m.apiId} value={m.apiId}>{m.name}{m.batch ? ` (${m.batch})` : ""}</option>)}
                   </Select>
                 </Field>

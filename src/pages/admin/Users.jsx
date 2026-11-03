@@ -176,9 +176,9 @@ function Users() {
             onChange={(e) => setRoleFilter(e.target.value)}
             className="hms-input"
           >
-            <option value="All">All Roles</option>
+            <option value="All">{t("All Roles")}</option>
             {ROLES.map((role) => (
-              <option key={role}>{role}</option>
+              <option value={role} key={role}>{t(role)}</option>
             ))}
           </select>
           <select
@@ -187,9 +187,9 @@ function Users() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="hms-input"
           >
-            <option value="All">All Status</option>
-            <option>Active</option>
-            <option>Inactive</option>
+            <option value="All">{t("All Status")}</option>
+            <option value="Active">{t("Active")}</option>
+            <option value="Inactive">{t("Inactive")}</option>
           </select>
         </div>
 
@@ -237,7 +237,7 @@ function Users() {
                           className="hms-input"
                         >
                           {ROLES.map((role) => (
-                            <option key={role}>{role}</option>
+                            <option value={role} key={role}>{t(role)}</option>
                           ))}
                         </select>
                       </td>
@@ -249,7 +249,7 @@ function Users() {
                           onChange={(e) => changeDepartment(member, e.target.value)}
                           className="hms-input"
                         >
-                          <option value="">All departments</option>
+                          <option value="">{t("All departments")}</option>
                           {departments.map((dept) => (
                             <option key={dept.id} value={dept.id}>{dept.name}</option>
                           ))}
@@ -259,7 +259,7 @@ function Users() {
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-medium ${active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}
                         >
-                          {active ? "Active" : "Inactive"}
+                          {active ? t("Active") : t("Inactive")}
                         </span>
                         {member.invite_pending && (
                           <Badge tone="warning" className="ml-2">{t("Invite pending")}</Badge>
@@ -282,7 +282,7 @@ function Users() {
                           disabled={busyId === member.id}
                           className={`px-4 py-2 rounded-lg text-sm disabled:opacity-50 ${active ? "bg-red-50 text-red-700 hover:bg-red-100" : "bg-green-50 text-green-700 hover:bg-green-100"}`}
                         >
-                          {active ? "Remove Access" : "Restore Access"}
+                          {active ? t("Remove Access") : t("Restore Access")}
                         </button>
                       </td>
                     </tr>

@@ -64,7 +64,7 @@ export default function WardBedsForm({ hospitalId, onCreated }) {
         <Field label="Ward type">
           <Select value={wardType} onChange={(e) => setWardType(e.target.value)}>
             {WARD_TYPES.map((type) => (
-              <option key={type}>{type}</option>
+              <option value={type} key={type}>{t(type)}</option>
             ))}
           </Select>
         </Field>
@@ -102,7 +102,7 @@ export default function WardBedsForm({ hospitalId, onCreated }) {
       </div>
 
       <Button type="submit" icon={Plus} loading={saving} disabled={!name.trim() || totalBeds < 1}>
-        {t("Create ward with")}{" "}{totalBeds} {totalBeds === 1 ? "bed" : "beds"}
+        {t("Create ward with")}{" "}{totalBeds} {totalBeds === 1 ? t("bed") : t("beds")}
       </Button>
     </form>
   )

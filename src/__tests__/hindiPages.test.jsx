@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client"
 import { afterEach, describe, expect, it } from "vitest"
 import { LanguageProvider, useLanguage } from "../assets/context/LanguageContext.jsx"
 import { Button, PageHeader, Select, StatusBadge, TableWrap } from "../components/ui"
+import StatCard from "../components/StatCard.jsx"
 import HI_PAGES from "../assets/i18n/hiPages.js"
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -76,6 +77,13 @@ describe("Hindi page text (A17)", () => {
 
     expect([...host.querySelectorAll("span.capitalize")].map((s) => s.textContent))
       .toEqual(["प्रगति में", "निर्धारित", "परिणाम दर्ज", "quarantined"])
+  })
+
+  it("translates stat card labels but never the figure", () => {
+    render(<StatCard title="Registered patients" value="Active" subtitle="Hospital patients" />)
+
+    expect([...host.querySelectorAll("p")].map((p) => p.textContent))
+      .toEqual(["पंजीकृत मरीज़", "Active", "अस्पताल के मरीज़"])
   })
 
   it("never changes the value an option submits", () => {

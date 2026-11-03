@@ -94,7 +94,7 @@ export default function SuppliersPanel({ hospital, suppliers, canEdit, onChanged
                     <td className="text-ink-600">{supplier.contact_person || "—"}</td>
                     <td className="tabular-nums text-ink-600">{supplier.phone || "—"}</td>
                     <td className="text-ink-600">{supplier.email || "—"}</td>
-                    <td><StatusBadge status={supplier.is_active ? "active" : "inactive"} label={supplier.is_active ? "Active" : "Inactive"} /></td>
+                    <td><StatusBadge status={supplier.is_active ? "active" : "inactive"} label={supplier.is_active ? t("Active") : t("Inactive")} /></td>
                     {canEdit && (
                       <td>
                         <div className="flex justify-end">
@@ -113,11 +113,11 @@ export default function SuppliersPanel({ hospital, suppliers, canEdit, onChanged
       <Modal
         open={editing !== null}
         onClose={close}
-        title={editing?.id ? `Edit ${editing.name}` : "Add supplier"}
+        title={editing?.id ? `Edit ${editing.name}` : t("Add supplier")}
         footer={
           <>
             <Button variant="secondary" onClick={close}>{t("Cancel")}</Button>
-            <Button type="submit" form="supplier-form" loading={saving}>{editing?.id ? "Save changes" : "Add supplier"}</Button>
+            <Button type="submit" form="supplier-form" loading={saving}>{editing?.id ? t("Save changes") : t("Add supplier")}</Button>
           </>
         }
       >

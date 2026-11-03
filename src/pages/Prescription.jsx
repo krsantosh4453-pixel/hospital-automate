@@ -456,7 +456,7 @@ function Prescription() {
   const header = (
     <PageHeader
       title={t("Prescriptions")}
-      description={selectedHospital ? t("Write and manage prescriptions at {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital to manage prescriptions."}
+      description={selectedHospital ? t("Write and manage prescriptions at {hospital}.", { hospital: selectedHospital.name }) : t("Select a hospital to manage prescriptions.")}
       breadcrumbs={[{ label: "Home", to: "/" }, { label: "Prescriptions" }]}
       actions={
         <Button variant="secondary" icon={RefreshCw} onClick={refresh} disabled={!selectedHospital || loading}>
@@ -481,9 +481,9 @@ function Prescription() {
   }
 
   const optionList = (options, placeholder) => [
-    <option key="" value="">{placeholder}</option>,
+    <option key="" value="">{t(placeholder)}</option>,
     ...options.map((option) => (
-      <option key={option.value} value={option.value}>{option.label}</option>
+      <option key={option.value} value={option.value}>{t(option.label)}</option>
     )),
   ]
 
@@ -536,7 +536,7 @@ function Prescription() {
               <Field label="Status">
                 <Select value={form.status} onChange={(e) => setField("status", e.target.value)}>
                   {PRESCRIPTION_STATUSES.map((status) => (
-                    <option key={status} value={status}>{status}</option>
+                    <option key={status} value={status}>{t(status)}</option>
                   ))}
                 </Select>
               </Field>
@@ -601,7 +601,7 @@ function Prescription() {
           <CardHeader
             icon={Pill}
             title={t("Prescriptions")}
-            description={`${filteredPrescriptions.length} shown`}
+            description={t("{count} shown", { count: filteredPrescriptions.length })}
             actions={<SearchInput value={search} onChange={setSearch} placeholder={t("ID, patient, doctor, status")} label="Search prescriptions" className="w-full sm:w-64" />}
           />
           {loading ? (
@@ -609,8 +609,8 @@ function Prescription() {
           ) : filteredPrescriptions.length === 0 ? (
             <EmptyState
               icon={Pill}
-              title={search ? "No prescriptions match your search" : "No prescriptions yet"}
-              description={search ? undefined : "Saved prescriptions for this hospital appear here."}
+              title={search ? t("No prescriptions match your search") : t("No prescriptions yet")}
+              description={search ? undefined : t("Saved prescriptions for this hospital appear here.")}
             />
           ) : (
             <ul className="divide-y divide-line">
@@ -623,7 +623,7 @@ function Prescription() {
                         <StatusBadge status={record.status} />
                       </div>
                       <p className="mt-0.5 text-[13px] text-ink-500">
-                        {record.patientName || "Unknown patient"} · {record.doctor || "No doctor"} · {formatDate(record.createdAt)}
+                        {record.patientName || t("Unknown patient")} · {record.doctor || t("No doctor")} · {formatDate(record.createdAt)}
                       </p>
                     </div>
                     <div className="flex gap-1.5">
@@ -678,7 +678,7 @@ function Prescription() {
         onConfirm={runPending}
         loading={working}
         destructive={pending?.kind === "delete"}
-        title={pending?.kind === "delete" ? "Delete prescription?" : "Mark as dispensed?"}
+        title={pending?.kind === "delete" ? t("Delete prescription?") : t("Mark as dispensed?")}
         confirmLabel={pending?.kind === "delete" ? "Delete" : "Mark dispensed"}
         message={
           pending?.kind === "delete"

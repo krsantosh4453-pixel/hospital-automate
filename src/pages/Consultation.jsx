@@ -1078,7 +1078,7 @@ function Consultation() {
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[20rem_minmax(0,1fr)]">
           {/* Visit list */}
           <Card className="flex max-h-[calc(100vh-10rem)] flex-col overflow-hidden xl:sticky xl:top-20">
-            <CardHeader title={t("Visits")} description={loadingVisits ? "Loading…" : t("{count} at this hospital", { count: visits.length })} />
+            <CardHeader title={t("Visits")} description={loadingVisits ? t("Loading…") : t("{count} at this hospital", { count: visits.length })} />
             <div className="border-b border-line p-3">
               <SearchInput value={visitSearch} onChange={setVisitSearch} placeholder={t("Patient or visit #")} label="Search visits" />
             </div>
@@ -1089,8 +1089,8 @@ function Consultation() {
                 <EmptyState
                   compact
                   icon={CalendarClock}
-                  title={visits.length ? "No visit matches" : "No visits yet"}
-                  description={visits.length ? undefined : "A visit is created when a patient is issued a queue token."}
+                  title={visits.length ? t("No visit matches") : t("No visits yet")}
+                  description={visits.length ? undefined : t("A visit is created when a patient is issued a queue token.")}
                 />
               ) : (
                 <ul className="divide-y divide-ink-100" role="listbox" aria-label={t("Visits")}>
@@ -1151,7 +1151,7 @@ function Consultation() {
                       disabled={savingVisit}
                     >
                       {VISIT_STATUSES.map((status) => (
-                        <option key={status} value={status}>{status}</option>
+                        <option key={status} value={status}>{t(status)}</option>
                       ))}
                     </Select>
                   </div>
@@ -1178,7 +1178,7 @@ function Consultation() {
               {!loadingClinical && activeTab === "vitals" && (
                 <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
                   <Card as="form" onSubmit={handleSaveVitals}>
-                    <CardHeader title={editingVital ? "Edit vital signs" : "Record vital signs"} />
+                    <CardHeader title={editingVital ? t("Edit vital signs") : t("Record vital signs")} />
                     <div className="space-y-4 px-5 py-4">
                       <div className="grid grid-cols-2 gap-3">
                         <Field label="Systolic BP (mmHg)"><Input type="number" inputMode="numeric" value={vitalForm.systolicBp} onChange={setVital("systolicBp")} /></Field>
@@ -1201,7 +1201,7 @@ function Consultation() {
                           <Field label="GCS (3–15)"><Input type="number" min="3" max="15" inputMode="numeric" value={vitalForm.gcs} onChange={setVital("gcs")} /></Field>
                           <Field label="AVPU">
                             <Select value={vitalForm.avpu} onChange={setVital("avpu")}>
-                              {AVPU_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              {AVPU_OPTIONS.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
                             </Select>
                           </Field>
                           <Field label="Urine output (mL)"><Input type="number" inputMode="numeric" value={vitalForm.urineOutput} onChange={setVital("urineOutput")} /></Field>
@@ -1274,7 +1274,7 @@ function Consultation() {
               {!loadingClinical && activeTab === "diagnoses" && (
                 <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
                   <Card as="form" onSubmit={handleSaveDiagnosis}>
-                    <CardHeader title={editingDiagnosis ? "Edit diagnosis" : "Add diagnosis"} />
+                    <CardHeader title={editingDiagnosis ? t("Edit diagnosis") : t("Add diagnosis")} />
                     <div className="space-y-4 px-5 py-4">
                       <Field label="Diagnosis" required>
                         <Input value={diagnosisForm.name} onChange={(e) => setDiagnosisForm({ ...diagnosisForm, name: e.target.value })} />
@@ -1285,7 +1285,7 @@ function Consultation() {
                         </Field>
                         <Field label="Type">
                           <Select value={diagnosisForm.diagnosisType} onChange={(e) => setDiagnosisForm({ ...diagnosisForm, diagnosisType: e.target.value })}>
-                            {DIAGNOSIS_TYPES.map((o) => <option key={o} value={o}>{o}</option>)}
+                            {DIAGNOSIS_TYPES.map((o) => <option key={o} value={o}>{t(o)}</option>)}
                           </Select>
                         </Field>
                       </div>
@@ -1342,9 +1342,9 @@ function Consultation() {
               {!loadingClinical && activeTab === "notes" && (
                 <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
                   <Card as="form" onSubmit={handleSaveNote}>
-                    <CardHeader title={editingNote ? "Edit note" : "Add clinical note"} />
+                    <CardHeader title={editingNote ? t("Edit note") : t("Add clinical note")} />
                     <div className="space-y-4 px-5 py-4">
-                      <p className="text-xs text-ink-500">{t("Fill the parts that apply. Attributed to")}{" "}{selectedVisit?.doctorName || "Unassigned"}.</p>
+                      <p className="text-xs text-ink-500">{t("Fill the parts that apply. Attributed to")}{" "}{selectedVisit?.doctorName || t("Unassigned")}.</p>
                       {NOTE_SECTIONS.map(([field, label, rows]) => (
                         <Field key={field} label={label}>
                           <Textarea rows={rows} value={noteForm[field]} onChange={(e) => setNoteForm({ ...noteForm, [field]: e.target.value })} />
@@ -1378,7 +1378,7 @@ function Consultation() {
                             <dl className="space-y-1.5 text-sm leading-6">
                               {NOTE_SECTIONS.filter(([field]) => note[field]).map(([field, label]) => (
                                 <div key={field}>
-                                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">{label}</dt>
+                                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">{t(label)}</dt>
                                   <dd className="whitespace-pre-wrap text-ink-800">{note[field]}</dd>
                                 </div>
                               ))}
@@ -1400,7 +1400,7 @@ function Consultation() {
               {!loadingClinical && activeTab === "orders" && (
                 <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
                   <Card as="form" onSubmit={handleSaveOrder}>
-                    <CardHeader title={editingOrder ? "Edit service order" : "Add service order"} />
+                    <CardHeader title={editingOrder ? t("Edit service order") : t("Add service order")} />
                     <div className="space-y-4 px-5 py-4">
                       <Field label="Service" required>
                         <Input value={orderForm.serviceName} onChange={(e) => setOrderForm({ ...orderForm, serviceName: e.target.value })} placeholder={t("e.g. CBC blood test")} />
@@ -1411,7 +1411,7 @@ function Consultation() {
                         </Field>
                         <Field label="Status">
                           <Select value={orderForm.status} onChange={(e) => setOrderForm({ ...orderForm, status: e.target.value })}>
-                            {ORDER_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                            {ORDER_STATUSES.map((o) => <option key={o} value={o}>{t(o)}</option>)}
                           </Select>
                         </Field>
                       </div>
@@ -1475,7 +1475,7 @@ function Consultation() {
         onConfirm={confirmDelete}
         loading={deleting}
         destructive
-        title={pendingDelete?.title || "Delete record?"}
+        title={pendingDelete?.title || t("Delete record?")}
         confirmLabel="Delete"
         message="This removes the record from the patient's visit. It cannot be undone."
       />
@@ -1492,7 +1492,7 @@ function FormButtons({ saving, editing, createLabel, onCancel }) {
   return (
     <div className="flex gap-2 pt-1">
       <Button type="submit" loading={saving} className="flex-1 justify-center">
-        {editing ? "Save changes" : createLabel}
+        {editing ? t("Save changes") : createLabel}
       </Button>
       {editing && (
         <Button variant="secondary" onClick={onCancel}>

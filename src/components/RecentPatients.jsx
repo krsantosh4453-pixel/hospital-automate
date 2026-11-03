@@ -98,7 +98,7 @@ function RecentPatients() {
 
               {/* Department */}
               <span className="text-sm text-gray-600">
-                {patient.department || "General"}
+                {patient.department || t("General")}
               </span>
 
             </div>

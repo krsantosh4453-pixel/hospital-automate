@@ -82,7 +82,9 @@ function AuditLog() {
     <div>
       <PageHeader
         title={t("Audit log")}
-        description={`Every recorded change${selectedHospital?.name ? ` at ${selectedHospital.name}` : ""}, newest first. Read only.`}
+        description={selectedHospital?.name
+          ? t("Every recorded change at {hospital}, newest first. Read only.", { hospital: selectedHospital.name })
+          : t("Every recorded change, newest first. Read only.")}
         breadcrumbs={[{ label: "Administration", to: "/admin" }, { label: "Audit log" }]}
         actions={<Button variant="secondary" icon={RefreshCw} onClick={() => setReloadToken((n) => n + 1)}>{t("Refresh")}</Button>}
       />
@@ -112,7 +114,7 @@ function AuditLog() {
         {loading ? (
           <SkeletonRows rows={6} />
         ) : rows.length === 0 ? (
-          <EmptyState icon={History} title={error ? "Audit trail not available" : "No matching activity"} />
+          <EmptyState icon={History} title={error ? t("Audit trail not available") : t("No matching activity")} />
         ) : (
           <TableWrap>
             <table className="w-full text-sm">
@@ -130,7 +132,7 @@ function AuditLog() {
                 {rows.map((row) => (
                   <tr key={row.id}>
                     <td className="whitespace-nowrap tabular-nums">{formatWhen(row.created_at)}</td>
-                    <td>{row.username || (row.user ? `user ${row.user}` : "system")}</td>
+                    <td>{row.username || (row.user ? `user ${row.user}` : t("system"))}</td>
                     <td className="font-medium text-ink-900">{row.action}</td>
                     <td>{row.model_name}{row.object_id ? ` #${row.object_id}` : ""}</td>
                     <td className="max-w-xs truncate text-ink-600" title={formatDetails(row.details)}>{formatDetails(row.details) || "—"}</td>

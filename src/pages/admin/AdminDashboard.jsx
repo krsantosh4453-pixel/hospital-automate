@@ -102,7 +102,7 @@ function AdminDashboard() {
     <div className="space-y-5">
       <PageHeader
         title={t("Administration")}
-        description={selectedHospital ? t("Staff, structure and activity for {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital to administer."}
+        description={selectedHospital ? t("Staff, structure and activity for {hospital}.", { hospital: selectedHospital.name }) : t("Select a hospital to administer.")}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration" }]}
         actions={selectedHospital && <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>{t("Refresh")}</Button>}
       />
@@ -114,7 +114,7 @@ function AdminDashboard() {
           {errors.length > 0 && <Alert tone="warning" title={t("Some figures could not be loaded")}>{[...new Set(errors)].join(" ")}</Alert>}
 
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <StatTile icon={UsersRound} label="Active staff" value={loading ? null : num(activeStaff)} hint={data ? `${data.staff.length} in total` : undefined} />
+            <StatTile icon={UsersRound} label="Active staff" value={loading ? null : num(activeStaff)} hint={data ? t("{count} in total", { count: data.staff.length }) : undefined} />
             <StatTile icon={UserCheck} tone="warning" label="Invite pending" value={loading ? null : num(invitePending)} hint="Invited, password not set yet" />
             <StatTile icon={ClipboardList} tone="accent" label="Departments" value={loading ? null : num(data?.departments.length)} />
             <StatTile icon={Stethoscope} tone="success" label="Doctors" value={loading ? null : num(data?.stats?.doctors?.total)} hint={data?.stats ? t("{total} patients registered", { total: num(data.stats.patients?.total) }) : undefined} />
@@ -130,8 +130,8 @@ function AdminDashboard() {
                       <Icon size={18} aria-hidden="true" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-ink-900">{title}</span>
-                      <span className="block truncate text-[13px] text-ink-500">{text}</span>
+                      <span className="block text-sm font-semibold text-ink-900">{t(title)}</span>
+                      <span className="block truncate text-[13px] text-ink-500">{t(text)}</span>
                     </span>
                     <ChevronRight size={16} className="text-ink-300 group-hover:text-ink-500" aria-hidden="true" />
                   </Link>

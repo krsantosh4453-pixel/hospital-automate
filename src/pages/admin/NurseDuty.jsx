@@ -115,7 +115,7 @@ function NurseDuty() {
           </Field>
           <Field label="Nurse" required>
             <Select value={form.nurse} onChange={(e) => set("nurse", e.target.value)}>
-              <option value="">Select nurse</option>
+              <option value="">{t("Select nurse")}</option>
               {nurses.map((n) => (
                 <option key={n.id} value={n.id}>{n.name}</option>
               ))}
@@ -123,7 +123,7 @@ function NurseDuty() {
           </Field>
           <Field label="Ward" required>
             <Select value={form.ward} onChange={(e) => set("ward", e.target.value)}>
-              <option value="">Select ward</option>
+              <option value="">{t("Select ward")}</option>
               {wards.map((w) => (
                 <option key={w.id} value={w.id}>{w.name}</option>
               ))}
@@ -131,7 +131,7 @@ function NurseDuty() {
           </Field>
           <Field label="Shift" required>
             <Select value={form.shift} onChange={(e) => set("shift", e.target.value)}>
-              {SHIFTS.map((s) => <option key={s}>{s}</option>)}
+              {SHIFTS.map((s) => <option value={s} key={s}>{t(s)}</option>)}
             </Select>
           </Field>
           <div className="flex items-end">
@@ -167,10 +167,10 @@ function NurseDuty() {
                       <td className="py-3 pr-4 font-medium text-ink-900">{duty.nurse_name}</td>
                       <td className="py-3 pr-4">{duty.ward_name}</td>
                       <td className="py-3 pr-4">{duty.shift}</td>
-                      <td className="py-3 pr-4">{duty.is_active ? "On duty" : "Cancelled"}</td>
+                      <td className="py-3 pr-4">{duty.is_active ? t("On duty") : t("Cancelled")}</td>
                       <td className="py-3 text-right">
                         <Button variant="secondary" size="sm" onClick={() => setActive(duty, !duty.is_active)}>
-                          {duty.is_active ? "Cancel" : "Restore"}
+                          {duty.is_active ? t("Cancel") : t("Restore")}
                         </Button>
                       </td>
                     </tr>

@@ -74,8 +74,8 @@ function PatientPrescriptions() {
         <Card>
           <EmptyState
             icon={Pill}
-            title={prescriptions.length ? "No prescriptions match this filter" : "No prescriptions yet"}
-            description={prescriptions.length ? undefined : "Prescriptions from your visits will appear here."}
+            title={prescriptions.length ? t("No prescriptions match this filter") : t("No prescriptions yet")}
+            description={prescriptions.length ? undefined : t("Prescriptions from your visits will appear here.")}
           />
         </Card>
       ) : (
@@ -86,7 +86,7 @@ function PatientPrescriptions() {
                 <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
                   <div>
                     <p className="font-semibold text-ink-900">
-                      {rx.doctor_name ? `Dr. ${rx.doctor_name.replace(/^Dr\.?\s*/i, "")}` : "Prescription"}
+                      {rx.doctor_name ? `Dr. ${rx.doctor_name.replace(/^Dr\.?\s*/i, "")}` : t("Prescription")}
                     </p>
                     <p className="text-[13px] text-ink-500">
                       {formatDate(rx.created_at)}

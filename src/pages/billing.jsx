@@ -932,7 +932,7 @@ function Billing() {
 
         <PageHeader
           title={t("Billing")}
-          description={selectedHospital ? t("Invoices, payments and refunds at {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital from the header to view billing."}
+          description={selectedHospital ? t("Invoices, payments and refunds at {hospital}.", { hospital: selectedHospital.name }) : t("Select a hospital from the header to view billing.")}
           breadcrumbs={[{ label: "Home", to: "/" }, { label: "Billing" }]}
           actions={
             selectedHospital && (
@@ -1066,21 +1066,13 @@ function Billing() {
 
                 >
 
-                  <option>
-                    All Status
-                  </option>
+                  <option value="All Status">{t("All Status")}</option>
 
-                  <option>
-                    Paid
-                  </option>
+                  <option value="Paid">{t("Paid")}</option>
 
-                  <option>
-                    Partial
-                  </option>
+                  <option value="Partial">{t("Partial")}</option>
 
-                  <option>
-                    Pending
-                  </option>
+                  <option value="Pending">{t("Pending")}</option>
 
                 </select>
 
@@ -1399,8 +1391,8 @@ function Billing() {
                 <h2 className="text-xl font-bold text-gray-800">
 
                   {selectedBill
-                    ? "Edit Bill"
-                    : "Create New Bill"}
+                    ? t("Edit Bill")
+                    : t("Create New Bill")}
 
                 </h2>
 
@@ -1704,21 +1696,13 @@ function Billing() {
 
                   >
 
-                    <option>
-                      Cash
-                    </option>
+                    <option value="Cash">{t("Cash")}</option>
 
-                    <option>
-                      UPI
-                    </option>
+                    <option value="UPI">{t("UPI")}</option>
 
-                    <option>
-                      Card
-                    </option>
+                    <option value="Card">{t("Card")}</option>
 
-                    <option>
-                      Bank Transfer
-                    </option>
+                    <option value="Bank Transfer">{t("Bank Transfer")}</option>
 
                   </select>
 
@@ -1755,8 +1739,8 @@ function Billing() {
                 >
 
                   {selectedBill
-                    ? "Save Changes"
-                    : "Generate Bill"}
+                    ? t("Save Changes")
+                    : t("Generate Bill")}
 
                 </button>
 

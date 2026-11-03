@@ -124,9 +124,9 @@ function Reports() {
     <div className="flex items-start gap-3.5 rounded-2xl border border-line bg-white p-4">
       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl text-ink-700 ${iconBg}`}>{icon}</span>
       <div className="min-w-0">
-        <p className="text-[13px] font-medium text-ink-500">{title}</p>
+        <p className="text-[13px] font-medium text-ink-500">{t(title)}</p>
         <p className="mt-0.5 text-2xl font-semibold leading-8 tracking-tight text-ink-900 tabular-nums">{loading && !kpis ? "—" : value}</p>
-        {subtitle && <p className="mt-0.5 text-xs text-ink-500">{subtitle}</p>}
+        {subtitle && <p className="mt-0.5 text-xs text-ink-500">{t(subtitle)}</p>}
       </div>
     </div>
   )
@@ -246,7 +246,7 @@ function Reports() {
 
           <ReportCard
             title={t("Laboratory")}
-            value={laboratoryRevenue === null ? "Not tracked" : `₹${laboratoryRevenue.toLocaleString("en-IN")}`}
+            value={laboratoryRevenue === null ? t("Not tracked") : `₹${laboratoryRevenue.toLocaleString("en-IN")}`}
             subtitle="Laboratory revenue"
             icon={<FlaskConicalIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-blue-100"
@@ -258,7 +258,7 @@ function Reports() {
             value={
               billsTotal
             }
-            subtitle={`${paidBills} paid • ${pendingBills} pending`}
+            subtitle={t("{paid} paid • {pending} pending", { paid: paidBills, pending: pendingBills })}
             icon={<ReceiptIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />}
             iconBg="bg-orange-100"
           />

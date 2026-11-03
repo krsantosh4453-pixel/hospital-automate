@@ -61,7 +61,7 @@ export default function ErActions({ visit, open, onClose, onOpenDialog, onChange
       open={open}
       onClose={onClose}
       size="lg"
-      title={current ? current.label : "Emergency actions"}
+      title={current ? current.label : t("Emergency actions")}
       description={`${visit.patient_name} · ${visit.visit_number} · ${visit.status}`}
     >
       {error && <Alert tone="danger" className="mb-3" onDismiss={() => setError("")}>{error}</Alert>}
@@ -79,11 +79,11 @@ export default function ErActions({ visit, open, onClose, onOpenDialog, onChange
                       <button
                         type="button"
                         disabled={blocked}
-                        title={blocked ? "Available while the patient is under ER care" : undefined}
+                        title={blocked ? t("Available while the patient is under ER care") : undefined}
                         onClick={() => choose(action)}
                         className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-ink-800 hover:bg-ink-100 disabled:cursor-not-allowed disabled:text-ink-400"
                       >
-                        {action.label}
+                        {t(action.label)}
                         <ChevronRight size={15} aria-hidden="true" />
                       </button>
                     </li>
@@ -213,7 +213,7 @@ function AllergyPanel({ visit, onDone, onError }) {
         <Field label="Reaction"><Input value={form.reaction} onChange={(e) => setForm({ ...form, reaction: e.target.value })} /></Field>
         <Field label="Severity">
           <Select value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })}>
-            {["Mild", "Moderate", "Severe"].map((s) => <option key={s}>{s}</option>)}
+            {["Mild", "Moderate", "Severe"].map((s) => <option value={s} key={s}>{t(s)}</option>)}
           </Select>
         </Field>
         <Button type="submit" loading={saving} className="sm:col-span-3 sm:justify-self-start">{t("Record allergy")}</Button>
@@ -238,7 +238,7 @@ function ResultsPanel({ visit, onError }) {
         <h4 className="font-medium text-ink-800">{t("ER orders")}</h4>
         {erResults.length === 0 ? <p className="text-ink-500">{t("No ER order has a result yet.")}</p> : (
           <ul className="divide-y divide-line">
-            {erResults.map((o) => <li key={o.id} className="py-1.5"><span className="font-medium">{o.description}</span>: {o.result || "Completed"}</li>)}
+            {erResults.map((o) => <li key={o.id} className="py-1.5"><span className="font-medium">{t(o.description)}</span>: {o.result || t("Completed")}</li>)}
           </ul>
         )}
       </section>
@@ -360,7 +360,7 @@ function AdmitPanel({ visit, onDone, onError }) {
     <form onSubmit={admit} className="space-y-3">
       <Field label="Bed" required>
         <Select value={bedId} onChange={(e) => setBedId(e.target.value)}>
-          <option value="">Choose a bed</option>
+          <option value="">{t("Choose a bed")}</option>
           {beds.map((b) => <option key={b.id} value={b.id}>{b.ward} · Room {b.room} · Bed {b.bed_number}</option>)}
         </Select>
       </Field>
@@ -440,7 +440,7 @@ function DischargeSummaryPanel({ visit }) {
           {(visit.medications || []).length > 0 && (
             <section>
               <p className="font-semibold">{t("Medicines in the ER")}</p>
-              <ul>{visit.medications.map((m) => <li key={m.id}>{m.name} {m.dose} {m.route}{m.administered ? "" : " (not given)"}</li>)}</ul>
+              <ul>{visit.medications.map((m) => <li key={m.id}>{m.name} {m.dose} {m.route}{m.administered ? "" : t(" (not given)")}</li>)}</ul>
             </section>
           )}
           {visit.follow_up_instructions && (
@@ -470,7 +470,7 @@ function CertificatePanel({ visit, onDone, onError }) {
     <form onSubmit={issue} className="space-y-3">
       <Field label="Type">
         <Select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-          {["Sick leave", "Fitness", "Other"].map((k) => <option key={k}>{k}</option>)}
+          {["Sick leave", "Fitness", "Other"].map((k) => <option value={k} key={k}>{t(k)}</option>)}
         </Select>
       </Field>
       <Field label="Diagnosis"><Input value={form.diagnosis} onChange={(e) => setForm({ ...form, diagnosis: e.target.value })} maxLength={255} /></Field>

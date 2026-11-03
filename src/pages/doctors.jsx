@@ -260,7 +260,7 @@ function Doctors() {
     <div className="space-y-5">
       <PageHeader
         title={t("Doctors")}
-        description={selectedHospital ? t("Doctors, specialities and availability at {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital from the header to view doctors."}
+        description={selectedHospital ? t("Doctors, specialities and availability at {hospital}.", { hospital: selectedHospital.name }) : t("Select a hospital from the header to view doctors.")}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Doctors" }]}
         actions={
           <>
@@ -281,7 +281,7 @@ function Doctors() {
       {loadError && (
         <Alert
           tone={offlineMode ? "warning" : "danger"}
-          title={offlineMode ? "Server unreachable" : undefined}
+          title={offlineMode ? t("Server unreachable") : undefined}
           action={<Button size="sm" variant="secondary" onClick={() => setReloadToken((token) => token + 1)}>{t("Retry")}</Button>}
         >
           {loadError}
@@ -307,9 +307,9 @@ function Doctors() {
               value={statusFilter}
               onChange={setStatusFilter}
               options={[
-                { value: "all", label: `All (${hospitalDoctors.length})` },
-                { value: "available", label: `Available (${availableDoctors})` },
-                { value: "away", label: `On leave (${onLeaveDoctors})` },
+                { value: "all", label: t("All ({count})", { count: hospitalDoctors.length }) },
+                { value: "available", label: t("Available ({count})", { count: availableDoctors }) },
+                { value: "away", label: t("On leave ({count})", { count: onLeaveDoctors }) },
               ]}
             />
           </div>
@@ -322,8 +322,8 @@ function Doctors() {
             <Card>
               <EmptyState
                 icon={Stethoscope}
-                title={hospitalDoctors.length === 0 ? "No doctors yet" : "No doctors match"}
-                description={hospitalDoctors.length === 0 ? "Add the doctors who practise at this hospital." : "Try a different name, speciality or filter."}
+                title={hospitalDoctors.length === 0 ? t("No doctors yet") : t("No doctors match")}
+                description={hospitalDoctors.length === 0 ? t("Add the doctors who practise at this hospital.") : t("Try a different name, speciality or filter.")}
                 action={hospitalDoctors.length === 0 && <Button icon={UserPlus} onClick={openNew}>{t("Add doctor")}</Button>}
               />
             </Card>
@@ -336,13 +336,13 @@ function Doctors() {
                       <Avatar name={doctor.name} size="lg" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold text-ink-900 hover:text-brand-700">{doctor.name}</span>
-                        <span className="block truncate text-[13px] text-ink-600">{doctor.specialization || "Speciality not set"}</span>
+                        <span className="block truncate text-[13px] text-ink-600">{doctor.specialization || t("Speciality not set")}</span>
                         <span className="mt-0.5 block text-xs text-ink-400 tabular-nums">{doctor.id}</span>
                       </span>
                       <StatusBadge status={doctor.status === "Available" ? "available" : doctor.status} label={doctor.status} />
                     </button>
                     <dl className="mt-4 grid grid-cols-1 gap-1.5 px-5 text-[13px] text-ink-600">
-                      <div className="flex items-center gap-2"><dt className="sr-only">{t("Availability")}</dt><Clock size={14} className="text-ink-400" aria-hidden="true" /><dd className="truncate">{doctor.availability || "Hours not set"}</dd></div>
+                      <div className="flex items-center gap-2"><dt className="sr-only">{t("Availability")}</dt><Clock size={14} className="text-ink-400" aria-hidden="true" /><dd className="truncate">{doctor.availability || t("Hours not set")}</dd></div>
                       <div className="flex items-center gap-2"><dt className="sr-only">{t("Phone")}</dt><Phone size={14} className="text-ink-400" aria-hidden="true" /><dd className="tabular-nums">{doctor.phone || "—"}</dd></div>
                       <div className="flex items-center gap-2"><dt className="sr-only">{t("Experience")}</dt><Briefcase size={14} className="text-ink-400" aria-hidden="true" /><dd className="truncate">{doctor.experience || "—"}</dd></div>
                     </dl>
@@ -362,12 +362,12 @@ function Doctors() {
       <Modal
         open={showForm}
         onClose={resetForm}
-        title={selectedDoctor ? `Edit ${selectedDoctor.name}` : "Add doctor"}
+        title={selectedDoctor ? `Edit ${selectedDoctor.name}` : t("Add doctor")}
         description={selectedHospital ? `At ${selectedHospital.name}` : undefined}
         footer={
           <>
             <Button variant="secondary" onClick={resetForm} disabled={saving}>{t("Cancel")}</Button>
-            <Button type="submit" form="doctor-form" loading={saving}>{selectedDoctor ? "Save changes" : "Add doctor"}</Button>
+            <Button type="submit" form="doctor-form" loading={saving}>{selectedDoctor ? t("Save changes") : t("Add doctor")}</Button>
           </>
         }
       >
@@ -387,8 +387,8 @@ function Doctors() {
               label="Login email"
               hint={
                 selectedDoctor?.loginLinked
-                  ? "Linked to this doctor's staff login."
-                  : "The doctor's staff login email. Links the login so the doctor sees their own patients."
+                  ? t("Linked to this doctor's staff login.")
+                  : t("The doctor's staff login email. Links the login so the doctor sees their own patients.")
               }
             >
               <Input type="email" name="email" value={formData.email} onChange={handleChange} />
@@ -398,7 +398,7 @@ function Doctors() {
             </Field>
             <Field label="Status">
               <Select name="status" value={formData.status} onChange={handleChange}>
-                {DOCTOR_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                {DOCTOR_STATUSES.map((s) => <option value={s} key={s}>{t(s)}</option>)}
                 {!DOCTOR_STATUSES.includes(formData.status) && <option>{formData.status}</option>}
               </Select>
             </Field>

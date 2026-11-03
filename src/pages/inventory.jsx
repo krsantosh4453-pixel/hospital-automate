@@ -431,16 +431,16 @@ function Inventory() {
 
       {tab === "stock" && (
       <Card className="overflow-hidden">
-        <Toolbar actions={<span className="text-[13px] text-ink-500">{loading ? "Loading…" : `${filteredItems.length} of ${totalItems} items`}</span>}>
+        <Toolbar actions={<span className="text-[13px] text-ink-500">{loading ? t("Loading…") : t("{shown} of {total} items", { shown: filteredItems.length, total: totalItems })}</span>}>
           <SearchInput value={search} onChange={setSearch} placeholder={t("Item name or ID")} label="Search inventory" className="w-full sm:max-w-xs" />
           <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label={t("Filter by category")} className="w-full sm:w-48">
-            {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+            {categories.map((cat) => <option key={cat} value={cat}>{t(cat)}</option>)}
           </Select>
           <Select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} aria-label={t("Filter by stock level")} className="w-full sm:w-40">
-            <option>All Stock</option>
-            <option>In Stock</option>
-            <option>Low Stock</option>
-            <option>Out of Stock</option>
+            <option value="All Stock">{t("All Stock")}</option>
+            <option value="In Stock">{t("In Stock")}</option>
+            <option value="Low Stock">{t("Low Stock")}</option>
+            <option value="Out of Stock">{t("Out of Stock")}</option>
           </Select>
         </Toolbar>
 
@@ -449,7 +449,7 @@ function Inventory() {
         ) : filteredItems.length === 0 ? (
           <EmptyState
             icon={Package}
-            title={totalItems ? "No items match these filters" : "No inventory items yet"}
+            title={totalItems ? t("No items match these filters") : t("No inventory items yet")}
             action={!totalItems && <Button icon={Plus} onClick={openNew}>{t("Add item")}</Button>}
           />
         ) : (
@@ -529,11 +529,11 @@ function Inventory() {
       <Modal
         open={showForm}
         onClose={resetForm}
-        title={selectedItem ? `Edit ${selectedItem.name}` : "Add inventory item"}
+        title={selectedItem ? `Edit ${selectedItem.name}` : t("Add inventory item")}
         footer={
           <>
             <Button variant="secondary" onClick={resetForm}>{t("Cancel")}</Button>
-            <Button type="submit" form="inventory-form">{selectedItem ? "Save changes" : "Add item"}</Button>
+            <Button type="submit" form="inventory-form">{selectedItem ? t("Save changes") : t("Add item")}</Button>
           </>
         }
       >
@@ -547,8 +547,8 @@ function Inventory() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Category" required>
               <Select name="category" value={formData.category} onChange={handleChange}>
-                <option value="">Select category</option>
-                {["Medical Supplies", "Surgical", "Equipment", "General"].map((c) => <option key={c}>{c}</option>)}
+                <option value="">{t("Select category")}</option>
+                {["Medical Supplies", "Surgical", "Equipment", "General"].map((c) => <option value={c} key={c}>{t(c)}</option>)}
                 {formData.category && !["Medical Supplies", "Surgical", "Equipment", "General"].includes(formData.category) && <option>{formData.category}</option>}
               </Select>
             </Field>
@@ -563,7 +563,7 @@ function Inventory() {
             </Field>
             <Field label="Usual supplier">
               <Select name="supplier" value={formData.supplier} onChange={handleChange}>
-                <option value="">None</option>
+                <option value="">{t("None")}</option>
                 {suppliers.filter((s) => s.is_active || String(s.id) === formData.supplier).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </Select>
             </Field>
@@ -599,8 +599,8 @@ function Inventory() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Adjustment">
                 <Select name="type" value={stockData.type} onChange={handleStockChange}>
-                  <option>Add Stock</option>
-                  <option>Remove Stock</option>
+                  <option value="Add Stock">{t("Add Stock")}</option>
+                  <option value="Remove Stock">{t("Remove Stock")}</option>
                 </Select>
               </Field>
               <Field label="Quantity" required>
@@ -654,7 +654,7 @@ function Inventory() {
                 {stockTransactions.map((tx) => (
                   <tr key={tx.id}>
                     <td className="whitespace-nowrap tabular-nums text-ink-600">{new Date(tx.created_at).toLocaleDateString("en-IN")}</td>
-                    <td className="font-medium text-ink-900">{tx.medicine_name || "Unknown item"}</td>
+                    <td className="font-medium text-ink-900">{tx.medicine_name || t("Unknown item")}</td>
                     <td><StatusBadge status={tx.transaction_type === "IN" ? "received" : tx.transaction_type === "OUT" ? "dispensed" : "pending"} label={tx.transaction_type} /></td>
                     <td className="num">{tx.quantity}</td>
                     <td className="text-ink-600">{tx.reason || "—"}</td>

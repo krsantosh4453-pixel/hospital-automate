@@ -217,7 +217,7 @@ function LanguageToggle() {
             language === lang.id ? "bg-white text-brand-700 shadow-sm" : "text-ink-600 hover:text-ink-900"
           }`}
         >
-          {lang.label}
+          {t(lang.label)}
         </button>
       ))}
     </div>

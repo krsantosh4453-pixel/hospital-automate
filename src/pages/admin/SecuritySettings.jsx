@@ -43,7 +43,7 @@ function SecuritySettings() {
       />
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
       {data && (
-        <Alert tone={weak ? "warning" : "success"} className="mb-4" title={weak ? t("{weak} setting(s) are not suitable for production", { weak }) : "All checked settings are at their recommended values"}>
+        <Alert tone={weak ? "warning" : "success"} className="mb-4" title={weak ? t("{weak} setting(s) are not suitable for production", { weak }) : t("All checked settings are at their recommended values")}>
           {data.how_to_change}
         </Alert>
       )}
@@ -67,7 +67,7 @@ function SecuritySettings() {
                 {data.settings.map((row) => (
                   <tr key={row.key}>
                     <td>
-                      <p className="font-medium text-ink-900">{row.label}</p>
+                      <p className="font-medium text-ink-900">{t(row.label)}</p>
                       {row.note && <p className="text-xs text-ink-500">{row.note}</p>}
                     </td>
                     <td className="tabular-nums">{formatValue(row.value)}</td>

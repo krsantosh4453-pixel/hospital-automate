@@ -119,7 +119,7 @@ function GuestHome() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5 font-semibold text-ink-900 group-hover:text-brand-800">
-                  {dept.title} <Lock size={13} className="text-ink-400" aria-label={t("Sign-in required")} />
+                  {t(dept.title)} <Lock size={13} className="text-ink-400" aria-label={t("Sign-in required")} />
                 </span>
                 <span className="mt-1 block text-sm text-ink-500">{dept.text}</span>
               </span>
@@ -138,7 +138,7 @@ function GuestHome() {
               </span>
               <div>
                 <p className="flex items-center gap-1.5 font-medium text-ink-900">
-                  <Icon size={15} className="text-ink-400" aria-hidden="true" /> {title}
+                  <Icon size={15} className="text-ink-400" aria-hidden="true" /> {t(title)}
                 </p>
                 <p className="mt-0.5 text-sm text-ink-500">{text}</p>
               </div>

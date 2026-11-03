@@ -414,21 +414,21 @@ function IPD() {
                       <li key={admission.id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:flex-wrap lg:items-center">
                         <div className="min-w-0 lg:w-64">
                           <p className="font-medium text-ink-900">{admission.patient_name}</p>
-                          <p className="text-xs text-ink-500">{admission.current_bed ? bedLabel(admission.current_bed) : "No bed"}{" "}{t("· admitted")}{" "}{new Date(admission.admission_date).toLocaleDateString("en-IN")}</p>
+                          <p className="text-xs text-ink-500">{admission.current_bed ? bedLabel(admission.current_bed) : t("No bed")}{" "}{t("· admitted")}{" "}{new Date(admission.admission_date).toLocaleDateString("en-IN")}</p>
                         </div>
                         <ol className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-2 text-[13px]" aria-label={t("Discharge steps")}>
                           {steps.map((step, i) => (
                             <li key={step.label} className={`flex items-center gap-1.5 ${step.done ? "text-green-700" : "text-ink-500"}`}>
                               <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold ${step.done ? "bg-green-100" : "bg-ink-100"}`} aria-hidden="true">{i + 1}</span>
-                              {step.label}
-                              <span className="sr-only">{step.done ? "(done)" : "(to do)"}</span>
+                              {t(step.label)}
+                              <span className="sr-only">{step.done ? t("(done)") : t("(to do)")}</span>
                             </li>
                           ))}
                         </ol>
                         <div className="flex flex-wrap gap-1.5">
                           {!summary?.finalized && (
                             <Button size="sm" variant="secondary" icon={FileSignature} onClick={() => { setSelectedAdmission(admission); setSummaryText(summary?.summary || ""); setDialog("summary") }}>
-                              {summary ? "Edit summary" : "Write summary"}
+                              {summary ? t("Edit summary") : t("Write summary")}
                             </Button>
                           )}
                           {summary && !summary.finalized && (
@@ -484,13 +484,13 @@ function IPD() {
         <form id="ipd-admission" onSubmit={handleAdmissionSubmit} className="space-y-4">
           <Field label="Patient" required>
             <Select value={admissionForm.patient} onChange={(e) => setAdmissionForm({ ...admissionForm, patient: e.target.value })}>
-              <option value="">Select patient</option>
+              <option value="">{t("Select patient")}</option>
               {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.age ? ` (${p.age} y)` : ""}{p.phone ? ` · ${p.phone}` : ""}</option>)}
             </Select>
           </Field>
           <Field label="Admitting doctor">
             <Select value={admissionForm.admitting_doctor} onChange={(e) => setAdmissionForm({ ...admissionForm, admitting_doctor: e.target.value })}>
-              <option value="">Not specified</option>
+              <option value="">{t("Not specified")}</option>
               {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}{d.specialization ? ` — ${d.specialization}` : ""}</option>)}
             </Select>
           </Field>
@@ -515,7 +515,7 @@ function IPD() {
           ) : (
             <Field label="Available bed" required>
               <Select value={bedId} onChange={(e) => setBedId(e.target.value)}>
-                <option value="">Select bed</option>
+                <option value="">{t("Select bed")}</option>
                 {availableBeds.map((bed) => <option key={bed.id} value={bed.id}>{bed.ward} · {bed.room} · Bed {bed.bed_number}{bed.room_type ? ` (${bed.room_type})` : ""}</option>)}
               </Select>
             </Field>

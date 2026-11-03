@@ -86,7 +86,7 @@ function PatientBills() {
         <Card>
           <EmptyState
             icon={ReceiptIndianRupee}
-            title={bills.length ? "No bills match this filter" : "No bills yet"}
+            title={bills.length ? t("No bills match this filter") : t("No bills yet")}
           />
         </Card>
       ) : (
@@ -129,7 +129,7 @@ function PatientBills() {
                     <ul className="divide-y divide-ink-100 px-5 pb-3 text-sm">
                       {bill.items.map((item, i) => (
                         <li key={item.id || i} className="flex justify-between gap-4 py-2">
-                          <span className="text-ink-700">{item.description || item.name || "Item"}{item.quantity > 1 ? ` × ${item.quantity}` : ""}</span>
+                          <span className="text-ink-700">{item.description || item.name || t("Item")}{item.quantity > 1 ? ` × ${item.quantity}` : ""}</span>
                           <span className="font-medium text-ink-900 tabular-nums">{money(item.subtotal ?? Number(item.unit_price || 0) * Number(item.quantity || 1))}</span>
                         </li>
                       ))}

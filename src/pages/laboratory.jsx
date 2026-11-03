@@ -30,12 +30,14 @@ import {
 import { LabReportDocument } from "../components/documents/ClinicalDocuments.jsx"
 import SampleLabel from "../components/laboratory/SampleLabel.jsx"
 import SampleScanDialog from "../components/laboratory/SampleScanDialog.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 // Staff who may not list patients (Lab Staff) find one by search instead.
 const LOOKUP_MIN_CHARS = 3
 const LOOKUP_DELAY_MS = 300
 
 function Laboratory() {
+  const { t } = useLanguage()
   // Doctors order tests; a Hospital Manager only views them.
   const { canAdd } = useRole()
   const toast = useToast()
@@ -329,7 +331,7 @@ function Laboratory() {
       resetForm()
       await loadTests()
     } catch (err) {
-      toast.error(`Lab order was not created: ${err.message}`)
+      toast.error(t("Lab order was not created: {reason}", { reason: err.message }))
     }
   }
 
@@ -394,7 +396,7 @@ function Laboratory() {
       resetForm()
       await loadTests()
     } catch (err) {
-      toast.error(`Lab order was not updated: ${err.message}`)
+      toast.error(t("Lab order was not updated: {reason}", { reason: err.message }))
     }
   }
 
@@ -417,7 +419,7 @@ function Laboratory() {
       await api.laboratory.tests.cancel(test.apiId)
       await loadTests()
     } catch (err) {
-      toast.error(`Order was not cancelled: ${err.message}`)
+      toast.error(t("Order was not cancelled: {reason}", { reason: err.message }))
     }
   }
 
@@ -432,7 +434,7 @@ function Laboratory() {
     const [label, method, needsResult] = step
     let payload = {}
     if (needsResult) {
-      const resultText = (await promptText(`Result for ${test.test} (${test.patient}):`))
+      const resultText = (await promptText(t("Result for {test} ({patient}):", { test: test.test, patient: test.patient })))
       if (!resultText || !resultText.trim()) return
       payload = { result_text: resultText.trim() }
     }
@@ -469,15 +471,15 @@ function Laboratory() {
 
   const header = (
     <PageHeader
-      title="Laboratory"
-      description={selectedHospital ? `Orders, samples and results at ${selectedHospital.name}.` : "Select a hospital from the header to view laboratory orders."}
+      title={t("Laboratory")}
+      description={selectedHospital ? t("Orders, samples and results at {hospital}.", { hospital: selectedHospital.name }) : t("Select a hospital from the header to view laboratory orders.")}
       breadcrumbs={[{ label: "Home", to: "/" }, { label: "Laboratory" }]}
       actions={
         selectedHospital && (
           <>
-            <Button variant="secondary" icon={RefreshCw} onClick={loadTests} disabled={loading}>Refresh</Button>
-            <Button variant="secondary" icon={ScanLine} onClick={() => setScanning(true)}>Scan sample</Button>
-            {canAdd("Laboratory") && <Button icon={Plus} onClick={openNew}>New lab order</Button>}
+            <Button variant="secondary" icon={RefreshCw} onClick={loadTests} disabled={loading}>{t("Refresh")}</Button>
+            <Button variant="secondary" icon={ScanLine} onClick={() => setScanning(true)}>{t("Scan sample")}</Button>
+            {canAdd("Laboratory") && <Button icon={Plus} onClick={openNew}>{t("New lab order")}</Button>}
           </>
         )
       }
@@ -488,7 +490,7 @@ function Laboratory() {
     return (
       <>{confirmDialog}{promptDialog}<div className="space-y-5">
         {header}
-        <Card><EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header to see its laboratory worklist." /></Card>
+        <Card><EmptyState icon={Hospital} title={t("Select a hospital")} description="Choose a hospital in the header to see its laboratory worklist." /></Card>
       </div></>
     )
   }
@@ -505,7 +507,7 @@ function Laboratory() {
       {header}
 
       {error ? (
-        <Card><ErrorState title="Laboratory orders could not be loaded" message={error} onRetry={loadTests} /></Card>
+        <Card><ErrorState title={t("Laboratory orders could not be loaded")} message={error} onRetry={loadTests} /></Card>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
@@ -520,11 +522,11 @@ function Laboratory() {
               <Tabs tabs={statusTabs} value={statusFilter} onChange={setStatusFilter} label="Filter by stage" />
             </div>
             <Toolbar>
-              <SearchInput value={search} onChange={setSearch} placeholder="Patient, test or order ID" label="Search lab orders" className="w-full sm:max-w-xs" />
-              <Select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} aria-label="Filter by priority" className="w-full sm:w-44">
-                <option>All Priority</option>
-                <option>Normal</option>
-                <option>Urgent</option>
+              <SearchInput value={search} onChange={setSearch} placeholder={t("Patient, test or order ID")} label="Search lab orders" className="w-full sm:max-w-xs" />
+              <Select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} aria-label={t("Filter by priority")} className="w-full sm:w-44">
+                <option value="All Priority">{t("All Priority")}</option>
+                <option value="Normal">{t("Normal")}</option>
+                <option value="Urgent">{t("Urgent")}</option>
               </Select>
             </Toolbar>
 
@@ -533,21 +535,21 @@ function Laboratory() {
             ) : filteredTests.length === 0 ? (
               <EmptyState
                 icon={FlaskConical}
-                title={hospitalTests.length ? "No orders match these filters" : "No laboratory orders yet"}
-                action={!hospitalTests.length && canAdd("Laboratory") && <Button icon={Plus} onClick={openNew}>New lab order</Button>}
+                title={hospitalTests.length ? t("No orders match these filters") : t("No laboratory orders yet")}
+                action={!hospitalTests.length && canAdd("Laboratory") && <Button icon={Plus} onClick={openNew}>{t("New lab order")}</Button>}
               />
             ) : (
               <TableWrap>
                 <table className="hms-table">
-                  <caption className="sr-only">Laboratory orders</caption>
+                  <caption className="sr-only">{t("Laboratory orders")}</caption>
                   <thead>
                     <tr>
-                      <th scope="col">Order</th>
-                      <th scope="col">Patient</th>
-                      <th scope="col">Test</th>
-                      <th scope="col">Priority</th>
-                      <th scope="col">Stage</th>
-                      <th scope="col"><span className="sr-only">Actions</span></th>
+                      <th scope="col">{t("Order")}</th>
+                      <th scope="col">{t("Patient")}</th>
+                      <th scope="col">{t("Test")}</th>
+                      <th scope="col">{t("Priority")}</th>
+                      <th scope="col">{t("Stage")}</th>
+                      <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -564,10 +566,10 @@ function Laboratory() {
                             </td>
                             <td>
                               <span className="block font-medium text-ink-900">{test.patient}</span>
-                              <span className="block text-xs text-ink-500">{test.doctor ? `Ordered by ${test.doctor}` : "No referring doctor"}</span>
+                              <span className="block text-xs text-ink-500">{test.doctor ? t("Ordered by {doctor}", { doctor: test.doctor }) : t("No referring doctor")}</span>
                             </td>
                             <td>{test.test}</td>
-                            <td>{test.priority === "Urgent" ? <Badge tone="danger" dot>Urgent</Badge> : <span className="text-ink-500">Normal</span>}</td>
+                            <td>{test.priority === "Urgent" ? <Badge tone="danger" dot>{t("Urgent")}</Badge> : <span className="text-ink-500">{t("Normal")}</span>}</td>
                             <td className="min-w-[11rem]">
                               {test.stage === "Cancelled" ? (
                                 <StatusBadge status="Cancelled" />
@@ -579,7 +581,7 @@ function Laboratory() {
                                       <span key={s} className={`h-1.5 flex-1 rounded-full ${i <= idx ? (test.stage === "Released" ? "bg-green-500" : "bg-brand-500") : "bg-ink-200"}`} />
                                     ))}
                                   </span>
-                                  <span className="sr-only">Step {idx + 1} of {STAGES.length}</span>
+                                  <span className="sr-only">{t("Step")}{" "}{idx + 1}{" "}{t("of")}{" "}{STAGES.length}</span>
                                 </>
                               )}
                             </td>
@@ -590,17 +592,17 @@ function Laboratory() {
                                     {step[0]}
                                   </Button>
                                 )}
-                                <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(test)} aria-label={`View ${test.id}`} title="View" />
+                                <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(test)} aria-label={`View ${test.id}`} title={t("View")} />
                                 {test.record?.sample_collection?.sample_id && (
-                                  <Button variant="ghost" size="icon-sm" icon={Tag} onClick={() => setLabelTest(test.record)} aria-label={`Print sample label for ${test.id}`} title="Print sample label" />
+                                  <Button variant="ghost" size="icon-sm" icon={Tag} onClick={() => setLabelTest(test.record)} aria-label={t("Print sample label for {order}", { order: test.id })} title={t("Print sample label")} />
                                 )}
                                 {test.stage === "Released" && (
-                                  <Button variant="ghost" size="icon-sm" icon={Printer} onClick={() => setPrintingTest(test.record)} aria-label={`Print ${test.id}`} title="Print report" />
+                                  <Button variant="ghost" size="icon-sm" icon={Printer} onClick={() => setPrintingTest(test.record)} aria-label={`Print ${test.id}`} title={t("Print report")} />
                                 )}
                                 {test.stage !== "Released" && test.stage !== "Cancelled" && (
                                   <>
-                                    <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => handleEdit(test)} aria-label={`Edit ${test.id}`} title="Edit" />
-                                    <Button variant="danger-ghost" size="icon-sm" icon={XCircle} onClick={() => handleDelete(test.id)} aria-label={`Cancel ${test.id}`} title="Cancel order" />
+                                    <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => handleEdit(test)} aria-label={`Edit ${test.id}`} title={t("Edit")} />
+                                    <Button variant="danger-ghost" size="icon-sm" icon={XCircle} onClick={() => handleDelete(test.id)} aria-label={`Cancel ${test.id}`} title={t("Cancel order")} />
                                   </>
                                 )}
                               </div>
@@ -620,12 +622,12 @@ function Laboratory() {
       <Modal
         open={showForm}
         onClose={resetForm}
-        title={selectedTest ? `Edit ${selectedTest.id}` : "New lab order"}
+        title={selectedTest ? `Edit ${selectedTest.id}` : t("New lab order")}
         description={selectedHospital.name}
         footer={
           <>
-            <Button variant="secondary" onClick={resetForm}>Cancel</Button>
-            <Button type="submit" form="lab-form">{selectedTest ? "Save changes" : "Create order"}</Button>
+            <Button variant="secondary" onClick={resetForm}>{t("Cancel")}</Button>
+            <Button type="submit" form="lab-form">{selectedTest ? t("Save changes") : t("Create order")}</Button>
           </>
         }
       >
@@ -635,10 +637,10 @@ function Laboratory() {
               value={patientSearch}
               onChange={setPatientSearch}
               label="Find patient"
-              placeholder="Name, phone or UHID (3+ characters)"
+              placeholder={t("Name, phone or UHID (3+ characters)")}
             />
           )}
-          <Field label="Patient" required hint={selectedTest ? "The patient of an existing order cannot be changed." : undefined}>
+          <Field label="Patient" required hint={selectedTest ? t("The patient of an existing order cannot be changed.") : undefined}>
             <Select name="patient" disabled={Boolean(selectedTest)} value={formData.patient} onChange={handleChange}>
               <option value="">
                 {!canListPatients && !selectedTest && patientSearch.trim().length >= LOOKUP_MIN_CHARS && patientOptions.length === 0
@@ -655,26 +657,26 @@ function Laboratory() {
           </Field>
           <Field label="Test" required>
             <Select name="test" value={formData.test} onChange={handleChange}>
-              <option value="">Select test</option>
-              {TEST_CHOICES.map((t) => <option key={t}>{t}</option>)}
+              <option value="">{t("Select test")}</option>
+              {TEST_CHOICES.map((t) => <option value={t} key={t}>{t}</option>)}
               {formData.test && !TEST_CHOICES.includes(formData.test) && <option>{formData.test}</option>}
             </Select>
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Referring doctor">
               <Select name="doctor" value={formData.doctor} onChange={handleChange}>
-                <option value="">Not specified</option>
+                <option value="">{t("Not specified")}</option>
                 {doctorOptions.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name}</option>)}
               </Select>
             </Field>
             <Field label="Priority">
               <Select name="priority" value={formData.priority} onChange={handleChange}>
-                <option>Normal</option>
-                <option>Urgent</option>
+                <option value="Normal">{t("Normal")}</option>
+                <option value="Urgent">{t("Urgent")}</option>
               </Select>
             </Field>
           </div>
-          <p className="text-xs text-ink-500">The order date is set by the server when the order is created.</p>
+          <p className="text-xs text-ink-500">{t("The order date is set by the server when the order is created.")}</p>
         </form>
       </Modal>
 
@@ -682,9 +684,9 @@ function Laboratory() {
       <Modal
         open={showView && Boolean(selectedTest)}
         onClose={() => setShowView(false)}
-        title="Laboratory order"
+        title={t("Laboratory order")}
         description={selectedTest?.id}
-        footer={<Button variant="secondary" onClick={() => setShowView(false)}>Close</Button>}
+        footer={<Button variant="secondary" onClick={() => setShowView(false)}>{t("Close")}</Button>}
       >
         {selectedTest && (
           <div className="space-y-5">
@@ -699,16 +701,16 @@ function Laboratory() {
               ]}
             />
             <div className="rounded-xl border border-line bg-ink-50 px-4 py-3">
-              <p className="text-xs font-medium text-ink-500">Result</p>
+              <p className="text-xs font-medium text-ink-500">{t("Result")}</p>
               <p className="mt-1 whitespace-pre-wrap text-sm text-ink-900">
-                {selectedTest.stage === "Released" ? selectedTest.result : "Shown here once the result is verified and released."}
+                {selectedTest.stage === "Released" ? selectedTest.result : t("Shown here once the result is verified and released.")}
               </p>
             </div>
           </div>
         )}
       </Modal>
 
-      <PrintSheet open={Boolean(labelTest)} onClose={() => setLabelTest(null)} title="Sample label">
+      <PrintSheet open={Boolean(labelTest)} onClose={() => setLabelTest(null)} title={t("Sample label")}>
         {labelTest && <SampleLabel test={labelTest} />}
       </PrintSheet>
 
@@ -719,7 +721,7 @@ function Laboratory() {
         onNextStep={(found) => handleProcess(`LAB-${found.id}`)}
       />
 
-      <PrintSheet open={Boolean(printingTest)} onClose={() => setPrintingTest(null)} title="Lab report">
+      <PrintSheet open={Boolean(printingTest)} onClose={() => setPrintingTest(null)} title={t("Lab report")}>
         {printingTest && <LabReportDocument test={printingTest} />}
       </PrintSheet>
     </div></>

@@ -46,7 +46,7 @@ function StepList({ step, onPick, enabled }) {
               }`}
             >
               {index < step ? <Check size={16} aria-hidden="true" /> : <Icon size={16} aria-hidden="true" />}
-              {index + 1}. {title}
+              {index + 1}. {t(title)}
             </button>
           </li>
         )
@@ -118,7 +118,7 @@ function HospitalStep({ selectedHospital, allowNew, onCreated }) {
         <Field label="Type">
           <Select value={form.type} onChange={set("type")}>
             {HOSPITAL_TYPES.map((type) => (
-              <option key={type}>{type}</option>
+              <option value={type} key={type}>{t(type)}</option>
             ))}
           </Select>
         </Field>
@@ -300,7 +300,7 @@ function HospitalSetup() {
 
       {last && invitedCount > 0 && (
         <Alert tone="info">
-          {invitedCount} {invitedCount === 1 ? "person was" : "people were"}{" "}{t("invited. Manage everyone's roles on the")}{" "}
+          {t(invitedCount === 1 ? "{count} person was invited. Manage everyone's roles on the" : "{count} people were invited. Manage everyone's roles on the", { count: invitedCount })}{" "}
           <Link to="/admin/users" className="font-medium underline">{t("Users")}</Link>{" "}{t("page.")}
         </Alert>
       )}

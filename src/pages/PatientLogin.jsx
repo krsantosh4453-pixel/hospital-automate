@@ -447,7 +447,7 @@ function PatientLogin() {
                       className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={otpLoading}
                     >
-                      {otpLoading ? "Sending..." : "Send OTP"}
+                      {otpLoading ? t("Sending...") : t("Send OTP")}
                     </button>
                   </form>
                   {showEmailFallback && (
@@ -506,7 +506,7 @@ function PatientLogin() {
                       className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={otpLoading}
                     >
-                      {otpLoading ? "Verifying..." : "Verify & Continue"}
+                      {otpLoading ? t("Verifying...") : t("Verify & Continue")}
                     </button>
                   </form>
 
@@ -548,12 +548,12 @@ function PatientLogin() {
             <div>
               <div className="mb-5">
                 <h2 className="text-lg font-semibold text-ink-900">
-                  {emailStep === "otp" ? "Verify using Email" : "Login with Email"}
+                  {emailStep === "otp" ? t("Verify using Email") : t("Login with Email")}
                 </h2>
                 <p className="mt-0.5 text-[13px] text-ink-500">
                   {emailStep === "otp"
-                    ? "We will send a verification code to your registered email."
-                    : "Use the email and password from your patient account."}
+                    ? t("We will send a verification code to your registered email.")
+                    : t("Use the email and password from your patient account.")}
                 </p>
               </div>
               {emailError && (
@@ -620,7 +620,7 @@ function PatientLogin() {
                     disabled={otpLoading}
                     className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {otpLoading ? "Sending..." : "Send Email OTP"}
+                    {otpLoading ? t("Sending...") : t("Send Email OTP")}
                   </button>
                   <div>
                     <label htmlFor="pl-field-6" className="hms-label">{t("OTP")}</label>
@@ -775,7 +775,7 @@ function PatientLogin() {
                   disabled={staffLoading}
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {staffLoading ? "Signing in..." : t("Sign in as {selectedRole}", { selectedRole })}
+                  {staffLoading ? t("Signing in...") : t("Sign in as {selectedRole}", { selectedRole })}
                 </button>
               </form>
             </div>

@@ -56,8 +56,9 @@ const EMPTY = {
 }
 
 function TriageBadge({ level }) {
-  const t = TRIAGE.find((x) => x.level === level)
-  return <Badge tone={t?.tone || "neutral"} dot>{level || "—"}</Badge>
+  const { t } = useLanguage()
+  const tier = TRIAGE.find((x) => x.level === level)
+  return <Badge tone={tier?.tone || "neutral"} dot>{level ? t(level) : "—"}</Badge>
 }
 
 function Emergency() {
@@ -231,13 +232,13 @@ function Emergency() {
 
   const doctorOptions = (
     <>
-      <option value="">Not specified</option>
+      <option value="">{t("Not specified")}</option>
       {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}{d.specialization ? ` — ${d.specialization}` : ""}</option>)}
     </>
   )
   const nurseOptions = (
     <>
-      <option value="">Not specified</option>
+      <option value="">{t("Not specified")}</option>
       {nurses.map((n) => <option key={n.id} value={n.id}>{n.name}{n.department ? ` — ${n.department}` : ""}</option>)}
     </>
   )
@@ -277,7 +278,7 @@ function Emergency() {
   const footer = (form, label) => (
     <>
       <Button variant="secondary" onClick={close}>{t("Cancel")}</Button>
-      <Button type="submit" form={form} loading={saving}>{label}</Button>
+      <Button type="submit" form={form} loading={saving}>{t(label)}</Button>
     </>
   )
 
@@ -457,7 +458,7 @@ function Emergency() {
         <form id="er-reg" onSubmit={handleRegistration} className="space-y-4">
           <Field label="Patient" required>
             <Select value={f.registration.patient} onChange={setForm("registration")("patient")}>
-              <option value="">Select patient</option>
+              <option value="">{t("Select patient")}</option>
               {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.age ? ` (${p.age} y` : ""}{p.gender ? `, ${p.gender})` : p.age ? ")" : ""}{p.phone ? ` · ${p.phone}` : ""}</option>)}
             </Select>
           </Field>
@@ -501,11 +502,11 @@ function Emergency() {
         <form id="er-order" onSubmit={handleAddOrder} className="space-y-4">
           <Field label="Order type" required>
             <Select value={f.order.order_type} onChange={setForm("order")("order_type")}>
-              <option value="Lab">Lab investigation</option>
-              <option value="Imaging">Imaging</option>
-              <option value="Medication">Medication</option>
-              <option value="Procedure">Procedure</option>
-              <option value="Consultation">Specialist consultation</option>
+              <option value="Lab">{t("Lab investigation")}</option>
+              <option value="Imaging">{t("Imaging")}</option>
+              <option value="Medication">{t("Medication")}</option>
+              <option value="Procedure">{t("Procedure")}</option>
+              <option value="Consultation">{t("Specialist consultation")}</option>
             </Select>
           </Field>
           <Field label="Description" required><Textarea value={f.order.description} onChange={setForm("order")("description")} /></Field>
@@ -519,7 +520,7 @@ function Emergency() {
           <Field label="Dose" required><Input value={f.medication.dose} onChange={setForm("medication")("dose")} /></Field>
           <Field label="Route" required>
             <Select value={f.medication.route} onChange={setForm("medication")("route")}>
-              {["IV", "IM", "PO", "SC", "PR"].map((r) => <option key={r}>{r}</option>)}
+              {["IV", "IM", "PO", "SC", "PR"].map((r) => <option value={r} key={r}>{t(r)}</option>)}
             </Select>
           </Field>
           <Field label="Frequency" required hint="e.g. Q8H, BID"><Input value={f.medication.frequency} onChange={setForm("medication")("frequency")} /></Field>

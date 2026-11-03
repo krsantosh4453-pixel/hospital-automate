@@ -28,13 +28,13 @@ export function InviteLink({ result }) {
     <Alert tone="success" title={t("Invitation for {name}", { name: result.name })}>
       <p>
         {t("Username")}{" "}<strong>{result.username}</strong>.{" "}
-        {result.emailed ? "The link was emailed to them. " : "Email is not set up, so send them this link yourself. "}
+        {result.emailed ? t("The link was emailed to them. ") : t("Email is not set up, so send them this link yourself. ")}
         {t("It works once and expires in a few days.")}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <code className="min-w-0 flex-1 break-all rounded-md bg-white/70 px-2 py-1 text-xs">{url}</code>
         <Button size="sm" variant="secondary" icon={copied ? Check : Copy} onClick={copy}>
-          {copied ? "Copied" : "Copy link"}
+          {copied ? t("Copied") : t("Copy link")}
         </Button>
       </div>
     </Alert>
@@ -106,14 +106,14 @@ export default function InviteStaffForm({ departments = [], onInvited }) {
         <Field label="Role" required>
           <Select value={form.role} onChange={set("role")}>
             {STAFF_ROLES.map((role) => (
-              <option key={role}>{role}</option>
+              <option value={role} key={role}>{t(role)}</option>
             ))}
           </Select>
         </Field>
         {departments.length > 0 && (
           <Field label="Department" hint="Leave empty to work across all departments">
             <Select value={form.department} onChange={set("department")}>
-              <option value="">All departments</option>
+              <option value="">{t("All departments")}</option>
               {departments.map((dept) => (
                 <option key={dept.id} value={dept.id}>
                   {dept.name}

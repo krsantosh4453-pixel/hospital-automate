@@ -154,8 +154,8 @@ export default function VisitImmunizations({ visit }) {
       <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
         <Card as="form" onSubmit={save}>
           <CardHeader
-            title={editingId ? "Correct dose" : "Record vaccination"}
-            description={editingId ? "Corrections are kept in the audit log." : `For ${visit.patientName}.`}
+            title={editingId ? t("Correct dose") : t("Record vaccination")}
+            description={editingId ? t("Corrections are kept in the audit log.") : `For ${visit.patientName}.`}
           />
           <div className="space-y-4 px-5 py-4">
             <Field label="Vaccine" required><Input value={form.vaccine} onChange={set("vaccine")} maxLength={150} placeholder={t("e.g. Hepatitis B")} /></Field>
@@ -164,7 +164,7 @@ export default function VisitImmunizations({ visit }) {
               <Field label="Given on" required><Input type="date" max={today()} value={form.administeredOn} onChange={set("administeredOn")} /></Field>
               <Field label="Route">
                 <Select value={form.route} onChange={set("route")}>
-                  {ROUTES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  {ROUTES.map(([value, label]) => <option key={value} value={value}>{t(label)}</option>)}
                 </Select>
               </Field>
               <Field label="Site"><Input value={form.site} onChange={set("site")} maxLength={60} placeholder={t("e.g. Left deltoid")} /></Field>
@@ -175,7 +175,7 @@ export default function VisitImmunizations({ visit }) {
             <Field label="Notes"><Textarea rows={2} value={form.notes} onChange={set("notes")} /></Field>
             <div className="flex gap-2">
               <Button type="submit" icon={Syringe} loading={saving} className="flex-1 justify-center">
-                {editingId ? "Save correction" : "Record dose"}
+                {editingId ? t("Save correction") : t("Record dose")}
               </Button>
               {editingId && <Button type="button" variant="secondary" onClick={reset}>{t("Cancel")}</Button>}
             </div>

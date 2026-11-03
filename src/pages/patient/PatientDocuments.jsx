@@ -152,7 +152,7 @@ function PatientDocuments() {
                         <span className="font-medium text-ink-900">{doc.title}</span>
                       </span>
                     </td>
-                    <td><Badge tone="neutral">{doc.folder || "Uncategorized"}</Badge></td>
+                    <td><Badge tone="neutral">{doc.folder || t("Uncategorized")}</Badge></td>
                     <td className="whitespace-nowrap tabular-nums text-ink-600">{formatDate(doc.uploaded_at)}</td>
                     <td className="num text-ink-600">{formatSize(doc.file_size)}</td>
                     <td>
@@ -191,13 +191,13 @@ function PatientDocuments() {
           </Field>
           <Field label="Category">
             <Select value={uploadForm.folder} onChange={(e) => setUploadForm((prev) => ({ ...prev, folder: e.target.value }))}>
-              <option value="">Select category</option>
-              <option value="Prescriptions">Prescriptions</option>
-              <option value="Lab Reports">Lab reports</option>
-              <option value="Discharge Summaries">Discharge summaries</option>
-              <option value="Imaging">Imaging (X-ray, MRI, CT)</option>
-              <option value="Insurance">Insurance documents</option>
-              <option value="Other">Other</option>
+              <option value="">{t("Select category")}</option>
+              <option value="Prescriptions">{t("Prescriptions")}</option>
+              <option value="Lab Reports">{t("Lab reports")}</option>
+              <option value="Discharge Summaries">{t("Discharge summaries")}</option>
+              <option value="Imaging">{t("Imaging (X-ray, MRI, CT)")}</option>
+              <option value="Insurance">{t("Insurance documents")}</option>
+              <option value="Other">{t("Other")}</option>
             </Select>
           </Field>
         </form>

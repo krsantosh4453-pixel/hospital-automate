@@ -140,7 +140,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
       {loading && beds.length === 0 ? (
         <SkeletonRows rows={4} />
       ) : shown.length === 0 ? (
-        <EmptyState title={beds.length ? "No beds match these filters" : "No beds yet"} description={beds.length ? "Change the search or status filter." : "Add a bed to start using IPD."} />
+        <EmptyState title={beds.length ? t("No beds match these filters") : t("No beds yet")} description={beds.length ? t("Change the search or status filter.") : t("Add a bed to start using IPD.")} />
       ) : (
         <TableWrap>
           <table className="hms-table">
@@ -180,7 +180,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
                               aria-label={t("Status of bed {bedNumber}", { bedNumber: bed.bed_number })}
                               className="h-8 min-h-0 w-36 py-1 text-xs"
                             >
-                              {MANUAL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                              {MANUAL_STATUSES.map((s) => <option key={s} value={s}>{t(s)}</option>)}
                             </Select>
                           )}
                           <Button size="sm" variant="ghost" icon={Pencil} onClick={() => { setEditError(""); setEditing({ ...bed }) }} aria-label={t("Edit bed {bedNumber}", { bedNumber: bed.bed_number })}>
@@ -223,7 +223,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
             </Field>
             <Field label="Bed type">
               <Select value={editing.bed_type || "General"} onChange={(e) => setEditing({ ...editing, bed_type: e.target.value })}>
-                {[...new Set([...BED_TYPES, editing.bed_type].filter(Boolean))].map((type) => <option key={type} value={type}>{type}</option>)}
+                {[...new Set([...BED_TYPES, editing.bed_type].filter(Boolean))].map((type) => <option key={type} value={type}>{t(type)}</option>)}
               </Select>
             </Field>
           </form>

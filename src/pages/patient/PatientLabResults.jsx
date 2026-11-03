@@ -80,7 +80,7 @@ function PatientLabResults() {
         <Card>
           <EmptyState
             icon={FlaskConical}
-            title={labTests.length ? "No tests match this filter" : "No lab tests yet"}
+            title={labTests.length ? t("No tests match this filter") : t("No lab tests yet")}
           />
         </Card>
       ) : (
@@ -92,7 +92,7 @@ function PatientLabResults() {
                 <Card>
                   <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
                     <div>
-                      <p className="font-semibold text-ink-900">{test.name || "Lab test"}</p>
+                      <p className="font-semibold text-ink-900">{test.name || t("Lab test")}</p>
                       <p className="text-[13px] text-ink-500">
                         {t("Ordered")}{" "}{formatDate(test.test_date)}
                         {test.doctor_name ? ` by ${test.doctor_name}` : ""}
@@ -108,7 +108,7 @@ function PatientLabResults() {
                   </div>
                   <div className="border-t border-line px-5 py-3 text-sm">
                     {released ? (
-                      <p className="whitespace-pre-wrap text-ink-900">{test.result || "No result text was entered."}</p>
+                      <p className="whitespace-pre-wrap text-ink-900">{test.result || t("No result text was entered.")}</p>
                     ) : test.status === "Cancelled" ? (
                       <p className="text-ink-500">{t("This test was cancelled.")}</p>
                     ) : (
