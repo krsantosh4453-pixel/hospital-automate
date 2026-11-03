@@ -212,6 +212,44 @@ export function PrescriptionProvider({ children }) {
     return true
   }
 
+  // =====================================
+  // FETCH ONE BY RX NUMBER (API-BACKED, ASYNC)
+  // =====================================
+  //
+  // The pharmacy looks prescriptions up on the server, so one written after
+  // its page loaded is found. Returns null when the number is malformed,
+  // unknown, or belongs to another hospital; other errors are thrown.
+
+  const fetchPrescription = async (rxId, hospitalId = null) => {
+
+    const match = /^RX-0*(\d+)$/i.exec(String(rxId).trim())
+    if (!match) {
+      return null
+    }
+
+    let record
+    try {
+      record = await api.prescriptions.get(match[1])
+    } catch (err) {
+      if (err?.status === 404) {
+        return null
+      }
+      throw err
+    }
+
+    const mapped = mapPrescriptionFromApi(record)
+    if (hospitalId !== null && String(mapped.hospitalId) !== String(hospitalId)) {
+      return null
+    }
+
+    setPrescriptions((prev) => [
+      mapped,
+      ...prev.filter((item) => String(item.apiId) !== String(mapped.apiId)),
+    ])
+
+    return mapped
+  }
+
 
   // =====================================
   // DOCTOR CREATES PRESCRIPTION (LEGACY/OPTIMISTIC)
@@ -386,6 +424,8 @@ export function PrescriptionProvider({ children }) {
         addPrescription,
 
         findPrescription,
+
+        fetchPrescription,
 
         dispensePrescription,
 

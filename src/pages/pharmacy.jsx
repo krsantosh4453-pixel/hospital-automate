@@ -67,7 +67,7 @@ function Pharmacy() {
   const { selectedHospital } = usePatient()
 
   const {
-    prescriptions,
+    fetchPrescription,
     dispensePrescription,
   } = usePrescription()
 
@@ -729,7 +729,7 @@ function Pharmacy() {
   // PRESCRIPTION SEARCH
   // =========================
 
-  const searchPrescription = () => {
+  const searchPrescription = async () => {
 
     if (!selectedHospital) {
 
@@ -753,21 +753,26 @@ function Pharmacy() {
     }
 
 
-    const prescription =
-      prescriptions.find(
-        (item) =>
-
-          item.id
-            .toLowerCase() ===
-          prescriptionId
-            .trim()
-            .toLowerCase()
-
-          &&
-
-          item.hospitalId ===
+    // Asked from the server: the doctor may have written it after this page loaded.
+    let prescription
+    try {
+      prescription =
+        await fetchPrescription(
+          prescriptionId,
           selectedHospital.id
+        )
+    } catch (error) {
+      setFoundPrescription(
+        null
       )
+
+      toast.error(
+        error?.message ||
+        "Unable to look up the prescription."
+      )
+
+      return
+    }
 
 
     if (!prescription) {
