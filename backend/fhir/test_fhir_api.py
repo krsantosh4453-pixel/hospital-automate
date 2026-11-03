@@ -163,7 +163,7 @@ class FHIRApiTests(TestCase):
     def test_medication_request_read_by_item_id(self):
         resp = self.client.get(f"/api/fhir/MedicationRequest/MedicationRequest-{self.item.pk}")
         self.assertEqual(resp.status_code, 200, resp.content)
-        self.assertEqual(resp.json()["medicationReference"]["display"], "Paracetamol")
+        self.assertEqual(resp.json()["medicationCodeableConcept"]["text"], "Paracetamol")
 
     def test_vital_sign_observation_read(self):
         resp = self.client.get(f"/api/fhir/Observation/Observation-temperature-{self.vitals.pk}")

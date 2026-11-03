@@ -129,10 +129,9 @@ class PrescriptionMedicationRequestMapper(FHIRMapper):
             # Priority
             resource["priority"] = "routine"
             
-            # Medication Reference
-            resource["medicationReference"] = self.builder._reference(
-                "Medication", f"Medication-{item.id}", item.name
-            )
+            # Medication, inline: no Medication resource is served, so a
+            # reference to one could not be resolved.
+            resource["medicationCodeableConcept"] = self.builder._codeable_concept(text=item.name)
             
             # Subject (Patient)
             resource["subject"] = self.builder._reference(
