@@ -28,8 +28,8 @@ State as of 2026-10-25, updated 2026-11-03, branch `audit/production-readiness-2
 - Procurement (2026-11-03): Inventory has Suppliers and Purchase orders tabs (raise an order, receive full or partial goods with invoice number, batch and expiry) and per-item unit, reorder level and usual supplier. Not built: purchase requisition approval (I2), supplier returns, department issue, consignment and quotations (I4), and cancelling a purchase order from the screen.
 - Admin → Permissions is a read-only view of the built-in roles (2026-11-03). Roles cannot be customised: changing what a role may do needs a code change to both `RoleContext.jsx` and the backend permission classes.
 - MAR orders have no screen (E5, found 2026-11-03): nothing in the UI creates a medication order or its dose schedule (`/api/nurses/mar/` and `generate_schedule/`), so the nurse's MAR tab stays empty unless orders are created through the API. Giving, holding and refusing doses work once an order exists. Needs a decision on who enters the order (prescribing doctor, or nurse transcription with a second check).
-- Pharmacy dispensing handles one medicine per prescription; a prescription with several medicines must be issued item by item from Issue medicine.
-- Lab staff see "New lab order" but cannot list patients, so they cannot place walk-in orders; doctors and nurses place lab orders.
+- Dispensing a prescription (2026-11-03) issues every medicine in one step, or none if any line fails. The pharmacist picks a stock batch per medicine (earliest-expiring batch with enough stock is pre-selected). The batch must have the prescribed medicine's exact name: brand substitution (F8) and partial dispensing are not supported.
+- Lab staff (2026-11-03) find a walk-in patient by searching name, phone or UHID (3+ characters, at most 20 matches, masked phone, every lookup audited); they still cannot browse the patient list or register a new patient.
 - The financial report returns `laboratory_revenue: null`: lab tests carry no price, so lab charges appear only as invoice lines inside billing revenue.
 
 ## Blocked (3) and not applicable (1)
@@ -42,7 +42,7 @@ State as of 2026-10-25, updated 2026-11-03, branch `audit/production-readiness-2
 
 - SMS, WhatsApp and voice delivery are not implemented and need provider credentials. External channels already go through the Celery retry task (`notifications.tasks.send_notification_channel`: 5 retries, exponential backoff, every attempt logged), so adding a provider needs no queue changes.
 - Row-lock tests (`security_tests/test_concurrency.py`) run only on PostgreSQL (`TEST_DATABASE_URL`); on SQLite they are skipped. CI runs them on PostgreSQL 16 with `REQUIRE_ROW_LOCK_TESTS=1`, which fails the run instead of skipping. They found and fixed two IPD races: one admission getting several beds, and parallel transfers. A refused transfer no longer releases the patient's current bed.
-- Frontend tests: 44 Vitest unit tests plus 20 Playwright E2E tests in `e2e/`, run in CI. Since 2026-11-03 these include lab order to release, pharmacy dispensing, emergency registration and triage, and a nurse giving a MAR dose.
+- Frontend tests: 51 Vitest unit tests plus 22 Playwright E2E tests in `e2e/`, run in CI. Since 2026-11-03 these include lab order to release, pharmacy dispensing, emergency registration and triage, and a nurse giving a MAR dose.
 - Route-level code-splitting brings the main JS bundle to 310 kB (89.5 kB gzip). Lint has 70 warnings and 0 errors: unused variables in page files and the context-plus-hook pattern, which only affects dev hot reload.
 - API schema / Swagger / ReDoc work again (they returned 500 before 2026-11-03) and are platform-admin only in production (`API_DOCS_PUBLIC`). drf-spectacular reports 241 documentation warnings (mostly missing type hints).
 - Django errors are written to `django_errors.log` in the `app_logs` volume, not to container output; log shipping must collect that volume.
