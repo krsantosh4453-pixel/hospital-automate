@@ -114,3 +114,49 @@ class AuditAPITests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+class AuditLogFilterTests(TestCase):
+    """The audit viewer page (A15) filters the trail on the server."""
+
+    _get_audit_logs_url = AuditAPITests._get_audit_logs_url
+
+    def setUp(self):
+        AuditAPITests.setUp(self)
+        self.nurse = User.objects.create_user(username="nurse_meera", password="testpass123")
+        self.old = AuditLog.objects.create(
+            user=self.user, hospital=self.hospital_a, action="patients.patient.create", model_name="Patient", object_id="1"
+        )
+        AuditLog.objects.filter(pk=self.old.pk).update(created_at="2026-10-01T09:00:00Z")
+        self.new = AuditLog.objects.create(
+            user=self.nurse, hospital=self.hospital_a, action="clinical.vitalsign.update", model_name="VitalSign", object_id="9"
+        )
+        AuditLog.objects.create(
+            user=self.user, hospital=self.hospital_b, action="patients.patient.create", model_name="Patient", object_id="2"
+        )
+
+    def ids(self, query=""):
+        response = self.client.get(f"{self._get_audit_logs_url()}{query}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        return [row["id"] for row in response.data.get("results", response.data)]
+
+    def test_newest_first_and_only_this_hospital(self):
+        self.assertEqual(self.ids(), [self.new.id, self.old.id])
+
+    def test_filters_by_action_record_type_and_user(self):
+        self.assertEqual(self.ids("&action=vitalsign"), [self.new.id])
+        self.assertEqual(self.ids("&model=patient"), [self.old.id])
+        self.assertEqual(self.ids("&user=meera"), [self.new.id])
+
+    def test_filters_by_date_range(self):
+        self.assertEqual(self.ids("&from=2026-09-30&to=2026-10-02"), [self.old.id])
+
+    def test_rejects_a_malformed_date(self):
+        response = self.client.get(f"{self._get_audit_logs_url()}&from=01/10/2026")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_shows_who_acted(self):
+        response = self.client.get(f"{self._get_audit_logs_url()}&user=meera")
+
+        self.assertEqual(response.data["results"][0]["username"], "nurse_meera")

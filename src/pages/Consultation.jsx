@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
-import { CalendarClock, ClipboardList, HeartPulse, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Trash2, UserRound } from "lucide-react"
+import { CalendarClock, ClipboardList, FileText, HeartPulse, History, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Syringe, Trash2, UserRound } from "lucide-react"
 import {
   Alert,
   Avatar,
@@ -21,6 +21,11 @@ import {
   Tabs,
   Textarea,
 } from "../components/ui"
+import VisitDocuments from "../components/clinical/VisitDocuments.jsx"
+import PatientTimeline from "../components/clinical/PatientTimeline.jsx"
+import VisitImmunizations from "../components/clinical/VisitImmunizations.jsx"
+import PatientContextStrip from "../components/clinical/PatientContextStrip.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 // =========================================================
 // DOCTOR CONSULTATION
@@ -127,6 +132,12 @@ const mapVitalFromApi = (record) => ({
   heartRate: record.heart_rate,
   bloodSugar: record.blood_sugar,
   spo2: record.spo2,
+  painScore: record.pain_score,
+  gcs: record.gcs,
+  avpu: record.avpu || "",
+  headCircumference: record.head_circumference,
+  muac: record.muac,
+  urineOutput: record.urine_output,
   comments: record.comments || "",
   recordedAt: record.recorded_at || null,
 })
@@ -140,9 +151,21 @@ const mapDiagnosisFromApi = (record) => ({
   createdAt: record.created_at || null,
 })
 
+// Structured note sections (D4), in display order. "note" is free text.
+const NOTE_SECTIONS = [
+  ["chief_complaint", "Chief complaint", 2],
+  ["history_of_present_illness", "History of present illness", 3],
+  ["past_history", "Past history", 2],
+  ["current_medications", "Current medications", 2],
+  ["examination", "Examination", 3],
+  ["assessment", "Assessment", 2],
+  ["plan", "Plan", 3],
+  ["note", "Other notes", 2],
+]
+
 const mapNoteFromApi = (record) => ({
   apiId: record.id,
-  note: record.note || "",
+  ...Object.fromEntries(NOTE_SECTIONS.map(([field]) => [field, record[field] || ""])),
   doctorApiId: record.doctor || null,
   createdAt: record.created_at || null,
 })
@@ -195,7 +218,28 @@ const emptyVitalForm = {
   heartRate: "",
   bloodSugar: "",
   spo2: "",
+  painScore: "",
+  gcs: "",
+  avpu: "",
+  headCircumference: "",
+  muac: "",
+  urineOutput: "",
   comments: "",
+}
+
+const AVPU_OPTIONS = [
+  { value: "", label: "—" },
+  { value: "A", label: "Alert" },
+  { value: "V", label: "Voice" },
+  { value: "P", label: "Pain" },
+  { value: "U", label: "Unresponsive" },
+]
+
+// BMI from kg and cm, or null when either is missing.
+const bmiOf = (weight, height) => {
+  const kg = Number(weight)
+  const m = Number(height) / 100
+  return kg > 0 && m > 0 ? (kg / (m * m)).toFixed(1) : null
 }
 
 const emptyDiagnosisForm = {
@@ -205,9 +249,7 @@ const emptyDiagnosisForm = {
   remarks: "",
 }
 
-const emptyNoteForm = {
-  note: "",
-}
+const emptyNoteForm = Object.fromEntries(NOTE_SECTIONS.map(([field]) => [field, ""]))
 
 const emptyOrderForm = {
   serviceName: "",
@@ -217,6 +259,7 @@ const emptyOrderForm = {
 }
 
 function Consultation() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
 
   // ---------------------------------------------------------
@@ -469,6 +512,11 @@ function Consultation() {
       ["heartRate", 20, 250, "Pulse / heart rate"],
       ["bloodSugar", 0, 1000, "Blood sugar"],
       ["spo2", 50, 100, "SpO2"],
+      ["painScore", 0, 10, "Pain score"],
+      ["gcs", 3, 15, "GCS"],
+      ["headCircumference", 20, 70, "Head circumference"],
+      ["muac", 5, 60, "MUAC"],
+      ["urineOutput", 0, 10000, "Urine output"],
     ]
 
     for (const [field, min, max, label] of checks) {
@@ -481,11 +529,11 @@ function Consultation() {
       const parsed = Number(value)
 
       if (Number.isNaN(parsed)) {
-        return `${label} must be a number.`
+        return t("{label} must be a number.", { label })
       }
 
       if (parsed < min || parsed > max) {
-        return `${label} must be between ${min} and ${max}.`
+        return t("{label} must be between {min} and {max}.", { label, min, max })
       }
     }
 
@@ -496,7 +544,7 @@ function Consultation() {
         vitalForm[field] !== undefined
     )
 
-    if (!hasAnyValue) {
+    if (!hasAnyValue && !vitalForm.avpu) {
       return "Enter at least one vital sign value."
     }
 
@@ -531,6 +579,12 @@ function Consultation() {
       heart_rate: num(vitalForm.heartRate),
       blood_sugar: num(vitalForm.bloodSugar),
       spo2: num(vitalForm.spo2),
+      pain_score: num(vitalForm.painScore),
+      gcs: num(vitalForm.gcs),
+      avpu: vitalForm.avpu,
+      head_circumference: num(vitalForm.headCircumference),
+      muac: num(vitalForm.muac),
+      urine_output: num(vitalForm.urineOutput),
       comments: vitalForm.comments.trim(),
     }
 
@@ -582,6 +636,12 @@ function Consultation() {
       heartRate: vital.heartRate ?? "",
       bloodSugar: vital.bloodSugar ?? "",
       spo2: vital.spo2 ?? "",
+      painScore: vital.painScore ?? "",
+      gcs: vital.gcs ?? "",
+      avpu: vital.avpu || "",
+      headCircumference: vital.headCircumference ?? "",
+      muac: vital.muac ?? "",
+      urineOutput: vital.urineOutput ?? "",
       comments: vital.comments || "",
     })
   }
@@ -737,8 +797,8 @@ function Consultation() {
       return
     }
 
-    if (!noteForm.note.trim()) {
-      setErrorMessage("Note text is required.")
+    if (!NOTE_SECTIONS.some(([field]) => noteForm[field].trim())) {
+      setErrorMessage("Write at least one part of the note.")
       return
     }
 
@@ -749,7 +809,7 @@ function Consultation() {
       visit: Number(selectedVisitId),
       // Attribute the note to the visit's doctor when one is set.
       doctor: selectedVisit?.doctorApiId || null,
-      note: noteForm.note.trim(),
+      ...Object.fromEntries(NOTE_SECTIONS.map(([field]) => [field, noteForm[field].trim()])),
     }
 
     try {
@@ -790,7 +850,7 @@ function Consultation() {
     setActiveTab("notes")
     setEditingNote(note.apiId)
     setErrorMessage("")
-    setNoteForm({ note: note.note })
+    setNoteForm(Object.fromEntries(NOTE_SECTIONS.map(([field]) => [field, note[field] || ""])))
   }
 
   const handleDeleteNote = (note) =>
@@ -978,6 +1038,9 @@ function Consultation() {
     { id: "diagnoses", label: "Diagnoses", icon: Stethoscope, count: diagnoses.length },
     { id: "notes", label: "Notes", icon: NotebookPen, count: notes.length },
     { id: "orders", label: "Service orders", icon: ClipboardList, count: orders.length },
+    { id: "documents", label: "Certificates & referrals", icon: FileText },
+    { id: "history", label: "History", icon: History },
+    { id: "vaccinations", label: "Vaccinations", icon: Syringe },
   ]
 
   const visibleVisits = visits.filter((visit) =>
@@ -989,12 +1052,12 @@ function Consultation() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Consultation"
+        title={t("Consultation")}
         description="Record vitals, diagnoses, clinical notes and service orders against a patient visit."
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Consultation" }]}
         actions={
           <Button variant="secondary" icon={RefreshCw} onClick={refresh} disabled={!selectedHospital}>
-            Refresh
+            {t("Refresh")}
           </Button>
         }
       />
@@ -1002,22 +1065,22 @@ function Consultation() {
       {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}
       {errorMessage && <Alert tone="danger" onDismiss={() => setErrorMessage("")}>{errorMessage}</Alert>}
       {visitsError && (
-        <Alert tone="warning" action={<Button size="sm" variant="secondary" onClick={refresh}>Retry</Button>}>
+        <Alert tone="warning" action={<Button size="sm" variant="secondary" onClick={refresh}>{t("Retry")}</Button>}>
           {visitsError}
         </Alert>
       )}
 
       {!selectedHospital ? (
         <Card>
-          <EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header to start a consultation." />
+          <EmptyState icon={Hospital} title={t("Select a hospital")} description="Choose a hospital in the header to start a consultation." />
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[20rem_minmax(0,1fr)]">
           {/* Visit list */}
           <Card className="flex max-h-[calc(100vh-10rem)] flex-col overflow-hidden xl:sticky xl:top-20">
-            <CardHeader title="Visits" description={loadingVisits ? "Loading…" : `${visits.length} at this hospital`} />
+            <CardHeader title={t("Visits")} description={loadingVisits ? t("Loading…") : t("{count} at this hospital", { count: visits.length })} />
             <div className="border-b border-line p-3">
-              <SearchInput value={visitSearch} onChange={setVisitSearch} placeholder="Patient or visit #" label="Search visits" />
+              <SearchInput value={visitSearch} onChange={setVisitSearch} placeholder={t("Patient or visit #")} label="Search visits" />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
               {loadingVisits && visits.length === 0 ? (
@@ -1026,11 +1089,11 @@ function Consultation() {
                 <EmptyState
                   compact
                   icon={CalendarClock}
-                  title={visits.length ? "No visit matches" : "No visits yet"}
-                  description={visits.length ? undefined : "A visit is created when a patient is issued a queue token."}
+                  title={visits.length ? t("No visit matches") : t("No visits yet")}
+                  description={visits.length ? undefined : t("A visit is created when a patient is issued a queue token.")}
                 />
               ) : (
-                <ul className="divide-y divide-ink-100" role="listbox" aria-label="Visits">
+                <ul className="divide-y divide-ink-100" role="listbox" aria-label={t("Visits")}>
                   {visibleVisits.map((visit) => {
                     const active = String(visit.apiId) === String(selectedVisitId)
                     return (
@@ -1060,7 +1123,7 @@ function Consultation() {
           {/* Selected visit */}
           {!selectedVisit ? (
             <Card>
-              <EmptyState icon={UserRound} title="Select a visit" description="Choose a patient visit from the list to open the consultation." />
+              <EmptyState icon={UserRound} title={t("Select a visit")} description="Choose a patient visit from the list to open the consultation." />
             </Card>
           ) : (
             <div className="min-w-0 space-y-5">
@@ -1071,16 +1134,16 @@ function Consultation() {
                     <div className="min-w-0">
                       <p className="truncate text-base font-semibold text-ink-900">{selectedVisit.patientName}</p>
                       <p className="text-[13px] text-ink-500 tabular-nums">
-                        Visit #{selectedVisit.apiId} · {selectedVisit.visitType} · {formatDateTime(selectedVisit.visitDate)}
+                        {t("Visit #")}{selectedVisit.apiId} · {selectedVisit.visitType} · {formatDateTime(selectedVisit.visitDate)}
                       </p>
                     </div>
                   </div>
                   <div className="text-[13px]">
-                    <p className="text-ink-500">Doctor</p>
+                    <p className="text-ink-500">{t("Doctor")}</p>
                     <p className="font-medium text-ink-900">{selectedVisit.doctorName}</p>
                   </div>
                   <div className="ml-auto w-full sm:w-52">
-                    <label htmlFor="visit-status" className="sr-only">Visit status</label>
+                    <label htmlFor="visit-status" className="sr-only">{t("Visit status")}</label>
                     <Select
                       id="visit-status"
                       value={selectedVisit.status}
@@ -1088,21 +1151,22 @@ function Consultation() {
                       disabled={savingVisit}
                     >
                       {VISIT_STATUSES.map((status) => (
-                        <option key={status} value={status}>{status}</option>
+                        <option key={status} value={status}>{t(status)}</option>
                       ))}
                     </Select>
                   </div>
                 </div>
+                <PatientContextStrip key={`${selectedVisit.patientApiId}-${reloadToken}`} patientId={selectedVisit.patientApiId} />
                 {selectedVisit.chiefComplaint && (
                   <p className="border-t border-line px-5 py-3 text-sm text-ink-700">
-                    <span className="font-medium text-ink-500">Chief complaint: </span>
+                    <span className="font-medium text-ink-500">{t("Chief complaint:")}{" "}</span>
                     {selectedVisit.chiefComplaint}
                   </p>
                 )}
               </Card>
 
               {clinicalError && (
-                <Alert tone="warning" action={<Button size="sm" variant="secondary" onClick={refresh}>Retry</Button>}>
+                <Alert tone="warning" action={<Button size="sm" variant="secondary" onClick={refresh}>{t("Retry")}</Button>}>
                   {clinicalError}
                 </Alert>
               )}
@@ -1114,7 +1178,7 @@ function Consultation() {
               {!loadingClinical && activeTab === "vitals" && (
                 <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
                   <Card as="form" onSubmit={handleSaveVitals}>
-                    <CardHeader title={editingVital ? "Edit vital signs" : "Record vital signs"} />
+                    <CardHeader title={editingVital ? t("Edit vital signs") : t("Record vital signs")} />
                     <div className="space-y-4 px-5 py-4">
                       <div className="grid grid-cols-2 gap-3">
                         <Field label="Systolic BP (mmHg)"><Input type="number" inputMode="numeric" value={vitalForm.systolicBp} onChange={setVital("systolicBp")} /></Field>
@@ -1127,6 +1191,24 @@ function Consultation() {
                         <Field label="Height (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.height} onChange={setVital("height")} /></Field>
                         <Field label="Blood sugar (mg/dL)" className="col-span-2"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.bloodSugar} onChange={setVital("bloodSugar")} /></Field>
                       </div>
+                      {bmiOf(vitalForm.weight, vitalForm.height) && (
+                        <p className="text-sm text-ink-600">{t("BMI")}{" "}<span className="font-medium tabular-nums text-ink-900">{bmiOf(vitalForm.weight, vitalForm.height)}</span></p>
+                      )}
+                      <details className="rounded-lg border border-ink-200 px-3 py-2" open={Boolean(editingVital && (vitalForm.painScore !== "" || vitalForm.gcs !== "" || vitalForm.avpu || vitalForm.headCircumference !== "" || vitalForm.muac !== "" || vitalForm.urineOutput !== ""))}>
+                        <summary className="cursor-pointer text-sm font-medium text-ink-700">{t("More vitals")}</summary>
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                          <Field label="Pain score (0–10)"><Input type="number" min="0" max="10" inputMode="numeric" value={vitalForm.painScore} onChange={setVital("painScore")} /></Field>
+                          <Field label="GCS (3–15)"><Input type="number" min="3" max="15" inputMode="numeric" value={vitalForm.gcs} onChange={setVital("gcs")} /></Field>
+                          <Field label="AVPU">
+                            <Select value={vitalForm.avpu} onChange={setVital("avpu")}>
+                              {AVPU_OPTIONS.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
+                            </Select>
+                          </Field>
+                          <Field label="Urine output (mL)"><Input type="number" inputMode="numeric" value={vitalForm.urineOutput} onChange={setVital("urineOutput")} /></Field>
+                          <Field label="Head circ. (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.headCircumference} onChange={setVital("headCircumference")} /></Field>
+                          <Field label="MUAC (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.muac} onChange={setVital("muac")} /></Field>
+                        </div>
+                      </details>
                       <Field label="Comments"><Textarea value={vitalForm.comments} onChange={setVital("comments")} /></Field>
                       <FormButtons
                         saving={savingVitals}
@@ -1142,22 +1224,25 @@ function Consultation() {
                   </Card>
 
                   <Card className="overflow-hidden">
-                    <CardHeader title="Vital history" />
+                    <CardHeader title={t("Vital history")} />
                     {vitals.length === 0 ? (
-                      <EmptyState compact icon={HeartPulse} title="No vitals recorded for this visit yet" />
+                      <EmptyState compact icon={HeartPulse} title={t("No vitals recorded for this visit yet")} />
                     ) : (
                       <TableWrap>
                         <table className="hms-table">
                           <thead>
                             <tr>
-                              <th scope="col">Recorded</th>
-                              <th scope="col">BP</th>
-                              <th scope="col" className="num">Pulse</th>
-                              <th scope="col" className="num">Temp</th>
-                              <th scope="col" className="num">SpO₂</th>
-                              <th scope="col" className="num">Resp</th>
-                              <th scope="col" className="num">Weight</th>
-                              <th scope="col"><span className="sr-only">Actions</span></th>
+                              <th scope="col">{t("Recorded")}</th>
+                              <th scope="col">{t("BP")}</th>
+                              <th scope="col" className="num">{t("Pulse")}</th>
+                              <th scope="col" className="num">{t("Temp")}</th>
+                              <th scope="col" className="num">{t("SpO₂")}</th>
+                              <th scope="col" className="num">{t("Resp")}</th>
+                              <th scope="col" className="num">{t("Weight")}</th>
+                              <th scope="col" className="num">{t("BMI")}</th>
+                              <th scope="col" className="num">{t("Pain")}</th>
+                              <th scope="col">{t("GCS / AVPU")}</th>
+                              <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1172,6 +1257,9 @@ function Consultation() {
                                 <td className="num">{show(vital.spo2, "%")}</td>
                                 <td className="num">{show(vital.respiratoryRate)}</td>
                                 <td className="num">{show(vital.weight, " kg")}</td>
+                                <td className="num">{show(bmiOf(vital.weight, vital.height))}</td>
+                                <td className="num">{show(vital.painScore)}</td>
+                                <td className="whitespace-nowrap">{[vital.gcs, vital.avpu].filter((v) => v !== null && v !== undefined && v !== "").join(" · ") || "—"}</td>
                                 <td><RowActions label="vital signs" onEdit={() => handleEditVitals(vital)} onDelete={() => handleDeleteVitals(vital)} /></td>
                               </tr>
                             ))}
@@ -1186,7 +1274,7 @@ function Consultation() {
               {!loadingClinical && activeTab === "diagnoses" && (
                 <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
                   <Card as="form" onSubmit={handleSaveDiagnosis}>
-                    <CardHeader title={editingDiagnosis ? "Edit diagnosis" : "Add diagnosis"} />
+                    <CardHeader title={editingDiagnosis ? t("Edit diagnosis") : t("Add diagnosis")} />
                     <div className="space-y-4 px-5 py-4">
                       <Field label="Diagnosis" required>
                         <Input value={diagnosisForm.name} onChange={(e) => setDiagnosisForm({ ...diagnosisForm, name: e.target.value })} />
@@ -1197,7 +1285,7 @@ function Consultation() {
                         </Field>
                         <Field label="Type">
                           <Select value={diagnosisForm.diagnosisType} onChange={(e) => setDiagnosisForm({ ...diagnosisForm, diagnosisType: e.target.value })}>
-                            {DIAGNOSIS_TYPES.map((o) => <option key={o} value={o}>{o}</option>)}
+                            {DIAGNOSIS_TYPES.map((o) => <option key={o} value={o}>{t(o)}</option>)}
                           </Select>
                         </Field>
                       </div>
@@ -1218,19 +1306,19 @@ function Consultation() {
                   </Card>
 
                   <Card className="overflow-hidden">
-                    <CardHeader title="Diagnoses" />
+                    <CardHeader title={t("Diagnoses")} />
                     {diagnoses.length === 0 ? (
-                      <EmptyState compact icon={Stethoscope} title="No diagnoses recorded for this visit" />
+                      <EmptyState compact icon={Stethoscope} title={t("No diagnoses recorded for this visit")} />
                     ) : (
                       <TableWrap>
                         <table className="hms-table">
                           <thead>
                             <tr>
-                              <th scope="col">Diagnosis</th>
-                              <th scope="col">ICD-10</th>
-                              <th scope="col">Type</th>
-                              <th scope="col">Remarks</th>
-                              <th scope="col"><span className="sr-only">Actions</span></th>
+                              <th scope="col">{t("Diagnosis")}</th>
+                              <th scope="col">{t("ICD-10")}</th>
+                              <th scope="col">{t("Type")}</th>
+                              <th scope="col">{t("Remarks")}</th>
+                              <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1254,11 +1342,14 @@ function Consultation() {
               {!loadingClinical && activeTab === "notes" && (
                 <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
                   <Card as="form" onSubmit={handleSaveNote}>
-                    <CardHeader title={editingNote ? "Edit note" : "Add clinical note"} />
+                    <CardHeader title={editingNote ? t("Edit note") : t("Add clinical note")} />
                     <div className="space-y-4 px-5 py-4">
-                      <Field label="Note" required hint={`Attributed to ${selectedVisit?.doctorName || "Unassigned"}.`}>
-                        <Textarea rows={8} value={noteForm.note} onChange={(e) => setNoteForm({ note: e.target.value })} />
-                      </Field>
+                      <p className="text-xs text-ink-500">{t("Fill the parts that apply. Attributed to")}{" "}{selectedVisit?.doctorName || t("Unassigned")}.</p>
+                      {NOTE_SECTIONS.map(([field, label, rows]) => (
+                        <Field key={field} label={label}>
+                          <Textarea rows={rows} value={noteForm[field]} onChange={(e) => setNoteForm({ ...noteForm, [field]: e.target.value })} />
+                        </Field>
+                      ))}
                       <FormButtons
                         saving={savingNote}
                         editing={Boolean(editingNote)}
@@ -1273,9 +1364,9 @@ function Consultation() {
                   </Card>
 
                   <Card>
-                    <CardHeader title="Clinical notes" description="Newest first" />
+                    <CardHeader title={t("Clinical notes")} description="Newest first" />
                     {notes.length === 0 ? (
-                      <EmptyState compact icon={NotebookPen} title="No clinical notes for this visit yet" />
+                      <EmptyState compact icon={NotebookPen} title={t("No clinical notes for this visit yet")} />
                     ) : (
                       <ol className="divide-y divide-ink-100">
                         {notes.map((note) => (
@@ -1284,7 +1375,14 @@ function Consultation() {
                               <time className="text-xs font-medium text-ink-500 tabular-nums">{formatDateTime(note.createdAt)}</time>
                               <RowActions label="note" onEdit={() => handleEditNote(note)} onDelete={() => handleDeleteNote(note)} />
                             </div>
-                            <p className="whitespace-pre-wrap text-sm leading-6 text-ink-800">{note.note}</p>
+                            <dl className="space-y-1.5 text-sm leading-6">
+                              {NOTE_SECTIONS.filter(([field]) => note[field]).map(([field, label]) => (
+                                <div key={field}>
+                                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">{t(label)}</dt>
+                                  <dd className="whitespace-pre-wrap text-ink-800">{note[field]}</dd>
+                                </div>
+                              ))}
+                            </dl>
                           </li>
                         ))}
                       </ol>
@@ -1293,13 +1391,19 @@ function Consultation() {
                 </div>
               )}
 
+              {activeTab === "documents" && selectedVisit && <VisitDocuments key={selectedVisit.apiId} visit={selectedVisit} />}
+              {activeTab === "history" && selectedVisit && (
+                <Card><div className="px-5 py-4"><PatientTimeline patientId={selectedVisit.patientApiId} /></div></Card>
+              )}
+              {activeTab === "vaccinations" && selectedVisit && <VisitImmunizations key={selectedVisit.patientApiId} visit={selectedVisit} />}
+
               {!loadingClinical && activeTab === "orders" && (
                 <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[22rem_minmax(0,1fr)]">
                   <Card as="form" onSubmit={handleSaveOrder}>
-                    <CardHeader title={editingOrder ? "Edit service order" : "Add service order"} />
+                    <CardHeader title={editingOrder ? t("Edit service order") : t("Add service order")} />
                     <div className="space-y-4 px-5 py-4">
                       <Field label="Service" required>
-                        <Input value={orderForm.serviceName} onChange={(e) => setOrderForm({ ...orderForm, serviceName: e.target.value })} placeholder="e.g. CBC blood test" />
+                        <Input value={orderForm.serviceName} onChange={(e) => setOrderForm({ ...orderForm, serviceName: e.target.value })} placeholder={t("e.g. CBC blood test")} />
                       </Field>
                       <div className="grid grid-cols-2 gap-3">
                         <Field label="Quantity">
@@ -1307,7 +1411,7 @@ function Consultation() {
                         </Field>
                         <Field label="Status">
                           <Select value={orderForm.status} onChange={(e) => setOrderForm({ ...orderForm, status: e.target.value })}>
-                            {ORDER_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                            {ORDER_STATUSES.map((o) => <option key={o} value={o}>{t(o)}</option>)}
                           </Select>
                         </Field>
                       </div>
@@ -1328,19 +1432,19 @@ function Consultation() {
                   </Card>
 
                   <Card className="overflow-hidden">
-                    <CardHeader title="Service orders" />
+                    <CardHeader title={t("Service orders")} />
                     {orders.length === 0 ? (
-                      <EmptyState compact icon={ClipboardList} title="No service orders for this visit" />
+                      <EmptyState compact icon={ClipboardList} title={t("No service orders for this visit")} />
                     ) : (
                       <TableWrap>
                         <table className="hms-table">
                           <thead>
                             <tr>
-                              <th scope="col">Service</th>
-                              <th scope="col" className="num">Qty</th>
-                              <th scope="col">Status</th>
-                              <th scope="col">Remarks</th>
-                              <th scope="col"><span className="sr-only">Actions</span></th>
+                              <th scope="col">{t("Service")}</th>
+                              <th scope="col" className="num">{t("Qty")}</th>
+                              <th scope="col">{t("Status")}</th>
+                              <th scope="col">{t("Remarks")}</th>
+                              <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1371,7 +1475,7 @@ function Consultation() {
         onConfirm={confirmDelete}
         loading={deleting}
         destructive
-        title={pendingDelete?.title || "Delete record?"}
+        title={pendingDelete?.title || t("Delete record?")}
         confirmLabel="Delete"
         message="This removes the record from the patient's visit. It cannot be undone."
       />
@@ -1384,14 +1488,15 @@ function Consultation() {
 // ---------------------------------------------------------
 
 function FormButtons({ saving, editing, createLabel, onCancel }) {
+  const { t } = useLanguage()
   return (
     <div className="flex gap-2 pt-1">
       <Button type="submit" loading={saving} className="flex-1 justify-center">
-        {editing ? "Save changes" : createLabel}
+        {editing ? t("Save changes") : createLabel}
       </Button>
       {editing && (
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </Button>
       )}
     </div>
@@ -1399,10 +1504,11 @@ function FormButtons({ saving, editing, createLabel, onCancel }) {
 }
 
 function RowActions({ label, onEdit, onDelete }) {
+  const { t } = useLanguage()
   return (
     <div className="flex items-center justify-end gap-0.5">
-      <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={onEdit} aria-label={`Edit ${label}`} title="Edit" />
-      <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={onDelete} aria-label={`Delete ${label}`} title="Delete" />
+      <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={onEdit} aria-label={`Edit ${label}`} title={t("Edit")} />
+      <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={onDelete} aria-label={`Delete ${label}`} title={t("Delete")} />
     </div>
   )
 }

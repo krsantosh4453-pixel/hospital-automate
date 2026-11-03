@@ -8,7 +8,10 @@ import {
   Droplet,
   FileText,
   FlaskConical,
+  ScanSearch,
   HeartPulse,
+  History,
+  ShieldAlert,
   House,
   KeyRound,
   LayoutDashboard,
@@ -65,6 +68,7 @@ export const STAFF_NAV = [
     label: "Diagnostics & pharmacy",
     items: [
       { to: "/laboratory", label: "Laboratory", icon: FlaskConical, module: "Laboratory" },
+      { to: "/radiology", label: "Radiology", icon: ScanSearch, module: "Laboratory" },
       { to: "/pharmacy", label: "Pharmacy", icon: Pill, module: "Pharmacy" },
       { to: "/compounter", label: "Compounder", icon: Syringe, module: "Compounders" },
       { to: "/blood-bank", label: "Blood Bank", icon: Droplet, module: "BloodBank" },
@@ -96,6 +100,10 @@ export const STAFF_NAV = [
       { to: "/admin/departments", label: "Departments", icon: ClipboardList, module: "Departments" },
       { to: "/admin/nurse-duty", label: "Nurse duty", icon: CalendarClock, module: "Departments" },
       { to: "/admin/permissions", label: "Permissions", icon: KeyRound, module: "Permissions" },
+      { to: "/admin/audit", label: "Audit log", icon: History, module: "Permissions" },
+      // Review queue for break-glass grants; Doctors and Nurses reach it from their home page.
+      { to: "/emergency-access", label: "Emergency access", icon: ShieldAlert, module: null },
+      { to: "/admin/security", label: "Security settings", icon: ShieldCheck, module: "Permissions" },
     ],
   },
   {

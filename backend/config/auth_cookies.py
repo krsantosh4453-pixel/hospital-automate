@@ -68,6 +68,15 @@ class CookieJWTAuthentication(JWTAuthentication):
     """Bearer header first; otherwise the httpOnly access cookie (with CSRF)."""
 
     def authenticate(self, request):
+        result = self._authenticate(request)
+        if result is not None:
+            # Family-member (proxy) tokens: grant still active, read-only.
+            from users.proxy_access import apply_proxy_scope
+
+            apply_proxy_scope(request, *result)
+        return result
+
+    def _authenticate(self, request):
         if self.get_header(request) is not None:
             return super().authenticate(request)
         raw = request.COOKIES.get(ACCESS_COOKIE)

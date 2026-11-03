@@ -822,6 +822,8 @@ Extract the following clinical information in the specified JSON format:"""
         lang_instructions = {
             "en": "Respond in English.",
             "hi": "हिंदी में जवाब दें।",
+            # Hinglish consultations: Indian clinical notes are written in English.
+            "hinglish": "The transcript mixes Hindi and English. Respond in English.",
             "auto": "Respond in the same language as the transcript.",
         }
         lang_instruction = lang_instructions.get(language, lang_instructions["en"])

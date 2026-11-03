@@ -1,6 +1,6 @@
 # Requirements Traceability Matrix
 
-Status as of 2026-10-25, branch `audit/production-readiness-2026-10-24` (commit after `fd3ff71`).
+Status as of 2026-10-25 (A12, B13, D15 updated 2026-11-03), branch `audit/production-readiness-2026-10-24` (commit after `fd3ff71`).
 
 **Sources**
 
@@ -46,16 +46,16 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | A9 | Hospital switcher for staff | UI 1.1, 2 | VERIFIED | Navbar → selectedHospital → X-Hospital-ID | B, T (header tests) |
 | A10 | User management | UI 3.1 | VERIFIED | `/api/users/` + `pages/admin/Users.jsx` | T:test_staff_admin, B |
 | A11 | Roles and permissions matrix | UI 3.1 | VERIFIED | Server-side role classes per membership; read-only matrix page | T (role-per-hospital tests), B |
-| A12 | Delegated / proxy access rules | UI 3.1, P1 10 | MISSING | — | Consent forms record proxy signature only |
+| A12 | Delegated / proxy access rules | UI 3.1, P1 10 | VERIFIED | `users/proxy_access.py`: grant-scoped, view-only tokens re-checked on every request (`config/auth_cookies.py`); writes refused; separate proxy identities (2026-11-03) | T:test_proxy_access, E2E `family-access.spec.js` |
 | A13 | Departments / clinics setup | UI 3.2 | VERIFIED | Department API (code, head) + page | T, B |
-| A14 | Security settings screen | UI 3.1 | PARTIAL | Settings via environment (`STAFF_LOGIN_REQUIRE_OTP`, …); no UI | R |
-| A15 | Audit log viewer (admin only) | UI 3.1, 6 | PARTIAL | `/api/audit/audit-logs/` (Admin, hospital-scoped) with automatic write auditing; no viewer page | T:test_rbac_and_writes (AuditTrail) |
+| A14 | Security settings screen | UI 3.1 | VERIFIED | Admin → Security settings (`/admin/security`): effective OTP, dev sign-in, token lifetimes, cookie/HTTPS/HSTS, password rules and rate limits, each marked recommended or not for production. Read only by design (environment variables); no secrets returned | users.test_security_settings (4); browser 2026-10-28 |
+| A15 | Audit log viewer (admin only) | UI 3.1, 6 | VERIFIED | Admin → Audit log (`/admin/audit`): filters by action, record type, user and dates; newest first; read only | T:test_rbac_and_writes (AuditTrail), audit.tests.AuditLogFilterTests (5); browser 2026-10-28 |
 | A16 | Role-specific dashboards and navigation | UI 2, 3 | IMPLEMENTED | Sidebar uses `canView`; ProtectedRoute checks backend roles | B (Admin role only) |
-| A17 | Hindi / English toggle | UI 2, P1 | PARTIAL | LanguageContext: navigation, patient menu and AI label translated; page bodies are English | B |
+| A17 | Hindi / English toggle | UI 2, P1 | VERIFIED | Page text translated through the shared UI components (page headers, buttons, form labels/hints/placeholders, tabs, empty states, card/dialog titles, alerts, stat tiles, status badges, table headers, options with explicit values) and directly in page code, including dropdown options (each keeps its English value) and list-driven labels, using `src/assets/i18n/hiPages.js` (~1,900 strings), with `{placeholders}` for sentences with names or numbers and status values matched in any spelling. Patient data stays as entered; option values never change | hindiPages.test.jsx (6); Hindi probe over 30 routes 2026-11-03 (229 → 63 distinct English strings, mostly data) |
 | A18 | Breadcrumb bar | UI 2 | MISSING | — | — |
 | A19 | Patient context strip (sticky) | UI 2 | MISSING | — | — |
-| A20 | Global patient search (UHID / name / mobile) | UI 2, 6 | PARTIAL | `/api/patients/?search=` (name, phone); UHID not included | R |
-| A21 | Notifications bell / notification center | UI 2, 6 | PARTIAL | API `/api/notifications/notifications/`; navbar bell not wired | R |
+| A20 | Global patient search (UHID / name / mobile) | UI 2, 6 | VERIFIED | `/api/patients/?search=` matches name, phone and the acting hospital's UHIDs (never another hospital's) | patients.tests (2 UHID tests); browser 2026-10-28 |
+| A21 | Notifications bell / notification center | UI 2, 6 | VERIFIED | Header bell (`HeaderMenus.jsx` NotificationsMenu) lists the hospital's notifications and marks them read | T:test_notifications; browser 2026-10-28 |
 
 ## B. Patient registration and portal
 
@@ -63,17 +63,17 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 |---|---|---|---|---|---|
 | B1 | Register patient and retrieve persisted record | P1 4.1 | VERIFIED | PatientViewSet | T:test_e2e_workflows |
 | B2 | UHID per hospital | MH 5, P1 4 | IMPLEMENTED | PatientHospital.uhid | R |
-| B3 | Full demographics (DOB, marital status, ID type, address parts, payer) | P1 4.1 | PARTIAL | name, age, gender, phone, address, DOB only | R |
-| B4 | Emergency contact / relative | P1 4.1 | MISSING | — | — |
-| B5 | Duplicate prevention / existing-patient match | — | PARTIAL | Self-registration rejects a duplicate phone; staff registration does not | R |
+| B3 | Full demographics (DOB, marital status, ID type, address parts, payer) | P1 4.1 | VERIFIED | Patients form → More details: DOB, marital status, address line / city / district / state / PIN, ID type with only the last 4 characters (full government ID numbers are not stored), payer type / name / policy | patients.tests (3 demographic tests); browser 2026-10-28 |
+| B4 | Emergency contact / relative | P1 4.1 | VERIFIED | `patients.tests` (4 emergency-contact tests); browser check 2026-10-28 | Added 2026-10-28: name, relation, phone on the patient; a name needs a phone |
+| B5 | Duplicate prevention / existing-patient match | — | VERIFIED | Staff registration with a mobile number already registered at that hospital returns 409 with the matches; staff open the existing record or confirm a different person (`confirm_new`). Other hospitals' patients are never shown | patients.tests (3 duplicate tests); browser 2026-10-28 |
 | B6 | Patient portal home | MH 3, UI 4 | VERIFIED | `pages/patient/*` | B |
 | B7 | Book appointment (specialty → doctor → slot) | UI 4 | IMPLEMENTED | Patient appointment page | B (render only) |
 | B8 | My appointments / queue token status | UI 4 | IMPLEMENTED | PatientQueue (15 s polling) | B (render only) |
-| B9 | Medical records (longitudinal EHR, read-only) | UI 4, P1 9 | PARTIAL | Lab, prescriptions and documents per hospital; no combined timeline | B |
+| B9 | Medical records (longitudinal EHR, read-only) | UI 4, P1 9 | VERIFIED | `GET /api/patients/{id}/timeline/`: visits, diagnoses, notes, vitals, prescriptions, lab, imaging, admissions, ER, nursing notes, vaccinations, certificates and referrals, newest first; every read audited. Patient portal → My health record shows the patient's own record at all their hospitals (released results and signed reports only, no doctor/nursing notes) | patients.test_timeline (4); browser 2026-10-28 |
 | B10 | Prescriptions / lab reports (released only) | UI 4 | VERIFIED | Patients see only Released lab results | T:test_e2e_workflows |
 | B11 | Documents upload / view by folder | P4 11, UI 4 | VERIFIED | Hospital-scoped, content-checked, audited downloads | T:test_documents |
 | B12 | Consent and record sharing (recipient, scope, expiry, revoke, audit) | UI 4, P1 10 | VERIFIED | `consent/` app + PatientConsent page | T:test_consent_sharing, B (signing) |
-| B13 | Proxy / caregiver management | UI 4 | MISSING | — | — |
+| B13 | Proxy / caregiver management | UI 4 | VERIFIED | Patient adds/removes up to 5 family members (`users/proxy_views.py`, `components/patient/FamilyAccessCard.jsx`); Family tab on the patient login (`components/auth/ProxyLoginPanel.jsx`) (2026-11-03) | T:test_proxy_access, E2E `family-access.spec.js` |
 | B14 | Language / communication preferences | UI 4 | PARTIAL | Language: yes. Channel opt-in/out: API only (`consents/grant`, `revoke`) | T:test_notifications |
 | B15 | Notification history (SMS / WhatsApp / voice log) | UI 4 | PARTIAL | `/api/notifications/deliveries/` (staff); no patient page | T:test_notifications |
 
@@ -97,18 +97,18 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | D1 | Vitals (BP, temperature, pulse, RR, SpO2, height, weight, sugar) | P1 5.2, P4 1 | VERIFIED | VitalSign | T:test_e2e_workflows |
 | D2 | Extra vitals (BMI, urine output, AVPU, trauma, mobility, O2, intake/output), recorder | P4 1 | MISSING | — | — |
 | D3 | Allergies | P1 5 | IMPLEMENTED | Allergy (now hospital-scoped) | T (isolation) |
-| D4 | Current medication / complaint / history and examination | P1 5 | PARTIAL | ClinicalNote free text; no structured sections | R |
+| D4 | Current medication / complaint / history and examination | P1 5 | VERIFIED | Clinical notes have structured sections: chief complaint, history of present illness, past history, current medications, examination, assessment, plan, plus free-text other notes (older notes keep working); at least one part required; sections shown in Consultation and the patient timeline | clinical.test_structured_notes (4); browser 2026-11-02 |
 | D5 | Diagnosis with ICD-10, type, responsible clinician | P1 6 | VERIFIED | Diagnosis.icd10_code, recorded_by | T:test_e2e_workflows |
 | D6 | ICD-10 search by name / code | P1 6 | MISSING | Code is free text; no terminology table | — |
 | D7 | Investigation / procedure orders | P1 5, P4 2 | IMPLEMENTED | ServiceOrder, Procedure, LabTest | T (lab flow) |
 | D8 | Prescription medicine | P1 5 | VERIFIED | Prescription + items; UI saves only on server success | T:test_e2e_workflows |
 | D9 | Advice | P1 5 | PARTIAL | Prescription item instructions only | R |
-| D10 | Medical certificate | UI 3.4 | MISSING | — | — |
-| D11 | Refer to doctor | UI 3.4 | MISSING | — | — |
-| D12 | Previous visits / timeline | UI 3.4 | PARTIAL | Visit list per patient; no timeline view | R |
+| D10 | Medical certificate | UI 3.4 | VERIFIED | `clinical.test_certificates_referrals` (10); `PrintSheet.test.jsx`; browser check 2026-10-28 | Added 2026-10-28: Consultation → Certificates & referrals. Signed by the requesting doctor's profile; never edited or deleted; patients read their own |
+| D11 | Refer to doctor | UI 3.4 | VERIFIED | `clinical.test_certificates_referrals` (6); browser check 2026-10-28 | Added 2026-10-28: to a doctor of the same hospital or an outside facility; only the status changes later; printable letter |
+| D12 | Previous visits / timeline | UI 3.4 | VERIFIED | Consultation → History tab and Patients → Medical record (Doctor/Nurse/Admin, care scope applies; the ER "Patient medical record" action opens it) | patients.test_timeline; browser 2026-10-28 |
 | D13 | Discharge summary authoring and finalization | P3, P4 7 | VERIFIED | Finalize action (linked doctor), locked after; discharge requires it | T:test_e2e_workflows |
 | D14 | Corrections and history of clinical records | Brief 7 | IMPLEMENTED | Audit stores old → new values on every update | T (audit) |
-| D15 | Vaccination | P1 5 | MISSING | — | — |
+| D15 | Vaccination | P1 5 | VERIFIED | `clinical.Immunization`, `/api/clinical/immunizations/`; recorded from `Consultation.jsx` | T:clinical/test_vitals_immunizations |
 
 ## E. Nursing and inpatient
 
@@ -118,26 +118,26 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | E2 | Admission, ward / room / bed allocation | P3 | VERIFIED | allocate_bed (row-locked) | T:test_e2e_workflows |
 | E3 | Nursing notes, shift assessments | P3 36 | VERIFIED | API + Nurses page (saves to server) | T:test_e2e_workflows, B |
 | E4 | Nursing vitals (on admitted patients) | P3 36 | IMPLEMENTED | Saved as Focused nursing assessment with vitals | R (UI wired; not browser-saved) |
-| E5 | MAR states: due, next due, delay, administered, not given, excluded, PRN | P4 5 | VERIFIED | Scheduled / Administered / Held / Refused / Missed / Vomited / Excluded, is_delayed, PRN | T:test_mar_safety, B (dose given via UI) |
+| E5 | MAR states: due, next due, delay, administered, not given, excluded, PRN | P4 5 | VERIFIED | Scheduled / Administered / Held / Refused / Missed / Vomited / Excluded, is_delayed, PRN | T:test_mar_safety, E2E nurse-mar.spec.js (dose given via UI). No screen creates MAR orders yet: see KNOWN_LIMITATIONS |
 | E6 | Bed transfer / doctor transfer | P3 | IMPLEMENTED | admissions transfer action | Existing tests |
-| E7 | Discharge planning checklist | P3 34, P4 7 | PARTIAL | DischargePlan model; no checklist enforcement | R |
+| E7 | Discharge planning checklist | P3 34, P4 7 | VERIFIED | Four-item checklist on DischargePlan, ticked from IPD → Discharges; `complete_discharge` refuses until every item, the signed summary and the paid final bill are done (`readiness` lists what is left). Ward nurses keep the patient in care during discharge | ipd.test_discharge_readiness (11), ipd.tests, test_e2e_workflows; browser 2026-10-28 |
 | E8 | Discharge notes | P4 7 | IMPLEMENTED | DischargeNote | R |
 | E9 | Sample collection / dispatch from ward | P4 3 | VERIFIED | Nurse can collect and dispatch | T:test_e2e_workflows |
 | E10 | Drug / consumable order | P4 4 | PARTIAL | Via prescriptions only | R |
 | E11 | Blood request / receive / return | P4 6 | IMPLEMENTED | bloodbank requests / transactions | Existing tests |
-| E12 | Final billing at discharge | P3 | PARTIAL | Invoices exist; not linked to discharge | R |
+| E12 | Final billing at discharge | P3 | VERIFIED | Billing → Discharge bills: one live final invoice per stay (`Invoice.admission`), bed days × daily rate plus extra lines; discharge waits for it to be paid | ipd.test_discharge_readiness; browser 2026-10-28 |
 
 ## F. Pharmacy and medication safety
 
 | ID | Requirement | Source | Status | Implementation | Evidence |
 |---|---|---|---|---|---|
-| F1 | Prescription queue → dispensing | P2 4 | VERIFIED | Sale linked to prescription; stock deducted atomically | T:test_e2e_workflows |
+| F1 | Prescription queue → dispensing | P2 4 | VERIFIED | Sale linked to prescription; stock deducted atomically. The RX lookup asks the server (before 2026-11-03 it searched a list the pharmacy page never loaded) | T:test_e2e_workflows, E2E pharmacy.spec.js |
 | F2 | Stock deduction with ledger | P2 7 | VERIFIED | StockTransaction OUT / IN / ADJUST | T:test_financial_integrity |
 | F3 | Batch and expiry tracking; expired batches blocked | P2 4 | VERIFIED | Expired sale refused | T |
 | F4 | OPD sale | P2 4 | VERIFIED | Server-side price | T |
 | F5 | OPD / IPD returns | P2 4 | MISSING | — | — |
-| F6 | Barcode scan | P2 4 | PARTIAL | Sample `barcoded` flag; no scanner flow | R |
-| F7 | Drug interaction / contraindication alerts | P2 4 | MISSING | No drug database. Must not be presented as available. | — |
+| F6 | Barcode scan | P2 4 | VERIFIED | Laboratory → Print sample label (Code 39 barcode of the sample number, patient, test, tube) and Scan sample: a USB/handheld scanner's code (or typed number) finds the order at this hospital and offers its next step. The lab worklist now loads for Lab Staff (patient list optional) | laboratory.test_sample_scan (4), code39.test.js (4); browser 2026-10-28. Not tried with a physical scanner |
+| F7 | Drug interaction / contraindication alerts | P2 4 | PARTIAL | Phase A (2026-11-03): allergy (incl. drug classes), duplicate salt and a starter list of 8 interactions at prescribing; high alerts need a recorded, audited reason (`clinical/medication_safety.py`). Starter list pending P&T approval; no licensed drug database, no dose checks. | T:clinical/test_medication_safety, E2E `medication-safety.spec.js` |
 | F8 | Generic / substitute | P2 4 | MISSING | — | — |
 
 ## G. Laboratory and radiology
@@ -145,9 +145,9 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | ID | Requirement | Source | Status | Implementation | Evidence |
 |---|---|---|---|---|---|
 | G1 | Orders, collection, lab number, dispatch, receive, process | P4 3 | VERIFIED | LabTest actions; lab number generated | T:test_e2e_workflows, B (page) |
-| G2 | Result entry, verification, release (lab staff only) | UI 3.7 | VERIFIED | Role-restricted actions; status not editable directly | T |
-| G3 | Result printing / export | UI 3.7 | MISSING | — | — |
-| G4 | Radiology | P1 | PARTIAL | Treated as lab test type only | R |
+| G2 | Result entry, verification, release (lab staff only) | UI 3.7 | VERIFIED | Role-restricted actions; status not editable directly | T, E2E laboratory.spec.js |
+| G3 | Result printing / export | UI 3.7 | IMPLEMENTED | `PrintSheet.test.jsx` (released-only, abnormal flags) | Added 2026-10-28: print / Save-as-PDF on the Laboratory page and patient Lab reports, released results only. Not clicked through in a browser |
+| G4 | Radiology | P1 | VERIFIED | Radiology page (`/radiology`) and `/api/laboratory/imaging/`: doctor orders (modality, region, clinical question, priority), technician (Lab Staff) schedules and performs, a doctor reports and signs (findings + impression, then locked); radiologists see studies awaiting report outside their own care, never via another hospital's role; patients see only signed reports in Lab reports; printable report | laboratory.test_imaging (8); browser 2026-10-28 |
 | G5 | Collection queue view (patient, UHID, lab no., ward, count) | P4 3 | PARTIAL | Lab page list; no ward / UHID columns | B |
 
 ## H. Billing, payments and insurance
@@ -160,8 +160,8 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | H4 | Advance payments | P2 6 | MISSING | Payments cannot exceed the bill | — |
 | H5 | Duplicate-payment prevention | Brief 4 | VERIFIED | Idempotency-Key | T |
 | H6 | Insurance / TPA claims | UI 3.8 | IMPLEMENTED | InsuranceClaim (amount ≤ invoice) | Existing tests |
-| H7 | Invoice PDF / export | P2 16 | MISSING | — | — |
-| H8 | IPD / discharge billing | UI 3.8 | PARTIAL | Manual invoices | R |
+| H7 | Invoice PDF / export | P2 16 | IMPLEMENTED | Layout shared with the tested PrintSheet | Added 2026-10-28: patient Bills page prints the invoice with payments (browser "Save as PDF"); staff Billing already had Print Bill. Not clicked through in a browser |
+| H8 | IPD / discharge billing | UI 3.8 | VERIFIED | Same as E12: started days are counted on the server; billing roles see only patient name, dates and days, not the admission record | ipd.test_discharge_readiness; browser 2026-10-28 |
 
 ## I. Inventory and supply chain
 
@@ -180,7 +180,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 |---|---|---|---|---|---|
 | J1 | ER patient list, triage, vitals, orders, medication | P4 12–13 | IMPLEMENTED | emergency app actions | Existing tests (4) |
 | J2 | ER → inpatient transfer, ER discharge | P4 13 | IMPLEMENTED | admit_to_ipd, discharge | R |
-| J3 | ER action menu (all 24 actions) | P4 13 | PARTIAL | About half are available as API actions | R |
+| J3 | ER action menu (all 24 actions) | P4 13 | VERIFIED | Emergency → All actions on every ER row: all 24 spec actions. ER-owned ones run in place (doctor notes, allergy, investigation results, consent / emergency / generic forms, drug receive, transfer to IP, charge slip + bill preview, ER discharge summary, medical certificate); vitals, service order, drug request and discharge reuse the ER dialogs; sample collection/dispatch, blood request/receive, bed transfer, billing, update details and medical record open that module with the patient chosen (`?patient=&q=`). The ER board no longer fails for doctors (nurse list optional) | emergency.test_er_actions (5), erActions.test.js (24-action spec check); browser 2026-10-28 |
 | J4 | Blood bank | UI 3.12 | IMPLEMENTED | Inventory, requests, transactions | Existing tests |
 | J5 | Ambulance, mortuary, phlebotomy, OT / procedure room | UI 3.12, P1 | MISSING | — | — |
 | J6 | HR, feedback, custom templates | UI 3.2 | MISSING | — | — |
@@ -199,20 +199,20 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | K7 | Waiting-list notifications with consent and delivery log | CALL 1, 7 | PARTIAL | In-app sent and logged; SMS/WhatsApp need consent and credentials | T:test_notifications. Real channels: BLOCKED |
 | K8 | Voice-call fallback, acknowledgement, "no answer ≠ left" | CALL 3 | MISSING | VoiceProvider class only; no call workflow | — |
 | K9 | ML / DL use cases | P2 12 | N/A | Not implemented on purpose: no labelled data, validation or monitoring available, and the PDF itself says "only after validation". Queue estimates are rule-based. | — |
-| K10 | ABDM / ABHA | P1 3.5 | BLOCKED | Code present, routes not mounted; needs ABDM sandbox credentials and approval | — |
-| K11 | FHIR / HL7 interoperability | P1 2 | BLOCKED | Code present, routes not mounted; needs a conformance and security review | — |
+| K10 | ABDM / ABHA | P1 3.5 | BLOCKED | Mounted at `/api/abdm/` behind `ABDM_ENABLED` (off in production); needs ABDM sandbox credentials and approval | — |
+| K11 | FHIR / HL7 interoperability | P1 2 | BLOCKED | FHIR R4 read API mounted at `/api/fhir/` behind `FHIR_ENABLED` (off in production, Admin only); needs a conformance and security review | — |
 
 ## Totals
 
-Counted by script from the rows above; each row is counted once.
+Counted by script from the rows above; each row is counted once. Recounted 2026-11-03 (the table had not followed the row updates).
 
 | Status | Count | Share |
 |---|---|---|
-| VERIFIED (2 of these are "software only": real provider not tested) | 42 | 36.2% |
-| IMPLEMENTED | 24 | 20.7% |
-| PARTIAL | 23 | 19.8% |
+| VERIFIED (2 of these are "software only": real provider not tested) | 64 | 55.2% |
+| IMPLEMENTED | 26 | 22.4% |
+| PARTIAL | 8 | 6.9% |
 | PLACEHOLDER | 0 | 0% |
-| MISSING | 23 | 19.8% |
+| MISSING | 14 | 12.1% |
 | BROKEN | 0 known | 0% |
 | BLOCKED | 3 | 2.6% |
 | N/A | 1 | 0.9% |

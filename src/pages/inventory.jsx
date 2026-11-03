@@ -1,7 +1,10 @@
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
+import SuppliersPanel from "../components/inventory/SuppliersPanel.jsx"
+import PurchaseOrdersPanel from "../components/inventory/PurchaseOrdersPanel.jsx"
 import api from "../services/api.js"
-import { Boxes, ClipboardList, Eye, History, Hospital, Package, PackageMinus, PackageX, Pencil, Plus, Trash2 } from "lucide-react"
+import { Boxes, ClipboardList, Eye, History, Hospital, Package, PackageMinus, PackageX, Pencil, Plus, Trash2, Truck } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import {
   Alert,
@@ -19,20 +22,55 @@ import {
   StatTile,
   StatusBadge,
   TableWrap,
+  Tabs,
   Toolbar,
   useConfirm,
 } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
+
+const STORE_ROLES = ["Admin", "Hospital Manager", "Inventory Staff"]
+// Matches the Medicine.reorder_level default on the server.
+const DEFAULT_REORDER_LEVEL = 10
+
+function stockStatus(quantity, reorderLevel) {
+  const stock = Number(quantity || 0)
+  if (stock === 0) return "Out of Stock"
+  if (stock <= Number(reorderLevel)) return "Low Stock"
+  return "In Stock"
+}
+
+/** "MM/YYYY" from the month picker to the first day of that month, or null. */
+function expiryDate(monthYear) {
+  if (!monthYear) return null
+  const [month, year] = monthYear.split("/")
+  return `${year}-${month}-01`
+}
+
+/** The store settings the item form edits: unit, reorder level and usual supplier. */
+function storeSettings(form) {
+  return {
+    unit: (form.unit || "").trim() || "Unit",
+    generic_name: (form.genericName || "").trim(),
+    reorder_level: Math.max(0, Number(form.minStock) || 0),
+    supplier: form.supplier ? Number(form.supplier) : null,
+  }
+}
 
 function Inventory() {
+  const { t } = useLanguage()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
 
   const { selectedHospital } = usePatient()
+  const { activeRoleName } = useRole()
+  // Only the store changes procurement (procurement/views.py RequiresHospitalScope); pharmacy staff read it.
+  const canManageStore = STORE_ROLES.includes(activeRoleName)
+  const [tab, setTab] = useState("stock")
 
   const [medicines, setMedicines] = useState([])
   const [suppliers, setSuppliers] = useState([])
   const [purchaseOrders, setPurchaseOrders] = useState([])
-  const [grns, setGrns] = useState([])
+  const [, setGrns] = useState([])
   const [stockTransactions, setStockTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -63,22 +101,19 @@ function Inventory() {
         id: m.id,
         name: m.name || "",
         category: m.category || "General",
-        unit: "Piece",
+        unit: m.unit || "Unit",
+        genericName: m.generic_name || "",
         quantity: Number(m.quantity || 0),
-        minStock: 20,
-        supplier: "Unknown",
+        minStock: Number(m.reorder_level ?? DEFAULT_REORDER_LEVEL),
+        supplier: m.supplier_name || "",
+        supplierId: m.supplier || "",
         expiry: m.expiry_date
           ? new Date(m.expiry_date).toLocaleDateString("en-IN", {
               month: "2-digit",
               year: "numeric",
             })
           : "N/A",
-        status:
-          Number(m.quantity || 0) === 0
-            ? "Out of Stock"
-            : Number(m.quantity || 0) <= 20
-            ? "Low Stock"
-            : "In Stock",
+        status: stockStatus(m.quantity, m.reorder_level ?? DEFAULT_REORDER_LEVEL),
         hospitalId: selectedHospital.id,
         apiId: m.id,
         batch: m.batch || "",
@@ -101,7 +136,6 @@ function Inventory() {
     fetchAllData()
   }, [fetchAllData])
 
-  const [transactions, setTransactions] = useState([])
 
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("All Categories")
@@ -134,12 +168,6 @@ function Inventory() {
     [medicines, selectedHospital]
   )
 
-  const hospitalTransactions = useMemo(
-    () =>
-      transactions.filter((t) => t.hospitalId === selectedHospital?.id),
-    [transactions, selectedHospital]
-  )
-
   const categories = useMemo(
     () => ["All Categories", ...new Set(hospitalItems.map((i) => i.category))],
     [hospitalItems]
@@ -148,8 +176,8 @@ function Inventory() {
   if (!selectedHospital) {
     return (
       <>{confirmDialog}<div className="space-y-5">
-        <PageHeader title="Inventory" breadcrumbs={[{ label: "Home", to: "/" }, { label: "Inventory" }]} />
-        <Card><EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header to view its stock." /></Card>
+        <PageHeader title={t("Inventory")} breadcrumbs={[{ label: "Home", to: "/" }, { label: "Inventory" }]} />
+        <Card><EmptyState icon={Hospital} title={t("Select a hospital")} description="Choose a hospital in the header to view its stock." /></Card>
       </div></>
     )
   }
@@ -195,14 +223,6 @@ function Inventory() {
     setStockData({ ...stockData, [name]: value })
   }
 
-  const getStatus = (quantity, minStock) => {
-    const stock = Number(quantity)
-    const minimum = Number(minStock)
-    if (stock === 0) return "Out of Stock"
-    if (stock <= minimum) return "Low Stock"
-    return "In Stock"
-  }
-
   const resetForm = () => {
     setFormData({
       name: "",
@@ -222,36 +242,18 @@ function Inventory() {
     if (!selectedHospital) return
 
     try {
-      const payload = {
+      await api.pharmacy.medicines.create({
         name: formData.name,
         category: formData.category,
         batch: "",
         quantity: Number(formData.quantity),
         price: 0,
-        expiry_date: formData.expiry
-          ? `${formData.expiry.split("/")[1]}-${formData.expiry.split("/")[0]}-01`
-          : null,
+        expiry_date: expiryDate(formData.expiry),
         hospital: selectedHospital.id,
-      }
-
-      const response = await api.pharmacy.medicines.create(payload)
-      const newMed = {
-        id: response.id,
-        name: response.name,
-        category: response.category,
-        unit: "Piece",
-        quantity: Number(response.quantity),
-        minStock: Number(formData.minStock) || 20,
-        supplier: formData.supplier,
-        expiry: formData.expiry,
-        status: getStatus(response.quantity, formData.minStock || 20),
-        hospitalId: selectedHospital.id,
-        apiId: response.id,
-        batch: response.batch,
-        price: Number(response.price),
-      }
-      setMedicines((prev) => [...prev, newMed])
+        ...storeSettings(formData),
+      })
       resetForm()
+      await fetchAllData()
     } catch (err) {
       toast.error(err.message || "Failed to add medicine")
     }
@@ -265,7 +267,8 @@ function Inventory() {
       unit: item.unit,
       quantity: String(item.quantity),
       minStock: String(item.minStock),
-      supplier: item.supplier,
+      supplier: item.supplierId ? String(item.supplierId) : "",
+      genericName: item.genericName,
       expiry: item.expiry,
     })
     setShowForm(true)
@@ -276,37 +279,17 @@ function Inventory() {
     if (!selectedItem) return
 
     try {
-      const payload = {
+      await api.pharmacy.medicines.update(selectedItem.apiId, {
         name: formData.name,
         category: formData.category,
         batch: selectedItem.batch || "",
         quantity: Number(formData.quantity),
         price: selectedItem.price,
-        expiry_date: formData.expiry
-          ? `${formData.expiry.split("/")[1]}-${formData.expiry.split("/")[0]}-01`
-          : null,
-      }
-
-      const response = await api.pharmacy.medicines.update(selectedItem.apiId, payload)
-      setMedicines((prev) =>
-        prev.map((item) =>
-          item.apiId === selectedItem.apiId
-            ? {
-                ...item,
-                name: response.name,
-                category: response.category,
-                quantity: Number(response.quantity),
-                minStock: Number(formData.minStock),
-                supplier: formData.supplier,
-                expiry: formData.expiry,
-                status: getStatus(response.quantity, formData.minStock),
-                batch: response.batch,
-                price: Number(response.price),
-              }
-            : item
-        )
-      )
+        expiry_date: expiryDate(formData.expiry),
+        ...storeSettings(formData),
+      })
       resetForm()
+      await fetchAllData()
     } catch (err) {
       toast.error(err.message || "Failed to update medicine")
     }
@@ -375,7 +358,7 @@ function Inventory() {
       })
 
       await fetchAllData()
-      toast.success(`${selectedItem.name} stock updated successfully.`)
+      toast.success(t("{name} stock updated successfully.", { name: selectedItem.name }))
       resetStock()
     } catch (err) {
       toast.error(err.message || "Failed to update stock")
@@ -384,11 +367,9 @@ function Inventory() {
     }
   }
 
-  const LOW_STOCK_AT = 20
-
   const openNew = () => {
     setSelectedItem(null)
-    setFormData({ name: "", category: "", unit: "", quantity: "", minStock: "", supplier: "", expiry: "" })
+    setFormData({ name: "", category: "", unit: "Unit", quantity: "", minStock: String(DEFAULT_REORDER_LEVEL), supplier: "", genericName: "", expiry: "" })
     setShowForm(true)
   }
 
@@ -406,19 +387,19 @@ function Inventory() {
   return (
     <>{confirmDialog}<div className="space-y-5">
       <PageHeader
-        title="Inventory"
-        description={`Stock levels for ${selectedHospital.name}.`}
+        title={t("Inventory")}
+        description={t("Stock levels for {hospital}.", { hospital: selectedHospital.name })}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Inventory" }]}
         actions={
           <>
-            <Button variant="secondary" icon={History} onClick={() => setShowHistory(true)}>Stock history</Button>
-            <Button icon={Plus} onClick={openNew}>Add item</Button>
+            <Button variant="secondary" icon={History} onClick={() => setShowHistory(true)}>{t("Stock history")}</Button>
+            <Button icon={Plus} onClick={openNew}>{t("Add item")}</Button>
           </>
         }
       />
 
       {error && (
-        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={fetchAllData}>Retry</Button>}>
+        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={fetchAllData}>{t("Retry")}</Button>}>
           {error}
         </Alert>
       )}
@@ -426,21 +407,33 @@ function Inventory() {
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatTile icon={Package} label="Items" value={loading ? null : totalItems} onClick={() => setStockFilter("All Stock")} />
         <StatTile icon={Boxes} tone="success" label="Units in stock" value={loading ? null : totalQuantity.toLocaleString("en-IN")} />
-        <StatTile icon={PackageMinus} tone="warning" label="Low stock" hint={`${LOW_STOCK_AT} units or fewer`} value={loading ? null : lowStockItems} onClick={() => setStockFilter("Low Stock")} />
+        <StatTile icon={PackageMinus} tone="warning" label="Low stock" hint="At or below the item's reorder level" value={loading ? null : lowStockItems} onClick={() => setStockFilter("Low Stock")} />
         <StatTile icon={PackageX} tone="danger" label="Out of stock" value={loading ? null : outOfStockItems} onClick={() => setStockFilter("Out of Stock")} />
       </div>
 
+      <Tabs
+        label="Inventory sections"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: "stock", label: "Stock", icon: Package },
+          { id: "suppliers", label: "Suppliers", icon: Truck, count: suppliers.length },
+          { id: "purchases", label: "Purchase orders", icon: ClipboardList, count: purchaseOrders.length },
+        ]}
+      />
+
+      {tab === "stock" && (
       <Card className="overflow-hidden">
-        <Toolbar actions={<span className="text-[13px] text-ink-500">{loading ? "Loading…" : `${filteredItems.length} of ${totalItems} items`}</span>}>
-          <SearchInput value={search} onChange={setSearch} placeholder="Item name or ID" label="Search inventory" className="w-full sm:max-w-xs" />
-          <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Filter by category" className="w-full sm:w-48">
-            {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+        <Toolbar actions={<span className="text-[13px] text-ink-500">{loading ? t("Loading…") : t("{shown} of {total} items", { shown: filteredItems.length, total: totalItems })}</span>}>
+          <SearchInput value={search} onChange={setSearch} placeholder={t("Item name or ID")} label="Search inventory" className="w-full sm:max-w-xs" />
+          <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label={t("Filter by category")} className="w-full sm:w-48">
+            {categories.map((cat) => <option key={cat} value={cat}>{t(cat)}</option>)}
           </Select>
-          <Select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} aria-label="Filter by stock level" className="w-full sm:w-40">
-            <option>All Stock</option>
-            <option>In Stock</option>
-            <option>Low Stock</option>
-            <option>Out of Stock</option>
+          <Select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} aria-label={t("Filter by stock level")} className="w-full sm:w-40">
+            <option value="All Stock">{t("All Stock")}</option>
+            <option value="In Stock">{t("In Stock")}</option>
+            <option value="Low Stock">{t("Low Stock")}</option>
+            <option value="Out of Stock">{t("Out of Stock")}</option>
           </Select>
         </Toolbar>
 
@@ -449,22 +442,24 @@ function Inventory() {
         ) : filteredItems.length === 0 ? (
           <EmptyState
             icon={Package}
-            title={totalItems ? "No items match these filters" : "No inventory items yet"}
-            action={!totalItems && <Button icon={Plus} onClick={openNew}>Add item</Button>}
+            title={totalItems ? t("No items match these filters") : t("No inventory items yet")}
+            action={!totalItems && <Button icon={Plus} onClick={openNew}>{t("Add item")}</Button>}
           />
         ) : (
           <TableWrap>
             <table className="hms-table">
-              <caption className="sr-only">Inventory at {selectedHospital.name}</caption>
+              <caption className="sr-only">{t("Inventory at")}{" "}{selectedHospital.name}</caption>
               <thead>
                 <tr>
-                  <th scope="col">Item</th>
-                  <th scope="col">Category</th>
-                  <th scope="col">Batch</th>
-                  <th scope="col">Expiry</th>
-                  <th scope="col" className="num">In stock</th>
-                  <th scope="col">Status</th>
-                  <th scope="col"><span className="sr-only">Actions</span></th>
+                  <th scope="col">{t("Item")}</th>
+                  <th scope="col">{t("Category")}</th>
+                  <th scope="col">{t("Batch")}</th>
+                  <th scope="col">{t("Expiry")}</th>
+                  <th scope="col">{t("Supplier")}</th>
+                  <th scope="col" className="num">{t("In stock")}</th>
+                  <th scope="col" className="num">{t("Reorder at")}</th>
+                  <th scope="col">{t("Status")}</th>
+                  <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -472,19 +467,23 @@ function Inventory() {
                   <tr key={item.id}>
                     <td>
                       <span className="block font-medium text-ink-900">{item.name}</span>
-                      <span className="block text-xs text-ink-500 tabular-nums">ID {item.id}</span>
+                      <span className="block text-xs text-ink-500 tabular-nums">{t("ID")}{" "}{item.id}</span>
                     </td>
                     <td className="text-ink-600">{item.category}</td>
                     <td className="tabular-nums text-ink-600">{item.batch || "—"}</td>
                     <td className="tabular-nums text-ink-600">{item.expiry}</td>
-                    <td className={`num font-semibold ${item.quantity === 0 ? "text-red-700" : item.quantity <= LOW_STOCK_AT ? "text-amber-700" : "text-ink-900"}`}>{item.quantity}</td>
+                    <td className="text-ink-600">{item.supplier || "—"}</td>
+                    <td className={`num font-semibold ${item.quantity === 0 ? "text-red-700" : item.quantity <= item.minStock ? "text-amber-700" : "text-ink-900"}`}>
+                      {item.quantity} <span className="text-xs font-normal text-ink-500">{item.unit}</span>
+                    </td>
+                    <td className="num text-ink-600">{item.minStock}</td>
                     <td><StatusBadge status={item.status} /></td>
                     <td>
                       <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="subtle" icon={Boxes} onClick={() => openStockModal(item)}>Adjust</Button>
-                        <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(item)} aria-label={`View ${item.name}`} title="View" />
-                        <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => handleEdit(item)} aria-label={`Edit ${item.name}`} title="Edit" />
-                        <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => handleDelete(item.id)} aria-label={`Delete ${item.name}`} title="Delete" />
+                        <Button size="sm" variant="subtle" icon={Boxes} onClick={() => openStockModal(item)}>{t("Adjust")}</Button>
+                        <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(item)} aria-label={`View ${item.name}`} title={t("View")} />
+                        <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => handleEdit(item)} aria-label={`Edit ${item.name}`} title={t("Edit")} />
+                        <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => handleDelete(item.id)} aria-label={`Delete ${item.name}`} title={t("Delete")} />
                       </div>
                     </td>
                   </tr>
@@ -494,16 +493,40 @@ function Inventory() {
           </TableWrap>
         )}
       </Card>
+      )}
+
+      {tab === "suppliers" && (
+        <Card className="overflow-hidden">
+          {loading ? <SkeletonRows rows={4} /> : (
+            <SuppliersPanel hospital={selectedHospital} suppliers={suppliers} canEdit={canManageStore} onChanged={fetchAllData} />
+          )}
+        </Card>
+      )}
+
+      {tab === "purchases" && (
+        <Card className="overflow-hidden">
+          {loading ? <SkeletonRows rows={4} /> : (
+            <PurchaseOrdersPanel
+              hospital={selectedHospital}
+              orders={purchaseOrders}
+              suppliers={suppliers}
+              medicines={hospitalItems}
+              canEdit={canManageStore}
+              onChanged={fetchAllData}
+            />
+          )}
+        </Card>
+      )}
 
       {/* Add / edit item */}
       <Modal
         open={showForm}
         onClose={resetForm}
-        title={selectedItem ? `Edit ${selectedItem.name}` : "Add inventory item"}
+        title={selectedItem ? `Edit ${selectedItem.name}` : t("Add inventory item")}
         footer={
           <>
-            <Button variant="secondary" onClick={resetForm}>Cancel</Button>
-            <Button type="submit" form="inventory-form">{selectedItem ? "Save changes" : "Add item"}</Button>
+            <Button variant="secondary" onClick={resetForm}>{t("Cancel")}</Button>
+            <Button type="submit" form="inventory-form">{selectedItem ? t("Save changes") : t("Add item")}</Button>
           </>
         }
       >
@@ -511,23 +534,38 @@ function Inventory() {
           <Field label="Item name" required>
             <Input name="name" value={formData.name} onChange={handleChange} />
           </Field>
+          <Field label="Salt (generic name)" hint="e.g. ibuprofen, or paracetamol, caffeine for a combination. Used by the prescription safety check.">
+            <Input name="genericName" value={formData.genericName || ""} onChange={handleChange} />
+          </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Category" required>
               <Select name="category" value={formData.category} onChange={handleChange}>
-                <option value="">Select category</option>
-                {["Medical Supplies", "Surgical", "Equipment", "General"].map((c) => <option key={c}>{c}</option>)}
+                <option value="">{t("Select category")}</option>
+                {["Medical Supplies", "Surgical", "Equipment", "General"].map((c) => <option value={c} key={c}>{t(c)}</option>)}
                 {formData.category && !["Medical Supplies", "Surgical", "Equipment", "General"].includes(formData.category) && <option>{formData.category}</option>}
               </Select>
             </Field>
             <Field label="Quantity in stock" required>
               <Input type="number" min="0" inputMode="numeric" name="quantity" value={formData.quantity} onChange={handleChange} />
             </Field>
-            <Field label="Expiry (month)" required className="sm:col-span-2">
+            <Field label="Unit" hint="e.g. Tablet, Box, Bottle, Piece">
+              <Input name="unit" value={formData.unit} onChange={handleChange} />
+            </Field>
+            <Field label="Reorder level" hint="Flagged as low stock at or below this">
+              <Input type="number" min="0" inputMode="numeric" name="minStock" value={formData.minStock} onChange={handleChange} />
+            </Field>
+            <Field label="Usual supplier">
+              <Select name="supplier" value={formData.supplier} onChange={handleChange}>
+                <option value="">{t("None")}</option>
+                {suppliers.filter((s) => s.is_active || String(s.id) === formData.supplier).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </Select>
+            </Field>
+            <Field label="Expiry (month)" required>
               <Input type="month" value={monthValue} onChange={setMonth} />
             </Field>
           </div>
           <p className="text-xs text-ink-500">
-            Items at {LOW_STOCK_AT} units or fewer are flagged as low stock. Use “Adjust” on the list to receive or remove stock with a reason; that keeps the stock ledger.
+            {t("Use “Adjust” on the list to add or remove stock with a reason, or receive a purchase order; both keep the stock ledger.")}
           </p>
         </form>
       </Modal>
@@ -536,26 +574,26 @@ function Inventory() {
       <Modal
         open={showStock && Boolean(selectedItem)}
         onClose={resetStock}
-        title="Adjust stock"
+        title={t("Adjust stock")}
         description={selectedItem?.name}
         footer={
           <>
-            <Button variant="secondary" onClick={resetStock}>Cancel</Button>
-            <Button type="submit" form="stock-form" loading={stockLoading}>Save adjustment</Button>
+            <Button variant="secondary" onClick={resetStock}>{t("Cancel")}</Button>
+            <Button type="submit" form="stock-form" loading={stockLoading}>{t("Save adjustment")}</Button>
           </>
         }
       >
         {selectedItem && (
           <form id="stock-form" onSubmit={handleStockUpdate} className="space-y-4">
             <div className="flex items-center justify-between rounded-xl bg-ink-50 px-4 py-3 text-sm">
-              <span className="text-ink-600">Current stock</span>
+              <span className="text-ink-600">{t("Current stock")}</span>
               <span className="text-lg font-semibold text-ink-900 tabular-nums">{selectedItem.quantity}</span>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Adjustment">
                 <Select name="type" value={stockData.type} onChange={handleStockChange}>
-                  <option>Add Stock</option>
-                  <option>Remove Stock</option>
+                  <option value="Add Stock">{t("Add Stock")}</option>
+                  <option value="Remove Stock">{t("Remove Stock")}</option>
                 </Select>
               </Field>
               <Field label="Quantity" required>
@@ -570,11 +608,14 @@ function Inventory() {
       </Modal>
 
       {/* Details */}
-      <Modal open={showView && Boolean(selectedItem)} onClose={() => setShowView(false)} title="Inventory item" description={selectedItem?.name}>
+      <Modal open={showView && Boolean(selectedItem)} onClose={() => setShowView(false)} title={t("Inventory item")} description={selectedItem?.name}>
         {selectedItem && (
           <DescriptionList
             items={[
-              { label: "In stock", value: selectedItem.quantity },
+              { label: "In stock", value: `${selectedItem.quantity} ${selectedItem.unit}` },
+              { label: "Reorder level", value: selectedItem.minStock },
+              { label: "Usual supplier", value: selectedItem.supplier || "—" },
+              { label: "Salt (generic name)", value: selectedItem.genericName || "—" },
               { label: "Status", value: selectedItem.status },
               { label: "Category", value: selectedItem.category },
               { label: "Batch", value: selectedItem.batch },
@@ -586,27 +627,27 @@ function Inventory() {
       </Modal>
 
       {/* Stock history */}
-      <Modal open={showHistory} onClose={() => setShowHistory(false)} size="xl" title="Stock history" description={selectedHospital.name}>
+      <Modal open={showHistory} onClose={() => setShowHistory(false)} size="xl" title={t("Stock history")} description={selectedHospital.name}>
         {stockTransactions.length === 0 ? (
-          <EmptyState compact icon={ClipboardList} title="No stock movements recorded yet" />
+          <EmptyState compact icon={ClipboardList} title={t("No stock movements recorded yet")} />
         ) : (
           <TableWrap className="-mx-5 -my-4">
             <table className="hms-table">
               <thead>
                 <tr>
-                  <th scope="col">Date</th>
-                  <th scope="col">Item</th>
-                  <th scope="col">Type</th>
-                  <th scope="col" className="num">Qty</th>
-                  <th scope="col">Reason</th>
-                  <th scope="col">Reference</th>
+                  <th scope="col">{t("Date")}</th>
+                  <th scope="col">{t("Item")}</th>
+                  <th scope="col">{t("Type")}</th>
+                  <th scope="col" className="num">{t("Qty")}</th>
+                  <th scope="col">{t("Reason")}</th>
+                  <th scope="col">{t("Reference")}</th>
                 </tr>
               </thead>
               <tbody>
                 {stockTransactions.map((tx) => (
                   <tr key={tx.id}>
                     <td className="whitespace-nowrap tabular-nums text-ink-600">{new Date(tx.created_at).toLocaleDateString("en-IN")}</td>
-                    <td className="font-medium text-ink-900">{tx.medicine_name || "Unknown item"}</td>
+                    <td className="font-medium text-ink-900">{tx.medicine_name || t("Unknown item")}</td>
                     <td><StatusBadge status={tx.transaction_type === "IN" ? "received" : tx.transaction_type === "OUT" ? "dispensed" : "pending"} label={tx.transaction_type} /></td>
                     <td className="num">{tx.quantity}</td>
                     <td className="text-ink-600">{tx.reason || "—"}</td>

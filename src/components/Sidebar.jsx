@@ -1,13 +1,15 @@
 import { useEffect } from "react"
-import { Link, NavLink, useLocation } from "react-router-dom"
+import { NavLink, useLocation } from "react-router-dom"
 import { LogIn, PanelLeftClose, PanelLeftOpen, X } from "lucide-react"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useSidebar } from "../assets/context/SidebarContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { guestStaffNav, visibleStaffNav } from "../config/navigation.js"
+import { SignInLink } from "./auth/SignInDialog.jsx"
 
 export function BrandMark({ compact = false, inverted = true }) {
+  const { t } = useLanguage()
   return (
     <div className="flex items-center gap-2.5">
       <span
@@ -23,8 +25,8 @@ export function BrandMark({ compact = false, inverted = true }) {
       </span>
       {!compact && (
         <span className="min-w-0 leading-tight">
-          <span className={`block text-[15px] font-semibold tracking-tight ${inverted ? "text-white" : "text-ink-900"}`}>HMS</span>
-          <span className={`block text-[11px] ${inverted ? "text-brand-200/70" : "text-ink-500"}`}>Hospital Management</span>
+          <span className={`block text-[15px] font-semibold tracking-tight ${inverted ? "text-white" : "text-ink-900"}`}>{t("HMS")}</span>
+          <span className={`block text-[11px] ${inverted ? "text-brand-200/70" : "text-ink-500"}`}>{t("Hospital Management")}</span>
         </span>
       )}
     </div>
@@ -33,7 +35,7 @@ export function BrandMark({ compact = false, inverted = true }) {
 
 function NavItems({ groups, collapsed, t, onNavigate }) {
   return (
-    <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 py-3 scrollbar-thin [scrollbar-color:rgb(255_255_255/0.15)_transparent]">
+    <nav aria-label={t("Main")} className="flex-1 overflow-y-auto px-3 py-3 scrollbar-thin [scrollbar-color:rgb(255_255_255/0.15)_transparent]">
       {groups.map((group, gi) => (
         <div key={group.id} className={gi > 0 ? "mt-4" : ""}>
           {collapsed ? (
@@ -91,27 +93,30 @@ function NavItems({ groups, collapsed, t, onNavigate }) {
 }
 
 function GuestFooter({ collapsed }) {
+  const { t } = useLanguage()
   return (
     <div className={`border-t border-white/10 ${collapsed ? "flex justify-center py-3" : "px-4 py-3"}`}>
-      <Link
+      <SignInLink
         to="/staff-login"
-        title={collapsed ? "Sign in" : undefined}
+        title={collapsed ? t("Sign in") : undefined}
         className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-ink-200 hover:bg-white/[0.05] hover:text-white"
       >
         <LogIn size={15} aria-hidden="true" />
-        {collapsed ? <span className="sr-only">Sign in</span> : <span>Not signed in · Sign in</span>}
-      </Link>
+        {collapsed ? <span className="sr-only">{t("Sign in")}</span> : <span>{t("Not signed in · Sign in")}</span>}
+      </SignInLink>
     </div>
   )
 }
 
 function RoleFooter({ collapsed, activeRoleName, activeRole, isGuest }) {
+  const { t } = useLanguage()
   if (isGuest) return <GuestFooter collapsed={collapsed} />
+  const roleName = t(activeRoleName)
   if (collapsed) {
     return (
-      <div className="flex justify-center border-t border-white/10 py-3" title={`Role: ${activeRoleName}`}>
+      <div className="flex justify-center border-t border-white/10 py-3" title={t("Role: {name}", { name: roleName })}>
         <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden="true" />
-        <span className="sr-only">Role: {activeRoleName}</span>
+        <span className="sr-only">{t("Role: {name}", { name: roleName })}</span>
       </div>
     )
   }
@@ -119,9 +124,9 @@ function RoleFooter({ collapsed, activeRoleName, activeRole, isGuest }) {
     <div className="border-t border-white/10 px-4 py-3">
       <p className="flex items-center gap-2 text-xs font-medium text-ink-200">
         <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden="true" />
-        <span className="truncate">Signed in as {activeRoleName}</span>
+        <span className="truncate">{t("Signed in as {name}", { name: roleName })}</span>
       </p>
-      {activeRole?.description && <p className="mt-0.5 truncate pl-3.5 text-[11px] text-ink-400">{activeRole.description}</p>}
+      {activeRole?.description && <p className="mt-0.5 truncate pl-3.5 text-[11px] text-ink-400">{t(activeRole.description)}</p>}
     </div>
   )
 }
@@ -164,8 +169,8 @@ function Sidebar() {
               type="button"
               onClick={toggleSidebar}
               className="rounded-lg p-1.5 text-ink-400 hover:bg-white/10 hover:text-white"
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
+              aria-label={t("Collapse sidebar")}
+              title={t("Collapse sidebar")}
             >
               <PanelLeftClose size={18} aria-hidden="true" />
             </button>
@@ -177,8 +182,8 @@ function Sidebar() {
               type="button"
               onClick={toggleSidebar}
               className="rounded-lg p-2 text-ink-400 hover:bg-white/10 hover:text-white"
-              aria-label="Expand sidebar"
-              title="Expand sidebar"
+              aria-label={t("Expand sidebar")}
+              title={t("Expand sidebar")}
             >
               <PanelLeftOpen size={18} aria-hidden="true" />
             </button>
@@ -190,7 +195,7 @@ function Sidebar() {
 
       {/* Mobile / tablet: off-canvas drawer */}
       {isMobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t("Navigation")}>
           <div className="absolute inset-0 bg-ink-950/50 animate-fade-in" onClick={closeMobile} aria-hidden="true" />
           <aside className="absolute inset-y-0 left-0 flex w-[min(18rem,85vw)] flex-col bg-brand-950 shadow-2xl animate-fade-in">
             <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
@@ -199,7 +204,7 @@ function Sidebar() {
                 type="button"
                 onClick={closeMobile}
                 className="rounded-lg p-2 text-ink-300 hover:bg-white/10 hover:text-white"
-                aria-label="Close navigation"
+                aria-label={t("Close navigation")}
               >
                 <X size={20} aria-hidden="true" />
               </button>

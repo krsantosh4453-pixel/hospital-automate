@@ -4,6 +4,7 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
+import MedicationSafetyDialog from "../components/prescription/MedicationSafetyDialog.jsx"
 import { FilePlus2, Hospital, PackageCheck, Pill, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import {
   Alert,
@@ -21,6 +22,7 @@ import {
   StatusBadge,
   TableWrap,
 } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 
 // =========================================================
@@ -105,6 +107,7 @@ const emptyForm = () => ({
 })
 
 function Prescription() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
   // Doctors write prescriptions; pharmacy and nursing staff only read them.
   const { canAdd } = useRole()
@@ -135,6 +138,8 @@ function Prescription() {
   // ---------------------------------------------------------
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  // Safety check result waiting for the doctor's decision, with the payload it was run on.
+  const [safetyCheck, setSafetyCheck] = useState(null)
   const [formError, setFormError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
   const [actionError, setActionError] = useState("")
@@ -322,13 +327,13 @@ function Prescription() {
       const medicine = form.medicines[index]
 
       if (!String(medicine.name || "").trim()) {
-        return `Medicine ${index + 1}: name is required.`
+        return t("Medicine {number}: name is required.", { number: index + 1 })
       }
 
       const quantity = num(medicine.quantity)
 
       if (quantity === null || quantity < 1) {
-        return `Medicine ${index + 1}: quantity must be at least 1.`
+        return t("Medicine {number}: quantity must be at least 1.", { number: index + 1 })
       }
     }
 
@@ -370,13 +375,37 @@ function Prescription() {
     setSaving(true)
 
     try {
+      const result = await api.prescriptions.safetyCheck({
+        hospital: payload.hospital,
+        patient: payload.patient,
+        items: payload.items.map((item) => ({ name: item.name })),
+      })
+      if (result?.alerts?.length) {
+        setSafetyCheck({ result, payload })
+        setSaving(false)
+        return
+      }
+    } catch (err) {
+      setFormError(err?.message || "Could not run the medication safety check. Please try again.")
+      setSaving(false)
+      return
+    }
+
+    await savePrescription(payload)
+  }
+
+  const savePrescription = async (payload) => {
+    setSaving(true)
+    try {
       const created = await createPrescription(payload)
 
       setSuccessMessage(
-        `Prescription ${created?.id || ""} created successfully.`
+        t("Prescription {createdId} created successfully.", { createdId: created?.id || "" })
       )
       setForm(emptyForm())
+      setSafetyCheck(null)
     } catch (err) {
+      setSafetyCheck(null)
       setFormError(
         err?.message || "Unable to save the prescription. Please try again."
       )
@@ -393,7 +422,7 @@ function Prescription() {
 
     try {
       await dispensePrescription(record.id, selectedHospital?.id)
-      setSuccessMessage(`Prescription ${record.id} marked as Dispensed.`)
+      setSuccessMessage(t("Prescription {recordId} marked as Dispensed.", { recordId: record.id }))
     } catch (err) {
       setActionError(err.message || "Could not dispense this prescription.")
     }
@@ -426,12 +455,12 @@ function Prescription() {
 
   const header = (
     <PageHeader
-      title="Prescriptions"
-      description={selectedHospital ? `Write and manage prescriptions at ${selectedHospital.name}.` : "Select a hospital to manage prescriptions."}
+      title={t("Prescriptions")}
+      description={selectedHospital ? t("Write and manage prescriptions at {hospital}.", { hospital: selectedHospital.name }) : t("Select a hospital to manage prescriptions.")}
       breadcrumbs={[{ label: "Home", to: "/" }, { label: "Prescriptions" }]}
       actions={
         <Button variant="secondary" icon={RefreshCw} onClick={refresh} disabled={!selectedHospital || loading}>
-          Refresh
+          {t("Refresh")}
         </Button>
       }
     />
@@ -445,32 +474,38 @@ function Prescription() {
       <div className="space-y-5">
         {header}
         <Card>
-          <EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header to manage prescriptions." />
+          <EmptyState icon={Hospital} title={t("Select a hospital")} description="Choose a hospital in the header to manage prescriptions." />
         </Card>
       </div>
     )
   }
 
   const optionList = (options, placeholder) => [
-    <option key="" value="">{placeholder}</option>,
+    <option key="" value="">{t(placeholder)}</option>,
     ...options.map((option) => (
-      <option key={option.value} value={option.value}>{option.label}</option>
+      <option key={option.value} value={option.value}>{t(option.label)}</option>
     )),
   ]
 
   return (
     <div className="space-y-5">
+      <MedicationSafetyDialog
+        result={safetyCheck?.result || null}
+        saving={saving}
+        onCancel={() => setSafetyCheck(null)}
+        onConfirm={(reason) => savePrescription({ ...safetyCheck.payload, safety_override_reason: reason })}
+      />
       {header}
 
       {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}
       {(error || actionError) && (
-        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={refresh}>Retry</Button>}>
+        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={refresh}>{t("Retry")}</Button>}>
           {actionError || error}
         </Alert>
       )}
       {usingFallback && !error && (
-        <Alert tone="warning" title="Server unreachable">
-          The list below may be out of date. Changes cannot be saved until the server reconnects.
+        <Alert tone="warning" title={t("Server unreachable")}>
+          {t("The list below may be out of date. Changes cannot be saved until the server reconnects.")}
         </Alert>
       )}
 
@@ -478,9 +513,9 @@ function Prescription() {
         {/* New prescription */}
         {canWrite && (
         <Card as="form" onSubmit={handleSubmit} className="self-start" noValidate>
-          <CardHeader icon={FilePlus2} title="New prescription" description="Patient, visit and doctor, then one row per medicine." />
+          <CardHeader icon={FilePlus2} title={t("New prescription")} description="Patient, visit and doctor, then one row per medicine." />
           <div className="space-y-5 px-5 py-4">
-            {formError && <Alert tone="danger" title="Not saved">{formError}</Alert>}
+            {formError && <Alert tone="danger" title={t("Not saved")}>{formError}</Alert>}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Patient" required>
@@ -501,7 +536,7 @@ function Prescription() {
               <Field label="Status">
                 <Select value={form.status} onChange={(e) => setField("status", e.target.value)}>
                   {PRESCRIPTION_STATUSES.map((status) => (
-                    <option key={status} value={status}>{status}</option>
+                    <option key={status} value={status}>{t(status)}</option>
                   ))}
                 </Select>
               </Field>
@@ -509,53 +544,53 @@ function Prescription() {
 
             <fieldset className="space-y-3">
               <legend className="mb-2 flex w-full items-center justify-between text-sm font-semibold text-ink-900">
-                Medicines
-                <span className="text-xs font-normal text-ink-500">{form.medicines.length} item{form.medicines.length === 1 ? "" : "s"}</span>
+                {t("Medicines")}
+                <span className="text-xs font-normal text-ink-500">{form.medicines.length}{" "}{t("item")}{form.medicines.length === 1 ? "" : "s"}</span>
               </legend>
               {form.medicines.map((medicine, index) => (
                 <div key={index} className="rounded-xl border border-line bg-ink-50/60 p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-ink-500">Medicine {index + 1}</span>
+                    <span className="text-xs font-semibold text-ink-500">{t("Medicine")}{" "}{index + 1}</span>
                     <Button
                       variant="ghost"
                       size="icon-sm"
                       icon={X}
                       onClick={() => removeMedicineRow(index)}
                       disabled={form.medicines.length === 1}
-                      aria-label={`Remove medicine ${index + 1}`}
-                      title="Remove medicine"
+                      aria-label={t("Remove medicine {number}", { number: index + 1 })}
+                      title={t("Remove medicine")}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
                     <Field label="Name" required className="col-span-2 sm:col-span-4">
-                      <Input value={medicine.name} onChange={(e) => setMedicineField(index, "name", e.target.value)} placeholder="Drug and strength" />
+                      <Input value={medicine.name} onChange={(e) => setMedicineField(index, "name", e.target.value)} placeholder={t("Drug and strength")} />
                     </Field>
                     <Field label="Qty" required className="sm:col-span-2">
                       <Input type="number" min="1" inputMode="numeric" value={medicine.quantity} onChange={(e) => setMedicineField(index, "quantity", e.target.value)} />
                     </Field>
                     <Field label="Dosage" className="sm:col-span-2">
-                      <Input value={medicine.dosage} onChange={(e) => setMedicineField(index, "dosage", e.target.value)} placeholder="500 mg" />
+                      <Input value={medicine.dosage} onChange={(e) => setMedicineField(index, "dosage", e.target.value)} placeholder={t("500 mg")} />
                     </Field>
                     <Field label="Frequency" className="sm:col-span-2">
                       <Input value={medicine.frequency} onChange={(e) => setMedicineField(index, "frequency", e.target.value)} placeholder="1-0-1" />
                     </Field>
                     <Field label="Duration" className="col-span-2 sm:col-span-2">
-                      <Input value={medicine.duration} onChange={(e) => setMedicineField(index, "duration", e.target.value)} placeholder="5 days" />
+                      <Input value={medicine.duration} onChange={(e) => setMedicineField(index, "duration", e.target.value)} placeholder={t("5 days")} />
                     </Field>
                     <Field label="Instructions" className="col-span-2 sm:col-span-6">
-                      <Input value={medicine.instructions} onChange={(e) => setMedicineField(index, "instructions", e.target.value)} placeholder="After food" />
+                      <Input value={medicine.instructions} onChange={(e) => setMedicineField(index, "instructions", e.target.value)} placeholder={t("After food")} />
                     </Field>
                   </div>
                 </div>
               ))}
               <Button variant="subtle" size="sm" icon={Plus} onClick={addMedicineRow}>
-                Add medicine
+                {t("Add medicine")}
               </Button>
             </fieldset>
 
             <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-              <p className="text-xs text-ink-500">There is no automatic drug-interaction check; review the full list before saving.</p>
-              <Button type="submit" loading={saving}>Save prescription</Button>
+              <p className="text-xs text-ink-500">{t("There is no automatic drug-interaction check; review the full list before saving.")}</p>
+              <Button type="submit" loading={saving}>{t("Save prescription")}</Button>
             </div>
           </div>
         </Card>
@@ -565,17 +600,17 @@ function Prescription() {
         <Card className="self-start overflow-hidden">
           <CardHeader
             icon={Pill}
-            title="Prescriptions"
-            description={`${filteredPrescriptions.length} shown`}
-            actions={<SearchInput value={search} onChange={setSearch} placeholder="ID, patient, doctor, status" label="Search prescriptions" className="w-full sm:w-64" />}
+            title={t("Prescriptions")}
+            description={t("{count} shown", { count: filteredPrescriptions.length })}
+            actions={<SearchInput value={search} onChange={setSearch} placeholder={t("ID, patient, doctor, status")} label="Search prescriptions" className="w-full sm:w-64" />}
           />
           {loading ? (
             <SkeletonRows rows={4} />
           ) : filteredPrescriptions.length === 0 ? (
             <EmptyState
               icon={Pill}
-              title={search ? "No prescriptions match your search" : "No prescriptions yet"}
-              description={search ? undefined : "Saved prescriptions for this hospital appear here."}
+              title={search ? t("No prescriptions match your search") : t("No prescriptions yet")}
+              description={search ? undefined : t("Saved prescriptions for this hospital appear here.")}
             />
           ) : (
             <ul className="divide-y divide-line">
@@ -588,17 +623,17 @@ function Prescription() {
                         <StatusBadge status={record.status} />
                       </div>
                       <p className="mt-0.5 text-[13px] text-ink-500">
-                        {record.patientName || "Unknown patient"} · {record.doctor || "No doctor"} · {formatDate(record.createdAt)}
+                        {record.patientName || t("Unknown patient")} · {record.doctor || t("No doctor")} · {formatDate(record.createdAt)}
                       </p>
                     </div>
                     <div className="flex gap-1.5">
                       {record.status !== "Dispensed" && (
                         <Button size="sm" variant="subtle" icon={PackageCheck} onClick={() => setPending({ kind: "dispense", record })}>
-                          Dispense
+                          {t("Dispense")}
                         </Button>
                       )}
                       {record.apiId && (
-                        <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => setPending({ kind: "delete", record })} aria-label={`Delete prescription ${record.id}`} title="Delete" />
+                        <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => setPending({ kind: "delete", record })} aria-label={t("Delete prescription {recordId}", { recordId: record.id })} title={t("Delete")} />
                       )}
                     </div>
                   </div>
@@ -607,12 +642,12 @@ function Prescription() {
                       <table className="hms-table text-[13px]">
                         <thead>
                           <tr>
-                            <th scope="col">Medicine</th>
-                            <th scope="col">Dosage</th>
-                            <th scope="col">Frequency</th>
-                            <th scope="col">Duration</th>
-                            <th scope="col" className="num">Qty</th>
-                            <th scope="col">Instructions</th>
+                            <th scope="col">{t("Medicine")}</th>
+                            <th scope="col">{t("Dosage")}</th>
+                            <th scope="col">{t("Frequency")}</th>
+                            <th scope="col">{t("Duration")}</th>
+                            <th scope="col" className="num">{t("Qty")}</th>
+                            <th scope="col">{t("Instructions")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -643,12 +678,12 @@ function Prescription() {
         onConfirm={runPending}
         loading={working}
         destructive={pending?.kind === "delete"}
-        title={pending?.kind === "delete" ? "Delete prescription?" : "Mark as dispensed?"}
+        title={pending?.kind === "delete" ? t("Delete prescription?") : t("Mark as dispensed?")}
         confirmLabel={pending?.kind === "delete" ? "Delete" : "Mark dispensed"}
         message={
           pending?.kind === "delete"
-            ? `Prescription ${pending?.record.id} for ${pending?.record.patientName || "this patient"} will be deleted. This cannot be undone.`
-            : `Confirm that every medicine on prescription ${pending?.record.id} has been handed to ${pending?.record.patientName || "the patient"}.`
+            ? t("Prescription {recordId} for {patient} will be deleted. This cannot be undone.", { recordId: pending?.record.id, patient: pending?.record.patientName || "this patient" })
+            : t("Confirm that every medicine on prescription {recordId} has been handed to {patient}.", { recordId: pending?.record.id, patient: pending?.record.patientName || "the patient" })
         }
       />
     </div>

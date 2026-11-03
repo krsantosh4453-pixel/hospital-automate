@@ -21,6 +21,34 @@ class Patient(models.Model):
     doctor = models.CharField(max_length=100, blank=True)
     # Free-text condition/reason shown in the Patients UI
     condition = models.CharField(max_length=150, blank=True)
+    # Next of kin to call in an emergency (requirement B4). All optional.
+    emergency_contact_name = models.CharField(max_length=100, blank=True, default="")
+    emergency_contact_relation = models.CharField(max_length=50, blank=True, default="")
+    emergency_contact_phone = models.CharField(max_length=15, blank=True, default="")
+    # Demographics (requirement B3). Address parts are kept beside the
+    # free-text ``address`` used by older screens.
+    marital_status = models.CharField(
+        max_length=20, blank=True, default="",
+        choices=[(v, v) for v in ("Single", "Married", "Widowed", "Divorced", "Separated")],
+    )
+    address_line = models.CharField(max_length=200, blank=True, default="")
+    city = models.CharField(max_length=80, blank=True, default="")
+    district = models.CharField(max_length=80, blank=True, default="")
+    state = models.CharField(max_length=80, blank=True, default="")
+    pincode = models.CharField(max_length=6, blank=True, default="")
+    # Only the ID type and its last four characters: the full number of a
+    # government ID (e.g. Aadhaar) is not stored.
+    id_type = models.CharField(
+        max_length=30, blank=True, default="",
+        choices=[(v, v) for v in ("Aadhaar", "PAN", "Voter ID", "Passport", "Driving licence", "ABHA", "Other")],
+    )
+    id_last4 = models.CharField(max_length=4, blank=True, default="")
+    payer_type = models.CharField(
+        max_length=30, blank=True, default="",
+        choices=[(v, v) for v in ("Self", "Insurance", "Government scheme", "Corporate")],
+    )
+    payer_name = models.CharField(max_length=120, blank=True, default="")
+    policy_number = models.CharField(max_length=60, blank=True, default="")
     # Direct hospital link used by the Patients UI.
     # PatientHospital (membership) is kept for backward compatibility.
     hospital = models.ForeignKey(
@@ -98,3 +126,39 @@ class PatientDocument(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ProxyAccess(models.Model):
+    """
+    View-only access a patient gives a family member or caregiver. The proxy
+    signs in with an OTP to their own mobile number; revoking ends it at once.
+    """
+
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="proxy_grants")
+    name = models.CharField(max_length=100)
+    relationship = models.CharField(max_length=50)
+    # Last 10 digits, as normalised for OTP sign-in.
+    phone = models.CharField(max_length=15, db_index=True)
+    proxy_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="proxy_grants",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["patient", "phone"],
+                condition=models.Q(revoked_at__isnull=True),
+                name="unique_active_proxy_phone_per_patient",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.relationship}) for {self.patient.name}"

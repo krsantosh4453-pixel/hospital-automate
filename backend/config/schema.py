@@ -8,17 +8,28 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from django.conf import settings
+from rest_framework.permissions import BasePermission
 
 
 # ============================================================
 # Schema Views
 # ============================================================
 
+class ApiDocsAccess(BasePermission):
+    """Anyone when API_DOCS_PUBLIC is on; otherwise signed-in platform admins only."""
+
+    def has_permission(self, request, view):
+        if settings.API_DOCS_PUBLIC:
+            return True
+        user = request.user
+        return bool(user and user.is_authenticated and user.is_staff)
+
+
 class SchemaAPIView(SpectacularAPIView):
     """OpenAPI schema endpoint."""
 
-    permission_classes = [AllowAny]  # Public schema for documentation
+    permission_classes = [ApiDocsAccess]
 
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
@@ -27,7 +38,7 @@ class SchemaAPIView(SpectacularAPIView):
 class SwaggerUIView(SpectacularSwaggerView):
     """Swagger UI for API documentation."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [ApiDocsAccess]
     template_name = 'drf_spectacular/swagger_ui.html'
 
     def get_context_data(self, **kwargs):
@@ -42,7 +53,7 @@ class SwaggerUIView(SpectacularSwaggerView):
 class RedocView(SpectacularRedocView):
     """ReDoc for API documentation."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [ApiDocsAccess]
     template_name = 'drf_spectacular/redoc.html'
 
 
@@ -222,10 +233,6 @@ SCHEMA_TAGS = [
     {
         'name': 'FHIR',
         'description': 'FHIR R4 interoperability endpoints for patient, observation, encounter resources',
-    },
-    {
-        'name': 'HL7',
-        'description': 'HL7 v2 messaging endpoints for ADT, ORM, ORU messages',
     },
     {
         'name': 'ABDM',

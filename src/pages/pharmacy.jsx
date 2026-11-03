@@ -2,11 +2,12 @@ import { useEffect, useState, useMemo } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
-import { LoadingSpinner } from "../components/LoadingSpinner.jsx"
-import { AlarmClockIcon, CheckIcon, HospitalIcon, MapPinIcon, PillIcon, ReceiptIcon, SearchIcon, TrendingDownIcon, TriangleAlertIcon } from "lucide-react"
+import { AlarmClockIcon, CheckIcon, HospitalIcon, PillIcon, ReceiptIcon, SearchIcon, TrendingDownIcon, TriangleAlertIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
-import { Alert, Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
+import { Alert, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, useConfirm } from "../components/ui"
 import { Plus as PlusIcon } from "lucide-react"
+import { defaultBatches, missingBatches, usableBatches } from "../utils/dispenseBatches.js"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 // Convert "MM/YYYY" (UI) to "YYYY-MM-01" (API DateField). Returns null if invalid.
 const toApiDate = (value) => {
@@ -21,14 +22,6 @@ const toApiDate = (value) => {
   return `${String(yearNum).padStart(4, "0")}-${String(monthNum).padStart(2, "0")}-01`
 }
 
-const formatExpiry = (value) => {
-  if (!value) return ""
-  const parts = String(value).split("-")
-  if (parts.length < 2) return value
-  const [year, month] = parts
-  return `${month}/${year}`
-}
-
 const parseExpiry = (value) => {
   if (!value) return null
   const parts = String(value).split("/")
@@ -38,6 +31,7 @@ const parseExpiry = (value) => {
 }
 
 function Pharmacy() {
+  const { t } = useLanguage()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
 
@@ -48,27 +42,13 @@ function Pharmacy() {
     deleteMedicine,
     loadSales,
     createSale,
-    loadSuppliers,
-    createSupplier,
-    updateSupplier,
-    deleteSupplier,
-    loadPurchases,
-    createPurchase,
-    receivePurchase,
-    loadGRNs,
-    loadStockTransactions,
-    adjustStock,
-    suppliers,
-    purchaseOrders,
-    grns,
-    stockTransactions,
+    dispensePrescriptionSales,
   } = usePharmacy()
 
   const { selectedHospital } = usePatient()
 
   const {
-    prescriptions,
-    dispensePrescription,
+    fetchPrescription,
   } = usePrescription()
 
   // =========================
@@ -89,6 +69,7 @@ function Pharmacy() {
 
   const [formData, setFormData] = useState({
     name: "",
+    genericName: "",
     category: "",
     batch: "",
     stock: "",
@@ -104,6 +85,8 @@ function Pharmacy() {
 
   const [prescriptionId, setPrescriptionId] = useState("")
   const [foundPrescription, setFoundPrescription] = useState(null)
+  // Prescription item id -> stock batch (medicine id) to issue it from.
+  const [dispenseBatchIds, setDispenseBatchIds] = useState({})
 
   // =========================
   // EXPIRY & LOW STOCK ALERTS
@@ -322,6 +305,7 @@ function Pharmacy() {
 
     setFormData({
       name: "",
+      genericName: "",
       category: "",
       batch: "",
       stock: "",
@@ -333,17 +317,6 @@ function Pharmacy() {
     setShowForm(false)
   }
 
-
-  const getStatus = (stock) => {
-
-    if (
-      Number(stock) <= 20
-    ) {
-      return "Low Stock"
-    }
-
-    return "In Stock"
-  }
 
 
   // =========================
@@ -371,6 +344,9 @@ function Pharmacy() {
 
         name:
           formData.name,
+
+        generic_name:
+          formData.genericName.trim(),
 
         category:
           formData.category,
@@ -427,6 +403,9 @@ function Pharmacy() {
       name:
         medicine.name,
 
+      genericName:
+        medicine.genericName || "",
+
       category:
         medicine.category,
 
@@ -471,6 +450,9 @@ function Pharmacy() {
 
           name:
             formData.name,
+
+          generic_name:
+            formData.genericName.trim(),
 
           category:
             formData.category,
@@ -665,7 +647,7 @@ function Pharmacy() {
     ) {
 
       toast.warning(
-        `Only ${medicine.stock} units are available.`
+        t("Only {stock} units are available.", { stock: medicine.stock })
       )
 
       return
@@ -694,7 +676,7 @@ function Pharmacy() {
 
 
       toast.success(
-        `${quantity} ${medicine.name} issued successfully.`
+        t("{quantity} {name} issued successfully.", { quantity, name: medicine.name })
       )
 
 
@@ -718,7 +700,7 @@ function Pharmacy() {
   // PRESCRIPTION SEARCH
   // =========================
 
-  const searchPrescription = () => {
+  const searchPrescription = async () => {
 
     if (!selectedHospital) {
 
@@ -742,21 +724,26 @@ function Pharmacy() {
     }
 
 
-    const prescription =
-      prescriptions.find(
-        (item) =>
-
-          item.id
-            .toLowerCase() ===
-          prescriptionId
-            .trim()
-            .toLowerCase()
-
-          &&
-
-          item.hospitalId ===
+    // Asked from the server: the doctor may have written it after this page loaded.
+    let prescription
+    try {
+      prescription =
+        await fetchPrescription(
+          prescriptionId,
           selectedHospital.id
+        )
+    } catch (error) {
+      setFoundPrescription(
+        null
       )
+
+      toast.error(
+        error?.message ||
+        "Unable to look up the prescription."
+      )
+
+      return
+    }
 
 
     if (!prescription) {
@@ -775,6 +762,9 @@ function Pharmacy() {
 
     setFoundPrescription(
       prescription
+    )
+    setDispenseBatchIds(
+      defaultBatches(prescription.medicines || [], hospitalMedicines)
     )
   }
 
@@ -822,94 +812,37 @@ function Pharmacy() {
     }
 
 
-    // Multi-medicine prescriptions are NOT supported here.
-    // The backend Sale API dispenses one medicine atomically,
-    // so we refuse rather than risk a partial dispense.
-    if (
-      prescribedMedicines.length > 1
-    ) {
+    const missing =
+      missingBatches(prescribedMedicines, dispenseBatchIds)
 
-      toast.error(
-        "This prescription contains multiple medicines. Automatic dispensing is not supported yet — please issue each medicine from the Issue Medicine section."
+    if (missing.length > 0) {
+
+      toast.warning(
+        t("Choose a stock batch for: {medicines}.", { medicines: missing.join(", ") })
       )
 
       return
     }
 
 
-    const prescriptionMedicine =
-      prescribedMedicines[0]
-
-
-    const inventoryMedicine =
-      hospitalMedicines.find(
-        (medicine) =>
-
-          medicine.name
-            .toLowerCase() ===
-          prescriptionMedicine.name
-            .toLowerCase()
-      )
-
-
-    if (!inventoryMedicine) {
-
-      toast.error(
-        `${prescriptionMedicine.name} is not available in ${selectedHospital.name} pharmacy stock.`
-      )
-
-      return
-    }
-
-
-    const quantity =
-      Number(
-        prescriptionMedicine.quantity
-      )
-
-
-    if (
-      Number(
-        inventoryMedicine.stock
-      ) <
-      quantity
-    ) {
-
-      toast.info(
-        `Insufficient stock for ${prescriptionMedicine.name}. Available: ${inventoryMedicine.stock}`
-      )
-
-      return
-    }
-
-
+    // One server transaction: every medicine is issued, or none is.
     try {
 
-      await createSale({
-
-        medicine:
-          inventoryMedicine.id,
-
-        hospital:
-          selectedHospital.id,
-
-        patient_name:
-          foundPrescription.patientName,
-
-        quantity,
+      await dispensePrescriptionSales({
 
         prescription:
           foundPrescription.apiId,
+
+        lines:
+          prescribedMedicines.map((item) => ({
+            item: item.id,
+            medicine: Number(dispenseBatchIds[item.id]),
+          })),
 
       })
 
 
       await reloadPharmacyData()
-
-
-      await dispensePrescription(
-        foundPrescription.id
-      )
 
 
       setFoundPrescription({
@@ -923,7 +856,7 @@ function Pharmacy() {
 
 
       toast.success(
-        `Prescription ${foundPrescription.id} dispensed successfully.`
+        t("Prescription {rx} dispensed successfully.", { rx: foundPrescription.id })
       )
 
     } catch (error) {
@@ -965,13 +898,13 @@ function Pharmacy() {
 
     <>{confirmDialog}<div className="space-y-6">
       <PageHeader
-        title="Pharmacy"
-        description={selectedHospital ? `Medicines, dispensing and sales at ${selectedHospital.name}.` : "Select a hospital from the header to view pharmacy data."}
+        title={t("Pharmacy")}
+        description={selectedHospital ? t("Medicines, dispensing and sales at {hospital}.", { hospital: selectedHospital.name }) : t("Select a hospital from the header to view pharmacy data.")}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Pharmacy" }]}
         actions={
           selectedHospital && (
             <>
-              <Button variant="secondary" icon={ReceiptIcon} onClick={() => setShowSales(true)}>Sales history</Button>
+              <Button variant="secondary" icon={ReceiptIcon} onClick={() => setShowSales(true)}>{t("Sales history")}</Button>
               <Button
                 variant="secondary"
                 icon={PillIcon}
@@ -980,17 +913,17 @@ function Pharmacy() {
                   setShowIssue(true)
                 }}
               >
-                Issue medicine
+                {t("Issue medicine")}
               </Button>
               <Button
                 icon={PlusIcon}
                 onClick={() => {
                   setSelectedMedicine(null)
-                  setFormData({ name: "", category: "", batch: "", stock: "", expiry: "", price: "" })
+                  setFormData({ name: "", genericName: "", category: "", batch: "", stock: "", expiry: "", price: "" })
                   setShowForm(true)
                 }}
               >
-                Add medicine
+                {t("Add medicine")}
               </Button>
             </>
           )
@@ -998,13 +931,13 @@ function Pharmacy() {
       />
 
       {loadError && (
-        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={reloadPharmacyData}>Retry</Button>}>
+        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={reloadPharmacyData}>{t("Retry")}</Button>}>
           {loadError}
         </Alert>
       )}
 
       {!selectedHospital ? (
-        <Card><EmptyState icon={HospitalIcon} title="Select a hospital" description="Choose a hospital in the header to view pharmacy data." /></Card>
+        <Card><EmptyState icon={HospitalIcon} title={t("Select a hospital")} description="Choose a hospital in the header to view pharmacy data." /></Card>
       ) : (
 
         <>
@@ -1017,15 +950,15 @@ function Pharmacy() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
 
             <p className="text-blue-600 font-semibold text-sm">
-              PRESCRIPTION DISPENSING
+              {t("PRESCRIPTION DISPENSING")}
             </p>
 
             <h2 className="text-xl font-bold text-gray-800 mt-1">
-              Search Doctor Prescription
+              {t("Search Doctor Prescription")}
             </h2>
 
             <p className="text-sm text-gray-500 mt-1">
-              Enter the confirmed prescription ID generated by the doctor.
+              {t("Enter the confirmed prescription ID generated by the doctor.")}
             </p>
 
 
@@ -1045,7 +978,7 @@ function Pharmacy() {
                   )
                 }
 
-                placeholder="RX-2026-001"
+                placeholder={t("RX-2026-001")}
 
                 className="hms-input flex-1"
 
@@ -1061,7 +994,7 @@ function Pharmacy() {
                 className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
 
               >
-                <SearchIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Search Prescription
+                <SearchIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Search Prescription")}
               </button>
 
             </div>
@@ -1077,7 +1010,7 @@ function Pharmacy() {
                   <div>
 
                     <p className="text-xs text-gray-500">
-                      Prescription ID
+                      {t("Prescription ID")}
                     </p>
 
                     <p className="text-lg font-bold text-blue-600">
@@ -1110,7 +1043,7 @@ function Pharmacy() {
                     <div>
 
                       <p className="text-xs text-gray-500">
-                        Patient
+                        {t("Patient")}
                       </p>
 
                       <p className="font-semibold text-gray-800">
@@ -1125,7 +1058,7 @@ function Pharmacy() {
                     <div>
 
                       <p className="text-xs text-gray-500">
-                        Patient ID
+                        {t("Patient ID")}
                       </p>
 
                       <p className="font-semibold text-gray-800">
@@ -1140,7 +1073,7 @@ function Pharmacy() {
                     <div>
 
                       <p className="text-xs text-gray-500">
-                        Doctor
+                        {t("Doctor")}
                       </p>
 
                       <p className="font-semibold text-gray-800">
@@ -1159,7 +1092,7 @@ function Pharmacy() {
                   <div className="mt-6">
 
                     <h3 className="font-bold text-gray-800 mb-3">
-                      Prescribed Medicines
+                      {t("Prescribed Medicines")}
                     </h3>
 
 
@@ -1172,13 +1105,18 @@ function Pharmacy() {
                             index
                           ) => {
 
+                            const batches =
+                              usableBatches(
+                                hospitalMedicines,
+                                medicine.name
+                              )
+
+
                             const stockMedicine =
-                              hospitalMedicines.find(
+                              batches.find(
                                 (item) =>
-                                  item.name
-                                    .toLowerCase() ===
-                                  medicine.name
-                                    .toLowerCase()
+                                  String(item.id) ===
+                                  String(dispenseBatchIds[medicine.id])
                               )
 
 
@@ -1202,7 +1140,7 @@ function Pharmacy() {
                               <div
 
                                 key={
-                                  index
+                                  medicine.id ?? index
                                 }
 
                                 className="border border-gray-200 rounded-xl p-4"
@@ -1245,7 +1183,7 @@ function Pharmacy() {
 
                                     <p>
 
-                                      Required:
+                                      {t("Required:")}
 
                                       {" "}
 
@@ -1266,7 +1204,7 @@ function Pharmacy() {
                                       }
                                     >
 
-                                      Stock:
+                                      {t("Stock:")}
 
                                       {" "}
 
@@ -1282,6 +1220,49 @@ function Pharmacy() {
 
                                 </div>
 
+
+                                {foundPrescription.status !==
+                                  "Dispensed" && (
+
+                                    <div className="mt-3">
+
+                                      <label
+                                        htmlFor={`dispense-batch-${medicine.id}`}
+                                        className="block text-xs text-gray-500 mb-1"
+                                      >
+                                        {t("Stock batch for")}{" "}{medicine.name}
+                                      </label>
+
+                                      <select
+                                        id={`dispense-batch-${medicine.id}`}
+                                        value={dispenseBatchIds[medicine.id] ?? ""}
+                                        onChange={(e) =>
+                                          setDispenseBatchIds({
+                                            ...dispenseBatchIds,
+                                            [medicine.id]: e.target.value,
+                                          })
+                                        }
+                                        className="hms-input w-full md:w-auto"
+                                      >
+                                        <option value="">
+                                          {batches.length > 0
+                                            ? "Choose a batch"
+                                            : "Not in stock"}
+                                        </option>
+                                        {batches.map((batch) => (
+                                          <option
+                                            key={batch.id}
+                                            value={batch.id}
+                                          >
+                                            {batch.batch || "No batch no."} · Exp {batch.expiry || "—"} · {batch.stock} in stock
+                                          </option>
+                                        ))}
+                                      </select>
+
+                                    </div>
+
+                                  )}
+
                               </div>
 
                             )
@@ -1292,20 +1273,6 @@ function Pharmacy() {
                     </div>
 
                   </div>
-
-
-                  {/* Multi-medicine limitation */}
-
-                  {foundPrescription.medicines &&
-                    foundPrescription.medicines.length > 1 && (
-
-                      <div className="mt-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 text-sm">
-
-                        <TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> This prescription has multiple medicines. Automatic one-click dispensing is not supported yet — please use the Issue Medicine section for each medicine.
-
-                      </div>
-
-                    )}
 
 
                   {/* Dispense */}
@@ -1322,7 +1289,7 @@ function Pharmacy() {
                         className="mt-6 w-full md:w-auto px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700"
 
                       >
-                        <CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Dispense Prescription
+                        <CheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Dispense Prescription")}
                       </button>
 
                     )}
@@ -1346,7 +1313,7 @@ function Pharmacy() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
               <p className="text-sm text-gray-500">
-                Total Medicines
+                {t("Total Medicines")}
               </p>
 
               <h2 className="text-3xl font-bold text-blue-600 mt-3">
@@ -1359,7 +1326,7 @@ function Pharmacy() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
               <p className="text-sm text-gray-500">
-                Available Units
+                {t("Available Units")}
               </p>
 
               <h2 className="text-3xl font-bold text-green-600 mt-3">
@@ -1372,7 +1339,7 @@ function Pharmacy() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
               <p className="text-sm text-gray-500">
-                Low Stock
+                {t("Low Stock")}
               </p>
 
               <h2 className="text-3xl font-bold text-orange-500 mt-3">
@@ -1385,7 +1352,7 @@ function Pharmacy() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
               <p className="text-sm text-gray-500">
-                Pharmacy Sales
+                {t("Pharmacy Sales")}
               </p>
 
               <h2 className="text-3xl font-bold text-purple-600 mt-3">
@@ -1409,16 +1376,16 @@ function Pharmacy() {
                 <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4 flex items-start gap-3">
                   <span className="text-2xl"><TriangleAlertIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
                   <div>
-                    <p className="font-semibold">Expired Medicines in Stock</p>
+                    <p className="font-semibold">{t("Expired Medicines in Stock")}</p>
                     <p className="text-sm mt-1">
-                      {expiredMedicines.length} medicine(s) have expired but still have stock:
+                      {expiredMedicines.length}{" "}{t("medicine(s) have expired but still have stock:")}
                     </p>
                     <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
                       {expiredMedicines.slice(0, 10).map((m) => (
-                        <li key={m.id}>{m.name} (Batch: {m.batch || "N/A"}, Expiry: {m.expiry}, Stock: {m.stock})</li>
+                        <li key={m.id}>{m.name}{" "}{t("(Batch:")}{" "}{m.batch || "N/A"}{t(", Expiry:")}{" "}{m.expiry}{t(", Stock:")}{" "}{m.stock})</li>
                       ))}
                       {expiredMedicines.length > 10 && (
-                        <li>+{expiredMedicines.length - 10} more...</li>
+                        <li>+{expiredMedicines.length - 10}{" "}{t("more...")}</li>
                       )}
                     </ul>
                   </div>
@@ -1428,16 +1395,16 @@ function Pharmacy() {
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-start gap-3">
                   <span className="text-2xl"><AlarmClockIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
                   <div>
-                    <p className="font-semibold">Expiring Soon (within 30 days)</p>
+                    <p className="font-semibold">{t("Expiring Soon (within 30 days)")}</p>
                     <p className="text-sm mt-1">
-                      {expiringSoonMedicines.length} medicine(s) expiring soon:
+                      {expiringSoonMedicines.length}{" "}{t("medicine(s) expiring soon:")}
                     </p>
                     <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
                       {expiringSoonMedicines.slice(0, 10).map((m) => (
-                        <li key={m.id}>{m.name} (Batch: {m.batch || "N/A"}, Expiry: {m.expiry}, Stock: {m.stock})</li>
+                        <li key={m.id}>{m.name}{" "}{t("(Batch:")}{" "}{m.batch || "N/A"}{t(", Expiry:")}{" "}{m.expiry}{t(", Stock:")}{" "}{m.stock})</li>
                       ))}
                       {expiringSoonMedicines.length > 10 && (
-                        <li>+{expiringSoonMedicines.length - 10} more...</li>
+                        <li>+{expiringSoonMedicines.length - 10}{" "}{t("more...")}</li>
                       )}
                     </ul>
                   </div>
@@ -1447,16 +1414,16 @@ function Pharmacy() {
                 <div className="bg-orange-50 border border-orange-200 text-orange-800 rounded-xl p-4 flex items-start gap-3">
                   <span className="text-2xl"><TrendingDownIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></span>
                   <div>
-                    <p className="font-semibold">Low Stock Alert</p>
+                    <p className="font-semibold">{t("Low Stock Alert")}</p>
                     <p className="text-sm mt-1">
-                      {lowStockMedicines.length} medicine(s) at or below reorder level (≤20 units):
+                      {lowStockMedicines.length}{" "}{t("medicine(s) at or below reorder level (≤20 units):")}
                     </p>
                     <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
                       {lowStockMedicines.slice(0, 10).map((m) => (
-                        <li key={m.id}>{m.name} (Stock: {m.stock})</li>
+                        <li key={m.id}>{m.name}{" "}{t("(Stock:")}{" "}{m.stock})</li>
                       ))}
                       {lowStockMedicines.length > 10 && (
-                        <li>+{lowStockMedicines.length - 10} more...</li>
+                        <li>+{lowStockMedicines.length - 10}{" "}{t("more...")}</li>
                       )}
                     </ul>
                   </div>
@@ -1488,7 +1455,7 @@ function Pharmacy() {
                   )
                 }
 
-                placeholder="Search medicine, category or batch..."
+                placeholder={t("Search medicine, category or batch...")}
 
                 className="hms-input"
 
@@ -1511,25 +1478,15 @@ function Pharmacy() {
 
               >
 
-                <option>
-                  All Categories
-                </option>
+                <option value="All Categories">{t("All Categories")}</option>
 
-                <option>
-                  Tablet
-                </option>
+                <option value="Tablet">{t("Tablet")}</option>
 
-                <option>
-                  Capsule
-                </option>
+                <option value="Capsule">{t("Capsule")}</option>
 
-                <option>
-                  Injection
-                </option>
+                <option value="Injection">{t("Injection")}</option>
 
-                <option>
-                  Syrup
-                </option>
+                <option value="Syrup">{t("Syrup")}</option>
 
               </select>
 
@@ -1550,17 +1507,11 @@ function Pharmacy() {
 
               >
 
-                <option>
-                  All Stock
-                </option>
+                <option value="All Stock">{t("All Stock")}</option>
 
-                <option>
-                  In Stock
-                </option>
+                <option value="In Stock">{t("In Stock")}</option>
 
-                <option>
-                  Low Stock
-                </option>
+                <option value="Low Stock">{t("Low Stock")}</option>
 
               </select>
 
@@ -1578,13 +1529,13 @@ function Pharmacy() {
             <div className="p-6 border-b">
 
               <h2 className="text-xl font-bold text-gray-800">
-                Medicine Inventory
+                {t("Medicine Inventory")}
               </h2>
 
               <p className="text-sm text-gray-500 mt-1">
                 {loading
-                  ? "Loading medicines…"
-                  : `${filteredMedicines.length} medicine(s) found`}
+                  ? t("Loading medicines…")
+                  : t("{count} medicine(s) found", { count: filteredMedicines.length })}
               </p>
 
             </div>
@@ -1599,11 +1550,11 @@ function Pharmacy() {
                 </div>
 
                 <h3 className="font-bold text-gray-800">
-                  No medicines found
+                  {t("No medicines found")}
                 </h3>
 
                 <p className="text-sm text-gray-500 mt-1">
-                  No medicine matches the current filters.
+                  {t("No medicine matches the current filters.")}
                 </p>
 
               </div>
@@ -1619,35 +1570,35 @@ function Pharmacy() {
                     <tr>
 
                       <th className="text-left px-6 py-4">
-                        Medicine
+                        {t("Medicine")}
                       </th>
 
                       <th className="text-left px-6 py-4">
-                        Category
+                        {t("Category")}
                       </th>
 
                       <th className="text-left px-6 py-4">
-                        Batch
+                        {t("Batch")}
                       </th>
 
                       <th className="text-left px-6 py-4">
-                        Stock
+                        {t("Stock")}
                       </th>
 
                       <th className="text-left px-6 py-4">
-                        Expiry
+                        {t("Expiry")}
                       </th>
 
                       <th className="text-left px-6 py-4">
-                        Price
+                        {t("Price")}
                       </th>
 
                       <th className="text-left px-6 py-4">
-                        Status
+                        {t("Status")}
                       </th>
 
                       <th className="text-left px-6 py-4">
-                        Actions
+                        {t("Actions")}
                       </th>
 
                     </tr>
@@ -1762,7 +1713,7 @@ function Pharmacy() {
                                 className="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg"
 
                               >
-                                View
+                                {t("View")}
                               </button>
 
 
@@ -1777,7 +1728,7 @@ function Pharmacy() {
                                 className="px-3 py-2 text-sm bg-green-50 text-green-700 rounded-lg"
 
                               >
-                                Edit
+                                {t("Edit")}
                               </button>
 
 
@@ -1812,7 +1763,7 @@ function Pharmacy() {
                                 className="px-3 py-2 text-sm bg-purple-50 text-purple-700 rounded-lg disabled:opacity-50"
 
                               >
-                                Issue
+                                {t("Issue")}
                               </button>
 
 
@@ -1827,7 +1778,7 @@ function Pharmacy() {
                                 className="px-3 py-2 text-sm bg-red-50 text-red-700 rounded-lg"
 
                               >
-                                Delete
+                                {t("Delete")}
                               </button>
 
 
@@ -1855,296 +1806,61 @@ function Pharmacy() {
               ADD / EDIT MODAL
           ========================= */}
 
-          {showForm && (
-
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-
-              <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-
-
-                <div className="flex justify-between items-center p-6 border-b">
-
-                  <div>
-
-                    <h2 className="text-xl font-bold text-gray-800">
-
-                      {
-                        selectedMedicine
-                          ? "Edit Medicine"
-                          : "Add Medicine"
-                      }
-
-                    </h2>
-
-                    <p className="text-sm text-gray-500 mt-1">
-                      {
-                        selectedHospital.name
-                      }
-                    </p>
-
-                  </div>
-
-
-                  <button
-
-                    onClick={
-                      resetForm
-                    }
-
-                    className="text-2xl text-gray-500"
-
-                  >
-                    ×
-                  </button>
-
-                </div>
-
-
-                <form
-
-                  onSubmit={
-                    selectedMedicine
-                      ? handleUpdate
-                      : handleSubmit
-                  }
-
-                  className="p-6 space-y-4"
-
-                >
-
-
-                  <input
-
-                    type="text"
-
-                    name="name"
-
-                    value={
-                      formData.name
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    placeholder="Medicine Name"
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <select
-
-                    name="category"
-
-                    value={
-                      formData.category
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    className="hms-input w-full"
-
-                  >
-
-                    <option value="">
-                      Select Category
-                    </option>
-
-                    <option>
-                      Tablet
-                    </option>
-
-                    <option>
-                      Capsule
-                    </option>
-
-                    <option>
-                      Injection
-                    </option>
-
-                    <option>
-                      Syrup
-                    </option>
-
-                  </select>
-
-
-                  <input
-
-                    type="text"
-
-                    name="batch"
-
-                    value={
-                      formData.batch
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    placeholder="Batch Number"
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <input
-
-                    type="number"
-
-                    name="stock"
-
-                    min="0"
-
-                    value={
-                      formData.stock
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    placeholder="Stock Quantity"
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <input
-
-                    type="month"
-
-                    value={
-
-                      formData.expiry
-
-                        ? formData.expiry
-                          .split("/")
-                          .reverse()
-                          .join("-")
-                          .slice(
-                            0,
-                            7
-                          )
-
-                        : ""
-
-                    }
-
-                    onChange={(e) => {
-
-                      const [
-                        year,
-                        month,
-                      ] =
-                        e.target.value.split(
-                          "-"
-                        )
-
-
-                      setFormData({
-
-                        ...formData,
-
-                        expiry:
-                          `${month}/${year}`,
-
-                      })
-
-                    }}
-
-                    required
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <input
-
-                    type="number"
-
-                    name="price"
-
-                    min="0"
-
-                    step="0.01"
-
-                    value={
-                      formData.price
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    placeholder="Price"
-
-                    className="hms-input w-full"
-
-                  />
-
-
-                  <div className="flex justify-end gap-3 pt-4">
-
-                    <button
-
-                      type="button"
-
-                      onClick={
-                        resetForm
-                      }
-
-                      className="px-5 py-3 border border-gray-300 rounded-xl"
-
-                    >
-                      Cancel
-                    </button>
-
-
-                    <button
-
-                      type="submit"
-
-                      className="px-5 py-3 bg-blue-600 text-white rounded-xl"
-
-                    >
-
-                      {
-                        selectedMedicine
-                          ? "Save Changes"
-                          : "Add Medicine"
-                      }
-
-                    </button>
-
-                  </div>
-
-
-                </form>
-
-              </div>
-
-            </div>
-
-          )}
+          <Modal
+            open={showForm}
+            onClose={resetForm}
+            title={selectedMedicine ? t("Edit Medicine") : t("Add Medicine")}
+            description={selectedHospital?.name}
+            footer={
+              <>
+                <Button variant="secondary" onClick={resetForm}>{t("Cancel")}</Button>
+                <Button type="submit" form="medicine-form">
+                  {selectedMedicine ? t("Save Changes") : t("Add Medicine")}
+                </Button>
+              </>
+            }
+          >
+            <form
+              id="medicine-form"
+              onSubmit={selectedMedicine ? handleUpdate : handleSubmit}
+              className="space-y-4"
+            >
+              <Field label="Medicine Name" required>
+                <Input type="text" name="name" value={formData.name} onChange={handleChange} />
+              </Field>
+              <Field label="Salt (generic name)" hint="Used by the prescription safety check, e.g. ibuprofen.">
+                <Input type="text" name="genericName" value={formData.genericName} onChange={handleChange} />
+              </Field>
+              <Field label="Category" required>
+                <Select name="category" value={formData.category} onChange={handleChange}>
+                  <option value="">{t("Select Category")}</option>
+                  <option value="Tablet">{t("Tablet")}</option>
+                  <option value="Capsule">{t("Capsule")}</option>
+                  <option value="Injection">{t("Injection")}</option>
+                  <option value="Syrup">{t("Syrup")}</option>
+                </Select>
+              </Field>
+              <Field label="Batch Number" required>
+                <Input type="text" name="batch" value={formData.batch} onChange={handleChange} />
+              </Field>
+              <Field label="Stock Quantity" required>
+                <Input type="number" name="stock" min="0" value={formData.stock} onChange={handleChange} />
+              </Field>
+              <Field label="Expiry (month)" required>
+                <Input
+                  type="month"
+                  value={formData.expiry ? formData.expiry.split("/").reverse().join("-").slice(0, 7) : ""}
+                  onChange={(e) => {
+                    const [year, month] = e.target.value.split("-")
+                    setFormData({ ...formData, expiry: e.target.value ? `${month}/${year}` : "" })
+                  }}
+                />
+              </Field>
+              <Field label="Price" required>
+                <Input type="number" name="price" min="0" step="0.01" value={formData.price} onChange={handleChange} />
+              </Field>
+            </form>
+          </Modal>
 
 
           {/* =========================
@@ -2164,7 +1880,7 @@ function Pharmacy() {
                     <div>
 
                       <h2 className="text-xl font-bold">
-                        Medicine Details
+                        {t("Medicine Details")}
                       </h2>
 
                       <p className="text-sm text-blue-600">
@@ -2199,7 +1915,7 @@ function Pharmacy() {
                     <div>
 
                       <p className="text-sm text-gray-500">
-                        Hospital
+                        {t("Hospital")}
                       </p>
 
                       <p className="font-semibold">
@@ -2214,7 +1930,7 @@ function Pharmacy() {
                     <div>
 
                       <p className="text-sm text-gray-500">
-                        Medicine
+                        {t("Medicine")}
                       </p>
 
                       <p className="font-bold text-lg">
@@ -2232,7 +1948,7 @@ function Pharmacy() {
                       <div className="bg-gray-50 rounded-xl p-4">
 
                         <p className="text-xs text-gray-500">
-                          Stock
+                          {t("Stock")}
                         </p>
 
                         <p className="font-bold text-lg">
@@ -2247,7 +1963,7 @@ function Pharmacy() {
                       <div className="bg-gray-50 rounded-xl p-4">
 
                         <p className="text-xs text-gray-500">
-                          Price
+                          {t("Price")}
                         </p>
 
                         <p className="font-bold text-lg">
@@ -2263,7 +1979,7 @@ function Pharmacy() {
                       <div className="bg-gray-50 rounded-xl p-4">
 
                         <p className="text-xs text-gray-500">
-                          Batch
+                          {t("Batch")}
                         </p>
 
                         <p className="font-semibold">
@@ -2278,7 +1994,7 @@ function Pharmacy() {
                       <div className="bg-gray-50 rounded-xl p-4">
 
                         <p className="text-xs text-gray-500">
-                          Expiry
+                          {t("Expiry")}
                         </p>
 
                         <p className="font-semibold">
@@ -2295,7 +2011,7 @@ function Pharmacy() {
                     <div>
 
                       <p className="text-sm text-gray-500">
-                        Status
+                        {t("Status")}
                       </p>
 
                       <span
@@ -2326,7 +2042,7 @@ function Pharmacy() {
                       className="px-5 py-3 bg-gray-800 text-white rounded-xl"
 
                     >
-                      Close
+                      {t("Close")}
                     </button>
 
                   </div>
@@ -2354,7 +2070,7 @@ function Pharmacy() {
                   <div>
 
                     <h2 className="text-xl font-bold">
-                      Issue Medicine
+                      {t("Issue Medicine")}
                     </h2>
 
                     <p className="text-sm text-blue-600">
@@ -2410,9 +2126,7 @@ function Pharmacy() {
 
                   >
 
-                    <option value="">
-                      Select Medicine
-                    </option>
+                    <option value="">{t("Select Medicine")}</option>
 
 
                     {
@@ -2465,7 +2179,7 @@ function Pharmacy() {
 
                     required
 
-                    placeholder="Patient Name"
+                    placeholder={t("Patient Name")}
 
                     className="hms-input w-full"
 
@@ -2490,7 +2204,7 @@ function Pharmacy() {
 
                     required
 
-                    placeholder="Quantity"
+                    placeholder={t("Quantity")}
 
                     className="hms-input w-full"
 
@@ -2510,7 +2224,7 @@ function Pharmacy() {
                       className="px-5 py-3 border border-gray-300 rounded-xl"
 
                     >
-                      Cancel
+                      {t("Cancel")}
                     </button>
 
 
@@ -2521,7 +2235,7 @@ function Pharmacy() {
                       className="px-5 py-3 bg-green-600 text-white rounded-xl"
 
                     >
-                      Issue Medicine
+                      {t("Issue Medicine")}
                     </button>
 
                   </div>
@@ -2552,7 +2266,7 @@ function Pharmacy() {
                   <div>
 
                     <h2 className="text-xl font-bold">
-                      Pharmacy Sales History
+                      {t("Pharmacy Sales History")}
                     </h2>
 
                     <p className="text-sm text-gray-500 mt-1">
@@ -2590,7 +2304,7 @@ function Pharmacy() {
                       <ReceiptIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />
                     </div>
 
-                    No medicine sales yet.
+                    {t("No medicine sales yet.")}
 
                   </div>
 
@@ -2605,31 +2319,31 @@ function Pharmacy() {
                         <tr>
 
                           <th className="text-left px-6 py-4">
-                            Sale ID
+                            {t("Sale ID")}
                           </th>
 
                           <th className="text-left px-6 py-4">
-                            Medicine
+                            {t("Medicine")}
                           </th>
 
                           <th className="text-left px-6 py-4">
-                            Patient
+                            {t("Patient")}
                           </th>
 
                           <th className="text-left px-6 py-4">
-                            Quantity
+                            {t("Quantity")}
                           </th>
 
                           <th className="text-left px-6 py-4">
-                            Total
+                            {t("Total")}
                           </th>
 
                           <th className="text-left px-6 py-4">
-                            Prescription
+                            {t("Prescription")}
                           </th>
 
                           <th className="text-left px-6 py-4">
-                            Date
+                            {t("Date")}
                           </th>
 
                         </tr>
@@ -2701,7 +2415,7 @@ function Pharmacy() {
                                   ) : (
 
                                     <span className="text-gray-400">
-                                      Direct Issue
+                                      {t("Direct Issue")}
                                     </span>
 
                                   )}
@@ -2743,7 +2457,7 @@ function Pharmacy() {
                     className="px-5 py-3 bg-gray-800 text-white rounded-xl"
 
                   >
-                    Close
+                    {t("Close")}
                   </button>
 
                 </div>

@@ -1,5 +1,6 @@
 import { forwardRef } from "react"
 import { LoaderCircle } from "lucide-react"
+import { useT } from "./useT.js"
 
 const VARIANTS = {
   primary:
@@ -43,6 +44,7 @@ const Button = forwardRef(function Button(
   },
   ref,
 ) {
+  const tr = useT()
   const iconSize = size === "sm" || size === "icon-sm" ? 15 : 17
   return (
     <button
@@ -58,7 +60,7 @@ const Button = forwardRef(function Button(
       ) : (
         Icon && <Icon size={iconSize} aria-hidden="true" strokeWidth={2} />
       )}
-      {children}
+      {tr(children)}
       {IconRight && !loading && <IconRight size={iconSize} aria-hidden="true" strokeWidth={2} />}
     </button>
   )

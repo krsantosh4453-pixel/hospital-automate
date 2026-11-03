@@ -5,6 +5,7 @@ from .models import (
     SampleDispatch,
     LabResult,
     ResultVerification,
+    ImagingStudy,
 )
 
 
@@ -167,3 +168,37 @@ class LabTestCreateSerializer(serializers.ModelSerializer):
             "id", "name", "patient", "doctor", "visit", "hospital", "priority", "status"
         ]
         read_only_fields = ["id", "status"]
+
+class ImagingStudySerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source="patient.name", read_only=True)
+    patient_age = serializers.IntegerField(source="patient.age", read_only=True)
+    patient_gender = serializers.CharField(source="patient.gender", read_only=True)
+    hospital_name = serializers.CharField(source="hospital.name", read_only=True)
+    ordered_by_name = serializers.CharField(source="ordered_by.name", read_only=True)
+    reported_by_name = serializers.CharField(source="reported_by.name", read_only=True, default="")
+
+    class Meta:
+        model = ImagingStudy
+        fields = [
+            "id", "hospital", "patient", "visit", "accession_number", "modality", "body_part", "indication",
+            "priority", "status", "ordered_by", "ordered_at", "scheduled_for", "performed_at", "performed_by",
+            "technician_notes", "findings", "impression", "reported_by", "reported_at",
+            "patient_name", "patient_age", "patient_gender", "hospital_name", "ordered_by_name", "reported_by_name",
+        ]
+        # Only the order itself is written through create; every later field
+        # moves through the schedule / perform / report actions.
+        read_only_fields = [
+            "id", "accession_number", "status", "ordered_by", "ordered_at", "scheduled_for", "performed_at",
+            "performed_by", "technician_notes", "findings", "impression", "reported_by", "reported_at",
+        ]
+        extra_kwargs = {"hospital": {"required": False}}
+
+    def validate_body_part(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Name the body part or region.")
+        return value.strip()
+
+    def validate_indication(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Give the clinical question for the radiologist.")
+        return value.strip()

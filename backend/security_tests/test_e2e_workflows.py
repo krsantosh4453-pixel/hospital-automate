@@ -180,6 +180,18 @@ class HospitalWorkflowTests(TestCase):
         self.ok(doctor.post(f"/api/ipd/discharge-summaries/{summary['id']}/finalize/", {}, format="json"))
         self.assertEqual(doctor.patch(f"/api/ipd/discharge-summaries/{summary['id']}/",
                                       {"summary": "edited"}, format="json").status_code, 400)
+        # Checklist and final bill (E7, E12): refused until both are done.
+        self.assertEqual(doctor.post(f"{base}/complete_discharge/", {}, format="json").status_code, 400)
+        self.ok(nurse.post("/api/ipd/discharge-plans/", {
+            "admission": admission["id"], "instructions": "Rest", "medications_reconciled": True,
+            "patient_counselled": True, "follow_up_arranged": True, "documents_handed_over": True,
+        }, format="json"), 201)
+        reception = self.api(self.reception)
+        bill = self.ok(reception.post(f"{base}/final_bill/", {"daily_rate": "1000"}, format="json"), 201)
+        self.assertEqual(doctor.post(f"{base}/complete_discharge/", {}, format="json").status_code, 400)
+        self.ok(reception.post("/api/billing/payments/", {
+            "invoice": bill["id"], "amount": bill["balance_due"], "payment_method": "Cash",
+        }, format="json"), 201)
         done = self.ok(doctor.post(f"{base}/complete_discharge/", {}, format="json"))  # 7
         self.assertEqual(done["status"], "Discharged")
         bed.refresh_from_db()

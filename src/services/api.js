@@ -113,6 +113,7 @@ function shouldAttemptRefresh(url) {
     '/auth/patient/email-otp/',
     '/auth/patient/login/',
     '/auth/patient/token/',
+    '/auth/proxy/',
     '/auth/google/',
     '/auth/dev/',
     '/auth/register/',
@@ -210,7 +211,7 @@ async function request(url, options = {}) {
     try {
       body = await response.json()
       detail = parseErrorDetail(body, response.status)
-    } catch (parseError) {
+    } catch {
       // Response body was not JSON — keep the default message.
     }
 
@@ -303,7 +304,7 @@ const api = {
           method: 'POST',
           ...jsonBody({}),
         })
-      } catch (error) {
+      } catch {
         // Keep logout local even if the server call fails.
       }
       clearTokens()
@@ -360,6 +361,36 @@ const api = {
       return data
     },
     patientMe: async () => request(`${API_BASE_URL}/auth/patient/me/`),
+    // Family / caregiver sign-in (view-only): OTP to the family member's own mobile,
+    // then pick which patient's records to open.
+    requestProxyOtp: async (phone) =>
+      request(`${API_BASE_URL}/auth/proxy/otp/request/`, {
+        method: 'POST',
+        timeout: DELIVERY_TIMEOUT_MS,
+        ...jsonBody({ phone }),
+      }),
+    verifyProxyOtp: async (phone, otp) =>
+      request(`${API_BASE_URL}/auth/proxy/otp/verify/`, {
+        method: 'POST',
+        ...jsonBody({ phone, otp }),
+      }),
+    proxyLogin: async (ticket, grant) => {
+      const data = await request(`${API_BASE_URL}/auth/proxy/login/`, {
+        method: 'POST',
+        ...jsonBody({ ticket, grant }),
+      })
+      setTokens({ access: data.access, refresh: data.refresh })
+      return data
+    },
+    // Family members the signed-in patient has given view-only access.
+    listFamilyAccess: async () => request(`${API_BASE_URL}/auth/patient/family-access/`),
+    grantFamilyAccess: async ({ name, relationship, phone }) =>
+      request(`${API_BASE_URL}/auth/patient/family-access/`, {
+        method: 'POST',
+        ...jsonBody({ name, relationship, phone }),
+      }),
+    revokeFamilyAccess: async (id) =>
+      request(`${API_BASE_URL}/auth/patient/family-access/${id}/revoke/`, { method: 'POST' }),
     // POST /api/auth/google/ with the ID token from Google Identity Services.
     googleLogin: async (credential) =>
       request(`${API_BASE_URL}/auth/google/`, {
@@ -393,6 +424,14 @@ const api = {
     },
 
     get: async (id) => request(`${API_BASE_URL}/patients/${id}/`),
+
+    // GET /api/patients/lookup/?search= : at most 20 matches, minimal fields,
+    // for staff who may not browse the list (Lab Staff placing walk-in orders).
+    lookup: async (hospitalId, search) => {
+      const params = new URLSearchParams({ search })
+      if (hospitalId) params.set('hospital', hospitalId)
+      return request(`${API_BASE_URL}/patients/lookup/?${params.toString()}`)
+    },
 
     // POST /api/patients/
     create: async (data) =>
@@ -777,6 +816,20 @@ const api = {
         : ''
 
       return request(`${API_BASE_URL}/appointments/${query}`)
+    },
+
+    // One day's appointments of the hospital across all result pages,
+    // earliest first (the list endpoint pages 50 at a time, newest first).
+    listForDay: async (hospitalId, date, { status } = {}) => {
+      const rows = []
+      for (let page = 1; ; page += 1) {
+        const params = new URLSearchParams({ hospital: hospitalId, appointment_date: date, page: String(page) })
+        if (status) params.set('status', status)
+        const data = await request(`${API_BASE_URL}/appointments/?${params.toString()}`)
+        rows.push(...(Array.isArray(data) ? data : data?.results || []))
+        if (Array.isArray(data) || !data?.next) break
+      }
+      return rows.sort((a, b) => String(a.appointment_time || '').localeCompare(String(b.appointment_time || '')))
     },
 
     get: async (id) => request(`${API_BASE_URL}/appointments/${id}/`),
@@ -1209,6 +1262,17 @@ const api = {
       get: async (id) =>
         request(`${API_BASE_URL}/clinical/prescriptions/${id}/`),
 
+      // POST /api/clinical/prescriptions/safety-check/ — allergy, duplicate and interaction alerts
+      // before saving ({ hospital, patient, items: [{ name }] }).
+      safetyCheck: async (data) =>
+        request(`${API_BASE_URL}/clinical/prescriptions/safety-check/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        }),
+
       // POST /api/clinical/prescriptions/
       create: async (data) =>
         request(`${API_BASE_URL}/clinical/prescriptions/`, {
@@ -1246,6 +1310,73 @@ const api = {
         })
         return true
       },
+    },
+
+    // Signed by the requesting doctor; issued once and never edited.
+    certificates: {
+      // GET /api/clinical/certificates/?patient=<id>
+      list: async ({ patientId } = {}) => {
+        const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : ''
+        return request(`${API_BASE_URL}/clinical/certificates/${query}`)
+      },
+
+      // POST /api/clinical/certificates/
+      create: async (data) =>
+        request(`${API_BASE_URL}/clinical/certificates/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+    },
+
+    // Only a referral's status can change after it is made.
+    referrals: {
+      // GET /api/clinical/referrals/?patient=<id>
+      list: async ({ patientId } = {}) => {
+        const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : ''
+        return request(`${API_BASE_URL}/clinical/referrals/${query}`)
+      },
+
+      // POST /api/clinical/referrals/
+      create: async (data) =>
+        request(`${API_BASE_URL}/clinical/referrals/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+
+      // PATCH /api/clinical/referrals/{id}/  { status }
+      setStatus: async (id, status) =>
+        request(`${API_BASE_URL}/clinical/referrals/${id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        }),
+    },
+
+    // Vaccination register (D15). Doses are corrected, never deleted.
+    immunizations: {
+      // GET /api/clinical/immunizations/?patient=<id>
+      list: async ({ patientId } = {}) => {
+        const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : ''
+        return request(`${API_BASE_URL}/clinical/immunizations/${query}`)
+      },
+
+      // POST /api/clinical/immunizations/
+      create: async (data) =>
+        request(`${API_BASE_URL}/clinical/immunizations/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
+
+      // PATCH /api/clinical/immunizations/{id}/
+      update: async (id, data) =>
+        request(`${API_BASE_URL}/clinical/immunizations/${id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        }),
     },
 
     // =====================================
@@ -1306,6 +1437,17 @@ const api = {
         // POST /api/pharmacy-sales/
         create: async (data) =>
           request(`${API_BASE_URL}/pharmacy-sales/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+          }),
+
+        // POST /api/pharmacy-sales/dispense-prescription/
+        // { prescription, lines: [{ item, medicine }] }: all medicines or none.
+        dispensePrescription: async (data) =>
+          request(`${API_BASE_URL}/pharmacy-sales/dispense-prescription/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1407,6 +1549,9 @@ const api = {
           : ''
         return request(`${API_BASE_URL}/ipd/admissions/${query}`)
       },
+      // GET /api/ipd/admissions/?patient=<id>&status=Admitted
+      currentForPatient: async (patientId) =>
+        request(`${API_BASE_URL}/ipd/admissions/?patient=${encodeURIComponent(patientId)}&status=Admitted`),
       get: async (id) => request(`${API_BASE_URL}/ipd/admissions/${id}/`),
       create: async (data) =>
         request(`${API_BASE_URL}/ipd/admissions/`, {
@@ -1653,6 +1798,48 @@ api.audit = {
     const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
     return request(`${API_BASE_URL}/audit/audit-logs/${query}`)
   },
+
+  // GET /api/audit/audit-logs/?hospital=&page=&action=&model=&user=&from=&to=
+  search: async (hospitalId, { page = 1, action, model, user, from, to } = {}) => {
+    const params = new URLSearchParams({ hospital: hospitalId, page: String(page) })
+    Object.entries({ action, model, user, from, to }).forEach(([key, value]) => {
+      if (value) params.set(key, value)
+    })
+    return request(`${API_BASE_URL}/audit/audit-logs/?${params.toString()}`)
+  },
+}
+
+// Break-glass emergency access (audit.BreakGlassAccess). A Doctor or Nurse
+// opens time-limited access to a patient outside their care with a written
+// reason; an Admin or Hospital Manager reviews every grant. The server
+// enforces roles, duration and audit.
+api.breakGlass = {
+  // GET /api/audit/break-glass/?hospital=&pending_review=true
+  list: async (hospitalId, { pendingReview = false } = {}) => {
+    const params = new URLSearchParams({ hospital: hospitalId })
+    if (pendingReview) params.set('pending_review', 'true')
+    return request(`${API_BASE_URL}/audit/break-glass/?${params.toString()}`)
+  },
+
+  // POST /api/audit/break-glass/ {hospital, patient, reason}
+  open: async (hospitalId, patientId, reason) =>
+    request(`${API_BASE_URL}/audit/break-glass/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hospital: hospitalId, patient: patientId, reason }),
+    }),
+
+  // POST /api/audit/break-glass/{id}/end/
+  end: async (id) =>
+    request(`${API_BASE_URL}/audit/break-glass/${id}/end/`, { method: 'POST' }),
+
+  // POST /api/audit/break-glass/{id}/review/ {note}
+  review: async (id, note) =>
+    request(`${API_BASE_URL}/audit/break-glass/${id}/review/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    }),
 }
 
 // Staff administration for the selected hospital (Admin / Hospital Manager).
@@ -1771,7 +1958,7 @@ api.hospitals = {
     try {
       const me = await api.auth.getMe()
       return me.hospitals || []
-    } catch (error) {
+    } catch {
       return []
     }
   },
@@ -2015,8 +2202,11 @@ api.aiScribe.consultationSessions = {
       body: form,
     })
   },
-  transcribe: async (id) =>
-    request(`${API_BASE_URL}/ai/consultation-sessions/${id}/transcribe/`, { method: "POST" }),
+  transcribe: async (id, language) =>
+    request(`${API_BASE_URL}/ai/consultation-sessions/${id}/transcribe/`, {
+      method: "POST",
+      ...jsonBody(language ? { language } : {}),
+    }),
 }
 
 api.aiScribe.transcripts = {
@@ -2078,19 +2268,22 @@ api.consent = {
   },
 }
 
+const queryForHospital = (hospitalId) => (hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : "")
+
 api.procurement = {
   suppliers: {
     list: async (hospitalId) => {
       const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
       return request(`${API_BASE_URL}/procurement/suppliers/${query}`)
     },
-    get: async (id) => request(`${API_BASE_URL}/procurement/suppliers/${id}/`),
+    get: async (id, hospitalId) => request(`${API_BASE_URL}/procurement/suppliers/${id}/${queryForHospital(hospitalId)}`),
     create: async (data) =>
       request(`${API_BASE_URL}/procurement/suppliers/`, { method: "POST", ...jsonBody(data) }),
-    update: async (id, data) =>
-      request(`${API_BASE_URL}/procurement/suppliers/${id}/`, { method: "PUT", ...jsonBody(data) }),
-    delete: async (id) => {
-      await request(`${API_BASE_URL}/procurement/suppliers/${id}/`, { method: "DELETE" })
+    // Procurement detail and write routes require ?hospital= (procurement/views.py RequiresHospitalScope).
+    update: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/suppliers/${id}/${queryForHospital(hospitalId)}`, { method: "PUT", ...jsonBody(data) }),
+    delete: async (id, hospitalId) => {
+      await request(`${API_BASE_URL}/procurement/suppliers/${id}/${queryForHospital(hospitalId)}`, { method: "DELETE" })
       return true
     },
   },
@@ -2099,13 +2292,13 @@ api.procurement = {
       const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
       return request(`${API_BASE_URL}/procurement/purchases/${query}`)
     },
-    get: async (id) => request(`${API_BASE_URL}/procurement/purchases/${id}/`),
+    get: async (id, hospitalId) => request(`${API_BASE_URL}/procurement/purchases/${id}/${queryForHospital(hospitalId)}`),
     create: async (data) =>
       request(`${API_BASE_URL}/procurement/purchases/`, { method: "POST", ...jsonBody(data) }),
-    update: async (id, data) =>
-      request(`${API_BASE_URL}/procurement/purchases/${id}/`, { method: "PUT", ...jsonBody(data) }),
-    receive: async (id, data) =>
-      request(`${API_BASE_URL}/procurement/purchases/${id}/receive/`, { method: "POST", ...jsonBody(data) }),
+    update: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/purchases/${id}/${queryForHospital(hospitalId)}`, { method: "PUT", ...jsonBody(data) }),
+    receive: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/purchases/${id}/receive/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
   },
   purchaseItems: {
     list: async (hospitalId, purchaseId) => {
@@ -2181,5 +2374,82 @@ api.patients.documents = {
   },
 }
 
-export default api
 
+// Discharge readiness and the final bill of a stay (E7, E12, H8).
+// GET /api/ipd/admissions/{id}/readiness/
+api.ipd.admissions.readiness = async (id) =>
+  request(`${API_BASE_URL}/ipd/admissions/${id}/readiness/`)
+// GET /api/ipd/admissions/awaiting_final_bill/?hospital=<id> (billing roles)
+api.ipd.admissions.awaitingFinalBill = async (hospitalId) =>
+  request(`${API_BASE_URL}/ipd/admissions/awaiting_final_bill/?hospital=${encodeURIComponent(hospitalId)}`)
+// POST /api/ipd/admissions/{id}/final_bill/  { daily_rate, items: [{ description, quantity, unit_price }] }
+api.ipd.admissions.finalBill = async (id, data) =>
+  request(`${API_BASE_URL}/ipd/admissions/${id}/final_bill/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+// Read-only security configuration (A14), Admin only.
+// GET /api/auth/security-settings/
+api.securitySettings = {
+  get: async () => request(`${API_BASE_URL}/auth/security-settings/`),
+}
+// PATCH /api/ipd/discharge-plans/{id}/  e.g. { medications_reconciled: true }
+api.ipd.dischargePlans.patch = async (id, data) =>
+  request(`${API_BASE_URL}/ipd/discharge-plans/${id}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+
+// ER row actions (J3). Appended here so the ER and clinical blocks above stay untouched.
+// POST /api/emergency/emergency-visits/{id}/add_note/  { note }
+api.emergency.visits.addNote = async (id, note) =>
+  request(`${API_BASE_URL}/emergency/emergency-visits/${id}/add_note/`, { method: "POST", ...jsonBody({ note }) })
+// GET /api/emergency/emergency-visits/{id}/charge_slip/
+api.emergency.visits.chargeSlip = async (id) =>
+  request(`${API_BASE_URL}/emergency/emergency-visits/${id}/charge_slip/`)
+// POST /api/emergency/emergency-visits/{id}/administer_medication/  { medication_id, administered_by? }
+api.emergency.visits.administerMedication = async (id, data) =>
+  request(`${API_BASE_URL}/emergency/emergency-visits/${id}/administer_medication/`, { method: "POST", ...jsonBody(data) })
+// POST /api/emergency/emergency-visits/{id}/admit_to_ipd/  { bed_id }
+api.emergency.visits.admitToIpd = async (id, bedId) =>
+  request(`${API_BASE_URL}/emergency/emergency-visits/${id}/admit_to_ipd/`, { method: "POST", ...jsonBody({ bed_id: bedId }) })
+// GET /api/clinical/allergies/?patient=<id>; POST { patient, name, reaction, severity }.
+// Any allergies helpers defined above take precedence.
+api.clinical.allergies = {
+  list: async ({ patientId } = {}) => {
+    const query = patientId ? `?patient=${encodeURIComponent(patientId)}` : ""
+    return request(`${API_BASE_URL}/clinical/allergies/${query}`)
+  },
+  create: async (data) =>
+    request(`${API_BASE_URL}/clinical/allergies/`, { method: "POST", ...jsonBody(data) }),
+  ...api.clinical.allergies,
+}
+
+// Sample barcode scan (F6). GET /api/laboratory/by_sample/?sample_id=<scanned code>
+api.laboratory.tests.bySample = async (sampleId) =>
+  request(`${API_BASE_URL}/laboratory/by_sample/?sample_id=${encodeURIComponent(sampleId)}`)
+
+// Radiology / imaging (G4). /api/laboratory/imaging/
+api.imaging = {
+  // GET ?patient=&status=&modality=
+  list: async (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString()
+    return request(`${API_BASE_URL}/laboratory/imaging/${query ? `?${query}` : ""}`)
+  },
+  // POST { patient, modality, body_part, indication, priority }
+  create: async (data) => request(`${API_BASE_URL}/laboratory/imaging/`, { method: "POST", ...jsonBody(data) }),
+  // POST { scheduled_for } (technician)
+  schedule: async (id, data) => request(`${API_BASE_URL}/laboratory/imaging/${id}/schedule/`, { method: "POST", ...jsonBody(data) }),
+  // POST { technician_notes } (technician)
+  perform: async (id, data) => request(`${API_BASE_URL}/laboratory/imaging/${id}/perform/`, { method: "POST", ...jsonBody(data) }),
+  // POST { findings, impression } (doctor; signs and locks the report)
+  report: async (id, data) => request(`${API_BASE_URL}/laboratory/imaging/${id}/report/`, { method: "POST", ...jsonBody(data) }),
+  cancel: async (id) => request(`${API_BASE_URL}/laboratory/imaging/${id}/cancel/`, { method: "POST" }),
+}
+
+// Longitudinal record (B9, D12). GET /api/patients/{id}/timeline/ (audited)
+api.patients.timeline = async (id) => request(`${API_BASE_URL}/patients/${id}/timeline/`)
+
+export default api

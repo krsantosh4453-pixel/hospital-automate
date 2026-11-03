@@ -36,7 +36,8 @@ ENDPOINTS = {
 
 # Server-only extras: every staff member reads the doctors directory (names
 # for dropdowns, no patient data); the Reports page of the front desk counts
-# prescriptions; the Inventory page lists medicines.
+# prescriptions; the Inventory page lists medicines; Billing Staff look up
+# patients (read only) to raise their bills.
 EXPECTED = {
     StaffRole.DOCTOR: "Patients Appointments Queue Doctors Prescriptions Laboratory BloodBank IPD Emergency",
     StaffRole.NURSE: "Patients Appointments Queue Doctors Nurses Prescriptions Laboratory BloodBank IPD Emergency",
@@ -45,7 +46,7 @@ EXPECTED = {
     StaffRole.RECEPTIONIST: "Patients Appointments Queue Doctors Prescriptions Billing",
     StaffRole.LAB_STAFF: "Doctors Laboratory",
     StaffRole.BLOOD_BANK_STAFF: "Doctors BloodBank",
-    StaffRole.BILLING_STAFF: "Doctors Billing",
+    StaffRole.BILLING_STAFF: "Patients Doctors Billing",
     StaffRole.INVENTORY_STAFF: "Doctors Inventory Medicines",
     StaffRole.HOSPITAL_MANAGER: (
         "Patients Appointments Queue Doctors Nurses Pharmacy Compounders Laboratory Billing "
@@ -91,6 +92,29 @@ class RoleAccessMatrixTests(TestCase):
         for module, body in MANAGER_READ_ONLY.items():
             resp = client.post(ENDPOINTS[module], {"hospital": self.hospital.id, **body}, format="json")
             self.assertEqual(resp.status_code, 403, module)
+
+    def test_billing_staff_only_look_patients_up(self):
+        client = self.client_for(StaffRole.BILLING_STAFF)
+        scope = f"?hospital={self.hospital.id}"
+        patient = client.get(ENDPOINTS["Patients"], {"hospital": self.hospital.id})
+        self.assertEqual(patient.status_code, 200)
+
+        created = client.post(
+            ENDPOINTS["Patients"] + scope,
+            {"hospital": self.hospital.id, **MANAGER_READ_ONLY["Patients"]},
+            format="json",
+        )
+        self.assertEqual(created.status_code, 403)
+
+        from patients.models import Patient
+
+        record = Patient.objects.create(hospital=self.hospital, name="Billed Patient", age=40, gender="Male", phone="9000004002")
+        detail = f"{ENDPOINTS['Patients']}{record.id}/{scope}"
+        self.assertEqual(client.get(detail).status_code, 200)
+        self.assertEqual(client.patch(detail, {"name": "Changed"}, format="json").status_code, 403)
+        self.assertEqual(client.delete(detail).status_code, 403)
+        # Clinical documents stay closed to billing.
+        self.assertEqual(client.get(f"{ENDPOINTS['Patients']}{record.id}/documents/{scope}").status_code, 403)
 
     def test_hospital_manager_cannot_read_prescriptions_or_clinical_notes(self):
         client = self.client_for(StaffRole.HOSPITAL_MANAGER)

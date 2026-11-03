@@ -5,6 +5,7 @@ from .views import (
     SampleDispatchViewSet,
     LabResultViewSet,
     ResultVerificationViewSet,
+    ImagingStudyViewSet,
 )
 
 # Lab tests themselves are served by the root router at /api/laboratory/.
@@ -16,6 +17,7 @@ router.register(r"sample-collections", SampleCollectionViewSet, basename="sample
 router.register(r"sample-dispatches", SampleDispatchViewSet, basename="sample-dispatch")
 router.register(r"lab-results", LabResultViewSet, basename="lab-result")
 router.register(r"result-verifications", ResultVerificationViewSet, basename="result-verification")
+router.register(r"imaging", ImagingStudyViewSet, basename="imaging-study")
 
 urlpatterns = [
     path("", include(router.urls)),

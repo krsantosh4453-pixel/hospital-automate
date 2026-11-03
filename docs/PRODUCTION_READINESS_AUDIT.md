@@ -82,7 +82,7 @@ The afternoon read-only audit estimated 64.3% implementation and 31.3% verified.
 | Defects fixed | 16 (1 Critical, 7 High, 5 Medium, 3 Low; one High, D-06, was fixed by the owner and verified here) |
 | Defects remaining | 14: 2 High, 5 Medium, 7 Low |
 | Security findings remediated this audit | 9 (`SECURITY_AUDIT.md` #25–33) |
-| Security findings unresolved | 2 High (R-01, R-02) and 3 security-relevant Medium (R-04, R-05, R-07) |
+| Security findings unresolved | 2 High (R-01, R-02) and 3 security-relevant Medium (R-04, R-05, R-15; R-07 fixed 2026-10-28) |
 
 **Counting method.**
 
@@ -135,7 +135,7 @@ See `DEFECT_REGISTER.md` → Remaining (R-01 to R-14). Summary:
 | R-04 | ~~Medium~~ Fixed 2026-10-28 | staff admin | Pending applicants visible to all hospitals; Admin via shared invite code | Done: invite-only staff; Admin code kept as accepted onboarding path |
 | R-05 | Medium | audit | No read auditing; no break-glass | Policy, then build |
 | R-06 | Medium | notifications | SMS/WhatsApp/Voice not implemented; synchronous | Twilio Messaging + Celery |
-| R-07 | Medium | APIView endpoints | Not re-checked for role-union | Probe each endpoint |
+| R-07 | ~~Medium~~ Fixed 2026-10-28 | APIView endpoints | Procurement role union fixed (D-29); see DEFECT_REGISTER | Done |
 | R-08 – R-14 | Low | various | UHID uniqueness, static storage, CI pinning, public docs, quality, offline cache, dev bypass | See register |
 
 ## Production blockers

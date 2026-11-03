@@ -29,7 +29,7 @@ from .services import receive_purchase, adjust_stock
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import (
     IsAdmin, IsHospitalManager, IsInventoryStaff, 
-    get_user_hospital_ids, get_user_staff_profile, get_user_roles
+    get_user_hospital_ids, get_user_staff_profile, get_user_roles, get_request_hospital_id
 )
 from users.models import StaffRole
 
@@ -58,7 +58,9 @@ class RequiresHospitalScope(BasePermission):
     
     Anonymous users are always rejected.
     
-    For authenticated users, requires one of: Admin, HospitalManager, InventoryStaff
+    For authenticated users, requires one of: Admin, HospitalManager, InventoryStaff,
+    held in the hospital being acted in. Inventory Staff of Hospital A who is a
+    Receptionist in Hospital B has no procurement access in B.
     """
 
     def has_permission(self, request, view):
@@ -76,29 +78,34 @@ class RequiresHospitalScope(BasePermission):
         if not staff_profile or not staff_profile.is_active_staff:
             return False
 
-        user_roles = get_user_roles(request.user)
         allowed_roles = {StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER, StaffRole.INVENTORY_STAFF}
         if not is_write:
             # The pharmacy reads stock and purchases; only the store changes them.
             allowed_roles |= {StaffRole.PHARMACIST, StaffRole.COMPOUNDER}
-        if not any(role in user_roles for role in allowed_roles):
-            return False
 
         # For detail views and write operations (except list-create), require hospital param
         if is_detail or (is_write and not is_list_create):
             hospital_id = request.query_params.get("hospital")
             if not hospital_id:
                 return False
-            # Check if user has access to the requested hospital
             try:
                 hospital_id = int(hospital_id)
             except (ValueError, TypeError):
                 return False
-            return hospital_id in get_user_hospital_ids(request.user)
+        else:
+            hospital_id = get_request_hospital_id(request, view)
 
-        # List views (safe methods) and list-create (POST to list) are allowed without explicit scoping
-        # Serializer validation will handle hospital scoping for create
-        return True
+        member_of = get_user_hospital_ids(request.user)
+        if hospital_id is None and len(member_of) == 1:
+            hospital_id = member_of[0]
+        if hospital_id is None:
+            if is_write:
+                return False
+            # Lists return no rows without ?hospital=, so any store role may ask.
+            return bool(set(get_user_roles(request.user)) & allowed_roles)
+        if hospital_id not in member_of:
+            return False
+        return bool(set(get_user_roles(request.user, hospital_id)) & allowed_roles)
 
 
 class SupplierViewSet(HospitalScopedViewSet):

@@ -3,8 +3,10 @@ import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
 import { Ticket } from "lucide-react"
 import { Alert, Card, EmptyState, SkeletonRows, StatusBadge } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 function PatientQueue() {
+  const { t } = useLanguage()
   const { patient } = useAuth()
   const [queueTokens, setQueueTokens] = useState([])
   const [loading, setLoading] = useState(true)
@@ -49,8 +51,8 @@ function PatientQueue() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">Queue / token</h1>
-        <p className="mt-1 text-sm text-ink-500">Your place in today&apos;s consultation queue. This page refreshes every 30 seconds.</p>
+        <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">{t("Queue / token")}</h1>
+        <p className="mt-1 text-sm text-ink-500">{t("Your place in today's consultation queue. This page refreshes every 30 seconds.")}</p>
       </header>
 
       {error && <Alert tone="danger">{error}</Alert>}
@@ -59,7 +61,7 @@ function PatientQueue() {
         <Card><SkeletonRows rows={2} /></Card>
       ) : queueTokens.length === 0 ? (
         <Card>
-          <EmptyState icon={Ticket} title="No active token" description="You don't have a consultation waiting at the moment." />
+          <EmptyState icon={Ticket} title={t("No active token")} description="You don't have a consultation waiting at the moment." />
         </Card>
       ) : (
         <ul className="space-y-4">
@@ -70,7 +72,7 @@ function PatientQueue() {
                 <Card className="overflow-hidden">
                   <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center">
                     <div className="flex h-24 w-full shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-900 text-white sm:w-32">
-                      <span className="text-xs font-medium uppercase tracking-[0.1em] text-brand-200">Token</span>
+                      <span className="text-xs font-medium uppercase tracking-[0.1em] text-brand-200">{t("Token")}</span>
                       <span className="text-4xl font-semibold tabular-nums">{token.token_number}</span>
                     </div>
                     <div className="min-w-0 flex-1">
@@ -81,15 +83,15 @@ function PatientQueue() {
                       {active && (
                         <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
                           <div>
-                            <dt className="text-xs text-ink-500">Position</dt>
+                            <dt className="text-xs text-ink-500">{t("Position")}</dt>
                             <dd className="text-lg font-semibold text-ink-900 tabular-nums">{token.queue_position ? `#${token.queue_position}` : "—"}</dd>
                           </div>
                           <div>
-                            <dt className="text-xs text-ink-500">Estimated wait</dt>
+                            <dt className="text-xs text-ink-500">{t("Estimated wait")}</dt>
                             <dd className="text-lg font-semibold text-ink-900 tabular-nums">{token.estimated_wait_minutes ? `${token.estimated_wait_minutes} min` : "—"}</dd>
                           </div>
                           <div>
-                            <dt className="text-xs text-ink-500">Expected at</dt>
+                            <dt className="text-xs text-ink-500">{t("Expected at")}</dt>
                             <dd className="text-lg font-semibold text-ink-900 tabular-nums">{token.estimated_start_time ? formatTime(token.estimated_start_time) : "—"}</dd>
                           </div>
                         </dl>
@@ -98,16 +100,16 @@ function PatientQueue() {
                   </div>
                   <div aria-live="polite">
                     {token.status === "Called" && (
-                      <Alert tone="info" className="rounded-none border-x-0 border-b-0" title="Your token has been called">
-                        Please go to the consultation area now.
+                      <Alert tone="info" className="rounded-none border-x-0 border-b-0" title={t("Your token has been called")}>
+                        {t("Please go to the consultation area now.")}
                       </Alert>
                     )}
                     {token.status === "Ready" && (
-                      <Alert tone="success" className="rounded-none border-x-0 border-b-0">You are next. The doctor will see you shortly.</Alert>
+                      <Alert tone="success" className="rounded-none border-x-0 border-b-0">{t("You are next. The doctor will see you shortly.")}</Alert>
                     )}
                     {(token.status === "Waiting" || token.status === "Acknowledged") && (
                       <p className="border-t border-line bg-ink-50 px-5 py-3 text-[13px] text-ink-600">
-                        Estimates are approximate. Please stay nearby so you don&apos;t miss your call.
+                        {t("Estimates are approximate. Please stay nearby so you don't miss your call.")}
                       </p>
                     )}
                   </div>

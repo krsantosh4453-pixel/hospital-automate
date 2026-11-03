@@ -1,6 +1,6 @@
 # Clinical Safety Review Pack
 
-For a clinical safety officer, senior doctor and pharmacist. Prepared 2026-10-26 from the code and its tests. **Engineering cannot sign this off:** each section ends with questions only a clinician can answer, and a signature line.
+For a clinical safety officer, senior doctor and pharmacist. Prepared 2026-10-26 from the code and its tests; updated 2026-11-03 (sections 7 and 8 are new). **Engineering cannot sign this off:** each section ends with questions only a clinician can answer, and a signature line.
 
 How to use it:
 
@@ -13,7 +13,7 @@ Test names point to `backend/security_tests/`.
 
 ## 0. What the system does NOT do (must be acknowledged)
 
-- **No drug–drug, drug–allergy or dose-range checking.** There is no drug database; prescriptions are free text plus a medicine catalogue.
+- **Only limited medication checking (section 9).** Allergy, duplicate-salt and a starter list of 8 interactions are checked; there is no full drug database and no dose-range checking.
 - No ICD-10 coding, no structured EMR sections, no clinical decision support.
 - AI scribe output is a draft only (section 4); its accuracy for Hindi/Hinglish depends on the provider chosen.
 - SMS, WhatsApp and voice alerts are not sent. Patients are not told by SMS that results are ready.
@@ -34,6 +34,7 @@ Test names point to `backend/security_tests/`.
 - **Excluding** a dose (e.g. NPO) requires a reason.
 - **PRN** doses can only be recorded against a PRN order, and are recorded as administered at that moment with notes.
 - Frequency parsing understands `QnH`, `BID`, `TID` and otherwise defaults to once daily. **Unusual frequencies are not rejected.**
+- Engineering note: one older MAR model test (`nurses/tests.py`) is permanently skipped ("Requires Prescription/PrescriptionItem setup"). The behaviour above is covered by `test_mar_safety`, which runs.
 
 **Questions for the reviewer:**
 
@@ -111,6 +112,59 @@ Test names point to `backend/security_tests/`.
 - Staff from another hospital cannot be recorded.
 - About half of the 24 ER actions listed in the requirements exist (`KNOWN_LIMITATIONS.md`).
 
+## 7. Break-glass emergency access — `audit/break_glass.py` (new)
+
+**As implemented** (`test_break_glass`):
+
+- A **Doctor or Nurse** may open access to a patient of their hospital who is not in their care. A written reason of at least 20 characters is required.
+- Access lasts `BREAK_GLASS_DURATION_MINUTES` (default **60 minutes**), or until they end it.
+- Every read made under it is marked in the audit trail.
+- An **Admin or Hospital Manager** of that hospital reviews each grant afterwards, and may not review their own.
+- It is API-only: there is no screen for it yet, so in practice it cannot be used by clinical staff today.
+
+**Questions:**
+
+- Which roles may break the glass? Should nurses be allowed, or doctors only?
+- Is 60 minutes right? Should the person be able to extend it, or must they open a new grant?
+- How soon must a grant be reviewed, and what happens when a reason is found inadequate?
+- Must the patient be told afterwards that their record was opened this way?
+
+## 8. Family and caregiver (proxy) access — `users/proxy_access.py` (new)
+
+**As implemented** (`test_proxy_access`, E2E `e2e/family-access.spec.js`):
+
+- The **patient** adds up to 5 family members (name, relationship, mobile). Staff cannot add them.
+- A family member signs in with an OTP sent to **their own** mobile and then sees the patient's appointments, prescriptions, released lab results, bills and documents. A banner says they are viewing someone else's records.
+- Access is **view-only**: they cannot sign consents, upload, share or manage access. Every request re-checks the grant, so removing access ends it at once.
+- There is **no per-category restriction**: a family member sees everything the patient sees in the portal.
+
+**Questions:**
+
+- Should some results be hidden from family members (for example HIV, mental health, reproductive or genetic results)?
+- For **minors** and patients who lack capacity, who may grant access? Today only the patient can, from their own account.
+- Should a doctor be able to see who has family access when sharing sensitive news?
+
+## 9. Medication safety check when prescribing — `clinical/medication_safety.py`, `clinical/safety_rules.py` (new, Phase A)
+
+**As implemented** (`clinical/test_medication_safety.py`, E2E `e2e/medication-safety.spec.js`):
+
+- Before a prescription is saved, each medicine's **salt** is identified from the hospital catalogue (Inventory/Pharmacy "Salt (generic name)") or from a salt name written in the text (for example "Tab Ibuprofen 400").
+- It is checked against:
+  - the patient's **allergies recorded in this hospital**, including drug classes (penicillins, cephalosporins, sulfonamides, NSAIDs, fluoroquinolones, macrolides);
+  - the **same salt twice** on one prescription;
+  - a **starter list of 8 interactions**: PDE5 inhibitors + nitrates/nicorandil; warfarin/acenocoumarol + NSAIDs; simvastatin/lovastatin + clarithromycin, erythromycin, azole antifungals or ritonavir; linezolid/MAOIs + SSRIs/SNRIs/tramadol; methotrexate + co-trimoxazole; tizanidine + ciprofloxacin/fluvoxamine (all **high**); clopidogrel + omeprazole/esomeprazole; ACE inhibitors/ARBs + spironolactone/eplerenone/potassium chloride (**moderate**).
+- **High** alerts (allergy, high interactions) block saving until the doctor writes a reason (at least 10 characters). The alerts and reason are stored on the prescription and an audit entry `clinical.prescription.safety_override` is written. The server enforces this, not only the screen.
+- **Moderate** alerts and duplicates are shown but do not block. A medicine whose salt is not recognised is shown as "not identified, so it was not checked".
+- **Not checked:** dose ranges, renal/hepatic dosing, pregnancy, age, interactions outside the list, other active prescriptions of the patient, allergies recorded in other hospitals, and free-text brand names without a catalogue salt.
+
+**Questions for the Pharmacy & Therapeutics committee:**
+
+- Approve, amend or replace each of the 8 interaction rules and the allergy classes (`clinical/safety_rules.py`, version `2026-11-03.1`). Which further pairs are mandatory before go-live?
+- Is "prescribe anyway with a written reason" acceptable for allergy alerts, or must some be a hard stop?
+- Should duplicates also be checked against the patient's other active prescriptions?
+- Who reviews `clinical.prescription.safety_override` audit entries, and how often?
+- Which licensed drug database should replace or extend this list (Phase B)?
+
 ## Sign-off
 
 | Area | Approved as is / Changes required | Reviewer | Date |
@@ -121,3 +175,6 @@ Test names point to `backend/security_tests/`.
 | AI scribe | | | |
 | Pharmacy / blood bank | | | |
 | Emergency | | | |
+| Break-glass access | | | |
+| Family / caregiver access | | | |
+| Medication safety rules (section 9) | | | |

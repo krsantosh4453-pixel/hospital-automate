@@ -1,3 +1,5 @@
+import { useT } from "./useT.js"
+
 const TONES = {
   neutral: "bg-ink-100 text-ink-700 ring-ink-200",
   brand: "bg-brand-50 text-brand-700 ring-brand-200",
@@ -58,12 +60,25 @@ export function statusTone(status) {
   return "neutral"
 }
 
+// The API sends statuses as "in_progress", "pending" or "In Progress"; the
+// dictionary holds the capitalised form, so try each spelling in turn.
+function translateStatus(tr, text) {
+  const sentence = text.charAt(0).toUpperCase() + text.slice(1)
+  const title = text.replace(/\b[a-z]/g, (c) => c.toUpperCase())
+  for (const candidate of [text, sentence, title]) {
+    const translated = tr(candidate)
+    if (translated !== candidate) return translated
+  }
+  return text
+}
+
 export function StatusBadge({ status, label, className = "" }) {
+  const tr = useT()
   if (status === null || status === undefined || status === "") return null
   const text = label || String(status).replace(/_/g, " ")
   return (
     <Badge tone={statusTone(status)} dot className={`capitalize ${className}`}>
-      {text}
+      {translateStatus(tr, text)}
     </Badge>
   )
 }

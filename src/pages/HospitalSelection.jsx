@@ -5,8 +5,10 @@ import { useHospitals } from "../assets/context/HospitalsContext.jsx"
 import { CarIcon, CheckIcon, HospitalIcon, LocateFixed, MapIcon, PhoneIcon, SearchIcon } from "lucide-react"
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, SearchInput, Toolbar } from "../components/ui"
 import { useToast } from "../components/Toast.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function HospitalSelection() {
+  const { t } = useLanguage()
   const toast = useToast()
 
   const navigate = useNavigate()
@@ -195,7 +197,7 @@ function HospitalSelection() {
   return (
     <div className="min-h-screen pb-24">
       <PageHeader
-        title="Choose a hospital"
+        title={t("Choose a hospital")}
         description="Pick the hospital for your appointment. Share your location to sort by distance."
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Choose hospital" }]}
       />
@@ -204,11 +206,11 @@ function HospitalSelection() {
         <Toolbar
           actions={
             <Button variant="secondary" icon={LocateFixed} onClick={handleGetLocation} loading={locationLoading}>
-              {userLocation ? "Sorted by distance" : "Use my location"}
+              {userLocation ? t("Sorted by distance") : t("Use my location")}
             </Button>
           }
         >
-          <SearchInput value={search} onChange={setSearch} placeholder="Hospital name or address" label="Search hospitals" className="w-full sm:max-w-md" />
+          <SearchInput value={search} onChange={setSearch} placeholder={t("Hospital name or address")} label="Search hospitals" className="w-full sm:max-w-md" />
         </Toolbar>
         {locationError && <Alert tone="warning" className="m-4">{locationError}</Alert>}
       </Card>
@@ -221,10 +223,10 @@ function HospitalSelection() {
         </div>
       ) : filteredHospitals.length === 0 ? (
         <Card>
-          <EmptyState icon={SearchIcon} title="No hospitals found" description={search ? "Try another name or location." : "No active hospitals are listed yet."} />
+          <EmptyState icon={SearchIcon} title={t("No hospitals found")} description={search ? t("Try another name or location.") : t("No active hospitals are listed yet.")} />
         </Card>
       ) : (
-        <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2" role="radiogroup" aria-label="Hospitals">
+        <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2" role="radiogroup" aria-label={t("Hospitals")}>
           {filteredHospitals.map((hospital) => {
             const isSelected = selectedHospital?.id === hospital.id
             return (
@@ -258,9 +260,9 @@ function HospitalSelection() {
                     {hospital.phone && (
                       <span className="mr-auto pl-2 text-[13px] text-ink-600 tabular-nums">{hospital.phone}</span>
                     )}
-                    <Button size="sm" variant="ghost" icon={MapIcon} onClick={() => handleOpenMap(hospital)}>Map</Button>
-                    <Button size="sm" variant="ghost" icon={CarIcon} onClick={() => handleDirections(hospital)}>Directions</Button>
-                    {hospital.phone && <Button size="sm" variant="ghost" icon={PhoneIcon} onClick={() => handleCall(hospital.phone)}>Call</Button>}
+                    <Button size="sm" variant="ghost" icon={MapIcon} onClick={() => handleOpenMap(hospital)}>{t("Map")}</Button>
+                    <Button size="sm" variant="ghost" icon={CarIcon} onClick={() => handleDirections(hospital)}>{t("Directions")}</Button>
+                    {hospital.phone && <Button size="sm" variant="ghost" icon={PhoneIcon} onClick={() => handleCall(hospital.phone)}>{t("Call")}</Button>}
                   </div>
                 </div>
               </li>
@@ -273,9 +275,9 @@ function HospitalSelection() {
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 px-4 py-3 shadow-lg backdrop-blur lg:pl-[calc(var(--sidebar-w,16rem)+2rem)]">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3">
             <p className="min-w-0 truncate text-sm text-ink-700">
-              Selected: <span className="font-semibold text-ink-900">{selectedHospital.name}</span>
+              {t("Selected:")}{" "}<span className="font-semibold text-ink-900">{selectedHospital.name}</span>
             </p>
-            <Button onClick={handleContinue}>Continue to appointment</Button>
+            <Button onClick={handleContinue}>{t("Continue to appointment")}</Button>
           </div>
         </div>
       )}

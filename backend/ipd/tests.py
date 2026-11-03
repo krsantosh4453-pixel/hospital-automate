@@ -10,7 +10,9 @@ from hospital.models import Hospital, Department, Ward, Room, Bed
 from users.models import StaffProfile, StaffHospitalMembership, StaffRole
 from patients.models import Patient, PatientHospital
 from doctors.models import Doctor
-from ipd.models import Admission, BedAllocation, DischargeSummary
+from ipd.models import Admission, BedAllocation, DischargePlan, DischargeSummary
+from ipd import discharge as discharge_service
+from billing.services import record_payment
 
 User = get_user_model()
 
@@ -176,6 +178,22 @@ class IPDAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         summary.finalized = True
         summary.save()
+
+        # Still refused: the checklist and the final bill are outstanding.
+        response = self.client.post(
+            self._get_admission_action_url(admission.id, "complete_discharge"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        DischargePlan.objects.create(
+            admission=admission,
+            medications_reconciled=True,
+            patient_counselled=True,
+            follow_up_arranged=True,
+            documents_handed_over=True,
+        )
+        invoice = discharge_service.create_final_bill(admission, "1500")
+        record_payment(invoice, invoice.total_amount)
 
         # Test complete discharge action
         response = self.client.post(

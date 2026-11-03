@@ -32,6 +32,7 @@ INSTALLED_APPS = [
 
     # REST API
     "rest_framework",
+    "drf_spectacular",
     "corsheaders",
     "rest_framework_simplejwt.token_blacklist",
     # Required by CELERY_BEAT_SCHEDULER (DatabaseScheduler); without it beat cannot start.
@@ -70,6 +71,9 @@ INSTALLED_APPS = [
 
     # Consent forms and patient-controlled record sharing
     "consent",
+
+    # ABDM / ABHA linking (Ayushman Bharat Digital Mission)
+    "abdm",
 ]
 
 # ============================================================
@@ -91,8 +95,6 @@ MIDDLEWARE = [
     "config.middleware.ratelimit.RateLimitMiddleware",
 ]
 
-# Custom middleware will be added in production/development settings
-# Health check middleware
 
 
 # ============================================================
@@ -207,6 +209,7 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.MultiPartParser',
@@ -469,6 +472,14 @@ AI_SCRIBE_MODEL = 'gpt-4'
 AI_SCRIBE_MAX_TOKENS = 4000
 AI_SCRIBE_TEMPERATURE = 0.1
 
+# Speech-to-text. Whisper API works with OpenAI or any OpenAI-compatible host
+# (e.g. Groq: base URL https://api.groq.com/openai/v1, model whisper-large-v3).
+# With no key, only the development mock (where allowed) is available.
+AI_SCRIBE_STT_API_KEY = os.environ.get('AI_SCRIBE_STT_API_KEY') or os.environ.get('OPENAI_API_KEY', '')
+AI_SCRIBE_STT_BASE_URL = os.environ.get('AI_SCRIBE_STT_BASE_URL', 'https://api.openai.com/v1')
+AI_SCRIBE_STT_MODEL = os.environ.get('AI_SCRIBE_STT_MODEL', 'whisper-1')
+AI_SCRIBE_STT_PROVIDER = os.environ.get('AI_SCRIBE_STT_PROVIDER', '')  # whisper_api, whisper_local, google
+
 # FHIR Configuration
 FHIR_ENABLED = True
 FHIR_BASE_URL = None  # Set in environment-specific settings
@@ -485,9 +496,12 @@ HL7_API_KEY = None  # API key for HL7 endpoints (set in production)
 
 # ABDM/ABHA Configuration
 ABDM_ENABLED = True
-ABDM_BASE_URL = None
+ABDM_BASE_URL = None  # gateway, e.g. https://dev.abdm.gov.in (sandbox)
 ABDM_CLIENT_ID = None
 ABDM_CLIENT_SECRET = None
+# ABHA v3 service and consent-manager id; sandbox values by default.
+ABDM_ABHA_BASE_URL = os.environ.get('ABDM_ABHA_BASE_URL', 'https://abhasbx.abdm.gov.in/abha/api')
+ABDM_CM_ID = os.environ.get('ABDM_CM_ID', 'sbx')
 
 # Notifications
 NOTIFICATION_CHANNELS = ['email', 'sms', 'whatsapp', 'push', 'in_app']
@@ -551,6 +565,9 @@ STAFF_LOGIN_REQUIRE_OTP = os.environ.get('STAFF_LOGIN_REQUIRE_OTP', 'False').low
 # Audit rows older than this are purged daily; 0 keeps them forever.
 AUDIT_LOG_RETENTION_DAYS = int(os.environ.get('AUDIT_LOG_RETENTION_DAYS', '0'))
 
+# How long a break-glass grant to a patient outside the clinician's care lasts.
+BREAK_GLASS_DURATION_MINUTES = int(os.environ.get('BREAK_GLASS_DURATION_MINUTES', '60'))
+
 # Celery beat schedule for periodic tasks
 # Only tasks that exist in the codebase are scheduled. Daily report generation
 # and backup verification are run by the ops scripts in docs/OPERATIONS_RUNBOOK.md.
@@ -580,6 +597,10 @@ HEALTH_CHECK = {
 # API Documentation (DRF Spectacular)
 # ============================================================
 
+# Schema, Swagger UI and ReDoc: open to anyone when True, otherwise platform admins
+# (is_staff) only. production.py defaults it to False (R-11).
+API_DOCS_PUBLIC = os.environ.get('API_DOCS_PUBLIC', 'True').lower() == 'true'
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Hospital Management System API',
     'DESCRIPTION': 'Comprehensive API for Hospital Management System including patient management, clinical workflows, pharmacy, laboratory, billing, and interoperability.',
@@ -587,6 +608,8 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': '/api/',
+    # Schema warnings are documentation gaps; keep them out of `manage.py check --deploy`.
+    'ENABLE_DJANGO_DEPLOY_CHECK': False,
     'TAGS': [
         {'name': 'Authentication', 'description': 'Staff authentication, JWT tokens, Google OAuth'},
         {'name': 'Hospitals', 'description': 'Hospital and department management'},

@@ -27,8 +27,10 @@ from users.permissions import (
     get_request_hospital_id,
     get_user_hospital_ids,
     get_user_roles,
+    hospitals_with_role,
     is_active_staff,
 )
+from users.care_scope import limit_to_patients_in_care
 
 from .models import CONSENT_FORMS, SHARE_SCOPES, ConsentRecord, RecordShare, RecordShareAccess
 
@@ -67,6 +69,19 @@ class _Actor:
 
     def has_role(self, hospital_id, roles):
         return bool(set(get_user_roles(self.request.user, hospital_id)) & roles)
+
+    def readable(self, queryset, hospital_field="hospital_id"):
+        """
+        Staff rows of ``queryset`` in acting hospitals where the role handles
+        consent; a Doctor or Nurse sees only patients in their care.
+        """
+        hospital_ids = hospitals_with_role(self.request.user, self.hospital_ids, RECORD_ROLES)
+        if not hospital_ids:
+            raise PermissionDenied("Your role cannot read consent records.")
+        queryset = queryset.filter(**{f"{hospital_field}__in": hospital_ids})
+        return limit_to_patients_in_care(
+            queryset, self.request.user, hospital_ids, lambda ids: Q(**{f"{hospital_field}__in": list(ids)})
+        )
 
     def patient_for(self, patient_id, hospital_id):
         """Resolve the patient this request concerns, enforcing scope."""
@@ -159,7 +174,7 @@ class ConsentRecordListView(ConsentBaseView):
     def get(self, request):
         actor = _Actor(request)
         if actor.is_staff:
-            rows = ConsentRecord.objects.filter(hospital_id__in=actor.hospital_ids)
+            rows = actor.readable(ConsentRecord.objects.all())
             patient_id = request.query_params.get("patient")
             if patient_id:
                 rows = rows.filter(patient_id=patient_id)
@@ -197,7 +212,7 @@ class ConsentRecordListView(ConsentBaseView):
 def _consent_record(request, id):
     actor = _Actor(request)
     rows = (
-        ConsentRecord.objects.filter(hospital_id__in=actor.hospital_ids)
+        actor.readable(ConsentRecord.objects.all())
         if actor.is_staff else ConsentRecord.objects.filter(patient=actor.patient)
     )
     try:
@@ -235,7 +250,7 @@ class RecordShareListView(ConsentBaseView):
     def get(self, request):
         actor = _Actor(request)
         if actor.is_staff:
-            rows = RecordShare.objects.filter(source_hospital_id__in=actor.hospital_ids)
+            rows = actor.readable(RecordShare.objects.all(), "source_hospital_id")
         else:
             rows = RecordShare.objects.filter(patient=actor.patient)
         rows = rows.select_related("patient", "source_hospital", "recipient_hospital")
@@ -284,7 +299,7 @@ class RecordShareListView(ConsentBaseView):
 def _own_share(request, id):
     actor = _Actor(request)
     rows = (
-        RecordShare.objects.filter(source_hospital_id__in=actor.hospital_ids)
+        actor.readable(RecordShare.objects.all(), "source_hospital_id")
         if actor.is_staff else RecordShare.objects.filter(patient=actor.patient)
     )
     try:
@@ -325,8 +340,11 @@ class ReceivedShareListView(ConsentBaseView):
         actor = _Actor(request)
         if not actor.is_staff:
             raise PermissionDenied("Staff only.")
+        hospital_ids = hospitals_with_role(request.user, actor.hospital_ids, RECORD_ROLES)
+        if not hospital_ids:
+            raise PermissionDenied("Your role cannot read shared records.")
         rows = RecordShare.objects.filter(
-            recipient_hospital_id__in=actor.hospital_ids, revoked_at__isnull=True, expires_at__gt=timezone.now()
+            recipient_hospital_id__in=hospital_ids, revoked_at__isnull=True, expires_at__gt=timezone.now()
         ).select_related("patient", "source_hospital", "recipient_hospital")
         return Response({"results": [_share_payload(s) for s in rows[:200]]})
 

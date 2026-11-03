@@ -2,8 +2,10 @@ import { Plus as PlusIcon } from "lucide-react"
 import { useState } from "react"
 import { useHospitals } from "../../assets/context/HospitalsContext.jsx"
 import { Alert, Button, PageHeader, useConfirm } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 function Hospitals() {
+  const { t } = useLanguage()
   const [confirm, confirmDialog] = useConfirm()
 
   const {
@@ -209,14 +211,14 @@ function Hospitals() {
   return (
     <>{confirmDialog}<div className="space-y-5">
       <PageHeader
-        title="Hospitals"
+        title={t("Hospitals")}
         description="Hospitals in the system and their contact details."
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Hospitals" }]}
-        actions={<Button icon={PlusIcon} onClick={openAddModal}>Add hospital</Button>}
+        actions={<Button icon={PlusIcon} onClick={openAddModal}>{t("Add hospital")}</Button>}
       />
 
       {(loadError || actionError) && !showModal && <Alert tone="danger">{actionError || loadError}</Alert>}
-      {loading && <p className="text-sm text-ink-500" role="status">Loading hospitals…</p>}
+      {loading && <p className="text-sm text-ink-500" role="status">{t("Loading hospitals…")}</p>}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -224,7 +226,7 @@ function Hospitals() {
         {/* Total */}
         <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
-            Total Hospitals
+            {t("Total Hospitals")}
           </p>
 
           <h2 className="text-3xl font-bold mt-2">
@@ -235,7 +237,7 @@ function Hospitals() {
         {/* Active */}
         <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
-            Active Hospitals
+            {t("Active Hospitals")}
           </p>
 
           <h2 className="text-3xl font-bold text-green-600 mt-2">
@@ -246,7 +248,7 @@ function Hospitals() {
         {/* Government */}
         <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
-            Government
+            {t("Government")}
           </p>
 
           <h2 className="text-3xl font-bold text-blue-600 mt-2">
@@ -257,7 +259,7 @@ function Hospitals() {
         {/* Private */}
         <div className="rounded-2xl border border-line bg-white p-5">
           <p className="text-gray-500 text-sm">
-            Private
+            {t("Private")}
           </p>
 
           <h2 className="text-3xl font-bold text-purple-600 mt-2">
@@ -274,7 +276,7 @@ function Hospitals() {
 
           <input
             type="text"
-            placeholder="Search hospital..."
+            placeholder={t("Search hospital...")}
             value={search}
             onChange={(e) =>
               setSearch(e.target.value)
@@ -289,17 +291,11 @@ function Hospitals() {
             }
             className="hms-input"
           >
-            <option value="All">
-              All Types
-            </option>
+            <option value="All">{t("All Types")}</option>
 
-            <option value="Government">
-              Government
-            </option>
+            <option value="Government">{t("Government")}</option>
 
-            <option value="Private">
-              Private
-            </option>
+            <option value="Private">{t("Private")}</option>
           </select>
 
           <select
@@ -309,17 +305,11 @@ function Hospitals() {
             }
             className="hms-input"
           >
-            <option value="All">
-              All Status
-            </option>
+            <option value="All">{t("All Status")}</option>
 
-            <option value="Active">
-              Active
-            </option>
+            <option value="Active">{t("Active")}</option>
 
-            <option value="Inactive">
-              Inactive
-            </option>
+            <option value="Inactive">{t("Inactive")}</option>
           </select>
 
         </div>
@@ -336,39 +326,39 @@ function Hospitals() {
             <tr>
 
               <th className="p-4 text-left">
-                Hospital
+                {t("Hospital")}
               </th>
 
               <th className="p-4 text-left">
-                Code
+                {t("Code")}
               </th>
 
               <th className="p-4 text-left">
-                Contact
+                {t("Contact")}
               </th>
 
               <th className="p-4 text-left">
-                Type
+                {t("Type")}
               </th>
 
               <th className="p-4 text-left">
-                Departments
+                {t("Departments")}
               </th>
 
               <th className="p-4 text-left">
-                Doctors
+                {t("Doctors")}
               </th>
 
               <th className="p-4 text-left">
-                Nurses
+                {t("Nurses")}
               </th>
 
               <th className="p-4 text-left">
-                Status
+                {t("Status")}
               </th>
 
               <th className="p-4 text-left">
-                Actions
+                {t("Actions")}
               </th>
 
             </tr>
@@ -384,7 +374,7 @@ function Hospitals() {
                   colSpan="9"
                   className="p-8 text-center text-gray-500"
                 >
-                  No hospitals found
+                  {t("No hospitals found")}
                 </td>
               </tr>
 
@@ -489,7 +479,7 @@ function Hospitals() {
                         }
                         className="text-blue-600 mr-4 hover:underline"
                       >
-                        Edit
+                        {t("Edit")}
                       </button>
 
                       <button
@@ -500,7 +490,7 @@ function Hospitals() {
                         }
                         className="text-red-600 hover:underline"
                       >
-                        Delete
+                        {t("Delete")}
                       </button>
 
                     </td>
@@ -534,12 +524,12 @@ function Hospitals() {
 
                   <h2 className="text-xl font-bold">
                     {editingHospital
-                      ? "Edit Hospital"
-                      : "Add Hospital"}
+                      ? t("Edit Hospital")
+                      : t("Add Hospital")}
                   </h2>
 
                   <p className="text-sm text-gray-500 mt-1">
-                    Enter hospital information
+                    {t("Enter hospital information")}
                   </p>
 
                 </div>
@@ -570,7 +560,7 @@ function Hospitals() {
               <div>
 
                 <label className="block text-sm font-medium mb-1">
-                  Hospital Name
+                  {t("Hospital Name")}
                 </label>
 
                 <input
@@ -578,7 +568,7 @@ function Hospitals() {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="Enter hospital name"
+                  placeholder={t("Enter hospital name")}
                   className="hms-input w-full"
                 />
 
@@ -588,7 +578,7 @@ function Hospitals() {
               <div>
 
                 <label className="block text-sm font-medium mb-1">
-                  Hospital Code
+                  {t("Hospital Code")}
                 </label>
 
                 <input
@@ -596,7 +586,7 @@ function Hospitals() {
                   name="code"
                   value={formData.code}
                   onChange={handleChange}
-                  placeholder="Example: CHB001"
+                  placeholder={t("Example: CHB001")}
                   className="hms-input w-full"
                 />
 
@@ -606,7 +596,7 @@ function Hospitals() {
               <div>
 
                 <label className="block text-sm font-medium mb-1">
-                  Address
+                  {t("Address")}
                 </label>
 
                 <textarea
@@ -614,7 +604,7 @@ function Hospitals() {
                   value={formData.address}
                   onChange={handleChange}
                   rows="3"
-                  placeholder="Enter hospital address"
+                  placeholder={t("Enter hospital address")}
                   className="hms-input w-full"
                 />
 
@@ -624,7 +614,7 @@ function Hospitals() {
               <div>
 
                 <label className="block text-sm font-medium mb-1">
-                  Contact Number
+                  {t("Contact Number")}
                 </label>
 
                 <input
@@ -633,7 +623,7 @@ function Hospitals() {
                   value={formData.phone}
                   onChange={handlePhoneChange}
                   maxLength="10"
-                  placeholder="10 digit contact number"
+                  placeholder={t("10 digit contact number")}
                   className="hms-input w-full"
                 />
 
@@ -643,7 +633,7 @@ function Hospitals() {
               <div>
 
                 <label className="block text-sm font-medium mb-1">
-                  Email
+                  {t("Email")}
                 </label>
 
                 <input
@@ -651,7 +641,7 @@ function Hospitals() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="hospital@example.com"
+                  placeholder={t("hospital@example.com")}
                   className="hms-input w-full"
                 />
 
@@ -661,7 +651,7 @@ function Hospitals() {
               <div>
 
                 <label className="block text-sm font-medium mb-1">
-                  Hospital Type
+                  {t("Hospital Type")}
                 </label>
 
                 <select
@@ -671,13 +661,9 @@ function Hospitals() {
                   className="hms-input w-full"
                 >
 
-                  <option value="Private">
-                    Private
-                  </option>
+                  <option value="Private">{t("Private")}</option>
 
-                  <option value="Government">
-                    Government
-                  </option>
+                  <option value="Government">{t("Government")}</option>
 
                 </select>
 
@@ -687,7 +673,7 @@ function Hospitals() {
               <div>
 
                 <label className="block text-sm font-medium mb-1">
-                  Status
+                  {t("Status")}
                 </label>
 
                 <select
@@ -697,13 +683,9 @@ function Hospitals() {
                   className="hms-input w-full"
                 >
 
-                  <option value="Active">
-                    Active
-                  </option>
+                  <option value="Active">{t("Active")}</option>
 
-                  <option value="Inactive">
-                    Inactive
-                  </option>
+                  <option value="Inactive">{t("Inactive")}</option>
 
                 </select>
 
@@ -717,7 +699,7 @@ function Hospitals() {
                   onClick={closeModal}
                   className="px-5 py-2.5 border rounded-lg hover:bg-gray-50"
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
 
                 <button
@@ -726,10 +708,10 @@ function Hospitals() {
                   className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
                 >
                   {saving
-                    ? "Saving…"
+                    ? t("Saving…")
                     : editingHospital
-                      ? "Update Hospital"
-                      : "Add Hospital"}
+                      ? t("Update Hospital")
+                      : t("Add Hospital")}
                 </button>
 
               </div>

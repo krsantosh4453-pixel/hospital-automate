@@ -5,6 +5,7 @@ import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import { Alert, Button, Field, Input, Select } from "./ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 /*
  * Temporary development sign-in shown on the staff and patient login pages.
@@ -17,6 +18,7 @@ import { Alert, Button, Field, Input, Select } from "./ui"
  * Pass role/onRoleChange to follow the page's own role picker ("I am a").
  */
 function DevLoginPanel({ role: chosenRole, onRoleChange, defaultRole = "Admin", afterPatientLogin = "/patient" }) {
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const { adoptExternalSession } = useAuth()
   const { switchRole } = useRole()
@@ -60,10 +62,10 @@ function DevLoginPanel({ role: chosenRole, onRoleChange, defaultRole = "Admin", 
   return (
     <section className="hms-surface-dark mb-5 rounded-2xl border border-line p-5 shadow-sm" aria-labelledby="dev-login-title">
       <p id="dev-login-title" className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-        <FlaskConical size={16} aria-hidden="true" /> Development sign-in (temporary)
+        <FlaskConical size={16} aria-hidden="true" />{" "}{t("Development sign-in (temporary)")}
       </p>
       <p className="mt-1 text-xs text-amber-800">
-        Shared mobile number or email and password for every role. Replaced by OTP sign-in later.
+        {t("Shared mobile number or email and password for every role. Replaced by OTP sign-in later.")}
       </p>
       <form onSubmit={handleSubmit} className="mt-4 space-y-3">
         {error && <Alert tone="danger">{error}</Alert>}
@@ -76,12 +78,12 @@ function DevLoginPanel({ role: chosenRole, onRoleChange, defaultRole = "Admin", 
         <Field label="Sign in as" required>
           <Select value={role} onChange={(e) => setRole(e.target.value)} disabled={loading}>
             {roles.map((name) => (
-              <option key={name} value={name}>{name}</option>
+              <option key={name} value={name}>{t(name)}</option>
             ))}
           </Select>
         </Field>
         <Button type="submit" loading={loading} className="w-full justify-center">
-          Sign in as {role}
+          {t("Sign in as")}{" "}{role}
         </Button>
       </form>
     </section>

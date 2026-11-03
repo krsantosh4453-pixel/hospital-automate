@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { SignInLink } from "../components/auth/SignInDialog.jsx"
 import {
   BedDouble,
   CalendarCheck,
@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { Card, CardHeader, Modal, StatTile } from "../components/ui"
 import { eligibleRolesFor } from "../assets/context/RoleContext.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 /*
  * Home page for visitors who have not signed in. It mirrors the staff home
@@ -67,33 +68,34 @@ const outlineLink =
   "inline-flex h-11 items-center gap-2 rounded-lg border border-white/30 px-5 text-sm font-semibold text-white hover:bg-white/10"
 
 function GuestHome() {
+  const { t } = useLanguage()
   const [locked, setLocked] = useState(null)
   const roles = locked ? eligibleRolesFor(locked.module) : []
 
   return (
     <div className="space-y-8">
       <section className="overflow-hidden rounded-2xl bg-brand-900 px-6 py-10 text-white sm:px-10 sm:py-14">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-brand-200">Hospital services</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-brand-200">{t("Hospital services")}</p>
         <h1 className="mt-3 max-w-2xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-          Your care, organised in one place
+          {t("Your care, organised in one place")}
         </h1>
         <p className="mt-4 max-w-xl text-[15px] leading-7 text-brand-100/90">
-          Book an appointment, then sign in to follow your visits, prescriptions, reports and bills.
+          {t("Book an appointment, then sign in to follow your visits, prescriptions, reports and bills.")}
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link to="/patient-login?next=book" className={primaryLink}>
-            <CalendarPlus size={17} aria-hidden="true" /> Book appointment
-          </Link>
-          <Link to="/patient-login" className={outlineLink}>
-            <LogIn size={17} aria-hidden="true" /> Patient sign in
-          </Link>
-          <Link to="/staff-login" className={outlineLink}>
-            <LogIn size={17} aria-hidden="true" /> Staff sign in
-          </Link>
+          <SignInLink to="/patient-login?next=book" className={primaryLink}>
+            <CalendarPlus size={17} aria-hidden="true" />{" "}{t("Book appointment")}
+          </SignInLink>
+          <SignInLink to="/patient-login" className={outlineLink}>
+            <LogIn size={17} aria-hidden="true" />{" "}{t("Patient sign in")}
+          </SignInLink>
+          <SignInLink to="/staff-login" className={outlineLink}>
+            <LogIn size={17} aria-hidden="true" />{" "}{t("Staff sign in")}
+          </SignInLink>
         </div>
       </section>
 
-      <section aria-label="Today at a glance" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <section aria-label={t("Today at a glance")} className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {GLANCE.map((tile) => (
           <StatTile key={tile.label} icon={tile.icon} tone={tile.tone} label={tile.label} value="—" hint="Sign in to see" />
         ))}
@@ -101,9 +103,9 @@ function GuestHome() {
 
       <section aria-labelledby="guest-departments">
         <h2 id="guest-departments" className="mb-1 text-base font-semibold text-ink-900">
-          Departments
+          {t("Departments")}
         </h2>
-        <p className="mb-4 text-sm text-ink-500">Work in each department opens after the right staff member signs in.</p>
+        <p className="mb-4 text-sm text-ink-500">{t("Work in each department opens after the right staff member signs in.")}</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {GUEST_DEPARTMENTS.map((dept) => (
             <button
@@ -117,7 +119,7 @@ function GuestHome() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5 font-semibold text-ink-900 group-hover:text-brand-800">
-                  {dept.title} <Lock size={13} className="text-ink-400" aria-label="Sign-in required" />
+                  {t(dept.title)} <Lock size={13} className="text-ink-400" aria-label={t("Sign-in required")} />
                 </span>
                 <span className="mt-1 block text-sm text-ink-500">{dept.text}</span>
               </span>
@@ -127,7 +129,7 @@ function GuestHome() {
       </section>
 
       <Card>
-        <CardHeader title="How booking works" description="You can see the steps before signing in." />
+        <CardHeader title={t("How booking works")} description="You can see the steps before signing in." />
         <ol className="grid grid-cols-1 gap-6 px-5 py-6 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map(({ icon: Icon, title, text }, i) => (
             <li key={title} className="flex gap-3">
@@ -136,7 +138,7 @@ function GuestHome() {
               </span>
               <div>
                 <p className="flex items-center gap-1.5 font-medium text-ink-900">
-                  <Icon size={15} className="text-ink-400" aria-hidden="true" /> {title}
+                  <Icon size={15} className="text-ink-400" aria-hidden="true" /> {t(title)}
                 </p>
                 <p className="mt-0.5 text-sm text-ink-500">{text}</p>
               </div>
@@ -148,7 +150,7 @@ function GuestHome() {
       <Modal
         open={Boolean(locked)}
         onClose={() => setLocked(null)}
-        title="You are not eligible for this work"
+        title={t("You are not eligible for this work")}
         description={locked?.title}
         size="sm"
         footer={
@@ -158,20 +160,20 @@ function GuestHome() {
               onClick={() => setLocked(null)}
               className="inline-flex h-10 items-center rounded-lg border border-line-strong bg-white px-4 text-sm font-medium text-ink-800 hover:bg-ink-50"
             >
-              Close
+              {t("Close")}
             </button>
-            <Link
+            <SignInLink
               to="/staff-login"
+              onClick={() => setLocked(null)}
               className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
             >
-              <LogIn size={16} aria-hidden="true" /> Staff sign in
-            </Link>
+              <LogIn size={16} aria-hidden="true" />{" "}{t("Staff sign in")}
+            </SignInLink>
           </>
         }
       >
         <p className="text-sm leading-6 text-ink-700">
-          {locked?.title} work is only for <strong>{roles.join(", ")}</strong>. Please sign in with an account that has
-          one of these roles.
+          {locked?.title}{" "}{t("work is only for")}{" "}<strong>{roles.join(", ")}</strong>{t(". Please sign in with an account that has one of these roles.")}
         </p>
       </Modal>
     </div>

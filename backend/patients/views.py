@@ -7,6 +7,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 
 from .models import Patient, PatientDocument, PatientHospital
 from .serializers import PatientSerializer, PatientHospitalSerializer
+from audit.read_audit import audit_patient_read
 from audit.services import record_audit
 from users.care_scope import limit_to_patients_in_care
 from users.viewsets import HospitalScopedViewSet
@@ -15,8 +16,10 @@ from users.permissions import (
     IsDoctor,
     IsNurse,
     IsAdmin,
+    IsBillingStaffReadOnly,
     IsHospitalManager,
     IsHospitalManagerReadOnly,
+    IsLabStaff,
     IsPatientReadOnly,
     IsLinkedPatient,
     get_linked_patient,
@@ -26,10 +29,28 @@ from users.permissions import (
 )
 
 
+def _is_true(value):
+    return str(value).lower() in ("1", "true", "yes", "on")
+
+
+LOOKUP_MIN_CHARS = 3
+LOOKUP_MAX_RESULTS = 20
+VISIBLE_PHONE_DIGITS = 4
+
+
+def _masked_phone(phone):
+    phone = phone or ""
+    if len(phone) <= VISIBLE_PHONE_DIGITS:
+        return ""
+    return "*" * (len(phone) - VISIBLE_PHONE_DIGITS) + phone[-VISIBLE_PHONE_DIGITS:]
+
+
 class PatientViewSet(HospitalScopedViewSet):
     queryset = Patient.objects.select_related("hospital")
     serializer_class = PatientSerializer
-    permission_classes = [IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsPatientReadOnly | IsHospitalManagerReadOnly]
+    permission_classes = [
+        IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsPatientReadOnly | IsHospitalManagerReadOnly | IsBillingStaffReadOnly
+    ]
 
     def get_permissions(self):
         action_name = getattr(self, "action", None)
@@ -38,6 +59,12 @@ class PatientViewSet(HospitalScopedViewSet):
             return [(IsAdmin | IsHospitalManager)()]
         if action_name == "documents":
             return [(IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
+        if action_name == "lookup":
+            # Finding a patient to order for; Lab Staff may not browse the list.
+            return [(IsLabStaff | IsReceptionist | IsDoctor | IsNurse | IsAdmin)()]
+        if action_name == "timeline":
+            # Clinical history: clinicians, and the patient for their own record.
+            return [(IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
         return super().get_permissions()
 
     def _document_payload(self, document):
@@ -89,6 +116,59 @@ class PatientViewSet(HospitalScopedViewSet):
         )
         record_audit(request, "documents.document.upload", document, hospital=hospital_id)
         return Response(self._document_payload(document), status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"])
+    def lookup(self, request):
+        """Find a patient to place an order for (walk-in lab orders).
+
+        For staff who may not browse the patient list: needs at least three
+        characters of a name, phone or UHID, returns at most 20 matches with
+        only what tells patients apart, and every lookup is audited.
+        """
+        search = (request.query_params.get("search") or "").strip()
+        if len(search) < LOOKUP_MIN_CHARS:
+            return Response(
+                {"error": f"Type at least {LOOKUP_MIN_CHARS} characters of a name, phone or UHID."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        uhid_match = Patient.objects.filter(
+            hospital_memberships__hospital_id__in=self.get_acting_hospital_ids(),
+            hospital_memberships__uhid__icontains=search,
+        ).values("pk")
+        patients = list(
+            self.get_queryset()
+            .filter(Q(name__icontains=search) | Q(phone__icontains=search) | Q(pk__in=uhid_match))
+            .order_by("name", "pk")[:LOOKUP_MAX_RESULTS]
+        )
+        audit_patient_read(self, "lookup", [patient.pk for patient in patients])
+        return Response([
+            {
+                "id": patient.pk,
+                "name": patient.name,
+                "age": patient.age,
+                "gender": patient.gender,
+                "phone": _masked_phone(patient.phone),
+            }
+            for patient in patients
+        ])
+
+    @action(detail=True, methods=["get"])
+    def timeline(self, request, pk=None):
+        """Longitudinal record (B9, D12) at the acting hospitals; every read is audited."""
+        from .timeline import build_timeline
+
+        patient = self.get_object()
+        for_patient = bool(get_linked_patient(request.user)) and not is_active_staff(request.user)
+        if for_patient:
+            hospital_ids = set(patient.hospital_memberships.filter(is_active=True).values_list("hospital_id", flat=True))
+            if patient.hospital_id:
+                hospital_ids.add(patient.hospital_id)
+        else:
+            hospital_ids = self.get_acting_hospital_ids()
+        events = build_timeline(patient, hospital_ids, for_patient=for_patient)
+        record_audit(request, "patients.timeline.read", patient,
+                     hospital=self.get_object_hospital_id(patient), details={"events": len(events)})
+        return Response({"patient": patient.pk, "patient_name": patient.name, "events": events})
 
     @action(detail=False, methods=["delete"], url_path=r"documents/(?P<doc_id>[0-9]+)")
     def delete_document(self, request, doc_id=None):
@@ -174,10 +254,19 @@ class PatientViewSet(HospitalScopedViewSet):
         ).distinct()
 
         # Search filter
-        search = self.request.query_params.get("search")
-        if search:
+        search = (self.request.query_params.get("search") or "").strip()
+        # lookup() applies its own, narrower search.
+        if search and self.action != "lookup":
+            # UHIDs are issued per hospital: match only the acting hospitals'.
+            uhid_match = Patient.objects.filter(
+                hospital_memberships__hospital_id__in=hospital_ids,
+                hospital_memberships__uhid__icontains=search,
+            ).values("pk")
             queryset = queryset.filter(
-                Q(name__icontains=search) | Q(phone__icontains=search) | Q(condition__icontains=search)
+                Q(name__icontains=search)
+                | Q(phone__icontains=search)
+                | Q(condition__icontains=search)
+                | Q(pk__in=uhid_match)
             )
 
         # Status filter
@@ -197,12 +286,42 @@ class PatientViewSet(HospitalScopedViewSet):
         
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        duplicates = self._possible_duplicates(serializer.validated_data)
+        if duplicates and not _is_true(request.data.get("confirm_new")):
+            return Response(
+                {
+                    "error": "A patient with this mobile number is already registered here. "
+                             "Use the existing record, or confirm this is a different person.",
+                    "duplicates": [
+                        {"id": p.id, "name": p.name, "age": p.age, "gender": p.gender, "phone": p.phone}
+                        for p in duplicates
+                    ],
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
         self.perform_create(serializer)
 
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED
         )
+
+    def _possible_duplicates(self, data, limit=5):
+        """Patients at the acting hospitals with the same mobile number (B5)."""
+        phone = data.get("phone")
+        if not phone:
+            return []
+        hospital_ids = self.get_acting_hospital_ids()
+        hospital = data.get("hospital")
+        if hospital is not None:
+            hospital_ids = [h for h in hospital_ids if h == hospital.pk]
+        if not hospital_ids:
+            return []
+        rows = Patient.objects.filter(phone=phone).filter(
+            Q(hospital_id__in=hospital_ids)
+            | Q(hospital_memberships__hospital_id__in=hospital_ids, hospital_memberships__is_active=True)
+        ).distinct().order_by("-created_at")
+        return list(rows[:limit])
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)

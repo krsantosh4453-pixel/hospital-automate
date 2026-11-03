@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import api from "../../services/api"
 import { Alert, Button, Field, Input, Modal, Select } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 /*
  * Add a bed to a room of the selected hospital. The ward and the room can be
@@ -16,6 +17,7 @@ const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 
 /** @param {{ open: boolean, onClose: () => void, hospitalId?: number|string, onAdded: (bed: object) => void }} props */
 export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
+  const { t } = useLanguage()
   const [wards, setWards] = useState([])
   const [rooms, setRooms] = useState([])
   const [wardId, setWardId] = useState("")
@@ -24,13 +26,13 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
   const [newRoom, setNewRoom] = useState({ room_number: "", room_type: "" })
   const [bed, setBed] = useState(EMPTY_BED)
   const [error, setError] = useState("")
-  const [loadError, setLoadError] = useState("")
+  const [loadError, setLoadError] = useState(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open || !hospitalId) return undefined
     let active = true
-    setLoadError("")
+    setLoadError(null)
     api.wards
       .list(hospitalId)
       .then((data) => {
@@ -39,7 +41,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
         setWards(rows)
         setWardId((current) => current || (rows.length ? String(rows[0].id) : NEW))
       })
-      .catch((err) => active && setLoadError(`Wards could not be loaded: ${err.message}`))
+      .catch((err) => active && setLoadError({ text: "Wards could not be loaded: {reason}", reason: err.message }))
     return () => {
       active = false
     }
@@ -60,7 +62,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
         setRooms(rows)
         setRoomId(rows.length ? String(rows[0].id) : NEW)
       })
-      .catch((err) => active && setLoadError(`Rooms could not be loaded: ${err.message}`))
+      .catch((err) => active && setLoadError({ text: "Rooms could not be loaded: {reason}", reason: err.message }))
     return () => {
       active = false
     }
@@ -105,7 +107,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
       onAdded(created)
       close()
     } catch (err) {
-      setError(`Not saved: ${err.message || "the server refused the request."}`)
+      setError(t("Not saved: {reason}", { reason: err.message || "the server refused the request." }))
     } finally {
       setSaving(false)
     }
@@ -115,17 +117,17 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
     <Modal
       open={open}
       onClose={close}
-      title="Add bed"
+      title={t("Add bed")}
       description="Pick or create the ward and room, then enter the bed."
       footer={
         <>
-          <Button variant="secondary" onClick={close} disabled={saving}>Cancel</Button>
-          <Button type="submit" form="ipd-add-bed" loading={saving}>Add bed</Button>
+          <Button variant="secondary" onClick={close} disabled={saving}>{t("Cancel")}</Button>
+          <Button type="submit" form="ipd-add-bed" loading={saving}>{t("Add bed")}</Button>
         </>
       }
     >
       <form id="ipd-add-bed" onSubmit={handleSubmit} className="space-y-4">
-        {loadError && <Alert tone="danger">{loadError}</Alert>}
+        {loadError && <Alert tone="danger">{t(loadError.text, { reason: loadError.reason })}</Alert>}
         {error && <Alert tone="danger">{error}</Alert>}
 
         <Field label="Ward" required>
@@ -133,16 +135,16 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
             {wards.map((w) => (
               <option key={w.id} value={w.id}>{w.name}{w.ward_type ? ` (${w.ward_type})` : ""}</option>
             ))}
-            <option value={NEW}>+ New ward</option>
+            <option value={NEW}>{t("+ New ward")}</option>
           </Select>
         </Field>
         {wardId === NEW && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="New ward name" required>
-              <Input value={newWard.name} onChange={(e) => setNewWard({ ...newWard, name: e.target.value })} placeholder="General Ward" required disabled={saving} />
+              <Input value={newWard.name} onChange={(e) => setNewWard({ ...newWard, name: e.target.value })} placeholder={t("General Ward")} required disabled={saving} />
             </Field>
             <Field label="Ward type">
-              <Input value={newWard.ward_type} onChange={(e) => setNewWard({ ...newWard, ward_type: e.target.value })} placeholder="General, ICU…" disabled={saving} />
+              <Input value={newWard.ward_type} onChange={(e) => setNewWard({ ...newWard, ward_type: e.target.value })} placeholder={t("General, ICU…")} disabled={saving} />
             </Field>
           </div>
         )}
@@ -152,7 +154,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
             {rooms.map((r) => (
               <option key={r.id} value={r.id}>Room {r.room_number}{r.room_type ? ` (${r.room_type})` : ""}</option>
             ))}
-            <option value={NEW}>+ New room</option>
+            <option value={NEW}>{t("+ New room")}</option>
           </Select>
         </Field>
         {roomId === NEW && (
@@ -161,7 +163,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
               <Input value={newRoom.room_number} onChange={(e) => setNewRoom({ ...newRoom, room_number: e.target.value })} placeholder="101" required disabled={saving} />
             </Field>
             <Field label="Room type">
-              <Input value={newRoom.room_type} onChange={(e) => setNewRoom({ ...newRoom, room_type: e.target.value })} placeholder="Private, Shared…" disabled={saving} />
+              <Input value={newRoom.room_type} onChange={(e) => setNewRoom({ ...newRoom, room_type: e.target.value })} placeholder={t("Private, Shared…")} disabled={saving} />
             </Field>
           </div>
         )}
@@ -172,12 +174,12 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
           </Field>
           <Field label="Bed type">
             <Select value={bed.bed_type} onChange={(e) => setBed({ ...bed, bed_type: e.target.value })} disabled={saving}>
-              {BED_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+              {BED_TYPES.map((type) => <option key={type} value={type}>{t(type)}</option>)}
             </Select>
           </Field>
           <Field label="Status">
             <Select value={bed.status} onChange={(e) => setBed({ ...bed, status: e.target.value })} disabled={saving}>
-              {START_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {START_STATUSES.map((s) => <option key={s} value={s}>{t(s)}</option>)}
             </Select>
           </Field>
         </div>

@@ -1,32 +1,18 @@
+import { lazy, Suspense } from "react"
 import { LanguageProvider } from "./assets/context/LanguageContext.jsx"
-import { BrowserRouter, Route, Routes } from "react-router-dom"
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom"
 
 import Layout from "./layouts/layout.jsx"
 import PatientLayout from "./layouts/PatientLayout.jsx"
 
 import Home from "./pages/Home.jsx"
-import Patients from "./pages/Patients.jsx"
-import Appointments from "./pages/Appointments.jsx"
-import Queue from "./pages/queue.jsx"
-import Doctors from "./pages/doctors.jsx"
-import Nurses from "./pages/Nurses.jsx"
-import Compounter from "./pages/Compounter.jsx"
-import Consultation from "./pages/Consultation.jsx"
-import Prescription from "./pages/Prescription.jsx"
-import Pharmacy from "./pages/pharmacy.jsx"
-import Laboratory from "./pages/laboratory.jsx"
-import Billing from "./pages/billing.jsx"
-import Inventory from "./pages/inventory.jsx"
-import Reports from "./pages/reports.jsx"
-import Settings from "./pages/settings.jsx"
 
 import StaffLogin from "./pages/StaffLogin.jsx"
 import PatientLogin from "./pages/PatientLogin.jsx"
-import Register from "./pages/Register.jsx"
-import StaffInvite from "./pages/StaffInvite.jsx"
-import HospitalSelection from "./pages/HospitalSelection.jsx"
+import { SignInDialog } from "./components/auth/SignInDialog.jsx"
 import { ProtectedRoute } from "./components/ProtectedRoute.jsx"
 import AppBackground from "./components/AppBackground.jsx"
+import { PageLoading } from "./components/LoadingSpinner.jsx"
 
 import { AuthProvider } from "./assets/context/AuthContext.jsx"
 import { PatientProvider } from "./assets/context/PatientContext.jsx"
@@ -37,28 +23,72 @@ import { SidebarProvider } from "./assets/context/SidebarContext.jsx"
 import { RoleProvider } from "./assets/context/RoleContext.jsx"
 import { RoleAuthBridge } from "./assets/context/RoleAuthBridge.jsx"
 
-import Emergency from "./pages/Emergency.jsx"
-import BloodBank from "./pages/BloodBank.jsx"
-import IPD from "./pages/IPD.jsx"
-import AIScribe from "./pages/AIScribe.jsx"
+// Pages load on first visit; sign-in pages and Home stay in the main bundle.
+const Patients = lazy(() => import("./pages/Patients.jsx"))
+const Appointments = lazy(() => import("./pages/Appointments.jsx"))
+const Queue = lazy(() => import("./pages/queue.jsx"))
+const Doctors = lazy(() => import("./pages/doctors.jsx"))
+const Nurses = lazy(() => import("./pages/Nurses.jsx"))
+const Compounter = lazy(() => import("./pages/Compounter.jsx"))
+const Consultation = lazy(() => import("./pages/Consultation.jsx"))
+const Prescription = lazy(() => import("./pages/Prescription.jsx"))
+const Pharmacy = lazy(() => import("./pages/pharmacy.jsx"))
+const Laboratory = lazy(() => import("./pages/laboratory.jsx"))
+const Radiology = lazy(() => import("./pages/Radiology.jsx"))
+const Billing = lazy(() => import("./pages/billing.jsx"))
+const Inventory = lazy(() => import("./pages/inventory.jsx"))
+const Reports = lazy(() => import("./pages/reports.jsx"))
+const Settings = lazy(() => import("./pages/settings.jsx"))
+const Register = lazy(() => import("./pages/Register.jsx"))
+const StaffInvite = lazy(() => import("./pages/StaffInvite.jsx"))
+const HospitalSelection = lazy(() => import("./pages/HospitalSelection.jsx"))
+const Emergency = lazy(() => import("./pages/Emergency.jsx"))
+const BloodBank = lazy(() => import("./pages/BloodBank.jsx"))
+const IPD = lazy(() => import("./pages/IPD.jsx"))
+const AIScribe = lazy(() => import("./pages/AIScribe.jsx"))
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard.jsx"))
+const Users = lazy(() => import("./pages/admin/Users.jsx"))
+const Roles = lazy(() => import("./pages/admin/Roles.jsx"))
+const Hospitals = lazy(() => import("./pages/admin/Hospitals.jsx"))
+const Departments = lazy(() => import("./pages/admin/Departments.jsx"))
+const NurseDuty = lazy(() => import("./pages/admin/NurseDuty.jsx"))
+const Permissions = lazy(() => import("./pages/admin/Permissions.jsx"))
+const AuditLog = lazy(() => import("./pages/admin/AuditLog.jsx"))
+const EmergencyAccess = lazy(() => import("./pages/EmergencyAccess.jsx"))
+const SecuritySettings = lazy(() => import("./pages/admin/SecuritySettings.jsx"))
+const HospitalSetup = lazy(() => import("./pages/admin/HospitalSetup.jsx"))
+const PatientDashboard = lazy(() => import("./pages/patient/PatientDashboard.jsx"))
+const PatientAppointments = lazy(() => import("./pages/patient/PatientAppointments.jsx"))
+const PatientQueue = lazy(() => import("./pages/patient/PatientQueue.jsx"))
+const PatientPrescriptions = lazy(() => import("./pages/patient/PatientPrescriptions.jsx"))
+const PatientLabResults = lazy(() => import("./pages/patient/PatientLabResults.jsx"))
+const PatientBills = lazy(() => import("./pages/patient/PatientBills.jsx"))
+const PatientDocuments = lazy(() => import("./pages/patient/PatientDocuments.jsx"))
+const PatientConsent = lazy(() => import("./pages/patient/PatientConsent.jsx"))
 
-import AdminDashboard from "./pages/admin/AdminDashboard.jsx"
-import Users from "./pages/admin/Users.jsx"
-import Roles from "./pages/admin/Roles.jsx"
-import Hospitals from "./pages/admin/Hospitals.jsx"
-import Departments from "./pages/admin/Departments.jsx"
-import NurseDuty from "./pages/admin/NurseDuty.jsx"
-import Permissions from "./pages/admin/Permissions.jsx"
-import HospitalSetup from "./pages/admin/HospitalSetup.jsx"
+/*
+ * A sign-in link opened from a page carries `backgroundLocation` (see
+ * SignInDialog): that page keeps rendering underneath and the sign-in route
+ * is drawn on top of it as a dialog. Without it, sign-in is a full page.
+ */
+function RoutesWithSignInDialog({ children }) {
+  const location = useLocation()
+  const background = location.state?.backgroundLocation
 
-import PatientDashboard from "./pages/patient/PatientDashboard.jsx"
-import PatientAppointments from "./pages/patient/PatientAppointments.jsx"
-import PatientQueue from "./pages/patient/PatientQueue.jsx"
-import PatientPrescriptions from "./pages/patient/PatientPrescriptions.jsx"
-import PatientLabResults from "./pages/patient/PatientLabResults.jsx"
-import PatientBills from "./pages/patient/PatientBills.jsx"
-import PatientDocuments from "./pages/patient/PatientDocuments.jsx"
-import PatientConsent from "./pages/patient/PatientConsent.jsx"
+  return (
+    <>
+      <Routes location={background || location}>{children}</Routes>
+      {background && (
+        <Routes>
+          <Route path="/staff-login" element={<SignInDialog title="Staff sign in"><StaffLogin /></SignInDialog>} />
+          <Route path="/patient-login" element={<SignInDialog title="Sign in"><PatientLogin /></SignInDialog>} />
+          <Route path="/login" element={<SignInDialog title="Sign in"><PatientLogin /></SignInDialog>} />
+          <Route path="*" element={null} />
+        </Routes>
+      )}
+    </>
+  )
+}
 
 function App() {
   return (
@@ -73,7 +103,8 @@ function App() {
                 <SidebarProvider>
                   <AppBackground />
                   <BrowserRouter>
-                    <Routes>
+                    <Suspense fallback={<PageLoading />}>
+                    <RoutesWithSignInDialog>
                       <Route path="/staff-login" element={<StaffLogin />} />
                       <Route path="/patient-login" element={<PatientLogin />} />
                       <Route path="/login" element={<PatientLogin />} />
@@ -107,6 +138,7 @@ function App() {
                           <Route path="/compounter" element={<Compounter />} />
                           <Route path="/pharmacy" element={<Pharmacy />} />
                           <Route path="/laboratory" element={<Laboratory />} />
+                          <Route path="/radiology" element={<Radiology />} />
                           <Route path="/billing" element={<Billing />} />
                           <Route path="/inventory" element={<Inventory />} />
                           <Route path="/reports" element={<Reports />} />
@@ -122,11 +154,15 @@ function App() {
                           <Route path="/admin/departments" element={<Departments />} />
                           <Route path="/admin/nurse-duty" element={<NurseDuty />} />
                           <Route path="/admin/permissions" element={<Permissions />} />
+                          <Route path="/admin/audit" element={<AuditLog />} />
+                          <Route path="/emergency-access" element={<EmergencyAccess />} />
+                          <Route path="/admin/security" element={<SecuritySettings />} />
                           <Route path="/admin/setup" element={<HospitalSetup />} />
                           <Route path="/settings" element={<Settings />} />
                         </Route>
                         </Route>
-                    </Routes>
+                    </RoutesWithSignInDialog>
+                    </Suspense>
                   </BrowserRouter>
                 </SidebarProvider>
                 </RoleAuthBridge>

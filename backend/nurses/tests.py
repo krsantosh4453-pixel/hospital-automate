@@ -1,6 +1,6 @@
 """Tests for nurses module."""
 
-from datetime import date, time
+from datetime import date, time, timedelta
 from django.utils import timezone
 from django.test import TestCase
 from django.contrib.auth import get_user_model
@@ -13,6 +13,7 @@ from patients.models import Patient, PatientHospital
 from doctors.models import Doctor
 from ipd.models import Admission
 from nurses.models import Nurse, NursingAssessment, CareTask, MAR, MARAdministration
+from clinical.models import Prescription, PrescriptionItem
 
 User = get_user_model()
 
@@ -162,7 +163,31 @@ class NursesAPITests(TestCase):
         self.assertEqual(task.status, "Pending")
 
     def test_mar_administration(self):
-        """Test MAR administration model - skipped due to complex dependencies."""
-        # This test requires Prescription and PrescriptionItem which are complex to set up
-        # Skipping for now - MAR functionality tested in integration tests
-        self.skipTest("Requires Prescription/PrescriptionItem setup")
+        """A MAR line holds scheduled doses, due until a nurse records the outcome."""
+        prescription = Prescription.objects.create(hospital=self.hospital_a, patient=self.patient)
+        item = PrescriptionItem.objects.create(prescription=prescription, name="Ceftriaxone", quantity=2)
+        mar = MAR.objects.create(
+            patient=self.patient, admission=self.admission, hospital=self.hospital_a,
+            prescription=prescription, prescription_item=item, medicine_name="Ceftriaxone",
+            dose="1 g", route="IV", frequency="BD", start_date=date.today(),
+        )
+        now = timezone.now()
+        evening = MARAdministration.objects.create(mar=mar, scheduled_time=now + timedelta(hours=12))
+        morning = MARAdministration.objects.create(mar=mar, scheduled_time=now)
+
+        self.assertEqual(morning.status, MARAdministration.SCHEDULED)
+        self.assertIsNone(morning.administered_time)
+        self.assertEqual(list(mar.administrations.all()), [morning, evening])
+        self.assertEqual(list(item.mar_records.all()), [mar])
+
+        morning.status = MARAdministration.ADMINISTERED
+        morning.administered_time = now
+        morning.administered_by = self.nurse
+        morning.recorded_by = self.user
+        morning.dose_given, morning.route_given = "1 g", "IV"
+        morning.save()
+        morning.refresh_from_db()
+        self.assertEqual(morning.status, "Administered")
+        self.assertEqual(morning.administered_by, self.nurse)
+        self.assertEqual(list(self.nurse.mar_administrations.all()), [morning])
+        self.assertEqual(str(mar), f"MAR: Ceftriaxone for {self.patient.name}")

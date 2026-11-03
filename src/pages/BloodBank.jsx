@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Check, Droplet, Hospital, PackageCheck, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api"
+import { useLinkedPatient } from "../utils/linkedPatient.js"
 import { useToast } from "../components/Toast.jsx"
 import {
   Alert,
@@ -19,6 +20,7 @@ import {
   TableWrap,
   useConfirm,
 } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 const COMPONENTS = ["Whole Blood", "Packed Red Cells", "Platelets", "Fresh Frozen Plasma", "Cryoprecipitate"]
@@ -28,6 +30,7 @@ const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 const daysUntil = (date) => (date ? Math.ceil((new Date(date) - new Date()) / 86400000) : null)
 
 function BloodBank() {
+  const { t } = useLanguage()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
   const { selectedHospital } = usePatient()
@@ -37,9 +40,11 @@ function BloodBank() {
   const [patients, setPatients] = useState([])
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState("")
-  const [showRequestModal, setShowRequestModal] = useState(false)
   const [editingRequest, setEditingRequest] = useState(null)
-  const [requestForm, setRequestForm] = useState(EMPTY_REQUEST)
+  // Opened from the ER action menu with ?patient=<id>: start a request for them.
+  const linked = useLinkedPatient()
+  const [showRequestModal, setShowRequestModal] = useState(Boolean(linked.patientId))
+  const [requestForm, setRequestForm] = useState(linked.patientId ? { ...EMPTY_REQUEST, patient: linked.patientId } : EMPTY_REQUEST)
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState("")
 
@@ -114,7 +119,7 @@ function BloodBank() {
   }
 
   const handleDelete = async (req) => {
-    if (!(await confirm({ title: "Delete blood request?", message: `Delete the request for ${req.patient_name || "this patient"}? This cannot be undone.`, confirmLabel: "Delete" }))) return
+    if (!(await confirm({ title: "Delete blood request?", message: t("Delete the request for {patient}? This cannot be undone.", { patient: req.patient_name || "this patient" }), confirmLabel: "Delete" }))) return
     try {
       await api.bloodbank.requests.delete(req.id)
       toast.success("Blood request deleted")
@@ -126,9 +131,9 @@ function BloodBank() {
 
   const runAction = async (req, action) => {
     const copy = {
-      approve: { title: "Approve request?", message: `Approve ${req.units} unit(s) of ${req.blood_group} ${req.component} for ${req.patient_name}? Stock is checked but not yet deducted.`, label: "Approve", done: "Request approved" },
-      issue: { title: "Issue blood?", message: `Issue ${req.units} unit(s) of ${req.blood_group} ${req.component} to ${req.patient_name}? This deducts the units from stock.`, label: "Issue", done: "Blood issued and stock updated" },
-      reject: { title: "Reject request?", message: `Reject the request for ${req.patient_name}?`, label: "Reject", done: "Request rejected" },
+      approve: { title: "Approve request?", message: t("Approve {units} unit(s) of {bloodGroup} {component} for {patient}? Stock is checked but not yet deducted.", { units: req.units, bloodGroup: req.blood_group, component: req.component, patient: req.patient_name }), label: "Approve", done: "Request approved" },
+      issue: { title: "Issue blood?", message: t("Issue {units} unit(s) of {bloodGroup} {component} to {patient}? This deducts the units from stock.", { units: req.units, bloodGroup: req.blood_group, component: req.component, patient: req.patient_name }), label: "Issue", done: "Blood issued and stock updated" },
+      reject: { title: "Reject request?", message: t("Reject the request for {patient}?", { patient: req.patient_name }), label: "Reject", done: "Request rejected" },
     }[action]
     if (!(await confirm({ title: copy.title, message: copy.message, confirmLabel: copy.label, destructive: action === "reject" }))) return
     setBusy(`${action}-${req.id}`)
@@ -137,7 +142,7 @@ function BloodBank() {
       toast.success(copy.done)
       fetchData()
     } catch (err) {
-      toast.error(err.message || `Could not ${action} the request`)
+      toast.error(err.message || t("Could not {action} the request", { action }))
     } finally {
       setBusy("")
     }
@@ -145,14 +150,14 @@ function BloodBank() {
 
   const header = (
     <PageHeader
-      title="Blood bank"
-      description={selectedHospital ? `Stock and requests at ${selectedHospital.name}.` : undefined}
+      title={t("Blood bank")}
+      description={selectedHospital ? t("Stock and requests at {hospital}.", { hospital: selectedHospital.name }) : undefined}
       breadcrumbs={[{ label: "Home", to: "/" }, { label: "Blood bank" }]}
       actions={
         selectedHospital && (
           <>
-            <Button variant="secondary" icon={RefreshCw} onClick={fetchData} disabled={loading}>Refresh</Button>
-            <Button icon={Plus} onClick={() => { resetForms(); setShowRequestModal(true) }}>New request</Button>
+            <Button variant="secondary" icon={RefreshCw} onClick={fetchData} disabled={loading}>{t("Refresh")}</Button>
+            <Button icon={Plus} onClick={() => { resetForms(); setShowRequestModal(true) }}>{t("New request")}</Button>
           </>
         )
       }
@@ -163,7 +168,7 @@ function BloodBank() {
     return (
       <>{confirmDialog}<div className="space-y-5">
         {header}
-        <Card><EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header to view its blood bank." /></Card>
+        <Card><EmptyState icon={Hospital} title={t("Select a hospital")} description="Choose a hospital in the header to view its blood bank." /></Card>
       </div></>
     )
   }
@@ -187,11 +192,11 @@ function BloodBank() {
       {header}
 
       {loadError && (
-        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={fetchData}>Retry</Button>}>{loadError}</Alert>
+        <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={fetchData}>{t("Retry")}</Button>}>{loadError}</Alert>
       )}
 
       <Card>
-        <CardHeader title="Stock by blood group" description="All components, in units. Groups with stock expiring within 7 days are flagged." />
+        <CardHeader title={t("Stock by blood group")} description="All components, in units. Groups with stock expiring within 7 days are flagged." />
         {loading && inventory.length === 0 ? (
           <SkeletonRows rows={2} />
         ) : (
@@ -203,7 +208,7 @@ function BloodBank() {
                 </p>
                 <p className={`mt-1 text-2xl font-semibold tabular-nums ${units === 0 ? "text-red-700" : "text-ink-900"}`}>{units}</p>
                 <p className={`text-xs ${expiringSoon ? "font-medium text-amber-700" : units === 0 ? "text-red-700" : "text-ink-500"}`}>
-                  {expiringSoon ? "Expiring soon" : units === 0 ? "None in stock" : "units"}
+                  {expiringSoon ? t("Expiring soon") : units === 0 ? t("None in stock") : t("units")}
                 </p>
               </li>
             ))}
@@ -213,22 +218,22 @@ function BloodBank() {
 
       <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_28rem]">
         <Card className="overflow-hidden">
-          <CardHeader title="Requests" description={`${openRequests.length} open`} />
+          <CardHeader title={t("Requests")} description={t("{count} open", { count: openRequests.length })} />
           {loading && requests.length === 0 ? (
             <SkeletonRows rows={4} />
           ) : requests.length === 0 ? (
-            <EmptyState icon={Droplet} title="No blood requests yet" />
+            <EmptyState icon={Droplet} title={t("No blood requests yet")} />
           ) : (
             <TableWrap>
               <table className="hms-table">
                 <thead>
                   <tr>
-                    <th scope="col">Patient</th>
-                    <th scope="col">Group</th>
-                    <th scope="col">Component</th>
-                    <th scope="col" className="num">Units</th>
-                    <th scope="col">Status</th>
-                    <th scope="col"><span className="sr-only">Actions</span></th>
+                    <th scope="col">{t("Patient")}</th>
+                    <th scope="col">{t("Group")}</th>
+                    <th scope="col">{t("Component")}</th>
+                    <th scope="col" className="num">{t("Units")}</th>
+                    <th scope="col">{t("Status")}</th>
+                    <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -246,16 +251,16 @@ function BloodBank() {
                         <div className="flex items-center justify-end gap-1">
                           {req.status === "Requested" && (
                             <>
-                              <Button size="sm" variant="subtle" icon={Check} loading={busy === `approve-${req.id}`} onClick={() => runAction(req, "approve")}>Approve</Button>
-                              <Button size="icon-sm" variant="ghost" icon={X} onClick={() => runAction(req, "reject")} aria-label="Reject request" title="Reject" />
-                              <Button size="icon-sm" variant="ghost" icon={Pencil} onClick={() => handleEdit(req)} aria-label="Edit request" title="Edit" />
+                              <Button size="sm" variant="subtle" icon={Check} loading={busy === `approve-${req.id}`} onClick={() => runAction(req, "approve")}>{t("Approve")}</Button>
+                              <Button size="icon-sm" variant="ghost" icon={X} onClick={() => runAction(req, "reject")} aria-label={t("Reject request")} title={t("Reject")} />
+                              <Button size="icon-sm" variant="ghost" icon={Pencil} onClick={() => handleEdit(req)} aria-label={t("Edit request")} title={t("Edit")} />
                             </>
                           )}
                           {req.status === "Approved" && (
-                            <Button size="sm" icon={PackageCheck} loading={busy === `issue-${req.id}`} onClick={() => runAction(req, "issue")}>Issue</Button>
+                            <Button size="sm" icon={PackageCheck} loading={busy === `issue-${req.id}`} onClick={() => runAction(req, "issue")}>{t("Issue")}</Button>
                           )}
                           {req.status === "Requested" && (
-                            <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => handleDelete(req)} aria-label="Delete request" title="Delete" />
+                            <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => handleDelete(req)} aria-label={t("Delete request")} title={t("Delete")} />
                           )}
                         </div>
                       </td>
@@ -268,18 +273,18 @@ function BloodBank() {
         </Card>
 
         <Card className="self-start overflow-hidden">
-          <CardHeader title="Inventory lots" />
+          <CardHeader title={t("Inventory lots")} />
           {inventory.length === 0 ? (
-            <EmptyState compact icon={Droplet} title="No inventory recorded" />
+            <EmptyState compact icon={Droplet} title={t("No inventory recorded")} />
           ) : (
             <TableWrap>
               <table className="hms-table">
                 <thead>
                   <tr>
-                    <th scope="col">Group</th>
-                    <th scope="col">Component</th>
-                    <th scope="col" className="num">Units</th>
-                    <th scope="col">Expiry</th>
+                    <th scope="col">{t("Group")}</th>
+                    <th scope="col">{t("Component")}</th>
+                    <th scope="col" className="num">{t("Units")}</th>
+                    <th scope="col">{t("Expiry")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -292,7 +297,7 @@ function BloodBank() {
                         <td className="num">{item.units}</td>
                         <td className={`whitespace-nowrap tabular-nums ${d !== null && d < 0 ? "font-medium text-red-700" : d !== null && d <= 7 ? "font-medium text-amber-700" : "text-ink-600"}`}>
                           {item.expiry_date ? new Date(item.expiry_date).toLocaleDateString("en-IN") : "—"}
-                          {d !== null && d < 0 && " (expired)"}
+                          {d !== null && d < 0 && t(" (expired)")}
                         </td>
                       </tr>
                     )
@@ -307,26 +312,26 @@ function BloodBank() {
       <Modal
         open={showRequestModal}
         onClose={resetForms}
-        title={editingRequest ? "Edit blood request" : "New blood request"}
+        title={editingRequest ? t("Edit blood request") : t("New blood request")}
         footer={
           <>
-            <Button variant="secondary" onClick={resetForms}>Cancel</Button>
-            <Button type="submit" form="blood-form" loading={saving}>{editingRequest ? "Save changes" : "Create request"}</Button>
+            <Button variant="secondary" onClick={resetForms}>{t("Cancel")}</Button>
+            <Button type="submit" form="blood-form" loading={saving}>{editingRequest ? t("Save changes") : t("Create request")}</Button>
           </>
         }
       >
         <form id="blood-form" onSubmit={handleRequestSubmit} className="space-y-4">
           <Field label="Patient" required>
             <Select value={requestForm.patient} onChange={(e) => setRequestForm({ ...requestForm, patient: e.target.value })}>
-              <option value="">Select patient</option>
+              <option value="">{t("Select patient")}</option>
               {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.phone ? ` · ${p.phone}` : ""}</option>)}
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Blood group" required>
               <Select value={requestForm.blood_group} onChange={(e) => setRequestForm({ ...requestForm, blood_group: e.target.value })}>
-                <option value="">Select</option>
-                {BLOOD_GROUPS.map((g) => <option key={g}>{g}</option>)}
+                <option value="">{t("Select")}</option>
+                {BLOOD_GROUPS.map((g) => <option value={g} key={g}>{t(g)}</option>)}
               </Select>
             </Field>
             <Field label="Units" required>
@@ -335,7 +340,7 @@ function BloodBank() {
           </div>
           <Field label="Component" required>
             <Select value={requestForm.component} onChange={(e) => setRequestForm({ ...requestForm, component: e.target.value })}>
-              {COMPONENTS.map((c) => <option key={c}>{c}</option>)}
+              {COMPONENTS.map((c) => <option value={c} key={c}>{t(c)}</option>)}
               {requestForm.component && !COMPONENTS.includes(requestForm.component) && <option>{requestForm.component}</option>}
             </Select>
           </Field>

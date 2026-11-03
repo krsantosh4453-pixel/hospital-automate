@@ -71,7 +71,7 @@ Every staff request acts in **one hospital** (see "Tenancy"). Patients authentic
   - `audit`
   - `reports` — KPIs, forecasts
   - `hospital` — hospital, department, ward, room, bed
-- **Not mounted:** `fhir`, `hl7`, `abdm` (code present; no URLs).
+- **Behind feature flags:** `fhir` (`FHIR_ENABLED`), `abdm` (`ABDM_ENABLED`), both off by default. HL7 v2 is not implemented (the old stub was removed).
 
 ### Tenancy (`users/viewsets.py`)
 
@@ -137,6 +137,6 @@ See `KNOWN_LIMITATIONS.md`. The main ones:
 - Tokens in `localStorage`.
 - The main JavaScript bundle is about 836 kB (no code-splitting).
 - Notifications are sent synchronously (no Celery task yet).
-- FHIR, HL7 and ABDM are not mounted.
+- FHIR and ABDM are off by default; HL7 v2 is not implemented.
 - No structured EMR sections (complaint, history, examination).
 - No frontend test harness.

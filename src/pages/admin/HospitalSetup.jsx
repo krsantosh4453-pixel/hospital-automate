@@ -8,6 +8,7 @@ import InviteStaffForm from "../../components/admin/InviteStaffForm.jsx"
 import WardBedsForm from "../../components/admin/WardBedsForm.jsx"
 import api from "../../services/api.js"
 import { Alert, Badge, Button, Card, CardBody, CardHeader, Field, Input, PageHeader, Select } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const STEPS = [
   { title: "Hospital", icon: Building2 },
@@ -28,8 +29,9 @@ function canAddHospital(auth) {
 }
 
 function StepList({ step, onPick, enabled }) {
+  const { t } = useLanguage()
   return (
-    <ol className="flex flex-wrap gap-2" aria-label="Setup steps">
+    <ol className="flex flex-wrap gap-2" aria-label={t("Setup steps")}>
       {STEPS.map(({ title, icon: Icon }, index) => {
         const current = index === step
         return (
@@ -44,7 +46,7 @@ function StepList({ step, onPick, enabled }) {
               }`}
             >
               {index < step ? <Check size={16} aria-hidden="true" /> : <Icon size={16} aria-hidden="true" />}
-              {index + 1}. {title}
+              {index + 1}. {t(title)}
             </button>
           </li>
         )
@@ -54,6 +56,7 @@ function StepList({ step, onPick, enabled }) {
 }
 
 function HospitalStep({ selectedHospital, allowNew, onCreated }) {
+  const { t } = useLanguage()
   const { addHospital } = useHospitals()
   const [creating, setCreating] = useState(!selectedHospital)
   const [form, setForm] = useState(EMPTY_HOSPITAL)
@@ -82,11 +85,11 @@ function HospitalStep({ selectedHospital, allowNew, onCreated }) {
     return (
       <div className="space-y-4">
         <p className="text-sm text-ink-700">
-          Setting up <strong>{selectedHospital.name}</strong>. Continue to add its departments, wards and staff.
+          {t("Setting up")}{" "}<strong>{selectedHospital.name}</strong>{t(". Continue to add its departments, wards and staff.")}
         </p>
         {allowNew && (
           <Button variant="secondary" icon={Plus} onClick={() => setCreating(true)}>
-            Add a new hospital instead
+            {t("Add a new hospital instead")}
           </Button>
         )}
       </div>
@@ -95,8 +98,8 @@ function HospitalStep({ selectedHospital, allowNew, onCreated }) {
 
   if (!allowNew) {
     return (
-      <Alert tone="warning" title="Only an Admin can add a hospital">
-        Ask your platform administrator for an Admin account, or for a hospital to be added for you.
+      <Alert tone="warning" title={t("Only an Admin can add a hospital")}>
+        {t("Ask your platform administrator for an Admin account, or for a hospital to be added for you.")}
       </Alert>
     )
   }
@@ -104,7 +107,7 @@ function HospitalStep({ selectedHospital, allowNew, onCreated }) {
   return (
     <form onSubmit={submit} className="space-y-4" noValidate>
       {error && <Alert tone="danger">{error}</Alert>}
-      <p className="text-sm text-ink-600">You become the Admin of the new hospital.</p>
+      <p className="text-sm text-ink-600">{t("You become the Admin of the new hospital.")}</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Hospital name" required>
           <Input value={form.name} onChange={set("name")} />
@@ -115,7 +118,7 @@ function HospitalStep({ selectedHospital, allowNew, onCreated }) {
         <Field label="Type">
           <Select value={form.type} onChange={set("type")}>
             {HOSPITAL_TYPES.map((type) => (
-              <option key={type}>{type}</option>
+              <option value={type} key={type}>{t(type)}</option>
             ))}
           </Select>
         </Field>
@@ -141,11 +144,11 @@ function HospitalStep({ selectedHospital, allowNew, onCreated }) {
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" icon={Plus} loading={saving} disabled={!form.name.trim()}>
-          Create hospital
+          {t("Create hospital")}
         </Button>
         {selectedHospital && (
           <Button variant="ghost" onClick={() => setCreating(false)}>
-            Cancel
+            {t("Cancel")}
           </Button>
         )}
       </div>
@@ -167,6 +170,7 @@ function NameBadges({ label, rows, empty }) {
 }
 
 function DepartmentsStep({ hospitalId, departments, onChange }) {
+  const { t } = useLanguage()
   const [name, setName] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -191,10 +195,10 @@ function DepartmentsStep({ hospitalId, departments, onChange }) {
       {error && <Alert tone="danger">{error}</Alert>}
       <form onSubmit={add} className="flex flex-wrap items-end gap-3" noValidate>
         <Field label="Department name" className="min-w-[14rem] flex-1">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. General Medicine" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("e.g. General Medicine")} />
         </Field>
         <Button type="submit" icon={Plus} loading={saving} disabled={!name.trim()}>
-          Add
+          {t("Add")}
         </Button>
       </form>
       <NameBadges label="Departments" rows={departments} empty="No departments yet." />
@@ -203,12 +207,13 @@ function DepartmentsStep({ hospitalId, departments, onChange }) {
 }
 
 function WardsStep({ hospitalId, wards, onChange }) {
+  const { t } = useLanguage()
   const [created, setCreated] = useState(null)
   return (
     <div className="space-y-5">
       {created && (
         <Alert tone="success">
-          {created.name} was created with {created.room_count} rooms and {created.bed_count} beds.
+          {created.name}{" "}{t("was created with")}{" "}{created.room_count}{" "}{t("rooms and")}{" "}{created.bed_count}{" "}{t("beds.")}
         </Alert>
       )}
       <NameBadges label="Wards" rows={wards} empty="No wards yet." />
@@ -220,8 +225,8 @@ function WardsStep({ hospitalId, wards, onChange }) {
         }}
       />
       <p className="text-[13px] text-ink-500">
-        Beds can be renamed or put under maintenance later on the{" "}
-        <Link to="/ipd" className="text-brand-700 hover:underline">IPD</Link> page.
+        {t("Beds can be renamed or put under maintenance later on the")}{" "}
+        <Link to="/ipd" className="text-brand-700 hover:underline">{t("IPD")}</Link>{" "}{t("page.")}
       </p>
     </div>
   )
@@ -232,6 +237,7 @@ function WardsStep({ hospitalId, wards, onChange }) {
  * departments, wards with beds, and staff invitations with roles.
  */
 function HospitalSetup() {
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const { user, refreshUser } = useAuth()
   const { selectedHospital, selectHospital } = usePatient()
@@ -276,7 +282,7 @@ function HospitalSetup() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Hospital setup"
+        title={t("Hospital setup")}
         description="Add a hospital, its departments, wards and beds, and invite its staff with their roles."
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Setup" }]}
       />
@@ -294,22 +300,22 @@ function HospitalSetup() {
 
       {last && invitedCount > 0 && (
         <Alert tone="info">
-          {invitedCount} {invitedCount === 1 ? "person was" : "people were"} invited. Manage everyone&apos;s roles on the{" "}
-          <Link to="/admin/users" className="font-medium underline">Users</Link> page.
+          {t(invitedCount === 1 ? "{count} person was invited. Manage everyone's roles on the" : "{count} people were invited. Manage everyone's roles on the", { count: invitedCount })}{" "}
+          <Link to="/admin/users" className="font-medium underline">{t("Users")}</Link>{" "}{t("page.")}
         </Alert>
       )}
 
       <div className="flex justify-between">
         <Button variant="ghost" icon={ArrowLeft} disabled={step === 0} onClick={() => setStep(step - 1)}>
-          Back
+          {t("Back")}
         </Button>
         {last ? (
           <Button iconRight={Check} onClick={() => navigate("/admin")}>
-            Finish
+            {t("Finish")}
           </Button>
         ) : (
           <Button iconRight={ArrowRight} disabled={!hospitalId} onClick={() => setStep(step + 1)}>
-            Next
+            {t("Next")}
           </Button>
         )}
       </div>

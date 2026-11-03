@@ -61,6 +61,30 @@ class NotificationPayload:
         if self.metadata is None:
             self.metadata = {}
 
+    def to_dict(self) -> dict:
+        """JSON-safe form, used to hand the payload to a Celery task."""
+        return {
+            "event": self.event.value,
+            "patient_id": self.patient_id,
+            "hospital_id": self.hospital_id,
+            "title": self.title,
+            "message": self.message,
+            "metadata": self.metadata,
+            "channels": [channel.value for channel in self.channels],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "NotificationPayload":
+        return cls(
+            event=NotificationEvent(data["event"]),
+            patient_id=data["patient_id"],
+            hospital_id=data["hospital_id"],
+            title=data["title"],
+            message=data["message"],
+            metadata=data.get("metadata") or {},
+            channels=[NotificationChannel(value) for value in data.get("channels") or []],
+        )
+
 
 @dataclass
 class NotificationResult:
@@ -70,6 +94,9 @@ class NotificationResult:
     provider_message_id: Optional[str] = None
     error: Optional[str] = None
     sent_at: Optional[datetime] = None
+    # True only for transient failures (network, provider outage) that a
+    # later attempt may fix; consent, configuration and data problems are not.
+    retryable: bool = False
 
 
 class NotificationProvider(ABC):
@@ -282,7 +309,8 @@ class EmailProvider(NotificationProvider):
         except Exception as e:
             # Ids only: the message may contain clinical details.
             logger.error("EmailProvider failed for patient %s: %s", payload.patient_id, type(e).__name__)
-            return NotificationResult(channel=self.channel, success=False, error="Email could not be sent")
+            return NotificationResult(channel=self.channel, success=False, error="Email could not be sent",
+                                      retryable=True)
         return NotificationResult(channel=self.channel, success=True, sent_at=datetime.now())
 
 

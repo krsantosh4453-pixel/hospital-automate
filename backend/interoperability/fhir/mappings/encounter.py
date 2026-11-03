@@ -52,7 +52,6 @@ def _map_encounter_status(status: str, visit_type: str) -> str:
         "Referred": "finished",
         "Left Against Advice": "finished",
         "Expired": "finished",
-        "Admitted": "in-progress",
         "Discharge Initiated": "in-progress",
         "Transferred": "finished",
     }

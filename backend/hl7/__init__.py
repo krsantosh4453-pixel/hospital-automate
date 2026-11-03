@@ -1,1 +1,0 @@
-"""HL7 v2 Messaging Module - Placeholder for future implementation."""

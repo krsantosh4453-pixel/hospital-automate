@@ -14,6 +14,7 @@ import { Card, CardHeader, DescriptionList, EmptyState, PageHeader, SegmentedCon
  * saving anything; those were removed rather than kept as a pretend form.
  */
 function Settings() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
   const { language, setLanguage } = useLanguage()
   const { isSidebarOpen, openSidebar, closeSidebar } = useSidebar()
@@ -24,7 +25,7 @@ function Settings() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Settings"
+        title={t("Settings")}
         description="Hospital details and your interface preferences."
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Settings" }]}
       />
@@ -33,12 +34,12 @@ function Settings() {
         <Card>
           <CardHeader
             icon={Hospital}
-            title="Hospital details"
+            title={t("Hospital details")}
             description="From the hospital record. Admins change these in Admin → Hospitals."
             actions={
               canView("Hospitals") && (
                 <Link to="/admin/hospitals" className={linkCls}>
-                  Edit <ExternalLink size={14} aria-hidden="true" />
+                  {t("Edit")}{" "}<ExternalLink size={14} aria-hidden="true" />
                 </Link>
               )
             }
@@ -56,19 +57,19 @@ function Settings() {
               />
             </div>
           ) : (
-            <EmptyState compact icon={Hospital} title="No hospital selected" description="Choose a hospital in the header." />
+            <EmptyState compact icon={Hospital} title={t("No hospital selected")} description="Choose a hospital in the header." />
           )}
         </Card>
 
         <Card>
-          <CardHeader title="Interface" description="Saved in this browser only." />
+          <CardHeader title={t("Interface")} description="Saved in this browser only." />
           <div className="divide-y divide-line">
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
               <div className="flex items-start gap-3">
                 <Languages size={18} className="mt-0.5 text-ink-400" aria-hidden="true" />
                 <div>
-                  <p className="text-sm font-medium text-ink-900">Language</p>
-                  <p className="text-[13px] text-ink-500">Navigation and labels. Clinical text is shown exactly as entered.</p>
+                  <p className="text-sm font-medium text-ink-900">{t("Language")}</p>
+                  <p className="text-[13px] text-ink-500">{t("Navigation and labels. Clinical text is shown exactly as entered.")}</p>
                 </div>
               </div>
               <SegmentedControl
@@ -85,8 +86,8 @@ function Settings() {
               <div className="flex items-start gap-3">
                 <PanelLeft size={18} className="mt-0.5 text-ink-400" aria-hidden="true" />
                 <div>
-                  <p className="text-sm font-medium text-ink-900">Sidebar on large screens</p>
-                  <p className="text-[13px] text-ink-500">A compact icon rail leaves more room for tables.</p>
+                  <p className="text-sm font-medium text-ink-900">{t("Sidebar on large screens")}</p>
+                  <p className="text-[13px] text-ink-500">{t("A compact icon rail leaves more room for tables.")}</p>
                 </div>
               </div>
               <SegmentedControl
@@ -103,20 +104,20 @@ function Settings() {
         </Card>
 
         <Card className="xl:col-span-2">
-          <CardHeader icon={ShieldCheck} title="Access and security" />
+          <CardHeader icon={ShieldCheck} title={t("Access and security")} />
           <ul className="divide-y divide-line text-sm">
             <li className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <span className="text-ink-700">Which modules each role can open is set by roles and permissions.</span>
+              <span className="text-ink-700">{t("Which modules each role can open is set by roles and permissions.")}</span>
               {canView("Permissions") ? (
-                <Link to="/admin/permissions" className={linkCls}>Roles &amp; permissions <ExternalLink size={14} aria-hidden="true" /></Link>
+                <Link to="/admin/permissions" className={linkCls}>{t("Roles & permissions")}{" "}<ExternalLink size={14} aria-hidden="true" /></Link>
               ) : (
-                <span className="text-[13px] text-ink-500">Ask a hospital administrator.</span>
+                <span className="text-[13px] text-ink-500">{t("Ask a hospital administrator.")}</span>
               )}
             </li>
             <li className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
               <span className="flex items-center gap-2 text-ink-700">
                 <KeyRound size={16} className="text-ink-400" aria-hidden="true" />
-                To change your password, sign out and use “Forgot password” on the sign-in page (a one-time code is sent to your registered mobile).
+                {t("To change your password, sign out and use “Forgot password” on the sign-in page (a one-time code is sent to your registered mobile).")}
               </span>
             </li>
           </ul>

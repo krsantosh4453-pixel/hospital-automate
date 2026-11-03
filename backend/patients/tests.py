@@ -150,6 +150,133 @@ class PatientAPITests(TestCase):
         self.patient_a.refresh_from_db()
         self.assertEqual(self.patient_a.age, 31)
 
+    def test_search_finds_patient_by_this_hospitals_uhid(self):
+        PatientHospital.objects.filter(patient=self.patient_a).update(uhid="UH-A-001")
+
+        response = self.client.get(f"{self._get_list_url()}&search=uh-a-001")
+
+        ids = [row["id"] for row in response.data.get("results", response.data)]
+        self.assertEqual(ids, [self.patient_a.id])
+
+    def test_search_ignores_another_hospitals_uhid(self):
+        # Patient A is also registered at B under B's UHID; A's staff must not match on it.
+        PatientHospital.objects.create(patient=self.patient_a, hospital=self.hospital_b, uhid="UH-B-777", is_active=True)
+
+        response = self.client.get(f"{self._get_list_url()}&search=UH-B-777")
+
+        self.assertEqual(response.data.get("results", response.data), [])
+
+    def _new_patient(self, phone, **extra):
+        data = {"name": "Second Person", "age": 12, "gender": "Female", "phone": phone, "hospital": self.hospital_a.id}
+        data.update(extra)
+        return self.client.post("/api/patients/", data, format="json")
+
+    def test_registering_a_known_mobile_number_returns_the_match(self):
+        response = self._new_patient(self.patient_a.phone)
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual([row["id"] for row in response.data["duplicates"]], [self.patient_a.id])
+        self.assertFalse(Patient.objects.filter(name="Second Person").exists())
+
+    def test_confirmed_different_person_with_same_number_is_registered(self):
+        response = self._new_patient(self.patient_a.phone, confirm_new=True)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+    def test_number_known_only_at_another_hospital_is_not_revealed(self):
+        response = self._new_patient(self.patient_b.phone)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertNotIn("duplicates", response.data)
+
+    def test_demographics_saved(self):
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {
+                "marital_status": "Married", "address_line": "12 MG Road", "city": "Patna",
+                "district": "Patna", "state": "Bihar", "pincode": "800001",
+                "id_type": "Aadhaar", "id_last4": "4321", "payer_type": "Insurance",
+                "payer_name": "Star Health", "policy_number": "SH-77",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.patient_a.refresh_from_db()
+        self.assertEqual((self.patient_a.city, self.patient_a.id_last4, self.patient_a.payer_name), ("Patna", "4321", "Star Health"))
+
+    def test_full_id_number_is_refused(self):
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {"id_type": "Aadhaar", "id_last4": "123456789012"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("id_last4", response.data["details"])
+
+    def test_demographic_rules(self):
+        cases = [
+            ({"pincode": "8000"}, "pincode"),
+            ({"id_last4": "4321"}, "id_type"),
+            ({"payer_type": "Insurance"}, "payer_name"),
+            ({"date_of_birth": "2999-01-01"}, "date_of_birth"),
+            ({"marital_status": "Unknown"}, "marital_status"),
+        ]
+        for data, field in cases:
+            response = self.client.patch(self._get_detail_url(self.patient_a.id), data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, data)
+            self.assertIn(field, response.data["details"], data)
+
+    def test_emergency_contact_saved_with_digits_only(self):
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {
+                "emergency_contact_name": "Meera",
+                "emergency_contact_relation": "Sister",
+                "emergency_contact_phone": "+91 98765-43210",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.patient_a.refresh_from_db()
+        self.assertEqual(
+            (self.patient_a.emergency_contact_name, self.patient_a.emergency_contact_phone),
+            ("Meera", "919876543210"),
+        )
+
+    def test_emergency_contact_needs_a_phone(self):
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {"emergency_contact_name": "Meera"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("emergency_contact_phone", response.data["details"])
+
+    def test_emergency_contact_name_change_keeps_stored_phone(self):
+        self.patient_a.emergency_contact_phone = "9876543210"
+        self.patient_a.save(update_fields=["emergency_contact_phone"])
+
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {"emergency_contact_name": "Meera"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+    def test_emergency_contact_phone_too_short(self):
+        response = self.client.patch(
+            self._get_detail_url(self.patient_a.id),
+            {"emergency_contact_name": "Meera", "emergency_contact_phone": "12345"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_delete_patient(self):
         """Test deleting a patient."""
         response = self.client.delete(self._get_detail_url(self.patient_a.id))

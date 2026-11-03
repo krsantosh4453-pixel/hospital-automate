@@ -10,7 +10,16 @@ from django.utils import timezone
 
 from audit.services import record_audit
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import IsDoctor, IsHospitalManagerReadOnly, IsNurse
+from users.permissions import (
+    IsAdmin,
+    IsBillingStaff,
+    IsDoctor,
+    IsHospitalManager,
+    IsHospitalManagerReadOnly,
+    IsNurse,
+    IsReceptionist,
+)
+from . import discharge
 from .models import (
     Admission,
     BedAllocation,
@@ -27,6 +36,10 @@ from .serializers import (
     DischargeSummarySerializer,
     DischargeNoteSerializer,
 )
+
+
+# Who issues the final bill of a stay: the same roles that create invoices.
+BILLING_ROLES = IsAdmin | IsHospitalManager | IsBillingStaff | IsReceptionist
 
 
 class AdmissionViewSet(HospitalScopedViewSet):
@@ -58,14 +71,6 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check if already has active bed allocation
-        active_allocation = admission.bed_allocations.filter(is_active=True).first()
-        if active_allocation:
-            return Response(
-                {"detail": f"Patient already allocated to bed {active_allocation.bed}."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         bed_id = request.data.get("bed_id")
         if not bed_id:
             return Response(
@@ -75,6 +80,16 @@ class AdmissionViewSet(HospitalScopedViewSet):
 
         try:
             with transaction.atomic():
+                # Lock the admission before checking for an active bed, so
+                # parallel requests for different beds cannot all pass the check.
+                type(admission).objects.select_for_update().filter(pk=admission.pk).first()
+                active_allocation = admission.bed_allocations.filter(is_active=True).select_related("bed").first()
+                if active_allocation:
+                    return Response(
+                        {"detail": f"Patient already allocated to bed {active_allocation.bed}."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 bed = BedAllocation._meta.get_field("bed").related_model.objects.select_for_update().get(
                     id=bed_id, room__ward__hospital=admission.hospital
                 )
@@ -144,16 +159,28 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        active_allocation = admission.bed_allocations.filter(is_active=True).first()
-        if not active_allocation:
-            return Response(
-                {"detail": "No active bed allocation to transfer from."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         try:
             with transaction.atomic():
-                # Release old bed
+                # Lock the admission so parallel transfers cannot each move the
+                # patient into a bed, then check the new bed before releasing
+                # the old one: a refused transfer must leave the patient in place.
+                type(admission).objects.select_for_update().filter(pk=admission.pk).first()
+                active_allocation = admission.bed_allocations.filter(is_active=True).select_related("bed").first()
+                if not active_allocation:
+                    return Response(
+                        {"detail": "No active bed allocation to transfer from."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                new_bed = BedAllocation._meta.get_field("bed").related_model.objects.select_for_update().get(
+                    id=new_bed_id, room__ward__hospital=admission.hospital
+                )
+                if new_bed.status != "Available":
+                    return Response(
+                        {"detail": f"Bed {new_bed} is not available."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 old_bed = active_allocation.bed
                 old_bed.status = "Available"
                 old_bed.save()
@@ -161,17 +188,6 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 active_allocation.is_active = False
                 active_allocation.released_at = timezone.now()
                 active_allocation.save()
-
-                # Allocate new bed
-                new_bed = BedAllocation._meta.get_field("bed").related_model.objects.select_for_update().get(
-                    id=new_bed_id, room__ward__hospital=admission.hospital
-                )
-
-                if new_bed.status != "Available":
-                    return Response(
-                        {"detail": f"Bed {new_bed} is not available."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
 
                 new_bed.status = "Occupied"
                 new_bed.save()
@@ -216,10 +232,10 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 {"detail": "Discharge must be initiated first."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        summary = DischargeSummary.objects.filter(admission=admission).first()
-        if summary is None or not summary.finalized:
+        state = discharge.readiness(admission)
+        if not state["ready"]:
             return Response(
-                {"detail": "A doctor must finalize the discharge summary before discharge is completed."},
+                {"detail": " ".join(state["blockers"]), "blockers": state["blockers"]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -249,6 +265,43 @@ class AdmissionViewSet(HospitalScopedViewSet):
 
         record_audit(request, "ipd.admission.discharged", admission)
         return Response(AdmissionSerializer(admission).data)
+
+    @action(detail=True, methods=["get"])
+    def readiness(self, request, pk=None):
+        """Checklist, summary and final-bill state of this discharge (E7)."""
+        return Response(discharge.readiness(self.get_object()))
+
+    @action(detail=False, methods=["get"], permission_classes=[BILLING_ROLES])
+    def awaiting_final_bill(self, request):
+        """Stays being discharged, with only what billing needs (E12, H8)."""
+        rows = (
+            self.get_queryset()
+            .filter(status="Discharge Initiated")
+            .select_related("patient")
+            .prefetch_related("invoices__payments", "invoices__items")
+        )
+        return Response([
+            {
+                "admission": admission.pk,
+                "patient": admission.patient_id,
+                "patient_name": admission.patient.name,
+                "admission_date": admission.admission_date,
+                "days": discharge.billable_days(admission),
+                "final_invoice": discharge.invoice_brief(discharge.final_invoice(admission)),
+            }
+            for admission in rows
+        ])
+
+    @action(detail=True, methods=["post"], permission_classes=[BILLING_ROLES])
+    def final_bill(self, request, pk=None):
+        """Create the final invoice of this stay: bed days at ``daily_rate`` plus ``items``."""
+        admission = self.get_object()
+        items = request.data.get("items") or []
+        if not isinstance(items, list):
+            raise ValidationError({"items": "Send a list of bill lines."})
+        invoice = discharge.create_final_bill(admission, request.data.get("daily_rate"), items)
+        record_audit(request, "billing.invoice.final_bill", invoice, hospital=admission.hospital_id)
+        return Response(discharge.invoice_brief(invoice), status=status.HTTP_201_CREATED)
 
 
 class BedAllocationViewSet(HospitalScopedViewSet):
@@ -293,7 +346,9 @@ class BedAllocationViewSet(HospitalScopedViewSet):
 
 
 class DischargePlanViewSet(HospitalScopedViewSet):
-    queryset = DischargePlan.objects.select_related("admission__hospital", "admission__patient", "created_by")
+    queryset = DischargePlan.objects.select_related(
+        "admission__hospital", "admission__patient", "created_by"
+    ).order_by("-created_at", "-id")
     serializer_class = DischargePlanSerializer
     permission_classes = [IsDoctor | IsNurse | IsHospitalManagerReadOnly]
 

@@ -18,6 +18,7 @@ import {
   Toolbar,
   useConfirm,
 } from "../ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 /*
  * Every bed of the hospital with its status and current patient. The
@@ -32,6 +33,7 @@ const BED_TYPES = ["General", "ICU", "Private", "Semi-private", "Pediatric", "Ma
 
 /** @param {{ hospitalId?: number|string, canManage: boolean, refreshKey: number, onChanged: () => void }} props */
 export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged }) {
+  const { t } = useLanguage()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
   const [beds, setBeds] = useState([])
@@ -72,7 +74,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
       toast.success(`Bed ${bed.bed_number} is now ${status}`)
       await afterChange()
     } catch (err) {
-      toast.error(`Not changed: ${err.message}`)
+      toast.error(t("Not changed: {reason}", { reason: err.message }))
     } finally {
       setBusy("")
     }
@@ -81,7 +83,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
   const removeBed = async (bed) => {
     const ok = await confirm({
       title: "Delete bed?",
-      message: `Delete bed ${bed.bed_number} in ${bed.ward_name}, room ${bed.room_number}? A bed that ever held a patient cannot be deleted; set it to Maintenance instead.`,
+      message: t("Delete bed {bedNumber} in {name}, room {roomNumber}? A bed that ever held a patient cannot be deleted; set it to Maintenance instead.", { bedNumber: bed.bed_number, name: bed.ward_name, roomNumber: bed.room_number }),
       confirmLabel: "Delete bed",
     })
     if (!ok) return
@@ -91,7 +93,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
       toast.success(`Bed ${bed.bed_number} deleted`)
       await afterChange()
     } catch (err) {
-      toast.error(`Not deleted: ${err.message}`)
+      toast.error(t("Not deleted: {reason}", { reason: err.message }))
     } finally {
       setBusy("")
     }
@@ -107,7 +109,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
       setEditing(null)
       await afterChange()
     } catch (err) {
-      setEditError(`Not saved: ${err.message}`)
+      setEditError(t("Not saved: {reason}", { reason: err.message }))
     } finally {
       setBusy("")
     }
@@ -120,14 +122,14 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
       (!query || `${bed.ward_name} ${bed.room_number} ${bed.bed_number} ${bed.current_patient || ""}`.toLowerCase().includes(query)),
   )
 
-  if (loadError) return <ErrorState title="Beds could not be loaded" message={loadError} onRetry={load} />
+  if (loadError) return <ErrorState title={t("Beds could not be loaded")} message={loadError} onRetry={load} />
 
   return (
     <>
       {confirmDialog}
       <Toolbar>
-        <SearchInput value={search} onChange={setSearch} placeholder="Ward, room, bed or patient" label="Search beds" className="w-full sm:max-w-xs" />
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status" className="w-full sm:w-48">
+        <SearchInput value={search} onChange={setSearch} placeholder={t("Ward, room, bed or patient")} label="Search beds" className="w-full sm:max-w-xs" />
+        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label={t("Filter by status")} className="w-full sm:w-48">
           <option value="">All statuses ({beds.length})</option>
           {ALL_STATUSES.map((s) => (
             <option key={s} value={s}>{s} ({beds.filter((b) => b.status === s).length})</option>
@@ -138,20 +140,20 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
       {loading && beds.length === 0 ? (
         <SkeletonRows rows={4} />
       ) : shown.length === 0 ? (
-        <EmptyState title={beds.length ? "No beds match these filters" : "No beds yet"} description={beds.length ? "Change the search or status filter." : "Add a bed to start using IPD."} />
+        <EmptyState title={beds.length ? t("No beds match these filters") : t("No beds yet")} description={beds.length ? t("Change the search or status filter.") : t("Add a bed to start using IPD.")} />
       ) : (
         <TableWrap>
           <table className="hms-table">
-            <caption className="sr-only">All beds</caption>
+            <caption className="sr-only">{t("All beds")}</caption>
             <thead>
               <tr>
-                <th scope="col">Ward</th>
-                <th scope="col">Room</th>
-                <th scope="col">Bed</th>
-                <th scope="col">Type</th>
-                <th scope="col">Status</th>
-                <th scope="col">Patient</th>
-                {canManage && <th scope="col"><span className="sr-only">Actions</span></th>}
+                <th scope="col">{t("Ward")}</th>
+                <th scope="col">{t("Room")}</th>
+                <th scope="col">{t("Bed")}</th>
+                <th scope="col">{t("Type")}</th>
+                <th scope="col">{t("Status")}</th>
+                <th scope="col">{t("Patient")}</th>
+                {canManage && <th scope="col"><span className="sr-only">{t("Actions")}</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -169,24 +171,24 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
                       <td>
                         <div className="flex items-center justify-end gap-1.5">
                           {inUse ? (
-                            <span className="text-xs text-ink-500">Release from the admission to change</span>
+                            <span className="text-xs text-ink-500">{t("Release from the admission to change")}</span>
                           ) : (
                             <Select
                               value={bed.status}
                               onChange={(e) => changeStatus(bed, e.target.value)}
                               disabled={busy === `status-${bed.id}`}
-                              aria-label={`Status of bed ${bed.bed_number}`}
+                              aria-label={t("Status of bed {bedNumber}", { bedNumber: bed.bed_number })}
                               className="h-8 min-h-0 w-36 py-1 text-xs"
                             >
-                              {MANUAL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                              {MANUAL_STATUSES.map((s) => <option key={s} value={s}>{t(s)}</option>)}
                             </Select>
                           )}
-                          <Button size="sm" variant="ghost" icon={Pencil} onClick={() => { setEditError(""); setEditing({ ...bed }) }} aria-label={`Edit bed ${bed.bed_number}`}>
-                            Edit
+                          <Button size="sm" variant="ghost" icon={Pencil} onClick={() => { setEditError(""); setEditing({ ...bed }) }} aria-label={t("Edit bed {bedNumber}", { bedNumber: bed.bed_number })}>
+                            {t("Edit")}
                           </Button>
                           {!inUse && (
-                            <Button size="sm" variant="ghost" icon={Trash2} loading={busy === `delete-${bed.id}`} onClick={() => removeBed(bed)} aria-label={`Delete bed ${bed.bed_number}`}>
-                              Delete
+                            <Button size="sm" variant="ghost" icon={Trash2} loading={busy === `delete-${bed.id}`} onClick={() => removeBed(bed)} aria-label={t("Delete bed {bedNumber}", { bedNumber: bed.bed_number })}>
+                              {t("Delete")}
                             </Button>
                           )}
                         </div>
@@ -204,12 +206,12 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
         open={Boolean(editing)}
         onClose={() => setEditing(null)}
         size="sm"
-        title="Edit bed"
+        title={t("Edit bed")}
         description={editing ? `${editing.ward_name} · room ${editing.room_number}` : undefined}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setEditing(null)} disabled={busy === "edit"}>Cancel</Button>
-            <Button type="submit" form="ipd-edit-bed" loading={busy === "edit"}>Save</Button>
+            <Button variant="secondary" onClick={() => setEditing(null)} disabled={busy === "edit"}>{t("Cancel")}</Button>
+            <Button type="submit" form="ipd-edit-bed" loading={busy === "edit"}>{t("Save")}</Button>
           </>
         }
       >
@@ -221,7 +223,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
             </Field>
             <Field label="Bed type">
               <Select value={editing.bed_type || "General"} onChange={(e) => setEditing({ ...editing, bed_type: e.target.value })}>
-                {[...new Set([...BED_TYPES, editing.bed_type].filter(Boolean))].map((type) => <option key={type} value={type}>{type}</option>)}
+                {[...new Set([...BED_TYPES, editing.bed_type].filter(Boolean))].map((type) => <option key={type} value={type}>{t(type)}</option>)}
               </Select>
             </Field>
           </form>

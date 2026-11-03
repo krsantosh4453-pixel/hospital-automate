@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import api from "../../services/api.js"
 import { Alert, Button, Card, CardHeader, Field, Input, PageHeader, Select, TableWrap } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const SHIFTS = ["Morning", "Evening", "Night"]
 const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
@@ -16,6 +17,7 @@ function todayIso() {
 // patients of the wards of today's duty (yesterday's Night shift included);
 // only that hospital's Admin or Hospital Manager can change the roster.
 function NurseDuty() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
   const [day, setDay] = useState(todayIso)
   const [duties, setDuties] = useState([])
@@ -92,8 +94,8 @@ function NurseDuty() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Nurse duty"
-        description={`Ward and shift duty of ${selectedHospital?.name || "the selected hospital"}. A nurse sees the patients of their own duty.`}
+        title={t("Nurse duty")}
+        description={t("Ward and shift duty of {hospital}. A nurse sees the patients of their own duty.", { hospital: selectedHospital?.name || "the selected hospital" })}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Nurse duty" }]}
       />
 
@@ -101,20 +103,19 @@ function NurseDuty() {
       {notice && <Alert tone="success">{notice}</Alert>}
       {unlinked.length > 0 && (
         <Alert tone="warning">
-          Not linked to a staff login, so they see no ward patients yet: {unlinked.map((n) => n.name).join(", ")}.
-          Set each nurse&apos;s email to their login email on the Nursing page.
+          {t("Not linked to a staff login, so they see no ward patients yet:")}{" "}{unlinked.map((n) => n.name).join(", ")}{t(". Set each nurse's email to their login email on the Nursing page.")}
         </Alert>
       )}
 
       <Card>
-        <CardHeader title="Assign duty" description="One nurse, one ward, one shift of the chosen day." />
+        <CardHeader title={t("Assign duty")} description="One nurse, one ward, one shift of the chosen day." />
         <form onSubmit={assign} className="grid grid-cols-1 gap-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-5">
           <Field label="Date" required>
             <Input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
           </Field>
           <Field label="Nurse" required>
             <Select value={form.nurse} onChange={(e) => set("nurse", e.target.value)}>
-              <option value="">Select nurse</option>
+              <option value="">{t("Select nurse")}</option>
               {nurses.map((n) => (
                 <option key={n.id} value={n.id}>{n.name}</option>
               ))}
@@ -122,7 +123,7 @@ function NurseDuty() {
           </Field>
           <Field label="Ward" required>
             <Select value={form.ward} onChange={(e) => set("ward", e.target.value)}>
-              <option value="">Select ward</option>
+              <option value="">{t("Select ward")}</option>
               {wards.map((w) => (
                 <option key={w.id} value={w.id}>{w.name}</option>
               ))}
@@ -130,33 +131,33 @@ function NurseDuty() {
           </Field>
           <Field label="Shift" required>
             <Select value={form.shift} onChange={(e) => set("shift", e.target.value)}>
-              {SHIFTS.map((s) => <option key={s}>{s}</option>)}
+              {SHIFTS.map((s) => <option value={s} key={s}>{t(s)}</option>)}
             </Select>
           </Field>
           <div className="flex items-end">
             <Button type="submit" loading={saving} disabled={!form.nurse || !form.ward}>
-              Assign
+              {t("Assign")}
             </Button>
           </div>
         </form>
       </Card>
 
       <Card>
-        <CardHeader title={`Duty on ${day}`} />
+        <CardHeader title={t("Duty on {day}", { day })} />
         <div className="px-5 py-4">
           {loading ? (
-            <p className="text-sm text-ink-500" role="status">Loading duty…</p>
+            <p className="text-sm text-ink-500" role="status">{t("Loading duty…")}</p>
           ) : duties.length === 0 ? (
-            <p className="text-sm text-ink-500">No duty assigned for this day.</p>
+            <p className="text-sm text-ink-500">{t("No duty assigned for this day.")}</p>
           ) : (
             <TableWrap>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-ink-500">
-                    <th className="py-2 pr-4">Nurse</th>
-                    <th className="py-2 pr-4">Ward</th>
-                    <th className="py-2 pr-4">Shift</th>
-                    <th className="py-2 pr-4">Status</th>
+                    <th className="py-2 pr-4">{t("Nurse")}</th>
+                    <th className="py-2 pr-4">{t("Ward")}</th>
+                    <th className="py-2 pr-4">{t("Shift")}</th>
+                    <th className="py-2 pr-4">{t("Status")}</th>
                     <th className="py-2"></th>
                   </tr>
                 </thead>
@@ -166,10 +167,10 @@ function NurseDuty() {
                       <td className="py-3 pr-4 font-medium text-ink-900">{duty.nurse_name}</td>
                       <td className="py-3 pr-4">{duty.ward_name}</td>
                       <td className="py-3 pr-4">{duty.shift}</td>
-                      <td className="py-3 pr-4">{duty.is_active ? "On duty" : "Cancelled"}</td>
+                      <td className="py-3 pr-4">{duty.is_active ? t("On duty") : t("Cancelled")}</td>
                       <td className="py-3 text-right">
                         <Button variant="secondary" size="sm" onClick={() => setActive(duty, !duty.is_active)}>
-                          {duty.is_active ? "Cancel" : "Restore"}
+                          {duty.is_active ? t("Cancel") : t("Restore")}
                         </Button>
                       </td>
                     </tr>

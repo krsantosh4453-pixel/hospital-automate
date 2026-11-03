@@ -3,12 +3,14 @@ import { Link, useParams } from "react-router-dom"
 import { BrandMark } from "../components/Sidebar.jsx"
 import api from "../services/api.js"
 import { Alert, Button, Field, Input } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 /**
  * Opened from a staff invitation link: shows who it is for and lets the
  * person set their password. They then sign in on the staff login page.
  */
 function StaffInvite() {
+  const { t } = useLanguage()
   const { uid, token } = useParams()
   const [invite, setInvite] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -55,25 +57,25 @@ function StaffInvite() {
           <BrandMark inverted={false} />
         </div>
         <div className="hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-700">Staff invitation</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-700">{t("Staff invitation")}</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">
-            {invite ? `Welcome, ${invite.name}` : "Set your password"}
+            {invite ? `Welcome, ${invite.name}` : t("Set your password")}
           </h1>
 
           <div className="mt-6 space-y-4">
-            {loading && <p className="text-sm text-ink-500" role="status">Checking the link…</p>}
+            {loading && <p className="text-sm text-ink-500" role="status">{t("Checking the link…")}</p>}
             {error && <Alert tone="danger">{error}</Alert>}
 
             {done ? (
               <>
                 <Alert tone="success">
-                  Your password is set. Sign in with username <strong>{invite.username}</strong>.
+                  {t("Your password is set. Sign in with username")}{" "}<strong>{invite.username}</strong>.
                 </Alert>
                 <Link
                   to="/staff-login"
                   className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-brand-600 text-sm font-medium text-white hover:bg-brand-700"
                 >
-                  Go to staff sign-in
+                  {t("Go to staff sign-in")}
                 </Link>
               </>
             ) : (
@@ -82,7 +84,7 @@ function StaffInvite() {
                   <ul className="space-y-1 text-sm text-ink-700">
                     {invite.hospitals.map((h) => (
                       <li key={h.name}>
-                        {h.role} at <strong>{h.name}</strong>
+                        {h.role}{" "}{t("at")}{" "}<strong>{h.name}</strong>
                       </li>
                     ))}
                   </ul>
@@ -96,7 +98,7 @@ function StaffInvite() {
                     <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
                   </Field>
                   <Button type="submit" className="w-full justify-center" loading={saving} disabled={!password || !confirm}>
-                    Set password
+                    {t("Set password")}
                   </Button>
                 </form>
               )

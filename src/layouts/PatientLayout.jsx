@@ -1,10 +1,12 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom"
-import { useEffect, useState } from "react"
-import { Bell, CalendarDays, FileText, FlaskConical, House, Menu, Pill, ReceiptIndianRupee, Ticket, X } from "lucide-react"
+import { Suspense, useEffect, useState } from "react"
+import { Bell, CalendarDays, Eye, FileText, FlaskConical, House, Menu, Pill, ReceiptIndianRupee, Ticket, X } from "lucide-react"
+import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { useHospitals } from "../assets/context/HospitalsContext.jsx"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { BrandMark } from "../components/Sidebar.jsx"
+import { PageLoading } from "../components/LoadingSpinner.jsx"
 import { HeaderActions } from "../components/HeaderMenus.jsx"
 
 const patientRoutes = [
@@ -23,6 +25,7 @@ export default function PatientLayout() {
   const { t } = useLanguage()
   const { hospitals } = useHospitals()
   const { selectedHospital, selectHospital } = usePatient()
+  const { patient, proxy } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Records, appointments and consent are per hospital. Keep the selection
@@ -108,7 +111,7 @@ export default function PatientLayout() {
         href="#patient-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[80] focus:rounded-lg focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
       >
-        Skip to main content
+        {t("Skip to main content")}
       </a>
 
       {/* Desktop sidebar */}
@@ -146,7 +149,18 @@ export default function PatientLayout() {
 
       <main id="patient-main" tabIndex={-1} className="outline-none lg:pl-64">
         <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
-          <Outlet />
+          {proxy && (
+            <div role="status" className="mb-5 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
+              <Eye size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <p>
+                You are viewing <strong>{patient?.name || "the patient"}</strong>&apos;s records as{" "}
+                {proxy.name} ({proxy.relationship}). View only: you cannot sign, upload, share or change anything.
+              </p>
+            </div>
+          )}
+          <Suspense fallback={<PageLoading />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
     </div>

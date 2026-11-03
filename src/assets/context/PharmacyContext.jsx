@@ -40,7 +40,9 @@ const mapMedicineFromApi = (record = {}) => {
     stock,
     expiry: formatExpiry(record.expiry_date),
     price: num(record.price),
-    status: stock <= 20 ? "Low Stock" : "In Stock",
+    genericName: record.generic_name || "",
+    // Same rule as Inventory: low at or below the item's own reorder level (server default 10).
+    status: stock <= num(record.reorder_level ?? 10) ? "Low Stock" : "In Stock",
     hospitalId: record.hospital,
   }
 }
@@ -215,6 +217,14 @@ export function PharmacyProvider({ children }) {
     return created
   }, [])
 
+  // Issues every medicine on a prescription in one server transaction.
+  const dispensePrescriptionSales = useCallback(async (payload) => {
+    const response = await api.pharmacy.sales.dispensePrescription(payload)
+    const created = (response?.sales || []).map(mapSaleFromApi)
+    setSales((prev) => [...created, ...prev])
+    return created
+  }, [])
+
   // =====================================
   // PROCUREMENT APIs
   // =====================================
@@ -327,6 +337,7 @@ export function PharmacyProvider({ children }) {
         deleteMedicine,
         loadSales,
         createSale,
+        dispensePrescriptionSales,
         suppliers,
         loadSuppliers,
         createSupplier,

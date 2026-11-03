@@ -1,7 +1,15 @@
+from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
 class VitalSign(models.Model):
+    class Avpu(models.TextChoices):
+        ALERT = "A", "Alert"
+        VOICE = "V", "Responds to voice"
+        PAIN = "P", "Responds to pain"
+        UNRESPONSIVE = "U", "Unresponsive"
+
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -17,6 +25,18 @@ class VitalSign(models.Model):
     heart_rate = models.PositiveIntegerField(null=True, blank=True)
     blood_sugar = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     spo2 = models.PositiveIntegerField(null=True, blank=True)
+    # Extended set (requirement D2).
+    pain_score = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(10)], help_text="0 (none) to 10 (worst)"
+    )
+    gcs = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(3), MaxValueValidator(15)],
+        help_text="Glasgow Coma Scale total, 3 to 15",
+    )
+    avpu = models.CharField(max_length=1, choices=Avpu.choices, blank=True)
+    head_circumference = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="cm")
+    muac = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Mid-upper arm circumference, cm")
+    urine_output = models.PositiveIntegerField(null=True, blank=True, help_text="mL since the last reading")
     comments = models.TextField(blank=True)
     recorded_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -63,14 +83,42 @@ class ClinicalNote(models.Model):
         null=True,
         blank=True
     )
-    note = models.TextField()
+    # Structured sections (requirement D4), in the order a clinician writes
+    # them. ``note`` stays as free text ("Other notes") so older notes still
+    # read correctly. At least one part must be filled (serializer).
+    chief_complaint = models.TextField(blank=True, default="")
+    history_of_present_illness = models.TextField(blank=True, default="")
+    past_history = models.TextField(blank=True, default="")
+    current_medications = models.TextField(blank=True, default="")
+    examination = models.TextField(blank=True, default="")
+    assessment = models.TextField(blank=True, default="")
+    plan = models.TextField(blank=True, default="")
+    note = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    # (field, label) in display order; shared by the serializer and the timeline.
+    SECTIONS = [
+        ("chief_complaint", "Chief complaint"),
+        ("history_of_present_illness", "History of present illness"),
+        ("past_history", "Past history"),
+        ("current_medications", "Current medications"),
+        ("examination", "Examination"),
+        ("assessment", "Assessment"),
+        ("plan", "Plan"),
+        ("note", "Other notes"),
+    ]
 
     class Meta:
         indexes = [
             models.Index(fields=["visit", "created_at"]),
             models.Index(fields=["doctor", "created_at"]),
         ]
+
+    def as_text(self):
+        """All filled sections as "Label: text" lines."""
+        return "\n".join(
+            f"{label}: {getattr(self, field).strip()}" for field, label in self.SECTIONS if getattr(self, field).strip()
+        )
 
 
 class Diagnosis(models.Model):
@@ -204,6 +252,10 @@ class Prescription(models.Model):
     )
     status = models.CharField(max_length=30, default="Confirmed", db_index=True)
     dispensed_at = models.DateTimeField(null=True, blank=True)
+    # Medication safety check at the time of writing (clinical/medication_safety.py):
+    # the alerts shown and, for high-severity ones, the doctor's reason to go ahead.
+    safety_alerts = models.JSONField(default=list, blank=True)
+    safety_override_reason = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
@@ -241,3 +293,172 @@ class PrescriptionItem(models.Model):
 
     def __str__(self):
         return f"{self.name} x{self.quantity}"
+
+class MedicalCertificate(models.Model):
+    """A signed medical certificate (requirement D10). Never edited once issued."""
+
+    class Kind(models.TextChoices):
+        SICK_LEAVE = "Sick leave", "Sick leave"
+        FITNESS = "Fitness", "Fitness"
+        OTHER = "Other", "Other"
+
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.CASCADE,
+        related_name="medical_certificates",
+        db_index=True
+    )
+    patient = models.ForeignKey(
+        "patients.Patient",
+        on_delete=models.CASCADE,
+        related_name="medical_certificates",
+        db_index=True
+    )
+    doctor = models.ForeignKey(
+        "doctors.Doctor",
+        on_delete=models.PROTECT,
+        related_name="medical_certificates",
+    )
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.SICK_LEAVE)
+    diagnosis = models.CharField(max_length=255, blank=True)
+    remarks = models.TextField(blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    issued_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-issued_at"]
+        indexes = [
+            models.Index(fields=["hospital", "issued_at"]),
+            models.Index(fields=["patient", "issued_at"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_date__isnull=True) | models.Q(end_date__gte=models.F("start_date")),
+                name="certificate_end_not_before_start",
+            ),
+        ]
+
+    def __str__(self):
+        return f"CERT-{self.pk}"
+
+
+class Referral(models.Model):
+    """A doctor's referral to a colleague or an outside facility (requirement D11)."""
+
+    class Urgency(models.TextChoices):
+        ROUTINE = "Routine", "Routine"
+        URGENT = "Urgent", "Urgent"
+        EMERGENCY = "Emergency", "Emergency"
+
+    class Status(models.TextChoices):
+        PENDING = "Pending", "Pending"
+        ACCEPTED = "Accepted", "Accepted"
+        DECLINED = "Declined", "Declined"
+        COMPLETED = "Completed", "Completed"
+
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.CASCADE,
+        related_name="referrals",
+        db_index=True
+    )
+    patient = models.ForeignKey(
+        "patients.Patient",
+        on_delete=models.CASCADE,
+        related_name="referrals",
+        db_index=True
+    )
+    visit = models.ForeignKey(
+        "encounters.Visit",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="referrals",
+    )
+    referring_doctor = models.ForeignKey(
+        "doctors.Doctor",
+        on_delete=models.PROTECT,
+        related_name="referrals_made",
+    )
+    # Either a doctor of the same hospital or a named outside doctor/facility.
+    referred_to_doctor = models.ForeignKey(
+        "doctors.Doctor",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="referrals_received",
+    )
+    referred_to_external = models.CharField(max_length=200, blank=True)
+    specialty = models.CharField(max_length=100, blank=True)
+    reason = models.TextField()
+    urgency = models.CharField(max_length=20, choices=Urgency.choices, default=Urgency.ROUTINE)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["hospital", "status"]),
+            models.Index(fields=["patient", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"REF-{self.pk}"
+
+
+class Immunization(models.Model):
+    """A vaccine dose given to a patient (requirement D15)."""
+
+    class Route(models.TextChoices):
+        IM = "IM", "Intramuscular"
+        SC = "SC", "Subcutaneous"
+        ID = "ID", "Intradermal"
+        ORAL = "Oral", "Oral"
+        NASAL = "Nasal", "Intranasal"
+
+    hospital = models.ForeignKey(
+        "hospital.Hospital",
+        on_delete=models.CASCADE,
+        related_name="immunizations",
+        db_index=True
+    )
+    patient = models.ForeignKey(
+        "patients.Patient",
+        on_delete=models.CASCADE,
+        related_name="immunizations",
+        db_index=True
+    )
+    vaccine = models.CharField(max_length=150)
+    dose_number = models.PositiveSmallIntegerField(default=1, validators=[MinValueValidator(1)])
+    administered_on = models.DateField()
+    batch_number = models.CharField(max_length=60, blank=True)
+    manufacturer = models.CharField(max_length=120, blank=True)
+    route = models.CharField(max_length=10, choices=Route.choices, blank=True)
+    site = models.CharField(max_length=60, blank=True)
+    next_due_on = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="immunizations_recorded",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-administered_on", "-created_at"]
+        indexes = [
+            models.Index(fields=["patient", "administered_on"]),
+            models.Index(fields=["hospital", "next_due_on"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(next_due_on__isnull=True) | models.Q(next_due_on__gt=models.F("administered_on")),
+                name="immunization_next_due_after_given",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.vaccine} dose {self.dose_number}"

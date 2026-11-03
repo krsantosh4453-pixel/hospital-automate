@@ -2,9 +2,9 @@
 Speech-to-Text Service Abstraction
 
 Provides a unified interface for multiple STT providers.
-Currently implements a development provider for testing.
-Production providers (Whisper, Google, Azure, AWS) can be added by implementing
-the SpeechToTextProvider interface.
+Real providers: Whisper (local model or OpenAI-compatible API) and Google
+Cloud Speech. The development provider returns canned text and is only
+registered where settings allow mocks. Languages: see ``languages.py``.
 """
 
 import os
@@ -14,7 +14,10 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any, BinaryIO
 from pathlib import Path
 
+import requests
 from django.conf import settings
+
+from . import languages
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +157,17 @@ class DevelopmentSTTProvider(SpeechToTextProvider):
                 "मरीज: नहीं, पहली बार है। "
                 "डॉक्टर: मैं जांच करूंगा और शायद कुछ टेस्ट करवाने पड़ें।"
             ),
+            "hinglish": (
+                "Doctor: Namaste, aaj kya problem hai? "
+                "Patient: Teen din se headache ho raha hai. "
+                "Doctor: Ek side hai ya dono side? "
+                "Patient: Right side, throbbing pain hai. "
+                "Doctor: Nausea ya light se problem? "
+                "Patient: Haan, thoda nausea hai aur light chubhti hai. "
+                "Doctor: Pehle kabhi migraine hua hai? "
+                "Patient: Nahi, pehli baar hai. "
+                "Doctor: Main examine karta hoon, shayad kuch tests karwane padenge."
+            ),
         }
 
         transcript_text = mock_transcripts.get(language, mock_transcripts["en"])
@@ -190,15 +204,23 @@ class DevelopmentSTTProvider(SpeechToTextProvider):
 
 class WhisperSTTProvider(SpeechToTextProvider):
     """
-    OpenAI Whisper STT provider (local or API).
-    Requires openai-whisper package for local or openai package for API.
+    Whisper STT provider (local model or an OpenAI-compatible HTTP API).
+
+    The API path talks to ``{AI_SCRIBE_STT_BASE_URL}/audio/transcriptions`` with
+    ``requests``, so OpenAI or any compatible host (for example Groq's
+    whisper-large-v3) works by changing settings only.
     """
 
-    def __init__(self, use_api: bool = False, api_key: Optional[str] = None, model: str = "whisper-1"):
-        from django.conf import settings
+    DEFAULT_BASE_URL = "https://api.openai.com/v1"
+    DEFAULT_MODEL = "whisper-1"
+    REQUEST_TIMEOUT_SECONDS = 120
+
+    def __init__(self, use_api: bool = False, api_key: Optional[str] = None, model: Optional[str] = None):
         self.use_api = use_api
-        self.api_key = api_key or getattr(settings, "AI_SCRIBE_API_KEY", None) or os.getenv("AI_SCRIBE_API_KEY") or os.getenv("OPENAI_API_KEY")
-        self.model = model
+        # Read from settings only, so test settings can switch real providers off.
+        self.api_key = api_key or getattr(settings, "AI_SCRIBE_STT_API_KEY", None)
+        self.model = model or getattr(settings, "AI_SCRIBE_STT_MODEL", None) or self.DEFAULT_MODEL
+        self.base_url = (getattr(settings, "AI_SCRIBE_STT_BASE_URL", None) or self.DEFAULT_BASE_URL).rstrip("/")
         self._local_model = None
 
     @property
@@ -239,45 +261,75 @@ class WhisperSTTProvider(SpeechToTextProvider):
         else:
             return self._transcribe_local(audio_file, language, **kwargs)
 
+    @staticmethod
+    def whisper_request_options(language: str) -> Dict[str, str]:
+        """
+        Translate our language code into Whisper's ``language`` and ``prompt``.
+
+        Hinglish is left to Whisper's own detection (forcing "hi" makes it write
+        everything in Devanagari) and steered towards Roman script by the prompt.
+        """
+        options = {}
+        if language in (languages.ENGLISH, languages.HINDI):
+            options["language"] = language
+        prompt = languages.WHISPER_STYLE_PROMPTS.get(language)
+        if prompt:
+            options["prompt"] = prompt
+        return options
+
     def _transcribe_api(self, audio_file: str, language: str, **kwargs) -> TranscriptionResult:
-        """Use OpenAI Whisper API"""
+        """Call an OpenAI-compatible /audio/transcriptions endpoint."""
+        if not self.api_key:
+            raise TranscriptionError("Whisper API key is not configured (AI_SCRIBE_STT_API_KEY).")
+
+        form = {
+            "model": self.model,
+            "response_format": "verbose_json",
+            "timestamp_granularities[]": "segment",
+            **self.whisper_request_options(language),
+        }
         try:
-            from openai import OpenAI
-        except ImportError:
-            raise TranscriptionError("openai package not installed. Run: pip install openai")
+            with open(audio_file, "rb") as audio:
+                response = requests.post(
+                    f"{self.base_url}/audio/transcriptions",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    data=form,
+                    files={"file": (Path(audio_file).name, audio)},
+                    timeout=self.REQUEST_TIMEOUT_SECONDS,
+                )
+        except requests.RequestException as exc:
+            logger.error("Whisper API request failed: %s", type(exc).__name__)
+            raise TranscriptionError("Could not reach the speech-to-text service.") from exc
 
-        client = OpenAI(api_key=self.api_key)
+        if response.status_code != 200:
+            # The body can echo request details; log only the status.
+            logger.error("Whisper API returned HTTP %s", response.status_code)
+            raise TranscriptionError(f"Speech-to-text service returned HTTP {response.status_code}.")
 
-        with open(audio_file, "rb") as f:
-            response = client.audio.transcriptions.create(
-                model=self.model,
-                file=f,
-                language=language if language != "auto" else None,
-                response_format="verbose_json",
-                timestamp_granularities=["segment"],
-            )
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise TranscriptionError("Speech-to-text service returned an unreadable response.") from exc
 
+        detected = languages.detected_language_code(payload.get("language"))
         return TranscriptionResult(
-            text=response.text,
+            text=(payload.get("text") or "").strip(),
             structured_data={
                 "segments": [
-                    {
-                        "start": seg.start,
-                        "end": seg.end,
-                        "text": seg.text,
-                    }
-                    for seg in response.segments
+                    {"start": seg.get("start"), "end": seg.get("end"), "text": seg.get("text", "")}
+                    for seg in payload.get("segments") or []
                 ],
-                "language": response.language,
+                "language": detected,
+                "requested_language": language,
             },
             provider=self.provider_name,
             model=self.model,
             metadata={
-                "duration": response.duration,
+                "duration": payload.get("duration"),
                 "api": True,
             },
-            detected_language=response.language,
-            language_confidence=None,  # API doesn't return confidence
+            detected_language=detected,
+            language_confidence=None,  # Whisper does not return a confidence score
         )
 
     def _transcribe_local(self, audio_file: str, language: str, **kwargs) -> TranscriptionResult:
@@ -287,33 +339,36 @@ class WhisperSTTProvider(SpeechToTextProvider):
         except ImportError:
             raise TranscriptionError("whisper package not installed. Run: pip install openai-whisper")
 
+        model_size = kwargs.pop("model_size", "base")
         if self._local_model is None:
             # Load model on first use
-            model_size = kwargs.get("model_size", "base")
             logger.info(f"Loading Whisper model: {model_size}")
             self._local_model = whisper.load_model(model_size)
 
-        # Transcribe
+        options = self.whisper_request_options(language)
         result = self._local_model.transcribe(
             audio_file,
-            language=language if language != "auto" else None,
+            language=options.get("language"),
+            initial_prompt=options.get("prompt"),
             word_timestamps=True,
             **kwargs
         )
 
+        detected = languages.detected_language_code(result.get("language", language))
         return TranscriptionResult(
             text=result["text"],
             structured_data={
                 "segments": result.get("segments", []),
-                "language": result.get("language", language),
+                "language": detected,
+                "requested_language": language,
             },
             provider=self.provider_name,
-            model=f"whisper-{kwargs.get('model_size', 'base')}",
+            model=f"whisper-{model_size}",
             metadata={
                 "duration": result.get("duration", 0),
                 "api": False,
             },
-            detected_language=result.get("language", language),
+            detected_language=detected,
             language_confidence=None,
         )
 
@@ -434,13 +489,12 @@ class SpeechToTextService:
             if not self._default_provider:
                 self._default_provider = "whisper_local"
 
-        # Try to register Whisper (API)
-        if os.getenv("OPENAI_API_KEY"):
-            whisper_api = WhisperSTTProvider(use_api=True)
-            if whisper_api.is_available():
-                self._providers["whisper_api"] = whisper_api
-                if not self._default_provider:
-                    self._default_provider = "whisper_api"
+        # Try to register Whisper (API); available once a key is configured
+        whisper_api = WhisperSTTProvider(use_api=True)
+        if whisper_api.is_available():
+            self._providers["whisper_api"] = whisper_api
+            if not self._default_provider:
+                self._default_provider = "whisper_api"
 
         # Try to register Google
         google = GoogleSTTProvider()
@@ -448,6 +502,13 @@ class SpeechToTextService:
             self._providers["google"] = google
             if not self._default_provider:
                 self._default_provider = "google"
+
+        # An explicitly chosen provider wins when it is actually registered.
+        preferred = getattr(settings, "AI_SCRIBE_STT_PROVIDER", "")
+        if preferred and preferred in self._providers:
+            self._default_provider = preferred
+        elif preferred:
+            logger.warning("AI_SCRIBE_STT_PROVIDER=%s is not configured; ignoring it.", preferred)
 
         # Fall back to the development provider only where it is allowed;
         # otherwise there is no provider and callers report "unavailable".
@@ -486,13 +547,17 @@ class SpeechToTextService:
 
         Args:
             audio_file: Path to audio file
-            language: Language code (e.g., 'en', 'hi', 'auto')
+            language: Language code (en, hi, hinglish, auto; aliases like hi-IN accepted)
             provider: Specific provider to use (optional)
             **kwargs: Provider-specific options
 
         Returns:
             TranscriptionResult
         """
+        try:
+            language = languages.normalize_language(language)
+        except ValueError as exc:
+            raise TranscriptionError(str(exc)) from exc
         stt_provider = self.get_provider(provider)
 
         # Validate file

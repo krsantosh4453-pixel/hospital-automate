@@ -11,6 +11,9 @@ from .views import (
     MedicalRecordViewSet,
     PrescriptionViewSet,
     PrescriptionItemViewSet,
+    MedicalCertificateViewSet,
+    ReferralViewSet,
+    ImmunizationViewSet,
 )
 
 router = DefaultRouter()
@@ -24,6 +27,9 @@ router.register(r"procedures", ProcedureViewSet, basename="procedure")
 router.register(r"medical-records", MedicalRecordViewSet, basename="medical-record")
 router.register(r"prescriptions", PrescriptionViewSet, basename="prescription")
 router.register(r"prescription-items", PrescriptionItemViewSet, basename="prescription-item")
+router.register(r"certificates", MedicalCertificateViewSet, basename="medical-certificate")
+router.register(r"referrals", ReferralViewSet, basename="referral")
+router.register(r"immunizations", ImmunizationViewSet, basename="immunization")
 
 urlpatterns = [
     path("", include(router.urls)),

@@ -10,6 +10,7 @@ class MedicineSerializer(serializers.ModelSerializer):
         source="hospital.name",
         read_only=True
     )
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True, default=None)
 
     class Meta:
         model = Medicine
@@ -24,6 +25,11 @@ class MedicineSerializer(serializers.ModelSerializer):
             "price",
             "expiry_date",
             "status",
+            "generic_name",
+            "unit",
+            "reorder_level",
+            "supplier",
+            "supplier_name",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
@@ -68,6 +74,13 @@ class MedicineSerializer(serializers.ModelSerializer):
                 )
             if hospital is None:
                 attrs["hospital"] = scoped
+                hospital = scoped
+
+        supplier = attrs.get("supplier")
+        if supplier is not None and hospital is not None and supplier.hospital_id != hospital.pk:
+            raise serializers.ValidationError(
+                {"supplier": "Supplier does not belong to the selected hospital."}
+            )
 
         return attrs
 
@@ -193,3 +206,14 @@ class SaleSerializer(serializers.ModelSerializer):
             Decimal(validated_data["quantity"]) * Decimal(unit_price)
         ).quantize(Decimal("0.01"))
         return super().create(validated_data)
+
+class DispenseLineSerializer(serializers.Serializer):
+    item = serializers.IntegerField(min_value=1)
+    medicine = serializers.IntegerField(min_value=1)
+
+
+class DispensePrescriptionSerializer(serializers.Serializer):
+    """Request body for dispensing a whole prescription at once."""
+
+    prescription = serializers.IntegerField(min_value=1)
+    lines = DispenseLineSerializer(many=True)

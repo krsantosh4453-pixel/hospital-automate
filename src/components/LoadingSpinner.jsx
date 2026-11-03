@@ -1,4 +1,6 @@
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 export function LoadingSpinner({ size = "md", className = "" }) {
+  const { t } = useLanguage()
   const sizeClasses = {
     sm: "w-5 h-5 border-2",
     md: "w-8 h-8 border-[3px]",
@@ -7,8 +9,8 @@ export function LoadingSpinner({ size = "md", className = "" }) {
   }
 
   return (
-    <div className={`${sizeClasses[size]} border-brand-200 border-t-brand-600 rounded-full animate-spin ${className}`} role="status" aria-label="Loading">
-      <span className="sr-only">Loading...</span>
+    <div className={`${sizeClasses[size]} border-brand-200 border-t-brand-600 rounded-full animate-spin ${className}`} role="status" aria-label={t("Loading")}>
+      <span className="sr-only">{t("Loading...")}</span>
     </div>
   )
 }

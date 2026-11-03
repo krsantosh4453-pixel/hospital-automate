@@ -8,6 +8,7 @@ from .models import (
     AIPromptTemplate,
 )
 from users.permissions import get_user_hospital_ids
+from .services.languages import normalize_language
 from users.viewsets import HospitalScopedViewSet
 
 
@@ -65,6 +66,12 @@ class ConsultationSessionSerializer(serializers.ModelSerializer):
                     "You do not have access to this hospital."
                 )
         return value
+
+    def validate_language(self, value):
+        try:
+            return normalize_language(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
 
     def validate(self, attrs):
         # Ensure hospital matches user's hospital access

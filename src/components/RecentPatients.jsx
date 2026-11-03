@@ -1,7 +1,9 @@
 import { useMemo } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function RecentPatients() {
+  const { t } = useLanguage()
   const { patients, selectedHospital } = usePatient()
 
   // Selected hospital ke patients
@@ -28,11 +30,11 @@ function RecentPatients() {
 
         <div className="p-6">
           <h2 className="text-lg font-semibold text-gray-800">
-            Recent Patients
+            {t("Recent Patients")}
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Please select a hospital to view recent patients.
+            {t("Please select a hospital to view recent patients.")}
           </p>
         </div>
 
@@ -48,17 +50,17 @@ function RecentPatients() {
 
         <div>
           <h2 className="text-lg font-semibold text-gray-800">
-            Recent Patients
+            {t("Recent Patients")}
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Recently registered patients —{" "}
+            {t("Recently registered patients —")}{" "}
             {selectedHospital.name}
           </p>
         </div>
 
         <button className="text-sm text-blue-600 font-medium hover:text-blue-700">
-          View All
+          {t("View All")}
         </button>
 
       </div>
@@ -96,7 +98,7 @@ function RecentPatients() {
 
               {/* Department */}
               <span className="text-sm text-gray-600">
-                {patient.department || "General"}
+                {patient.department || t("General")}
               </span>
 
             </div>
@@ -105,11 +107,11 @@ function RecentPatients() {
           <div className="p-6 text-center">
 
             <p className="text-gray-500">
-              No patients found
+              {t("No patients found")}
             </p>
 
             <p className="text-sm text-gray-400 mt-1">
-              No patients are registered in{" "}
+              {t("No patients are registered in")}{" "}
               {selectedHospital.name}.
             </p>
 

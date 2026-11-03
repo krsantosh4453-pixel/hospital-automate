@@ -44,13 +44,15 @@ Models with no path to a hospital get no rows, because scoping fails closed. Pla
 | clinical.Allergy, notifications.Consent, audit.AIInteraction, patients.PatientDocument | the patient's registering hospital (`Patient.hospital`) |
 | audit.AuditLog | left empty; historic rows had no hospital context and are visible only to platform admins |
 
-Rows whose patient has no registering hospital stay NULL, and hospital staff can't see them. **Manual action:** after deploying, count such rows and assign their hospital deliberately:
+Rows whose patient has no registering hospital stay NULL, and hospital staff can't see them. **Manual action:** after deploying, run the report and assign what is left:
 
-```sql
-SELECT count(*) FROM clinical_allergy WHERE hospital_id IS NULL;
+```bash
+python manage.py assign_tenant_hospital            # report per model, changes nothing
+python manage.py assign_tenant_hospital --apply    # assign rows with exactly one candidate
+python manage.py assign_tenant_hospital --model clinical.Allergy --ids 4 9 --hospital 2
 ```
 
-Repeat this for each table listed above.
+`--apply` uses the visit or invoice hospital, then the patient's registering hospital, then the patient's only active hospital registration. Rows with no candidate or several are listed for a manual decision; a manual assignment is refused unless the patient is registered at that hospital. Every assignment writes a `tenancy.assign_hospital` audit row.
 
 ## Integrity constraints added
 

@@ -1,6 +1,11 @@
+from config.hospital_time import hospital_today
+
 from django.db import transaction
 from rest_framework import serializers
+
+from .medication_safety import blocking
 from .models import (
+    Immunization,
     VitalSign,
     Allergy,
     ClinicalNote,
@@ -10,6 +15,8 @@ from .models import (
     MedicalRecord,
     Prescription,
     PrescriptionItem,
+    MedicalCertificate,
+    Referral,
 )
 
 
@@ -54,6 +61,12 @@ class VitalSignSerializer(serializers.ModelSerializer):
             "heart_rate",
             "blood_sugar",
             "spo2",
+            "pain_score",
+            "gcs",
+            "avpu",
+            "head_circumference",
+            "muac",
+            "urine_output",
             "comments",
             "recorded_at",
         ]
@@ -81,10 +94,21 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             "id",
             "visit",
             "doctor",
-            "note",
+            *[field for field, _ in ClinicalNote.SECTIONS],
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        # On a partial update the stored value stands in for a field not sent.
+        def current(field):
+            if field in attrs:
+                return attrs[field] or ""
+            return getattr(self.instance, field, "") if self.instance else ""
+
+        if not any(current(field).strip() for field, _ in ClinicalNote.SECTIONS):
+            raise serializers.ValidationError({"note": "Write at least one part of the note."})
+        return attrs
 
 
 class DiagnosisSerializer(serializers.ModelSerializer):
@@ -161,10 +185,15 @@ class PrescriptionItemSerializer(serializers.ModelSerializer):
         return value
 
 
+MIN_OVERRIDE_REASON = 10
+
+
 class PrescriptionSerializer(serializers.ModelSerializer):
     # Nested write/read items so the Prescription page can create a
     # prescription and its medicines in a single request.
     items = PrescriptionItemSerializer(many=True)
+    # The doctor's reason to prescribe despite a high-severity safety alert.
+    safety_override_reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)
 
     # Read-only display helpers so the list/table can render without extra
     # round trips (mirrors VisitSerializer in the encounters app).
@@ -189,8 +218,10 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             "doctor_name",
             "hospital_name",
             "visit_label",
+            "safety_alerts",
+            "safety_override_reason",
         ]
-        read_only_fields = ["id", "created_at", "dispensed_at"]
+        read_only_fields = ["id", "created_at", "dispensed_at", "safety_alerts"]
 
     def get_visit_label(self, obj):
         return f"Visit #{obj.visit_id}" if obj.visit_id else ""
@@ -234,7 +265,42 @@ class PrescriptionSerializer(serializers.ModelSerializer):
                     "visit": "This visit does not belong to the selected patient."
                 })
 
+        if "items" in attrs and hospital:
+            self._check_medication_safety(attrs, hospital, patient)
+
         return attrs
+
+    def _check_medication_safety(self, attrs, hospital, patient):
+        """High-severity alerts block the prescription unless the doctor records why."""
+        from .medication_safety import blocking, check_items
+
+        alerts = check_items(hospital, patient, [item["name"] for item in attrs["items"]])
+        reason = (attrs.get("safety_override_reason") or "").strip()
+        high = blocking(alerts)
+        if high and len(reason) < MIN_OVERRIDE_REASON:
+            summary = "; ".join(f"{', '.join(alert['medicines'])}: {alert['message']}" for alert in high)
+            raise serializers.ValidationError({
+                "safety_override_reason": (
+                    f"High-risk medication alert: {summary} "
+                    f"To prescribe anyway, record your reason (at least {MIN_OVERRIDE_REASON} characters)."
+                )
+            })
+        attrs["safety_alerts"] = alerts
+        attrs["safety_override_reason"] = reason if high else ""
+
+    def _audit_override(self, prescription):
+        if not blocking(prescription.safety_alerts):
+            return
+        from audit.services import record_audit
+
+        record_audit(
+            self.context.get("request"), "clinical.prescription.safety_override", prescription,
+            hospital=prescription.hospital_id,
+            details={
+                "rules": [alert["rule"] for alert in blocking(prescription.safety_alerts)],
+                "reason": prescription.safety_override_reason,
+            },
+        )
 
     def validate_hospital(self, value):
         """Ensure user has access to the hospital."""
@@ -256,6 +322,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             PrescriptionItem(prescription=prescription, **item)
             for item in items_data
         ])
+        self._audit_override(prescription)
         return prescription
 
     @transaction.atomic
@@ -272,5 +339,153 @@ class PrescriptionSerializer(serializers.ModelSerializer):
                 PrescriptionItem(prescription=instance, **item)
                 for item in items_data
             ])
+            self._audit_override(instance)
 
         return instance
+
+class MedicalCertificateSerializer(serializers.ModelSerializer):
+    # Display fields so the certificate prints without extra requests.
+    patient_name = serializers.CharField(source="patient.name", read_only=True)
+    patient_age = serializers.IntegerField(source="patient.age", read_only=True)
+    patient_gender = serializers.CharField(source="patient.gender", read_only=True)
+    doctor_name = serializers.CharField(source="doctor.name", read_only=True)
+    doctor_specialization = serializers.CharField(source="doctor.specialization", read_only=True)
+    hospital_name = serializers.CharField(source="hospital.name", read_only=True)
+    hospital_address = serializers.CharField(source="hospital.address", read_only=True, default="")
+
+    class Meta:
+        model = MedicalCertificate
+        fields = [
+            "id",
+            "hospital",
+            "patient",
+            "doctor",
+            "kind",
+            "diagnosis",
+            "remarks",
+            "start_date",
+            "end_date",
+            "issued_at",
+            "patient_name",
+            "patient_age",
+            "patient_gender",
+            "doctor_name",
+            "doctor_specialization",
+            "hospital_name",
+            "hospital_address",
+        ]
+        read_only_fields = ["id", "doctor", "issued_at"]
+        # Defaults to the acting hospital (X-Hospital-ID) in the view.
+        extra_kwargs = {"hospital": {"required": False}}
+
+    def validate(self, attrs):
+        start, end = attrs.get("start_date"), attrs.get("end_date")
+        if attrs.get("kind", MedicalCertificate.Kind.SICK_LEAVE) == MedicalCertificate.Kind.SICK_LEAVE and not end:
+            raise serializers.ValidationError({"end_date": "A sick-leave certificate needs an end date."})
+        if start and end and end < start:
+            raise serializers.ValidationError({"end_date": "The end date cannot be before the start date."})
+        return attrs
+
+
+class ReferralSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source="patient.name", read_only=True)
+    patient_age = serializers.IntegerField(source="patient.age", read_only=True)
+    patient_gender = serializers.CharField(source="patient.gender", read_only=True)
+    referring_doctor_name = serializers.CharField(source="referring_doctor.name", read_only=True)
+    referred_to_doctor_name = serializers.CharField(source="referred_to_doctor.name", read_only=True, default="")
+    hospital_name = serializers.CharField(source="hospital.name", read_only=True)
+    hospital_address = serializers.CharField(source="hospital.address", read_only=True, default="")
+
+    class Meta:
+        model = Referral
+        fields = [
+            "id",
+            "hospital",
+            "patient",
+            "visit",
+            "referring_doctor",
+            "referred_to_doctor",
+            "referred_to_external",
+            "specialty",
+            "reason",
+            "urgency",
+            "status",
+            "created_at",
+            "patient_name",
+            "patient_age",
+            "patient_gender",
+            "referring_doctor_name",
+            "referred_to_doctor_name",
+            "hospital_name",
+            "hospital_address",
+        ]
+        read_only_fields = ["id", "referring_doctor", "created_at"]
+        # Defaults to the acting hospital (X-Hospital-ID) in the view.
+        extra_kwargs = {"hospital": {"required": False}}
+
+    def validate(self, attrs):
+        if self.instance is not None:
+            # A referral is a record of what was asked: only its progress changes.
+            changed = set(attrs) - {"status"}
+            if changed:
+                raise serializers.ValidationError(
+                    {name: "Only the status of a referral can change." for name in sorted(changed)}
+                )
+            return attrs
+        internal = attrs.get("referred_to_doctor")
+        external = attrs.get("referred_to_external", "").strip()
+        if bool(internal) == bool(external):
+            raise serializers.ValidationError(
+                {"referred_to_doctor": "Refer to one doctor of this hospital or one outside doctor/facility."}
+            )
+        if not attrs.get("reason", "").strip():
+            raise serializers.ValidationError({"reason": "Give the reason for the referral."})
+        attrs["referred_to_external"] = external
+        return attrs
+
+
+class ImmunizationSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source="patient.name", read_only=True)
+    recorded_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Immunization
+        fields = [
+            "id",
+            "hospital",
+            "patient",
+            "vaccine",
+            "dose_number",
+            "administered_on",
+            "batch_number",
+            "manufacturer",
+            "route",
+            "site",
+            "next_due_on",
+            "notes",
+            "recorded_by",
+            "created_at",
+            "patient_name",
+            "recorded_by_name",
+        ]
+        read_only_fields = ["id", "recorded_by", "created_at"]
+        # Defaults to the acting hospital (X-Hospital-ID) in the view.
+        extra_kwargs = {"hospital": {"required": False}}
+
+    def get_recorded_by_name(self, obj):
+        user = obj.recorded_by
+        return (user.get_full_name() or user.username) if user else ""
+
+    def validate(self, attrs):
+        vaccine = attrs.get("vaccine")
+        if vaccine is not None:
+            if not vaccine.strip():
+                raise serializers.ValidationError({"vaccine": "Name the vaccine."})
+            attrs["vaccine"] = vaccine.strip()
+        given = attrs.get("administered_on", getattr(self.instance, "administered_on", None))
+        due = attrs.get("next_due_on", getattr(self.instance, "next_due_on", None))
+        if given and given > hospital_today():
+            raise serializers.ValidationError({"administered_on": "A dose cannot be recorded in the future."})
+        if given and due and due <= given:
+            raise serializers.ValidationError({"next_due_on": "The next dose must be due after this one."})
+        return attrs

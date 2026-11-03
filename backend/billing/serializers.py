@@ -124,6 +124,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "invoice_number",
+            "admission",
             "patient",
             "patient_name",
             "hospital",
@@ -145,7 +146,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         ]
         # Money and status are derived from items and payments (billing.services).
         read_only_fields = [
-            "id", "created_at", "total_paid", "balance_due", "is_paid", "hospital", "invoice_number",
+            "id", "created_at", "total_paid", "balance_due", "is_paid", "hospital", "invoice_number", "admission",
             "subtotal", "tax_amount", "total_amount", "tax", "total", "status",
         ]
 

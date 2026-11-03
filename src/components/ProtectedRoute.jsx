@@ -2,17 +2,22 @@ import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import { backendRoleCanView } from "../assets/context/RoleContext.jsx"
 import { getAuthenticatedStaffRole, mapBackendRoleToUi, staffModuleForPath } from "../utils/roleRouting.js"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function AuthLoading() {
+  const { t } = useLanguage()
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-gray-500">{t("Loading...")}</p>
       </div>
     </div>
   )
 }
+
+// Sign-in asked for by a protected page opens as a dialog over the public home.
+const PUBLIC_HOME = { pathname: "/" }
 
 export function ProtectedRoute({ audience = "staff" }) {
   const { isStaff, isPatient, isLoading, user } = useAuth()
@@ -27,7 +32,7 @@ export function ProtectedRoute({ audience = "staff" }) {
       return <Navigate to="/" replace />
     }
     if (!isPatient) {
-      return <Navigate to="/patient-login" state={{ from: location }} replace />
+      return <Navigate to="/patient-login" state={{ from: location, backgroundLocation: PUBLIC_HOME }} replace />
     }
     return <Outlet />
   }
@@ -40,7 +45,7 @@ export function ProtectedRoute({ audience = "staff" }) {
     // Visitors who have not signed in see the public home page inside the
     // normal layout (sidebar and navbar); every other staff page asks them to sign in.
     if (location.pathname === "/") return <Outlet />
-    return <Navigate to="/staff-login" state={{ from: location }} replace />
+    return <Navigate to="/staff-login" state={{ from: location, backgroundLocation: PUBLIC_HOME }} replace />
   }
 
   const moduleName = staffModuleForPath(location.pathname)

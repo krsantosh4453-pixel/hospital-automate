@@ -173,14 +173,20 @@ if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
 
 
 # ============================================================
-# Static Files - Production (WhiteNoise or CDN)
+# Static Files - Production (served by nginx)
 # ============================================================
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# nginx caches /static/ for a year as immutable, so collectstatic writes
+# content-hashed names (staticfiles.json maps them). Django 6 reads STORAGES;
+# the old STATICFILES_STORAGE setting is ignored.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'},
+}
 
-# If using CDN/Cloud Storage (AWS S3, GCS, Azure Blob)
-# STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# If using CDN/Cloud Storage (AWS S3, GCS, Azure Blob), set STORAGES['staticfiles']
+# to 'storages.backends.s3boto3.S3Boto3Storage'
 # AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')
 # AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
 # AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
@@ -194,7 +200,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # For private media (patient documents, medical reports), use protected storage
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# PRIVATE_MEDIA_STORAGE = 'config.storage.PrivateMediaStorage'
 
 
 # ============================================================
@@ -390,8 +395,9 @@ if AI_SCRIBE_ENABLED and not AI_SCRIBE_API_KEY:
 # FHIR - Production
 # ============================================================
 
-# FHIR/HL7/ABDM routes are not mounted (config/urls.py); keep them off unless
-# a deployment has completed their conformance and security review.
+# FHIR (read-only, Admin) and ABDM (ABHA linking) routes are mounted; HL7 is
+# not. Keep each off unless the deployment has completed its conformance and
+# security review.
 FHIR_ENABLED = os.environ.get('FHIR_ENABLED', 'False').lower() == 'true'
 FHIR_BASE_URL = os.environ.get('FHIR_BASE_URL')
 FHIR_VERSION = os.environ.get('FHIR_VERSION', 'R4')
@@ -427,9 +433,14 @@ ABDM_ENABLED = os.environ.get('ABDM_ENABLED', 'False').lower() == 'true'
 ABDM_BASE_URL = os.environ.get('ABDM_BASE_URL')
 ABDM_CLIENT_ID = os.environ.get('ABDM_CLIENT_ID')
 ABDM_CLIENT_SECRET = os.environ.get('ABDM_CLIENT_SECRET')
+# No sandbox default in production: the live ABHA URL must be set explicitly.
+ABDM_ABHA_BASE_URL = os.environ.get('ABDM_ABHA_BASE_URL')
+ABDM_CM_ID = os.environ.get('ABDM_CM_ID', 'abdm')
 
-if ABDM_ENABLED and (not ABDM_BASE_URL or not ABDM_CLIENT_ID or not ABDM_CLIENT_SECRET):
-    raise ImproperlyConfigured('ABDM_BASE_URL, ABDM_CLIENT_ID, and ABDM_CLIENT_SECRET are required when ABDM_ENABLED=True')
+if ABDM_ENABLED and not all((ABDM_BASE_URL, ABDM_ABHA_BASE_URL, ABDM_CLIENT_ID, ABDM_CLIENT_SECRET)):
+    raise ImproperlyConfigured(
+        'ABDM_BASE_URL, ABDM_ABHA_BASE_URL, ABDM_CLIENT_ID and ABDM_CLIENT_SECRET are required when ABDM_ENABLED=True'
+    )
 
 
 # ============================================================
@@ -512,9 +523,6 @@ BACKUP_ENCRYPTION_KEY = os.environ.get('BACKUP_ENCRYPTION_KEY')
 #     'CacheControl': 'max-age=86400',
 # }
 
-# Private media storage for sensitive documents
-# PRIVATE_MEDIA_STORAGE = 'config.storage.PrivateMediaStorage'
-
 
 # ============================================================
 # Rate Limiting - Production
@@ -573,3 +581,7 @@ try:
     from .local import *  # noqa: F403,F401
 except ImportError:
     pass
+
+# API schema and docs list every endpoint; keep them behind a platform-admin
+# sign-in unless explicitly opened (R-11).
+API_DOCS_PUBLIC = os.environ.get('API_DOCS_PUBLIC', 'False').lower() == 'true'

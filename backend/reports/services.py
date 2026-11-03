@@ -464,7 +464,7 @@ class KPIService:
         # Medicine inventory
         med_qs = Medicine.objects.filter(hospital_id=self.hospital_id)
         total_medicines = med_qs.count()
-        low_stock = med_qs.filter(quantity__lte=10, quantity__gt=0).count()
+        low_stock = med_qs.filter(quantity__lte=F("reorder_level"), quantity__gt=0).count()
         out_of_stock = med_qs.filter(quantity=0).count()
         expiring_soon = med_qs.filter(
             expiry_date__isnull=False,

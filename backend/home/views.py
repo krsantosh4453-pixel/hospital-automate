@@ -15,7 +15,7 @@ from ipd.models import Admission
 from billing.models import Invoice, Payment
 from laboratory.models import LabTest
 from users.care_scope import care_view_of
-from users.permissions import get_user_hospital_ids
+from users.permissions import REVENUE_ROLES, get_user_hospital_ids, get_user_roles
 from config.hospital_time import hospital_today
 
 
@@ -36,6 +36,13 @@ def _get_authorized_hospital(request):
         return None
     
     return hospital_id
+
+
+def _money(request, hospital_id, amount):
+    """``amount`` as a float for REVENUE_ROLES; None (not shown) for other roles."""
+    if not set(get_user_roles(request.user, hospital_id)) & REVENUE_ROLES:
+        return None
+    return float(amount)
 
 
 @api_view(["GET"])
@@ -64,7 +71,7 @@ def home_dashboard(request):
     admission_qs = own(Admission.objects.filter(hospital_id=hospital_id))
     invoice_qs = own(Invoice.objects.filter(hospital_id=hospital_id))
     payment_qs = own(Payment.objects.filter(invoice__hospital_id=hospital_id))
-    lab_qs = own(LabTest.objects.filter(patient__hospital_id=hospital_id))
+    lab_qs = own(LabTest.objects.filter(hospital_id=hospital_id))
 
     today = hospital_today()
     
@@ -104,9 +111,10 @@ def home_dashboard(request):
     
     # Lab stats
     total_lab_tests = lab_qs.count()
-    pending_lab_tests = lab_qs.filter(status="Pending").count()
-    completed_lab_tests = lab_qs.filter(status="Completed").count()
-    urgent_lab_tests = lab_qs.filter(priority="Urgent", status__in=["Pending", "Processing"]).count()
+    open_lab_qs = lab_qs.exclude(status__in=LabTest.CLOSED_STATUSES)
+    pending_lab_tests = open_lab_qs.count()
+    completed_lab_tests = lab_qs.filter(status__in=LabTest.DONE_STATUSES).count()
+    urgent_lab_tests = open_lab_qs.filter(priority="Urgent").count()
     
     # Billing stats
     total_invoices = invoice_qs.count()
@@ -181,8 +189,8 @@ def home_dashboard(request):
                 "paid": paid_invoices,
                 "pending": pending_invoices,
                 "partial": partial_invoices,
-                "total_revenue": float(total_revenue),
-                "today_revenue": float(today_revenue),
+                "total_revenue": _money(request, hospital_id, total_revenue),
+                "today_revenue": _money(request, hospital_id, today_revenue),
             },
         },
         "recent_patients": [
@@ -239,5 +247,5 @@ def home_stats_summary(request):
         "today_appointments": today_appointments,
         "waiting_queue": waiting_queue,
         "available_beds": available_beds,
-        "total_revenue": float(total_revenue),
+        "total_revenue": _money(request, hospital_id, total_revenue),
     })

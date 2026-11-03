@@ -1,6 +1,5 @@
 """Patient identity checks used by OTP, password, and Google login."""
 
-import hashlib
 import hmac
 import json
 import logging
@@ -15,6 +14,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.mail import send_mail
 from django.utils import timezone
+from django.utils.crypto import salted_hmac
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from notifications.models import OTPVerification
@@ -148,10 +148,23 @@ def verify_patient_otp(phone, otp):
     return patient, None
 
 
-def hash_email_otp(email: str, otp: str) -> str:
-    """Return SHA-256 hash of email OTP for secure storage."""
-    import hashlib
-    return hashlib.sha256(f"email:{email}:{otp}".encode("utf-8")).hexdigest()
+EMAIL_OTP_KEY_SALT = "users.patient_auth.email_otp"
+
+
+def hash_email_otp(email: str, otp: str, secret=None) -> str:
+    """
+    Keyed HMAC-SHA256 of an email OTP, stored instead of the code. Keyed with
+    the server secret, so a leaked table cannot be brute-forced offline.
+    """
+    return salted_hmac(EMAIL_OTP_KEY_SALT, f"{email}:{otp}", secret=secret, algorithm="sha256").hexdigest()
+
+
+def _email_otp_matches(stored_hash, email, otp):
+    """Constant-time check against the current key and SECRET_KEY_FALLBACKS (key rotation)."""
+    keys = [settings.SECRET_KEY, *getattr(settings, "SECRET_KEY_FALLBACKS", [])]
+    return bool(stored_hash) and any(
+        hmac.compare_digest(stored_hash, hash_email_otp(email, otp, secret=key)) for key in keys
+    )
 
 
 def _email_backend_is_development():
@@ -201,7 +214,7 @@ def send_email_otp(email, purpose="verify_email"):
         channel="email",
         purpose=purpose,
         otp="",
-        otp_hash=hashlib.sha256(f"email:{address}:{otp}".encode("utf-8")).hexdigest(),
+        otp_hash=hash_email_otp(address, otp),
         expires_at=timezone.now() + OTP_TTL,
     )
     if _email_backend_is_development():
@@ -237,8 +250,7 @@ def verify_email_otp(email, otp):
     if record.attempts >= OTP_ATTEMPT_LIMIT:
         return None, "Too many OTP requests. Please try again later."
 
-    expected_hash = hashlib.sha256(f"email:{address}:{code}".encode("utf-8")).hexdigest()
-    if not record.otp_hash or not hmac.compare_digest(record.otp_hash, expected_hash):
+    if not _email_otp_matches(record.otp_hash, address, code):
         record.attempts += 1
         record.save(update_fields=["attempts"])
         return None, "Invalid OTP."
@@ -360,7 +372,8 @@ def verify_google_identity(token):
             url,
             headers={"User-Agent": "HospitalManagementSystem/1.0"},
         )
-        with urllib.request.urlopen(request, timeout=5) as response:
+        # Fixed https URL (Google tokeninfo), not user input (Bandit B310 reviewed).
+        with urllib.request.urlopen(request, timeout=5) as response:  # nosec B310
             if response.status != 200:
                 return None
             data = json.loads(response.read().decode("utf-8"))

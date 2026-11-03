@@ -13,7 +13,7 @@ from hospital.models import Hospital
 from patients.models import Patient, PatientHospital
 from users.models import StaffRole
 
-from .test_tenant_isolation import make_staff
+from .test_tenant_isolation import make_staff, put_in_care
 
 User = get_user_model()
 MEDIA = tempfile.mkdtemp(prefix="hms-doc-test-")
@@ -37,6 +37,9 @@ class DocumentAccessTests(TestCase):
                                               phone="9000000050", hospital=self.a, user=self.login)
         PatientHospital.objects.create(patient=self.patient, hospital=self.a, uhid="DA-1")
         PatientHospital.objects.create(patient=self.patient, hospital=self.b, uhid="DB-1")
+        # Doctors read documents of patients in their care (R-15).
+        put_in_care(self.doc_a, self.a, self.patient)
+        put_in_care(self.doc_b, self.b, self.patient)
 
     def client_for(self, user, hospital=None):
         client = APIClient(raise_request_exception=False)

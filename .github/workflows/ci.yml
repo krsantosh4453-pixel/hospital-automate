@@ -95,7 +95,8 @@ jobs:
         env:
           POSTGRES_DB: hms_test
           POSTGRES_USER: hms_test
-          POSTGRES_PASSWORD: hms_test
+          # Throwaway database for this run only; the password differs on every run.
+          POSTGRES_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
         ports:
           - 5432:5432
         options: >-
@@ -145,12 +146,59 @@ jobs:
           cd backend
           python manage.py test --noinput
 
+      # Row locks (beds, transfers, payments) are only real on PostgreSQL.
+      # REQUIRE_ROW_LOCK_TESTS makes the run fail instead of skipping them.
       - name: Run backend tests (PostgreSQL 16)
         env:
-          TEST_DATABASE_URL: postgres://hms_test:hms_test@localhost:5432/hms_test
+          PGPASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
+          REQUIRE_ROW_LOCK_TESTS: '1'
         run: |
+          export TEST_DATABASE_URL="postgres://hms_test:${PGPASSWORD}@localhost:5432/hms_test"
           cd backend
           python manage.py test --noinput
+
+  # ============================================================
+  # Browser end-to-end tests (Playwright, synthetic demo hospital)
+  # ============================================================
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements-lock.txt
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # playwright.config.js starts a throwaway backend (config.settings.e2e) and Vite.
+      - name: Run E2E tests
+        env:
+          E2E_PYTHON: python
+        run: |
+          npx playwright test
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
 
   # ============================================================
   # Security Scanning
@@ -167,8 +215,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
-        # TODO(security): pin to a reviewed commit SHA; a moving ref can be re-pointed.
-        uses: aquasecurity/trivy-action@master
+        # Pinned to a commit: trivy-action tags were re-pointed in a 2026 supply-chain
+        # attack. ed142fd0 is v0.36.0 (2026-04-22), released after the clean-up.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -180,11 +229,13 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # Report only: Bandit has not been triaged for this codebase yet.
-      - name: Run Bandit (Python security, report only)
+      # Full report kept as JSON; the build fails on any Medium or High finding.
+      # Triaged 2026-11-03: the existing Medium findings carry a "# nosec <id>: reason".
+      - name: Run Bandit (Python security)
         run: |
-          pip install bandit
-          bandit -r backend/ -x backend/venv -f json -o bandit-results.json || true
+          pip install bandit==1.9.4
+          bandit -r backend/ -x backend/venv -f json -o bandit-results.json --exit-zero
+          bandit -r backend/ -x backend/venv -ll -q
 
       - name: Run pip-audit
         run: |
@@ -201,10 +252,17 @@ jobs:
   docker-build:
     name: Docker Build Test
     runs-on: ubuntu-latest
-    needs: [backend-lint, frontend-lint, backend-tests, security-scan]
+    needs: [backend-lint, frontend-lint, backend-tests, e2e, security-scan]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # Catches YAML errors such as an unquoted `*.pyc` (read as an alias).
+      - name: Validate compose files
+        run: |
+          touch .env.production
+          POSTGRES_PASSWORD=ci REDIS_PASSWORD=ci docker compose -f docker-compose.prod.yml config -q
+          docker compose -f docker-compose.dev.yml config -q
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -216,24 +274,9 @@ jobs:
           file: backend/Dockerfile
           target: runtime
           load: true
+          # No build-args: backend/Dockerfile declares no ARG, and settings are read
+          # from the environment at run time, never baked into the image.
           tags: hms-backend:test
-          build-args: |
-            DJANGO_SECRET_KEY=test-secret-key-for-ci-only
-            ALLOWED_HOSTS=localhost,127.0.0.1
-            CORS_ALLOWED_ORIGINS=http://localhost:5173
-            REDIS_URL=redis://localhost:6379/0
-            DATABASE_URL=postgres://user:pass@localhost:5432/db
-            EMAIL_HOST_USER=test
-            EMAIL_HOST_PASSWORD=test
-            GOOGLE_CLIENT_ID=test
-            AI_SCRIBE_API_KEY=test
-            JWT_SECRET_KEY=test-jwt-secret
-            AI_SCRIBE_ENABLED=False
-            FHIR_ENABLED=False
-            HL7_ENABLED=False
-            ABDM_ENABLED=False
-            MONITORING_ENABLED=False
-            BACKUP_ENABLED=False
 
       - name: Build frontend image
         uses: docker/build-push-action@v5
@@ -256,7 +299,7 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [backend-lint, frontend-lint, backend-tests, security-scan, docker-build]
+    needs: [backend-lint, frontend-lint, backend-tests, e2e, security-scan, docker-build]
     if: github.ref == 'refs/heads/develop'
     environment: staging
     steps:
@@ -274,7 +317,7 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [backend-lint, frontend-lint, backend-tests, security-scan, docker-build]
+    needs: [backend-lint, frontend-lint, backend-tests, e2e, security-scan, docker-build]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     environment: production
     steps:

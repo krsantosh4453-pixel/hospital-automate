@@ -4,7 +4,14 @@ from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
-from users.permissions import IsStaffUser, get_user_hospital_ids, is_active_staff, parse_hospital_id
+from users.permissions import (
+    REVENUE_ROLES,
+    IsStaffUser,
+    get_user_hospital_ids,
+    get_user_roles,
+    is_active_staff,
+    parse_hospital_id,
+)
 from reports.services import KPIService
 from reports.forecasting import ForecastingService
 from reports.models import ReportTemplate, SavedReport, ScheduledReport, KPISnapshot
@@ -36,13 +43,45 @@ def _get_authorized_hospital(request):
     return hospital_id
 
 
+# Money figures in KPI sections, shown only to REVENUE_ROLES.
+MONEY_FIELDS = {
+    "billing": ("period_revenue", "period_outstanding", "by_payment_method", "daily_revenue"),
+    "pharmacy": ("period_revenue",),
+}
+
+
+def _sees_revenue(request, hospital_id):
+    return bool(set(get_user_roles(request.user, hospital_id)) & REVENUE_ROLES)
+
+
+def _without_money(data, section):
+    """``data`` with the money figures of ``section`` blanked out."""
+    return {**data, **{field: None for field in MONEY_FIELDS[section]}}
+
+
+def _forecast_days(request, default, maximum):
+    """The ``forecast_days`` query parameter as an int clamped to 1..maximum; 400 if not a number."""
+    raw = request.query_params.get("forecast_days", default)
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        raise serializers.ValidationError({"forecast_days": "Must be a whole number of days."})
+    return min(max(days, 1), maximum)
+
+
 class AnalyticsViewSet(viewsets.ViewSet):
     """Main analytics endpoints for hospital KPIs and dashboards."""
 
     permission_classes = [IsAuthenticated]
 
-    def _check_hospital_access(self, request):
+    def _check_hospital_access(self, request, revenue=False):
+        """The hospital asked for, or a 403 Response. ``revenue``: money report, REVENUE_ROLES only."""
         hospital_id = _get_authorized_hospital(request)
+        if hospital_id and revenue and not _sees_revenue(request, hospital_id):
+            return Response(
+                {"error": "Your role cannot view revenue figures."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if not hospital_id:
             return Response(
                 {
@@ -70,8 +109,11 @@ class AnalyticsViewSet(viewsets.ViewSet):
         service = KPIService(hospital_id)
         data = service.get_comprehensive_dashboard(period, custom_start, custom_end)
 
-        serializer = ComprehensiveDashboardSerializer(data)
-        return Response(serializer.data)
+        data = dict(ComprehensiveDashboardSerializer(data).data)
+        if not _sees_revenue(request, hospital_id):
+            for section in MONEY_FIELDS:
+                data[section] = _without_money(data[section], section)
+        return Response(data)
 
     @action(detail=False, methods=["get"], url_path="patients")
     def patients(self, request):
@@ -215,6 +257,8 @@ class AnalyticsViewSet(viewsets.ViewSet):
             period_serializer.validated_data.get("custom_start"),
             period_serializer.validated_data.get("custom_end"),
         )
+        if not _sees_revenue(request, hospital_id):
+            data = _without_money(data, "pharmacy")
         return Response(data)
 
     @action(detail=False, methods=["get"], url_path="inventory")
@@ -238,7 +282,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"], url_path="billing")
     def billing(self, request):
         """Billing/Financial KPIs."""
-        hospital_id = self._check_hospital_access(request)
+        hospital_id = self._check_hospital_access(request, revenue=True)
         if isinstance(hospital_id, Response):
             return hospital_id
 
@@ -292,7 +336,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"], url_path="financial")
     def financial(self, request):
         """Financial report - alias for billing with additional context."""
-        hospital_id = self._check_hospital_access(request)
+        hospital_id = self._check_hospital_access(request, revenue=True)
         if isinstance(hospital_id, Response):
             return hospital_id
 
@@ -310,17 +354,14 @@ class AnalyticsViewSet(viewsets.ViewSet):
             period_serializer.validated_data.get("custom_start"),
             period_serializer.validated_data.get("custom_end"),
         )
-        lab_data = service.get_laboratory_kpis(
-            period_serializer.validated_data["period"],
-            period_serializer.validated_data.get("custom_start"),
-            period_serializer.validated_data.get("custom_end"),
-        )
 
         return Response(
             {
                 "billing": billing_data,
                 "pharmacy_revenue": pharmacy_data.get("period_revenue", 0),
-                "laboratory_revenue": 0,  # Lab revenue would come from billing items
+                # Lab tests carry no price; lab charges are billed on invoices, so they are
+                # already inside billing revenue and are not tracked separately.
+                "laboratory_revenue": None,
                 "total_revenue": billing_data.get("period_revenue", 0)
                 + pharmacy_data.get("period_revenue", 0),
                 "period": billing_data.get("period"),
@@ -477,12 +518,12 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        # Parse forecast_days parameter
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)  # Clamp between 1 and 90
+        forecast_days = _forecast_days(request, default=7, maximum=90)
 
         forecasting_service = ForecastingService(hospital_id)
         forecasts = forecasting_service.get_all_forecasts(forecast_days)
+        if not _sees_revenue(request, hospital_id):
+            forecasts = {key: value for key, value in forecasts.items() if key != "revenue"}
         return Response(forecasts)
 
     @action(detail=False, methods=["get"], url_path="forecast/appointments")
@@ -492,8 +533,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -507,8 +547,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -522,8 +561,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -537,8 +575,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -552,8 +589,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 30))
-        forecast_days = min(max(forecast_days, 1), 180)
+        forecast_days = _forecast_days(request, default=30, maximum=180)
         method = request.query_params.get("method", "auto")
         medicine_id = request.query_params.get("medicine_id")
 
@@ -572,8 +608,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -587,8 +622,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 7))
-        forecast_days = min(max(forecast_days, 1), 90)
+        forecast_days = _forecast_days(request, default=7, maximum=90)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)
@@ -598,12 +632,11 @@ class AnalyticsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"], url_path="forecast/revenue")
     def forecast_revenue(self, request):
         """Forecast revenue."""
-        hospital_id = self._check_hospital_access(request)
+        hospital_id = self._check_hospital_access(request, revenue=True)
         if isinstance(hospital_id, Response):
             return hospital_id
 
-        forecast_days = int(request.query_params.get("forecast_days", 30))
-        forecast_days = min(max(forecast_days, 1), 180)
+        forecast_days = _forecast_days(request, default=30, maximum=180)
         method = request.query_params.get("method", "auto")
 
         forecasting_service = ForecastingService(hospital_id)

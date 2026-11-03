@@ -1,5 +1,7 @@
 """Role, write-path and audit checks across two synthetic hospitals."""
 
+import tempfile
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
@@ -9,6 +11,7 @@ from clinical.models import VitalSign
 from encounters.models import Visit
 from hospital.models import Department, Hospital, Ward
 from patients.models import Patient, PatientDocument, PatientHospital
+from procurement.models import Supplier
 from users.models import StaffHospitalMembership, StaffRole
 
 from .test_tenant_isolation import make_staff, put_in_care
@@ -93,6 +96,58 @@ class RolePerHospitalTests(TwoHospitalCase):
         outsider = Hospital.objects.create(name="Synthetic C", is_active=True)
         resp = self.client_for(self.user, outsider).get("/api/encounters/visits/")
         self.assertEqual(resp.status_code, 403)
+
+
+class ProcurementRolePerHospitalTests(TwoHospitalCase):
+    """R-07: Inventory Staff in A who is a Receptionist in B gets nothing in B's store."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user, profile = make_staff("store-mixed", cls.hospital_a, role=StaffRole.INVENTORY_STAFF)
+        StaffHospitalMembership.objects.create(
+            staff=profile, hospital=cls.hospital_b, role=StaffRole.RECEPTIONIST, is_active=True
+        )
+        cls.supplier_a = Supplier.objects.create(name="Synthetic Supplier A", hospital=cls.hospital_a)
+        cls.supplier_b = Supplier.objects.create(name="Synthetic Supplier B", hospital=cls.hospital_b)
+
+    def _ids(self, resp):
+        body = resp.json()
+        rows = body.get("results", body) if isinstance(body, dict) else body
+        return {row["id"] for row in rows}
+
+    def test_inventory_role_lists_suppliers_in_a(self):
+        resp = self.client_for(self.user).get(f"/api/procurement/suppliers/?hospital={self.hospital_a.id}")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(self._ids(resp), {self.supplier_a.id})
+
+    def test_receptionist_in_b_cannot_list_b_suppliers(self):
+        resp = self.client_for(self.user).get(f"/api/procurement/suppliers/?hospital={self.hospital_b.id}")
+        self.assertEqual(resp.status_code, 403, resp.content)
+
+    def test_receptionist_in_b_cannot_create_b_supplier(self):
+        resp = self.client_for(self.user).post(
+            f"/api/procurement/suppliers/?hospital={self.hospital_b.id}",
+            {"name": "Smuggled", "hospital": self.hospital_b.id}, format="json",
+        )
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.assertFalse(Supplier.objects.filter(name="Smuggled").exists())
+
+    def test_create_without_hospital_is_refused_for_multi_hospital_user(self):
+        resp = self.client_for(self.user).post(
+            "/api/procurement/suppliers/", {"name": "Unscoped"}, format="json",
+        )
+        self.assertIn(resp.status_code, (400, 403), resp.content)
+        self.assertFalse(Supplier.objects.filter(name="Unscoped").exists())
+
+    def test_receptionist_in_b_cannot_change_b_supplier(self):
+        resp = self.client_for(self.user).patch(
+            f"/api/procurement/suppliers/{self.supplier_b.id}/?hospital={self.hospital_b.id}",
+            {"name": "Renamed"}, format="json",
+        )
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.supplier_b.refresh_from_db()
+        self.assertEqual(self.supplier_b.name, "Synthetic Supplier B")
 
 
 class RelatedObjectWriteTests(TwoHospitalCase):
@@ -206,7 +261,7 @@ class AuditTrailTests(TwoHospitalCase):
         self.assertEqual(log.object_id, str(resp.json()["id"]))
 
 
-@override_settings(MEDIA_ROOT="/tmp/hms-test-media")
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(prefix="hms-test-media-"))
 class SharedPatientDocumentTests(TwoHospitalCase):
     @classmethod
     def setUpTestData(cls):

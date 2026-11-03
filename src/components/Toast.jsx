@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback } from "react"
 import { CircleAlert, TriangleAlert, CircleCheck, Info, X } from "lucide-react"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 const ToastContext = createContext(null)
 
@@ -11,11 +12,12 @@ const TOAST_TYPES = {
 }
 
 function ToastList({ toasts, hideToast }) {
+  const { t } = useLanguage()
   return (
     <div
       className="pointer-events-none fixed inset-x-4 bottom-4 z-[70] flex flex-col items-end gap-2 sm:inset-x-auto sm:right-4"
       role="region"
-      aria-label="Notifications"
+      aria-label={t("Notifications")}
       aria-live="polite"
     >
       {toasts.map((toast) => {
@@ -29,12 +31,12 @@ function ToastList({ toasts, hideToast }) {
           >
             <span className={`absolute inset-y-0 left-0 w-1 ${s.bar}`} aria-hidden="true" />
             <Icon size={18} className={`mt-0.5 shrink-0 ${s.accent}`} aria-hidden="true" />
-            <p className="flex-1 text-sm font-medium leading-6 text-ink-800">{toast.message}</p>
+            <p className="flex-1 text-sm font-medium leading-6 text-ink-800">{t(toast.message)}</p>
             <button
               type="button"
               onClick={() => hideToast(toast.id)}
               className="rounded-md p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
-              aria-label="Dismiss notification"
+              aria-label={t("Dismiss notification")}
             >
               <X size={16} aria-hidden="true" />
             </button>

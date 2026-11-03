@@ -1,10 +1,12 @@
 import { useMemo } from "react"
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 const btn =
   "inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-[13px] font-medium text-ink-700 hover:bg-ink-100 disabled:pointer-events-none disabled:text-ink-300"
 
 function Pagination({ currentPage, totalPages, totalRecords, onPageChange, showPageNumbers = true }) {
+  const { t } = useLanguage()
   const pageNumbers = useMemo(() => {
     const pages = []
     const maxVisible = 5
@@ -25,20 +27,20 @@ function Pagination({ currentPage, totalPages, totalRecords, onPageChange, showP
 
   return (
     <nav
-      aria-label="Pagination"
+      aria-label={t("Pagination")}
       className="flex flex-col items-center justify-between gap-3 border-t border-line px-4 py-3 sm:flex-row"
     >
       <p className="text-[13px] text-ink-500">
-        Page <span className="font-medium text-ink-800 tabular-nums">{currentPage}</span> of{" "}
+        {t("Page")}{" "}<span className="font-medium text-ink-800 tabular-nums">{currentPage}</span>{" "}{t("of")}{" "}
         <span className="tabular-nums">{totalPages}</span>
-        {totalRecords !== undefined && <span className="ml-1 tabular-nums">· {totalRecords} records</span>}
+        {totalRecords !== undefined && <span className="ml-1 tabular-nums">· {totalRecords}{" "}{t("records")}</span>}
       </p>
 
       <div className="flex items-center gap-0.5">
-        <button type="button" onClick={() => onPageChange(1)} disabled={currentPage === 1} className={btn} aria-label="First page">
+        <button type="button" onClick={() => onPageChange(1)} disabled={currentPage === 1} className={btn} aria-label={t("First page")}>
           <ChevronsLeft size={16} aria-hidden="true" />
         </button>
-        <button type="button" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className={btn} aria-label="Previous page">
+        <button type="button" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className={btn} aria-label={t("Previous page")}>
           <ChevronLeft size={16} aria-hidden="true" />
         </button>
 
@@ -72,10 +74,10 @@ function Pagination({ currentPage, totalPages, totalRecords, onPageChange, showP
           </>
         )}
 
-        <button type="button" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className={btn} aria-label="Next page">
+        <button type="button" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className={btn} aria-label={t("Next page")}>
           <ChevronRight size={16} aria-hidden="true" />
         </button>
-        <button type="button" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages} className={btn} aria-label="Last page">
+        <button type="button" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages} className={btn} aria-label={t("Last page")}>
           <ChevronsRight size={16} aria-hidden="true" />
         </button>
       </div>

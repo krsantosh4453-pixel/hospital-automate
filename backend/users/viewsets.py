@@ -7,6 +7,7 @@ from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 
+from audit.read_audit import SensitiveReadAuditMixin
 from hospital.models import Hospital
 from users.care_scope import limit_to_patients_in_care, may_write_for_patients
 from users.permissions import (
@@ -84,7 +85,7 @@ def _with_scoped_hospital(view, context):
     return context
 
 
-class HospitalScopedViewSet(viewsets.ModelViewSet):
+class HospitalScopedViewSet(SensitiveReadAuditMixin, viewsets.ModelViewSet):
     """
     Base ViewSet that scopes every query and write to the hospitals the user
     is an active member of. It fails closed: a model with no resolvable
@@ -289,7 +290,7 @@ class HospitalScopedViewSet(viewsets.ModelViewSet):
         return _with_scoped_hospital(self, super().get_serializer_context())
 
 
-class ReadOnlyHospitalScopedViewSet(viewsets.ReadOnlyModelViewSet):
+class ReadOnlyHospitalScopedViewSet(SensitiveReadAuditMixin, viewsets.ReadOnlyModelViewSet):
     """
     Read-only version of HospitalScopedViewSet, with the same fail-closed
     scoping rules.

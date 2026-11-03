@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from "react"
 import { createPortal } from "react-dom"
 import { TriangleAlert, X } from "lucide-react"
 import Button from "./Button.jsx"
+import { useT } from "./useT.js"
 
 const WIDTHS = { sm: "max-w-md", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" }
 
@@ -11,9 +12,11 @@ const FORM_FIELD = 'input:not([disabled]):not([type="hidden"]), select:not([disa
 
 /**
  * Accessible dialog: focus moves in and is trapped, Escape and the backdrop
- * close it, and focus returns to the opener on close.
+ * close it, and focus returns to the opener on close. The panel is portalled
+ * outside the page, so it takes the teal card colours from hms-surface-dark.
  */
 export function Modal({ open, onClose, title, description, size = "md", footer, children, dismissible = true }) {
+  const tr = useT()
   const titleId = useId()
   const descId = useId()
   const panelRef = useRef(null)
@@ -80,16 +83,16 @@ export function Modal({ open, onClose, title, description, size = "md", footer, 
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`relative flex max-h-[92vh] w-full ${WIDTHS[size] || WIDTHS.md} flex-col rounded-t-2xl bg-white shadow-2xl outline-none animate-rise-in sm:rounded-2xl`}
+        className={`relative flex max-h-[92vh] w-full ${WIDTHS[size] || WIDTHS.md} flex-col rounded-t-2xl hms-surface-dark shadow-2xl outline-none animate-rise-in sm:rounded-2xl`}
       >
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div className="min-w-0">
             <h2 id={titleId} className="text-base font-semibold text-ink-900">
-              {title}
+              {tr(title)}
             </h2>
             {description && (
               <p id={descId} className="mt-0.5 text-[13px] text-ink-500">
-                {description}
+                {tr(description)}
               </p>
             )}
           </div>
@@ -130,6 +133,7 @@ export function ConfirmDialog({
   confirmDisabled = false,
   children,
 }) {
+  const tr = useT()
   return (
     <Modal
       open={open}
@@ -139,10 +143,10 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="secondary" onClick={onCancel} disabled={loading}>
-            {cancelLabel}
+            {tr(cancelLabel)}
           </Button>
           <Button variant={destructive ? "danger" : "primary"} onClick={onConfirm} loading={loading} disabled={confirmDisabled}>
-            {confirmLabel}
+            {tr(confirmLabel)}
           </Button>
         </>
       }
@@ -154,7 +158,7 @@ export function ConfirmDialog({
           </span>
         )}
         <div className="min-w-0 flex-1 text-sm leading-6 text-ink-700">
-          {message}
+          {tr(message)}
           {children}
         </div>
       </div>

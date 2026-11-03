@@ -225,8 +225,10 @@ class LabResultObservationMapper(FHIRMapper):
             # Issued time
             obs["issued"] = effective_time.isoformat()
             
-            # Value
-            if isinstance(test_value, (int, float)):
+            # Value (bool first: in Python a bool is also an int)
+            if isinstance(test_value, bool):
+                obs["valueBoolean"] = test_value
+            elif isinstance(test_value, (int, float)):
                 # Try to get unit from reference_ranges
                 unit = ""
                 if test_name in reference_ranges:
@@ -282,12 +284,7 @@ class LabResultObservationMapper(FHIRMapper):
             
             # Performer
             if lab_result.entered_by:
-                obs["performer"] = [{
-                    "actor": self.builder._reference(
-                        "Practitioner", f"Practitioner-{lab_result.entered_by.id}",
-                        lab_result.entered_by.get_full_name()
-                    )
-                }]
+                obs["performer"] = [{"actor": self._performer(lab_result.entered_by, hospital)}]
             
             # Note
             if lab_result.result_text:
@@ -296,6 +293,19 @@ class LabResultObservationMapper(FHIRMapper):
             observations.append(obs)
         
         return observations
+
+    def _performer(self, user, hospital):
+        """
+        The Practitioner (a Doctor of this hospital) behind a login; other
+        staff, such as Lab Staff, have no Practitioner resource, so only
+        their name is given instead of a reference that cannot resolve.
+        """
+        from doctors.models import Doctor
+
+        doctor = Doctor.objects.filter(user=user, hospital=hospital).first()
+        if doctor is not None:
+            return self.builder._reference("Practitioner", f"Practitioner-{doctor.id}", doctor.name)
+        return {"display": user.get_full_name() or user.get_username()}
 
 
 @register_fhir_mapper("Observation")

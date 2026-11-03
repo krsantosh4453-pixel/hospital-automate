@@ -159,10 +159,26 @@ def user_has_any_role(user, role_names):
     return any(role in user_roles for role in role_names)
 
 
+def hospitals_with_role(user, hospital_ids, role_names):
+    """The hospitals among ``hospital_ids`` where the user holds one of ``role_names``."""
+    return [h for h in hospital_ids if set(get_user_roles(user, h)) & set(role_names)]
+
+
+# Roles that see money collected: the front desk takes payments, and
+# billing and management account for them.
+REVENUE_ROLES = frozenset({
+    StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER, StaffRole.BILLING_STAFF, StaffRole.RECEPTIONIST,
+})
+
+
 def get_linked_patient(user):
     """Return the Patient row linked to this login, if any."""
     if not user or not getattr(user, "is_authenticated", False):
         return None
+    # A family member signed in with an active grant (users.proxy_access).
+    proxy_patient = getattr(user, "proxy_patient", None)
+    if proxy_patient is not None:
+        return proxy_patient
     try:
         return user.patient_account
     except Exception:
@@ -346,6 +362,8 @@ IsReceptionistReadOnly = read_only(IsReceptionist)
 IsCompounderReadOnly = read_only(IsCompounder)
 # A Hospital Manager oversees clinical work without changing it.
 IsHospitalManagerReadOnly = read_only(IsHospitalManager)
+# Billing Staff look patients up to bill them; they never change the record.
+IsBillingStaffReadOnly = read_only(IsBillingStaff)
 
 
 # Object-level permissions
@@ -380,10 +398,10 @@ class IsOwnerOrHospitalAdmin(permissions.BasePermission):
         # Check if user has admin/manager role in the object's hospital
         hospital = self._get_object_hospital(obj)
         if hospital:
-            user_roles = get_user_roles(request.user)
+            # The role must be held in the object's hospital, not in any hospital.
+            user_roles = get_user_roles(request.user, hospital.id)
             if StaffRole.ADMIN in user_roles or StaffRole.HOSPITAL_MANAGER in user_roles:
-                if user_has_hospital_access(request.user, hospital.id):
-                    return True
+                return True
 
         return False
 

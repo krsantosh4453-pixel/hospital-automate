@@ -3,11 +3,15 @@ from .models import AuditLog, AIInteraction
 
 
 class AuditLogSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True, default="")
+
     class Meta:
         model = AuditLog
         fields = [
             "id",
             "user",
+            "username",
+            "ip_address",
             "action",
             "model_name",
             "object_id",

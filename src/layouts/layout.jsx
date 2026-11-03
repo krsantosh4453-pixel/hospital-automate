@@ -1,7 +1,9 @@
-import { useEffect } from "react"
+import { Suspense, useEffect } from "react"
 import { Outlet, useLocation } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import Sidebar from "../components/Sidebar"
+import Breadcrumbs, { ShellBreadcrumbsProvider } from "../components/Breadcrumbs.jsx"
+import { PageLoading } from "../components/LoadingSpinner.jsx"
 import { useSidebar } from "../assets/context/SidebarContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { findNavItem } from "../config/navigation.js"
@@ -23,7 +25,7 @@ function Layout() {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[80] focus:rounded-lg focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
       >
-        Skip to main content
+        {t("Skip to main content")}
       </a>
 
       <Sidebar />
@@ -32,7 +34,12 @@ function Layout() {
         <Navbar />
         <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-5 outline-none sm:px-6 sm:py-6 lg:px-8">
           <div className="mx-auto w-full max-w-[1600px] min-w-0">
-            <Outlet />
+            <ShellBreadcrumbsProvider>
+              <Breadcrumbs />
+              <Suspense fallback={<PageLoading />}>
+                <Outlet />
+              </Suspense>
+            </ShellBreadcrumbsProvider>
           </div>
         </main>
       </div>

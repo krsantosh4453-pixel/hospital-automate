@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Eye, Hospital, Pencil, Phone, Trash2, UserPlus, UsersRound } from "lucide-react"
+import { Eye, History, Hospital, Pencil, Phone, Trash2, UserPlus, UsersRound } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
+import { useLinkedPatient } from "../utils/linkedPatient.js"
+import PatientTimeline from "../components/clinical/PatientTimeline.jsx"
 import Pagination from "../components/Pagination.jsx"
 import {
   Alert,
@@ -23,15 +25,35 @@ import {
   TableWrap,
   Toolbar,
 } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
-const EMPTY_FORM = { name: "", age: "", gender: "", phone: "", condition: "" }
+const EMPTY_FORM = {
+  name: "", age: "", gender: "", phone: "", condition: "",
+  emergencyName: "", emergencyRelation: "", emergencyPhone: "",
+  dateOfBirth: "",
+  maritalStatus: "",
+  addressLine: "",
+  city: "",
+  district: "",
+  state: "",
+  pincode: "",
+  idType: "",
+  idLast4: "",
+  payerType: "",
+  payerName: "",
+  policyNumber: "",
+}
 
 function Patients() {
+  const { t } = useLanguage()
   // Only the front desk registers patients; a Hospital Manager only views them.
-  const { canAdd, canEdit } = useRole()
+  const { canAdd, canEdit, activeRoleName } = useRole()
   const { selectedHospital } = usePatient()
 
-  const [search, setSearch] = useState("")
+  // Opened from another module (e.g. the ER) with ?q=<name>&edit=<id> or &record=<id>.
+  const linked = useLinkedPatient()
+  const linkedHandled = useRef(false)
+  const [search, setSearch] = useState(linked.query)
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -57,6 +79,8 @@ function Patients() {
 
   // Read-only "View" and delete confirmation
   const [viewPatient, setViewPatient] = useState(null)
+  // Patient whose medical record (timeline, B9) is open.
+  const [recordPatient, setRecordPatient] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
@@ -69,6 +93,21 @@ function Patients() {
     gender: record.gender || "",
     phone: record.phone || "",
     condition: record.condition || "",
+    emergencyName: record.emergency_contact_name || "",
+    emergencyRelation: record.emergency_contact_relation || "",
+    emergencyPhone: record.emergency_contact_phone || "",
+    dateOfBirth: record.date_of_birth || "",
+    maritalStatus: record.marital_status || "",
+    addressLine: record.address_line || "",
+    city: record.city || "",
+    district: record.district || "",
+    state: record.state || "",
+    pincode: record.pincode || "",
+    idType: record.id_type || "",
+    idLast4: record.id_last4 || "",
+    payerType: record.payer_type || "",
+    payerName: record.payer_name || "",
+    policyNumber: record.policy_number || "",
     doctor: record.doctor || "",
     status: record.status || "Active",
     hospitalId: record.hospital ?? selectedHospital?.id ?? "",
@@ -179,6 +218,17 @@ function Patients() {
     setShowForm(true)
   }
 
+  // Open the linked patient once, when the list that contains them arrives.
+  useEffect(() => {
+    const targetId = linked.editId || linked.recordId
+    if (!targetId || linkedHandled.current) return
+    const match = patients.find((patient) => String(patient.id) === String(targetId))
+    if (!match) return
+    linkedHandled.current = true
+    if (linked.editId) openEditForm(match)
+    else setRecordPatient(match)
+  }, [patients, linked.editId, linked.recordId])
+
   const openEditForm = (patient) => {
     setEditingPatient(patient)
     setFormData({
@@ -187,6 +237,21 @@ function Patients() {
       gender: patient.gender || "",
       phone: patient.phone || "",
       condition: patient.condition || "",
+      emergencyName: patient.emergencyName || "",
+      emergencyRelation: patient.emergencyRelation || "",
+      emergencyPhone: patient.emergencyPhone || "",
+      dateOfBirth: patient.dateOfBirth || "",
+      maritalStatus: patient.maritalStatus || "",
+      addressLine: patient.addressLine || "",
+      city: patient.city || "",
+      district: patient.district || "",
+      state: patient.state || "",
+      pincode: patient.pincode || "",
+      idType: patient.idType || "",
+      idLast4: patient.idLast4 || "",
+      payerType: patient.payerType || "",
+      payerName: patient.payerName || "",
+      policyNumber: patient.policyNumber || "",
     })
     setFormErrors({})
     setViewPatient(null)
@@ -218,6 +283,19 @@ function Patients() {
     const digits = String(formData.phone).replace(/\D/g, "")
     if (digits.length < 10) errors.phone = "Phone number must have at least 10 digits."
 
+    const emergencyDigits = String(formData.emergencyPhone).replace(/\D/g, "")
+    if (emergencyDigits && emergencyDigits.length < 10) {
+      errors.emergencyPhone = "Phone number must have at least 10 digits."
+    } else if (formData.emergencyName.trim() && !emergencyDigits) {
+      errors.emergencyPhone = "Add a phone number for the emergency contact."
+    }
+    if (formData.pincode && !/^\d{6}$/.test(formData.pincode.trim())) errors.pincode = "A PIN code has 6 digits."
+    if (formData.idLast4 && !/^[A-Za-z0-9]{4}$/.test(formData.idLast4.trim())) errors.idLast4 = "Enter only the last 4 characters."
+    if (formData.idLast4 && !formData.idType) errors.idType = "Choose the type of ID."
+    if (["Insurance", "Government scheme", "Corporate"].includes(formData.payerType) && !formData.payerName.trim()) {
+      errors.payerName = "Name the insurer, scheme or company."
+    }
+
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -226,8 +304,8 @@ function Patients() {
   // CREATE / UPDATE (POST / PUT)
   // =====================================================
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
+  const handleSubmit = async (event, { confirmNew = false } = {}) => {
+    event?.preventDefault()
     if (!validateForm()) return
 
     const payload = {
@@ -236,6 +314,22 @@ function Patients() {
       gender: formData.gender,
       phone: String(formData.phone).replace(/\D/g, ""),
       condition: formData.condition.trim(),
+      emergency_contact_name: formData.emergencyName.trim(),
+      emergency_contact_relation: formData.emergencyRelation.trim(),
+      emergency_contact_phone: String(formData.emergencyPhone).replace(/\D/g, ""),
+      // Demographics (B3); empty strings clear a field, a missing DOB is null.
+      date_of_birth: formData.dateOfBirth || null,
+      marital_status: String(formData.maritalStatus).trim(),
+      address_line: String(formData.addressLine).trim(),
+      city: String(formData.city).trim(),
+      district: String(formData.district).trim(),
+      state: String(formData.state).trim(),
+      pincode: String(formData.pincode).trim(),
+      id_type: String(formData.idType).trim(),
+      id_last4: String(formData.idLast4).trim(),
+      payer_type: String(formData.payerType).trim(),
+      payer_name: String(formData.payerName).trim(),
+      policy_number: String(formData.policyNumber).trim(),
       hospital: selectedHospital?.id ?? null,
     }
 
@@ -250,7 +344,7 @@ function Patients() {
         )
         setSuccessMessage("Patient updated successfully.")
       } else {
-        const created = await api.patients.create(payload)
+        const created = await api.patients.create(confirmNew ? { ...payload, confirm_new: true } : payload)
         setPatients((prev) => [mapFromApi(created), ...prev])
         setTotalRecords((n) => n + 1)
         setSuccessMessage("Patient added successfully.")
@@ -261,7 +355,12 @@ function Patients() {
       // Refused, unreachable or timed out: keep the form open and say so.
       // Nothing is saved in the browser. After a timeout the server may
       // already have saved it, so the list is reloaded to show the truth.
-      setFormErrors((prev) => ({ ...prev, _server: `Not saved: ${error.message}` }))
+      if (error.status === 409 && Array.isArray(error.body?.duplicates)) {
+        // Same mobile number already registered here (B5): let staff choose.
+        setFormErrors((prev) => ({ ...prev, _duplicates: error.body.duplicates }))
+        return
+      }
+      setFormErrors((prev) => ({ ...prev, _server: t("Not saved: {reason}", { reason: error.message }) }))
       if (error.isTimeout) setReloadToken((value) => value + 1)
     } finally {
       setSaving(false)
@@ -284,7 +383,7 @@ function Patients() {
       setTotalRecords((n) => Math.max(n - 1, 0))
     } catch (error) {
       // Refused or unreachable: the patient still exists on the server.
-      setLoadError(`Not deleted: ${error.message}`)
+      setLoadError(t("Not deleted: {reason}", { reason: error.message }))
       setDeleting(false)
       setPendingDelete(null)
       if (error.isTimeout) setReloadToken((value) => value + 1)
@@ -301,17 +400,17 @@ function Patients() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Patients"
+        title={t("Patients")}
         description={
           selectedHospital
-            ? `Patients registered at ${selectedHospital.name}.`
-            : "Select a hospital from the header to see its patients."
+            ? t("Patients registered at {hospital}.", { hospital: selectedHospital.name })
+            : t("Select a hospital from the header to see its patients.")
         }
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Patients" }]}
         actions={
           canAdd("Patients") && (
             <Button icon={UserPlus} onClick={openAddForm} disabled={!selectedHospital}>
-              Register patient
+              {t("Register patient")}
             </Button>
           )
         }
@@ -328,7 +427,7 @@ function Patients() {
           tone="danger"
           action={
             <Button size="sm" variant="secondary" onClick={() => setReloadToken((value) => value + 1)}>
-              Retry
+              {t("Retry")}
             </Button>
           }
         >
@@ -338,22 +437,23 @@ function Patients() {
 
       {!selectedHospital ? (
         <Card>
-          <EmptyState icon={Hospital} title="No hospital selected" description="Choose a hospital in the header to manage its patients." />
+          <EmptyState icon={Hospital} title={t("No hospital selected")} description="Choose a hospital in the header to manage its patients." />
         </Card>
       ) : (
         <Card className="overflow-hidden">
           <Toolbar
             actions={
               <p className="text-[13px] text-ink-500">
-                <span className="font-semibold text-ink-800 tabular-nums">{totalRecords}</span>{" "}
-                {debouncedSearch ? "matching" : "registered"} patient{totalRecords === 1 ? "" : "s"}
+                {t(debouncedSearch
+                  ? (totalRecords === 1 ? "{count} matching patient" : "{count} matching patients")
+                  : (totalRecords === 1 ? "{count} registered patient" : "{count} registered patients"), { count: totalRecords })}
               </p>
             }
           >
             <SearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Search by name or phone"
+              placeholder={t("Search by name, phone or UHID")}
               label="Search patients"
               className="w-full sm:max-w-sm"
             />
@@ -366,16 +466,16 @@ function Patients() {
               {/* Desktop / tablet table */}
               <TableWrap className="hidden md:block">
                 <table className="hms-table" aria-busy={loading}>
-                  <caption className="sr-only">Patients at {selectedHospital.name}</caption>
+                  <caption className="sr-only">{t("Patients at")}{" "}{selectedHospital.name}</caption>
                   <thead>
                     <tr>
-                      <th scope="col">Patient</th>
-                      <th scope="col" className="num">Age</th>
-                      <th scope="col">Gender</th>
-                      <th scope="col">Phone</th>
-                      <th scope="col">Reason for visit</th>
+                      <th scope="col">{t("Patient")}</th>
+                      <th scope="col" className="num">{t("Age")}</th>
+                      <th scope="col">{t("Gender")}</th>
+                      <th scope="col">{t("Phone")}</th>
+                      <th scope="col">{t("Reason for visit")}</th>
                       <th scope="col">
-                        <span className="sr-only">Actions</span>
+                        <span className="sr-only">{t("Actions")}</span>
                       </th>
                     </tr>
                   </thead>
@@ -407,9 +507,9 @@ function Patients() {
                         </td>
                         <td>
                           <div className="flex items-center justify-end gap-0.5">
-                            <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => setViewPatient(patient)} aria-label={`View ${patient.name}`} title="View" />
-                            {canEdit("Patients") && <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => openEditForm(patient)} aria-label={`Edit ${patient.name}`} title="Edit" />}
-                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setPendingDelete(patient)} aria-label={`Delete ${patient.name}`} title="Delete" />
+                            <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => setViewPatient(patient)} aria-label={`View ${patient.name}`} title={t("View")} />
+                            {canEdit("Patients") && <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => openEditForm(patient)} aria-label={`Edit ${patient.name}`} title={t("Edit")} />}
+                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setPendingDelete(patient)} aria-label={`Delete ${patient.name}`} title={t("Delete")} />
                           </div>
                         </td>
                       </tr>
@@ -449,13 +549,13 @@ function Patients() {
           ) : (
             <EmptyState
               icon={UsersRound}
-              title={search ? "No patients match your search" : "No patients registered yet"}
-              description={search ? "Try a different name or phone number." : "Registered patients for this hospital will appear here."}
+              title={search ? t("No patients match your search") : t("No patients registered yet")}
+              description={search ? t("Try a different name or phone number.") : t("Registered patients for this hospital will appear here.")}
               action={
                 search ? (
-                  <Button variant="secondary" onClick={() => setSearch("")}>Clear search</Button>
+                  <Button variant="secondary" onClick={() => setSearch("")}>{t("Clear search")}</Button>
                 ) : (
-                  canAdd("Patients") && <Button icon={UserPlus} onClick={openAddForm}>Register patient</Button>
+                  canAdd("Patients") && <Button icon={UserPlus} onClick={openAddForm}>{t("Register patient")}</Button>
                 )
               }
             />
@@ -467,21 +567,38 @@ function Patients() {
       <Modal
         open={showForm}
         onClose={closeForm}
-        title={editingPatient ? "Edit patient" : "Register patient"}
+        title={editingPatient ? t("Edit patient") : t("Register patient")}
         description={selectedHospital ? `At ${selectedHospital.name}` : undefined}
         footer={
           <>
-            <Button variant="secondary" onClick={closeForm} disabled={saving}>Cancel</Button>
+            <Button variant="secondary" onClick={closeForm} disabled={saving}>{t("Cancel")}</Button>
             <Button type="submit" form="patient-form" loading={saving}>
-              {editingPatient ? "Save changes" : "Register patient"}
+              {editingPatient ? t("Save changes") : t("Register patient")}
             </Button>
           </>
         }
       >
         <form id="patient-form" onSubmit={handleSubmit} noValidate className="space-y-4">
-          {formErrors._server && <Alert tone="danger" title="Not saved">{formErrors._server}</Alert>}
+          {formErrors._server && <Alert tone="danger" title={t("Not saved")}>{formErrors._server}</Alert>}
+          {formErrors._duplicates && (
+            <Alert tone="warning" title={t("This mobile number is already registered here")}>
+              <ul className="mt-1 space-y-1">
+                {formErrors._duplicates.map((match) => (
+                  <li key={match.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <span>{match.name} · {match.age} y · {match.gender}</span>
+                    <Button size="sm" variant="secondary" onClick={() => { closeForm(); setViewPatient(mapFromApi(match)) }}>
+                      {t("Use this patient")}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              <Button size="sm" variant="ghost" className="mt-2" loading={saving} onClick={() => handleSubmit(null, { confirmNew: true })}>
+                {t("Different person: register anyway")}
+              </Button>
+            </Alert>
+          )}
           <Field label="Full name" required error={formErrors.name}>
-            <Input name="name" value={formData.name} onChange={handleFormChange} placeholder="As on ID document" autoComplete="off" />
+            <Input name="name" value={formData.name} onChange={handleFormChange} placeholder={t("As on ID document")} autoComplete="off" />
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Age (years)" required error={formErrors.age}>
@@ -489,10 +606,10 @@ function Patients() {
             </Field>
             <Field label="Gender" required error={formErrors.gender}>
               <Select name="gender" value={formData.gender} onChange={handleFormChange}>
-                <option value="">Select</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="">{t("Select")}</option>
+                <option value="Male">{t("Male")}</option>
+                <option value="Female">{t("Female")}</option>
+                <option value="Other">{t("Other")}</option>
               </Select>
             </Field>
           </div>
@@ -500,24 +617,97 @@ function Patients() {
             <Input type="tel" inputMode="tel" name="phone" value={formData.phone} onChange={handleFormChange} autoComplete="off" />
           </Field>
           <Field label="Reason for visit">
-            <Input name="condition" value={formData.condition} onChange={handleFormChange} placeholder="e.g. fever for 3 days" />
+            <Input name="condition" value={formData.condition} onChange={handleFormChange} placeholder={t("e.g. fever for 3 days")} />
           </Field>
+          <fieldset className="space-y-3 rounded-xl border border-line px-4 pb-4 pt-2">
+            <legend className="px-1 text-[13px] font-medium text-ink-700">{t("Emergency contact (optional)")}</legend>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Name">
+                <Input name="emergencyName" value={formData.emergencyName} onChange={handleFormChange} maxLength={100} autoComplete="off" />
+              </Field>
+              <Field label="Relation">
+                <Input name="emergencyRelation" value={formData.emergencyRelation} onChange={handleFormChange} maxLength={50} placeholder={t("e.g. spouse")} />
+              </Field>
+            </div>
+            <Field label="Phone" error={formErrors.emergencyPhone}>
+              <Input type="tel" inputMode="tel" name="emergencyPhone" value={formData.emergencyPhone} onChange={handleFormChange} autoComplete="off" />
+            </Field>
+          </fieldset>
+          <details className="rounded-xl border border-line px-4 py-2" open={Boolean(formErrors.pincode || formErrors.idLast4 || formErrors.idType || formErrors.payerName)}>
+            <summary className="cursor-pointer py-1 text-[13px] font-medium text-ink-700">{t("More details (optional)")}</summary>
+            <div className="mt-3 space-y-3 pb-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Date of birth">
+                  <Input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleFormChange} max={new Date().toISOString().slice(0, 10)} />
+                </Field>
+                <Field label="Marital status">
+                  <Select name="maritalStatus" value={formData.maritalStatus} onChange={handleFormChange}>
+                    <option value="">{t("Not recorded")}</option>
+                    {["Single", "Married", "Widowed", "Divorced", "Separated"].map((v) => <option value={v} key={v}>{t(v)}</option>)}
+                  </Select>
+                </Field>
+              </div>
+              <Field label="Address">
+                <Input name="addressLine" value={formData.addressLine} onChange={handleFormChange} maxLength={200} placeholder={t("House, street, locality")} />
+              </Field>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Field label="City / village"><Input name="city" value={formData.city} onChange={handleFormChange} maxLength={80} /></Field>
+                <Field label="District"><Input name="district" value={formData.district} onChange={handleFormChange} maxLength={80} /></Field>
+                <Field label="State"><Input name="state" value={formData.state} onChange={handleFormChange} maxLength={80} /></Field>
+                <Field label="PIN code" error={formErrors.pincode}><Input name="pincode" inputMode="numeric" value={formData.pincode} onChange={handleFormChange} maxLength={6} /></Field>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="ID type" error={formErrors.idType}>
+                  <Select name="idType" value={formData.idType} onChange={handleFormChange}>
+                    <option value="">{t("None")}</option>
+                    {["Aadhaar", "PAN", "Voter ID", "Passport", "Driving licence", "ABHA", "Other"].map((v) => <option value={v} key={v}>{t(v)}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Last 4 of ID" error={formErrors.idLast4} hint="Only the last 4 characters are kept, never the full number.">
+                  <Input name="idLast4" value={formData.idLast4} onChange={handleFormChange} maxLength={4} autoComplete="off" />
+                </Field>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Field label="Who pays">
+                  <Select name="payerType" value={formData.payerType} onChange={handleFormChange}>
+                    <option value="">{t("Not recorded")}</option>
+                    {["Self", "Insurance", "Government scheme", "Corporate"].map((v) => <option value={v} key={v}>{t(v)}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Insurer / scheme / company" error={formErrors.payerName}><Input name="payerName" value={formData.payerName} onChange={handleFormChange} maxLength={120} /></Field>
+                <Field label="Policy / card number"><Input name="policyNumber" value={formData.policyNumber} onChange={handleFormChange} maxLength={60} /></Field>
+              </div>
+            </div>
+          </details>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(recordPatient)}
+        onClose={() => setRecordPatient(null)}
+        size="xl"
+        title={recordPatient ? t("Medical record · {patient}", { patient: recordPatient.name }) : t("Medical record")}
+        description="Visits, diagnoses, results and treatment at this hospital, newest first. Every view is recorded in the audit log."
+      >
+        {recordPatient && <PatientTimeline patientId={recordPatient.id} />}
       </Modal>
 
       {/* Patient details */}
       <Modal
         open={Boolean(viewPatient)}
         onClose={() => setViewPatient(null)}
-        title="Patient details"
+        title={t("Patient details")}
         footer={
           viewPatient && (
             <>
               <Button variant="danger-ghost" icon={Trash2} onClick={() => setPendingDelete(viewPatient)} className="mr-auto">
-                Delete
+                {t("Delete")}
               </Button>
-              <Button variant="secondary" onClick={() => setViewPatient(null)}>Close</Button>
-              {canEdit("Patients") && <Button icon={Pencil} onClick={() => openEditForm(viewPatient)}>Edit</Button>}
+              {["Doctor", "Nurse", "Admin"].includes(activeRoleName) && (
+                <Button variant="secondary" icon={History} onClick={() => { setRecordPatient(viewPatient); setViewPatient(null) }}>{t("Medical record")}</Button>
+              )}
+              <Button variant="secondary" onClick={() => setViewPatient(null)}>{t("Close")}</Button>
+              {canEdit("Patients") && <Button icon={Pencil} onClick={() => openEditForm(viewPatient)}>{t("Edit")}</Button>}
             </>
           )
         }
@@ -530,7 +720,7 @@ function Patients() {
                 <p className="text-base font-semibold text-ink-900">{viewPatient.name}</p>
                 <p className="text-[13px] text-ink-500 tabular-nums">{formatPatientId(viewPatient)}</p>
               </div>
-              {viewPatient.source !== "api" && <Badge tone="warning" className="ml-auto">Saved locally only</Badge>}
+              {viewPatient.source !== "api" && <Badge tone="warning" className="ml-auto">{t("Saved locally only")}</Badge>}
             </div>
             <DescriptionList
               items={[
@@ -538,6 +728,20 @@ function Patients() {
                 { label: "Gender", value: viewPatient.gender },
                 { label: "Mobile", value: viewPatient.phone },
                 { label: "Reason for visit", value: viewPatient.condition },
+                { label: "Date of birth", value: viewPatient.dateOfBirth },
+                { label: "Marital status", value: viewPatient.maritalStatus },
+                {
+                  label: "Address",
+                  value: [viewPatient.addressLine, viewPatient.city, viewPatient.district, viewPatient.state, viewPatient.pincode].filter(Boolean).join(", "),
+                },
+                { label: "ID", value: viewPatient.idType ? `${viewPatient.idType} ending ${viewPatient.idLast4 || "—"}` : "" },
+                { label: "Payer", value: [viewPatient.payerType, viewPatient.payerName, viewPatient.policyNumber].filter(Boolean).join(" · ") },
+                {
+                  label: "Emergency contact",
+                  value: [viewPatient.emergencyName, viewPatient.emergencyRelation && `(${viewPatient.emergencyRelation})`, viewPatient.emergencyPhone]
+                    .filter(Boolean)
+                    .join(" "),
+                },
               ]}
             />
           </div>
@@ -553,7 +757,7 @@ function Patients() {
         onConfirm={confirmDelete}
         loading={deleting}
         destructive
-        title="Permanently delete patient?"
+        title={t("Permanently delete patient?")}
         confirmLabel="Delete patient and records"
         confirmDisabled={
           pendingDelete?.source === "api" &&
@@ -561,16 +765,15 @@ function Patients() {
         }
         message={
           <>
-            Deleting <strong className="font-semibold text-ink-900">{pendingDelete?.name}</strong> (
-            {pendingDelete && formatPatientId(pendingDelete)}) also permanently deletes their visits, clinical notes, prescriptions, medication
-            records, lab tests, admissions, invoices and consent records. This cannot be undone. Use it only for a registration made in error.
+            {t("Deleting")}{" "}<strong className="font-semibold text-ink-900">{pendingDelete?.name}</strong> (
+            {pendingDelete && formatPatientId(pendingDelete)}{t(") also permanently deletes their visits, clinical notes, prescriptions, medication records, lab tests, admissions, invoices and consent records. This cannot be undone. Use it only for a registration made in error.")}
           </>
         }
       >
         {pendingDelete?.source === "api" && (
           <div className="mt-4">
             <label htmlFor="confirm-patient-name" className="hms-label">
-              Type the patient&apos;s name to confirm
+              {t("Type the patient's name to confirm")}
             </label>
             <input
               id="confirm-patient-name"
