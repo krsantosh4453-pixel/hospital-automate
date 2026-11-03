@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Check, Minus } from "lucide-react"
 import { useRole, ALL_MODULES } from "../../assets/context/RoleContext.jsx"
 import { Alert, Card, PageHeader, TableWrap, Tabs } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const ACTIONS = ["View", "Add", "Edit", "Delete"]
 
@@ -11,6 +12,7 @@ const ACTIONS = ["View", "Add", "Edit", "Delete"]
  * roles per hospital under Users.
  */
 function Permissions() {
+  const { t } = useLanguage()
   const { roles, activeRoleName } = useRole()
   const staffRoles = roles.filter((role) => role.name !== "Patient")
   const [selectedName, setSelectedName] = useState(activeRoleName && staffRoles.some((r) => r.name === activeRoleName) ? activeRoleName : staffRoles[0]?.name)
@@ -23,14 +25,13 @@ function Permissions() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Permissions"
+        title={t("Permissions")}
         description="What each role can see and do in this hospital system."
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Permissions" }]}
       />
 
-      <Alert tone="info" title="Roles are built in">
-        These rules are part of the application, and the server checks every request against them. They cannot be
-        edited here. To change what a person can do, give them a different role for that hospital under Users.
+      <Alert tone="info" title={t("Roles are built in")}>
+        {t("These rules are part of the application, and the server checks every request against them. They cannot be edited here. To change what a person can do, give them a different role for that hospital under Users.")}
       </Alert>
 
       <Card className="overflow-hidden">
@@ -45,10 +46,10 @@ function Permissions() {
         </div>
         <TableWrap>
           <table className="hms-table">
-            <caption className="sr-only">Permissions of the {selectedRole?.name} role</caption>
+            <caption className="sr-only">{t("Permissions of the")}{" "}{selectedRole?.name}{" "}{t("role")}</caption>
             <thead>
               <tr>
-                <th scope="col">Module</th>
+                <th scope="col">{t("Module")}</th>
                 {ACTIONS.map((action) => <th key={action} scope="col" className="text-center">{action}</th>)}
               </tr>
             </thead>
@@ -59,9 +60,9 @@ function Permissions() {
                   {ACTIONS.map((action) => (
                     <td key={action} className="text-center">
                       {allowed(module, action) ? (
-                        <Check size={16} className="inline text-emerald-600" aria-label="Allowed" />
+                        <Check size={16} className="inline text-emerald-600" aria-label={t("Allowed")} />
                       ) : (
-                        <Minus size={16} className="inline text-ink-300" aria-label="Not allowed" />
+                        <Minus size={16} className="inline text-ink-300" aria-label={t("Not allowed")} />
                       )}
                     </td>
                   ))}
@@ -71,7 +72,7 @@ function Permissions() {
           </table>
         </TableWrap>
         <p className="border-t border-line px-4 py-3 text-xs text-ink-500">
-          {isAdmin ? "Admin has full access to every module of their hospital." : `Modules not listed are not available to ${selectedRole?.name}.`}
+          {isAdmin ? "Admin has full access to every module of their hospital." : t("Modules not listed are not available to {name}.", { name: selectedRole?.name })}
         </p>
       </Card>
     </div>

@@ -19,6 +19,7 @@ import { usePatient } from "../../assets/context/PatientContext.jsx"
 import { useRole } from "../../assets/context/RoleContext.jsx"
 import api from "../../services/api.js"
 import { Alert, Button, Card, CardHeader, EmptyState, PageHeader, StatTile } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 
@@ -53,6 +54,7 @@ const MODULES = [
 ]
 
 function AdminDashboard() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
   const { canView } = useRole()
   const [data, setData] = useState(null)
@@ -99,28 +101,28 @@ function AdminDashboard() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Administration"
-        description={selectedHospital ? `Staff, structure and activity for ${selectedHospital.name}.` : "Select a hospital to administer."}
+        title={t("Administration")}
+        description={selectedHospital ? t("Staff, structure and activity for {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital to administer."}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration" }]}
-        actions={selectedHospital && <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>}
+        actions={selectedHospital && <Button variant="secondary" icon={RefreshCw} onClick={load} disabled={loading}>{t("Refresh")}</Button>}
       />
 
       {!selectedHospital ? (
-        <Card><EmptyState icon={Hospital} title="Select a hospital" description="Choose a hospital in the header." /></Card>
+        <Card><EmptyState icon={Hospital} title={t("Select a hospital")} description="Choose a hospital in the header." /></Card>
       ) : (
         <>
-          {errors.length > 0 && <Alert tone="warning" title="Some figures could not be loaded">{[...new Set(errors)].join(" ")}</Alert>}
+          {errors.length > 0 && <Alert tone="warning" title={t("Some figures could not be loaded")}>{[...new Set(errors)].join(" ")}</Alert>}
 
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
             <StatTile icon={UsersRound} label="Active staff" value={loading ? null : num(activeStaff)} hint={data ? `${data.staff.length} in total` : undefined} />
             <StatTile icon={UserCheck} tone="warning" label="Invite pending" value={loading ? null : num(invitePending)} hint="Invited, password not set yet" />
             <StatTile icon={ClipboardList} tone="accent" label="Departments" value={loading ? null : num(data?.departments.length)} />
-            <StatTile icon={Stethoscope} tone="success" label="Doctors" value={loading ? null : num(data?.stats?.doctors?.total)} hint={data?.stats ? `${num(data.stats.patients?.total)} patients registered` : undefined} />
+            <StatTile icon={Stethoscope} tone="success" label="Doctors" value={loading ? null : num(data?.stats?.doctors?.total)} hint={data?.stats ? t("{total} patients registered", { total: num(data.stats.patients?.total) }) : undefined} />
           </div>
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_26rem]">
             <Card>
-              <CardHeader title="Administration areas" />
+              <CardHeader title={t("Administration areas")} />
               <div className="grid grid-cols-1 gap-px bg-line sm:grid-cols-2">
                 {MODULES.filter((m) => canView(m.module)).map(({ to, icon: Icon, title, text }) => (
                   <Link key={to} to={to} className="group flex items-center gap-3 bg-white px-5 py-4 hover:bg-ink-50">
@@ -140,16 +142,16 @@ function AdminDashboard() {
             <Card>
               <CardHeader
                 icon={History}
-                title="Recent activity"
+                title={t("Recent activity")}
                 description="From the audit trail"
-                actions={data?.auditAvailable && <Link to="/admin/audit" className="text-[13px] font-medium text-brand-700 hover:underline">Open audit log</Link>}
+                actions={data?.auditAvailable && <Link to="/admin/audit" className="text-[13px] font-medium text-brand-700 hover:underline">{t("Open audit log")}</Link>}
               />
               {loading ? (
-                <p className="px-5 py-6 text-sm text-ink-500">Loading…</p>
+                <p className="px-5 py-6 text-sm text-ink-500">{t("Loading…")}</p>
               ) : !data?.auditAvailable ? (
-                <EmptyState compact icon={History} title="Audit trail not available" description="Only hospital administrators can read the audit trail." />
+                <EmptyState compact icon={History} title={t("Audit trail not available")} description="Only hospital administrators can read the audit trail." />
               ) : data.audit.length === 0 ? (
-                <EmptyState compact icon={History} title="No recorded activity yet" />
+                <EmptyState compact icon={History} title={t("No recorded activity yet")} />
               ) : (
                 <ol className="divide-y divide-ink-100">
                   {data.audit.map((entry) => (

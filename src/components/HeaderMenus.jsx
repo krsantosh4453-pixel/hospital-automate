@@ -252,7 +252,7 @@ export function UserMenu() {
         onClick={() => setOpen(!open)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Profile menu for ${displayName}`}
+        aria-label={t("Profile menu for {name}", { name: displayName })}
         className="flex h-10 items-center gap-2.5 rounded-lg pl-1 pr-2 hover:bg-ink-100"
       >
         <Avatar name={displayName} size="sm" />

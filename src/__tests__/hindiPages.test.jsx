@@ -2,7 +2,7 @@ import React, { act } from "react"
 import { createRoot } from "react-dom/client"
 import { afterEach, describe, expect, it } from "vitest"
 import { LanguageProvider, useLanguage } from "../assets/context/LanguageContext.jsx"
-import { Button, PageHeader, Select, TableWrap } from "../components/ui"
+import { Button, PageHeader, Select, StatusBadge, TableWrap } from "../components/ui"
 import HI_PAGES from "../assets/i18n/hiPages.js"
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -62,6 +62,20 @@ describe("Hindi page text (A17)", () => {
     const broken = Object.entries(HI_PAGES).filter(([english, hindi]) =>
       !hindi.trim() || names(english).join() !== names(hindi).join())
     expect(broken).toEqual([])
+  })
+
+  it("translates server statuses whatever their spelling, and keeps unknown ones", () => {
+    render(
+      <>
+        <StatusBadge status="in_progress" />
+        <StatusBadge status="scheduled" />
+        <StatusBadge status="Result Entered" />
+        <StatusBadge status="quarantined" />
+      </>,
+    )
+
+    expect([...host.querySelectorAll("span.capitalize")].map((s) => s.textContent))
+      .toEqual(["प्रगति में", "निर्धारित", "परिणाम दर्ज", "quarantined"])
   })
 
   it("never changes the value an option submits", () => {

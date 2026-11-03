@@ -7,8 +7,10 @@ import { ArrowLeft, KeyRound, LockKeyhole, ShieldCheck, UserRound } from "lucide
 import { BrandMark } from "../components/Sidebar.jsx"
 import DevLoginPanel from "../components/DevLoginPanel.jsx"
 import { Alert, Button, Field, Input } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function StaffLogin() {
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const inDialog = useInSignInDialog()
   const { staffLogin, staffLoginStartOtp, staffOtpVerify, staffOtpResend, applyDevelopmentAccess, devBypassAvailable } = useAuth()
@@ -141,7 +143,7 @@ function StaffLogin() {
 
   const titles = {
     credentials: ["Sign in", "Use your hospital staff account."],
-    otp: ["Enter the code", `We sent a 6-digit code to your mobile (${maskedPhone}).`],
+    otp: ["Enter the code", t("We sent a 6-digit code to your mobile ({maskedPhone}).", { maskedPhone })],
     "reset-request": ["Reset your password", "A code is sent to the mobile number registered on your staff account."],
     "reset-confirm": ["Reset your password", "Enter the code from the SMS and choose a new password."],
   }
@@ -152,7 +154,7 @@ function StaffLogin() {
           <DevLoginPanel />
 
           <div className={inDialog ? "" : "hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8"}>
-            {!inDialog && <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-700">Staff portal</p>}
+            {!inDialog && <p className="text-xs font-semibold uppercase tracking-[0.1em] text-brand-700">{t("Staff portal")}</p>}
             <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink-900">{title}</h2>
             <p className="mt-1 text-sm text-ink-500">{subtitle}</p>
 
@@ -198,7 +200,7 @@ function StaffLogin() {
                     {step === "reset-request" ? "Send reset code" : "Set new password"}
                   </Button>
                   <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={goBackToCredentials} disabled={loading}>
-                    Back to sign in
+                    {t("Back to sign in")}
                   </Button>
                 </form>
               ) : step === "credentials" ? (
@@ -210,7 +212,7 @@ function StaffLogin() {
                     <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" disabled={loading} />
                   </Field>
                   <Button type="submit" size="lg" loading={loading} className="w-full justify-center">
-                    Continue
+                    {t("Continue")}
                   </Button>
                   <button
                     type="button"
@@ -222,7 +224,7 @@ function StaffLogin() {
                     className="inline-flex items-center gap-1.5 rounded text-[13px] font-medium text-brand-700 hover:underline"
                     disabled={loading}
                   >
-                    <KeyRound size={14} aria-hidden="true" /> Forgot password?
+                    <KeyRound size={14} aria-hidden="true" />{" "}{t("Forgot password?")}
                   </button>
                 </form>
               ) : (
@@ -243,14 +245,14 @@ function StaffLogin() {
                     />
                   </Field>
                   <Button type="submit" size="lg" loading={loading} className="w-full justify-center">
-                    Verify and continue
+                    {t("Verify and continue")}
                   </Button>
                   <div className="flex items-center justify-between">
                     <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={goBackToCredentials} disabled={loading}>
-                      Back
+                      {t("Back")}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={handleResendOtp} disabled={loading}>
-                      Resend code
+                      {t("Resend code")}
                     </Button>
                   </div>
                 </form>
@@ -259,13 +261,13 @@ function StaffLogin() {
 
             {devBypassAvailable && (
               <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Local development only</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">{t("Local development only")}</p>
                 <Button variant="secondary" size="sm" onClick={handleDevelopmentAccess} className="mt-2 w-full justify-center">
-                  Development access (OTP bypassed)
+                  {t("Development access (OTP bypassed)")}
                 </Button>
                 <p className="mt-2 text-xs text-amber-800">
-                  Disable with <code className="font-mono">VITE_DEV_AUTH_BYPASS=false</code>. Seed accounts:{" "}
-                  <span className="font-mono">doctor_a</span>, <span className="font-mono">nurse_b</span> (password in the seed data).
+                  {t("Disable with")}{" "}<code className="font-mono">VITE_DEV_AUTH_BYPASS=false</code>{t(". Seed accounts:")}{" "}
+                  <span className="font-mono">{t("doctor_a")}</span>, <span className="font-mono">{t("nurse_b")}</span>{" "}{t("(password in the seed data).")}
                 </p>
               </div>
             )}
@@ -273,11 +275,11 @@ function StaffLogin() {
 
           <div className="mt-6 space-y-2 text-center text-[13px] text-ink-500">
             <p>
-              New staff member? Ask your hospital&apos;s administrator for an invitation — it has the link to set your password.
+              {t("New staff member? Ask your hospital's administrator for an invitation — it has the link to set your password.")}
             </p>
             <p>
-              Patient?{" "}
-              <SignInLink to="/patient-login" replace className="font-medium text-brand-700 hover:underline">Sign in to the patient portal</SignInLink>
+              {t("Patient?")}{" "}
+              <SignInLink to="/patient-login" replace className="font-medium text-brand-700 hover:underline">{t("Sign in to the patient portal")}</SignInLink>
             </p>
           </div>
         </>
@@ -293,26 +295,26 @@ function StaffLogin() {
         <BrandMark />
         <div>
           <h1 className="text-3xl font-semibold leading-tight tracking-tight">
-            Calm, connected care
+            {t("Calm, connected care")}
             <br />
-            across every ward.
+            {t("across every ward.")}
           </h1>
           <ul className="mt-8 space-y-4 text-[15px] text-brand-100/90">
             <li className="flex gap-3">
               <ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-300" aria-hidden="true" />
-              Every hospital&apos;s records stay separate; you only see the hospitals you belong to.
+              {t("Every hospital's records stay separate; you only see the hospitals you belong to.")}
             </li>
             <li className="flex gap-3">
               <LockKeyhole size={20} className="mt-0.5 shrink-0 text-brand-300" aria-hidden="true" />
-              Sign-in is confirmed with a one-time code sent to your registered mobile.
+              {t("Sign-in is confirmed with a one-time code sent to your registered mobile.")}
             </li>
             <li className="flex gap-3">
               <UserRound size={20} className="mt-0.5 shrink-0 text-brand-300" aria-hidden="true" />
-              Every change to a patient record is attributed and kept in the audit trail.
+              {t("Every change to a patient record is attributed and kept in the audit trail.")}
             </li>
           </ul>
         </div>
-        <p className="text-xs text-brand-200/60">For authorised hospital staff only.</p>
+        <p className="text-xs text-brand-200/60">{t("For authorised hospital staff only.")}</p>
       </aside>
 
       {/* Form */}

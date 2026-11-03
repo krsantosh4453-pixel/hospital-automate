@@ -186,7 +186,7 @@ function Nurses() {
     })))
 
     if (failed.length > 0) {
-      setError(`Could not load: ${failed.join("; ")}`)
+      setError(t("Could not load: {reason}", { reason: failed.join("; ") }))
     }
     setLoading(false)
   }
@@ -482,7 +482,7 @@ function Nurses() {
       setShowAddNurse(false)
       await loadData()
     } catch (err) {
-      toast.error(`Could not add nurse: ${err.message}`)
+      toast.error(t("Could not add nurse: {reason}", { reason: err.message }))
     } finally {
       setSaving(false)
     }
@@ -523,7 +523,7 @@ function Nurses() {
       await api.nurses.delete(nurse.id)
       await loadData()
     } catch (err) {
-      toast.error(`Could not remove nurse: ${err.message}`)
+      toast.error(t("Could not remove nurse: {reason}", { reason: err.message }))
     }
   }
 
@@ -575,7 +575,7 @@ function Nurses() {
         },
       })
     } catch (err) {
-      toast.error(`Vitals were not saved: ${err.message}`)
+      toast.error(t("Vitals were not saved: {reason}", { reason: err.message }))
       setSaving(false)
       return
     }
@@ -633,7 +633,7 @@ function Nurses() {
         note: noteForm.text.trim(),
       })
     } catch (err) {
-      toast.error(`Note was not saved: ${err.message}`)
+      toast.error(t("Note was not saved: {reason}", { reason: err.message }))
       setSaving(false)
       return
     }
@@ -687,7 +687,7 @@ function Nurses() {
         plan_of_care: assessmentForm.assessment.trim(),
       })
     } catch (err) {
-      toast.error(`Assessment was not saved: ${err.message}`)
+      toast.error(t("Assessment was not saved: {reason}", { reason: err.message }))
       setSaving(false)
       return
     }
@@ -719,13 +719,13 @@ function Nurses() {
       return
     }
 
-    if (!(await confirm(`Record ${item.medicine} ${item.dose} as given to ${item.patientName || "this patient"} now?`))) return
+    if (!(await confirm(t("Record {medicine} {dose} as given to {patient} now?", { medicine: item.medicine, dose: item.dose, patient: item.patientName || "this patient" })))) return
 
     try {
       await api.nurses.marAdministrations.administer(item.id, {})
       await loadData()
     } catch (err) {
-      toast.error(`Dose was not recorded: ${err.message}`)
+      toast.error(t("Dose was not recorded: {reason}", { reason: err.message }))
     }
   }
 
@@ -748,7 +748,7 @@ function Nurses() {
 
     const confirmed =
       (await confirm(
-        `Start discharge process for ${patient.name}?`
+        t("Start discharge process for {patient}?", { patient: patient.name })
       ))
 
     if (!confirmed) return
@@ -760,7 +760,7 @@ function Nurses() {
         "Discharge initiated. A doctor must finalize the discharge summary before discharge can be completed."
       )
     } catch (err) {
-      toast.error(`Discharge was not started: ${err.message}`)
+      toast.error(t("Discharge was not started: {reason}", { reason: err.message }))
     }
   }
 
@@ -852,7 +852,7 @@ function Nurses() {
     <>{confirmDialog}<div className="space-y-5">
       <UiPageHeader
         title={t("Nursing")}
-        description={`Ward work for ${selectedHospital.name} · signed in as ${profile.name}`}
+        description={t("Ward work for {hospital} · signed in as {name}", { hospital: selectedHospital.name, name: profile.name })}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Nursing" }]}
         actions={isAdmin && <Button icon={UserPlusIcon} onClick={() => setShowAddNurse(true)}>{t("Add nurse")}</Button>}
       />
@@ -1034,7 +1034,7 @@ function Nurses() {
 
         <SectionCard
           title={t("My Profile")}
-          subtitle={`Nurse profile — ${selectedHospital.name}`}
+          subtitle={t("Nurse profile — {hospital}", { hospital: selectedHospital.name })}
         >
 
           <div className="flex flex-col md:flex-row gap-6">
@@ -2060,7 +2060,7 @@ function Nurses() {
 
         <SectionCard
           title={t("Billing")}
-          subtitle={`Billing information — ${selectedHospital.name}`}
+          subtitle={t("Billing information — {hospital}", { hospital: selectedHospital.name })}
         >
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -2189,7 +2189,7 @@ function Nurses() {
 
         <Modal
           title={t("Add Nurse")}
-          subtitle={`Add nurse to ${selectedHospital.name}`}
+          subtitle={t("Add nurse to {hospital}", { hospital: selectedHospital.name })}
           onClose={() =>
             setShowAddNurse(false)
           }

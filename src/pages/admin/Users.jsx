@@ -5,11 +5,13 @@ import { UserPlus } from "lucide-react"
 import { Alert, Badge, Button, Card, CardBody, CardHeader, PageHeader, useConfirm } from "../../components/ui"
 import InviteStaffForm, { InviteLink } from "../../components/admin/InviteStaffForm.jsx"
 import { STAFF_ROLES as ROLES } from "../../config/staffRoles.js"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Staff of the selected hospital, managed through /api/users/. Staff join
 // only by invitation from here (they set a password from the link); the
 // backend only lets this hospital's Admin or Hospital Manager make changes.
 function Users() {
+  const { t } = useLanguage()
   const [confirm, confirmDialog] = useConfirm()
 
   const { selectedHospital } = usePatient()
@@ -73,17 +75,17 @@ function Users() {
     run(
       member.id,
       () => api.users.updateMembership(member.id, { department: departmentId ? Number(departmentId) : null }),
-      name ? `${member.name} now works in ${name}.` : `${member.name} now works across all departments.`,
+      name ? t("{name} now works in {department}.", { name: member.name, department: name }) : t("{name} now works across all departments.", { name: member.name }),
     )
   }
 
   const toggleActive = async (member) => {
     const active = !member.membership?.is_active
-    if (!active && !(await confirm(`Remove ${member.name}'s access to this hospital?`))) return
+    if (!active && !(await confirm(t("Remove {name}'s access to this hospital?", { name: member.name })))) return
     run(
       member.id,
       () => api.users.updateMembership(member.id, { is_active: active }),
-      active ? `${member.name} can sign in to this hospital again.` : `${member.name}'s access was removed.`,
+      active ? t("{name} can sign in to this hospital again.", { name: member.name }) : t("{name}'s access was removed.", { name: member.name }),
     )
   }
 
@@ -91,7 +93,7 @@ function Users() {
     run(
       member.id,
       async () => setNewLink(await api.users.resendInvite(member.id)),
-      `New invitation link for ${member.name} is below.`,
+      t("New invitation link for {name} is below.", { name: member.name }),
     )
 
   const filteredStaff = useMemo(() => {
@@ -116,12 +118,12 @@ function Users() {
   return (
     <>{confirmDialog}<div className="space-y-5">
       <PageHeader
-        title="Users"
-        description={`Staff of ${selectedHospital?.name || "the selected hospital"}. Staff join by invitation with the role you choose.`}
+        title={t("Users")}
+        description={t("Staff of {hospital}. Staff join by invitation with the role you choose.", { hospital: selectedHospital?.name || "the selected hospital" })}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Users" }]}
         actions={
           <Button icon={UserPlus} onClick={() => setShowInvite(!showInvite)} aria-expanded={showInvite}>
-            Invite staff
+            {t("Invite staff")}
           </Button>
         }
       />
@@ -133,7 +135,7 @@ function Users() {
       {showInvite && (
         <Card>
           <CardHeader
-            title="Invite staff"
+            title={t("Invite staff")}
             icon={UserPlus}
             description="They get a link to set their password, then sign in with the role you choose."
           />
@@ -145,15 +147,15 @@ function Users() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="rounded-2xl border border-line bg-white p-5">
-          <p className="text-gray-500 text-sm">Total Staff</p>
+          <p className="text-gray-500 text-sm">{t("Total Staff")}</p>
           <h2 className="text-3xl font-bold mt-2">{staff.length}</h2>
         </div>
         <div className="rounded-2xl border border-line bg-white p-5">
-          <p className="text-gray-500 text-sm">Active</p>
+          <p className="text-gray-500 text-sm">{t("Active")}</p>
           <h2 className="text-3xl font-bold text-green-600 mt-2">{activeCount}</h2>
         </div>
         <div className="rounded-2xl border border-line bg-white p-5">
-          <p className="text-gray-500 text-sm">Invite Pending</p>
+          <p className="text-gray-500 text-sm">{t("Invite Pending")}</p>
           <h2 className="text-3xl font-bold text-orange-600 mt-2">{invitePendingCount}</h2>
         </div>
       </div>
@@ -162,14 +164,14 @@ function Users() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           <input
             type="text"
-            aria-label="Search staff"
-            placeholder="Search by name, username, email or employee ID"
+            aria-label={t("Search staff")}
+            placeholder={t("Search by name, username, email or employee ID")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="hms-input"
           />
           <select
-            aria-label="Filter by role"
+            aria-label={t("Filter by role")}
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
             className="hms-input"
@@ -180,7 +182,7 @@ function Users() {
             ))}
           </select>
           <select
-            aria-label="Filter by status"
+            aria-label={t("Filter by status")}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="hms-input"
@@ -192,20 +194,20 @@ function Users() {
         </div>
 
         {loading ? (
-          <p className="text-gray-500 text-sm" role="status">Loading staff…</p>
+          <p className="text-gray-500 text-sm" role="status">{t("Loading staff…")}</p>
         ) : filteredStaff.length === 0 ? (
-          <p className="text-gray-500 text-sm">No staff match.</p>
+          <p className="text-gray-500 text-sm">{t("No staff match.")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b">
-                  <th className="py-2 pr-4">Name</th>
-                  <th className="py-2 pr-4">Username</th>
-                  <th className="py-2 pr-4">Contact</th>
-                  <th className="py-2 pr-4">Role</th>
-                  <th className="py-2 pr-4">Department</th>
-                  <th className="py-2 pr-4">Status</th>
+                  <th className="py-2 pr-4">{t("Name")}</th>
+                  <th className="py-2 pr-4">{t("Username")}</th>
+                  <th className="py-2 pr-4">{t("Contact")}</th>
+                  <th className="py-2 pr-4">{t("Role")}</th>
+                  <th className="py-2 pr-4">{t("Department")}</th>
+                  <th className="py-2 pr-4">{t("Status")}</th>
                   <th className="py-2"></th>
                 </tr>
               </thead>
@@ -228,7 +230,7 @@ function Users() {
                       </td>
                       <td className="py-3 pr-4">
                         <select
-                          aria-label={`Role of ${member.name}`}
+                          aria-label={t("Role of {name}", { name: member.name })}
                           value={member.membership?.role || ""}
                           disabled={busyId === member.id}
                           onChange={(e) => changeRole(member, e.target.value)}
@@ -241,7 +243,7 @@ function Users() {
                       </td>
                       <td className="py-3 pr-4">
                         <select
-                          aria-label={`Department of ${member.name}`}
+                          aria-label={t("Department of {name}", { name: member.name })}
                           value={member.membership?.department ? String(member.membership.department) : ""}
                           disabled={busyId === member.id}
                           onChange={(e) => changeDepartment(member, e.target.value)}
@@ -260,7 +262,7 @@ function Users() {
                           {active ? "Active" : "Inactive"}
                         </span>
                         {member.invite_pending && (
-                          <Badge tone="warning" className="ml-2">Invite pending</Badge>
+                          <Badge tone="warning" className="ml-2">{t("Invite pending")}</Badge>
                         )}
                       </td>
                       <td className="py-3 text-right whitespace-nowrap">
@@ -272,7 +274,7 @@ function Users() {
                             disabled={busyId === member.id}
                             onClick={() => resendInvite(member)}
                           >
-                            New link
+                            {t("New link")}
                           </Button>
                         )}
                         <button

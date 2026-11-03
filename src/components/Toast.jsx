@@ -31,7 +31,7 @@ function ToastList({ toasts, hideToast }) {
           >
             <span className={`absolute inset-y-0 left-0 w-1 ${s.bar}`} aria-hidden="true" />
             <Icon size={18} className={`mt-0.5 shrink-0 ${s.accent}`} aria-hidden="true" />
-            <p className="flex-1 text-sm font-medium leading-6 text-ink-800">{toast.message}</p>
+            <p className="flex-1 text-sm font-medium leading-6 text-ink-800">{t(toast.message)}</p>
             <button
               type="button"
               onClick={() => hideToast(toast.id)}

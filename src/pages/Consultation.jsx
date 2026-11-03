@@ -529,11 +529,11 @@ function Consultation() {
       const parsed = Number(value)
 
       if (Number.isNaN(parsed)) {
-        return `${label} must be a number.`
+        return t("{label} must be a number.", { label })
       }
 
       if (parsed < min || parsed > max) {
-        return `${label} must be between ${min} and ${max}.`
+        return t("{label} must be between {min} and {max}.", { label, min, max })
       }
     }
 
@@ -1078,7 +1078,7 @@ function Consultation() {
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[20rem_minmax(0,1fr)]">
           {/* Visit list */}
           <Card className="flex max-h-[calc(100vh-10rem)] flex-col overflow-hidden xl:sticky xl:top-20">
-            <CardHeader title={t("Visits")} description={loadingVisits ? "Loading…" : `${visits.length} at this hospital`} />
+            <CardHeader title={t("Visits")} description={loadingVisits ? "Loading…" : t("{count} at this hospital", { count: visits.length })} />
             <div className="border-b border-line p-3">
               <SearchInput value={visitSearch} onChange={setVisitSearch} placeholder={t("Patient or visit #")} label="Search visits" />
             </div>

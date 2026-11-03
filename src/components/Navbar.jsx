@@ -53,14 +53,14 @@ function QuickJump({ open, onClose, groups, t }) {
                 go(items[index])
               }
             }}
-            placeholder="Type a module name…"
-            aria-label="Search pages"
+            placeholder={t("Type a module name…")}
+            aria-label={t("Search pages")}
             aria-controls="quick-jump-list"
             className="hms-input w-full pl-9"
           />
         </div>
         <ul id="quick-jump-list" role="listbox" className="mt-3 max-h-[50vh] space-y-0.5 overflow-y-auto">
-          {items.length === 0 && <li className="px-3 py-6 text-center text-sm text-ink-500">No page matches “{query}”.</li>}
+          {items.length === 0 && <li className="px-3 py-6 text-center text-sm text-ink-500">{t("No page matches “{query}”.", { query })}</li>}
           {items.map((item, i) => {
             const Icon = item.icon
             const active = i === index
@@ -163,7 +163,7 @@ function HospitalSwitcher({ hospitals, selectedHospital, onSelect, t }) {
       </button>
 
       {open && (
-        <div className={`${popoverPanel} w-[22rem] max-w-[calc(100vw-2rem)]`} role="dialog" aria-label="Select hospital">
+        <div className={`${popoverPanel} w-[22rem] max-w-[calc(100vw-2rem)]`} role="dialog" aria-label={t("Select hospital")}>
           <div className="border-b border-line p-3">
             <div className="relative">
               <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" aria-hidden="true" />
@@ -171,8 +171,8 @@ function HospitalSwitcher({ hospitals, selectedHospital, onSelect, t }) {
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name or city"
-                aria-label="Search hospitals"
+                placeholder={t("Search by name or city")}
+                aria-label={t("Search hospitals")}
                 className="hms-input h-9 min-h-0 w-full pl-8 text-[13px]"
               />
             </div>
@@ -228,7 +228,7 @@ function HospitalSwitcher({ hospitals, selectedHospital, onSelect, t }) {
                       onClick={() => openUrl(`https://www.google.com/maps/search/?api=1&query=${mapQuery(h)}`)}
                       className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11.5px] text-ink-600 hover:bg-ink-100"
                     >
-                      <MapPin size={12} aria-hidden="true" /> Map
+                      <MapPin size={12} aria-hidden="true" /> {t("Map")}
                     </button>
                     <button
                       type="button"
@@ -241,7 +241,7 @@ function HospitalSwitcher({ hospitals, selectedHospital, onSelect, t }) {
                       }
                       className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11.5px] text-ink-600 hover:bg-ink-100"
                     >
-                      <Navigation size={12} aria-hidden="true" /> Directions
+                      <Navigation size={12} aria-hidden="true" /> {t("Directions")}
                     </button>
                   </div>
                 </li>
@@ -249,7 +249,7 @@ function HospitalSwitcher({ hospitals, selectedHospital, onSelect, t }) {
             })}
           </ul>
           <p className="border-t border-line bg-ink-50 px-3 py-2 text-[11.5px] text-ink-500">
-            Switching hospital changes every list you see to that hospital&apos;s records.
+            {t("Switching hospital changes every list you see to that hospital's records.")}
           </p>
         </div>
       )}

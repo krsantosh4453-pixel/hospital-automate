@@ -183,7 +183,7 @@ export default function VisitImmunizations({ visit }) {
         </Card>
 
         <Card className="overflow-hidden">
-          <CardHeader title={t("Vaccination history")} description={`All of ${visit.patientName}'s doses, newest first`} />
+          <CardHeader title={t("Vaccination history")} description={t("All of {patient}'s doses, newest first", { patient: visit.patientName })} />
           {loading ? (
             <div className="px-5 py-4"><SkeletonRows rows={3} /></div>
           ) : doses.length === 0 ? (

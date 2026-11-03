@@ -51,7 +51,7 @@ export default function FamilyAccessCard() {
       const grant = await api.auth.grantFamilyAccess(form)
       setGrants((prev) => [grant, ...prev])
       setForm(EMPTY_FORM)
-      setNotice(`${grant.name} can now sign in with +91 ${grant.phone} and view your records.`)
+      setNotice(t("{name} can now sign in with +91 {phone} and view your records.", { name: grant.name, phone: grant.phone }))
     } catch (err) {
       setError(err.message || "Could not give access.")
     } finally {
@@ -62,7 +62,7 @@ export default function FamilyAccessCard() {
   const handleRevoke = async (grant) => {
     const ok = await confirm({
       title: "Remove family access?",
-      message: `${grant.name} will lose access to your records immediately.`,
+      message: t("{name} will lose access to your records immediately.", { name: grant.name }),
       confirmLabel: "Remove access",
       destructive: true,
     })
@@ -71,7 +71,7 @@ export default function FamilyAccessCard() {
     try {
       await api.auth.revokeFamilyAccess(grant.id)
       setGrants((prev) => prev.filter((g) => g.id !== grant.id))
-      setNotice(`${grant.name} no longer has access.`)
+      setNotice(t("{name} no longer has access.", { name: grant.name }))
     } catch (err) {
       setError(err.message || "Could not remove access.")
     }
@@ -138,7 +138,7 @@ export default function FamilyAccessCard() {
                   </p>
                   <p className="mt-0.5 text-[13px] text-ink-500">
                     +91 {grant.phone}{" "}{t("· added")}{" "}{formatDate(grant.created_at)}
-                    {grant.last_used_at ? ` · last signed in ${formatDate(grant.last_used_at)}` : " · has not signed in yet"}
+                    {grant.last_used_at ? t(" · last signed in {lastUsedAt}", { lastUsedAt: formatDate(grant.last_used_at) }) : " · has not signed in yet"}
                   </p>
                 </div>
                 <Button variant="danger-ghost" size="sm" onClick={() => handleRevoke(grant)}>{t("Remove access")}</Button>

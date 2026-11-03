@@ -25,7 +25,7 @@ export function InviteLink({ result }) {
   }
 
   return (
-    <Alert tone="success" title={`Invitation for ${result.name}`}>
+    <Alert tone="success" title={t("Invitation for {name}", { name: result.name })}>
       <p>
         {t("Username")}{" "}<strong>{result.username}</strong>.{" "}
         {result.emailed ? "The link was emailed to them. " : "Email is not set up, so send them this link yourself. "}

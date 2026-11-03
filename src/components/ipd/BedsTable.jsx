@@ -74,7 +74,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
       toast.success(`Bed ${bed.bed_number} is now ${status}`)
       await afterChange()
     } catch (err) {
-      toast.error(`Not changed: ${err.message}`)
+      toast.error(t("Not changed: {reason}", { reason: err.message }))
     } finally {
       setBusy("")
     }
@@ -83,7 +83,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
   const removeBed = async (bed) => {
     const ok = await confirm({
       title: "Delete bed?",
-      message: `Delete bed ${bed.bed_number} in ${bed.ward_name}, room ${bed.room_number}? A bed that ever held a patient cannot be deleted; set it to Maintenance instead.`,
+      message: t("Delete bed {bedNumber} in {name}, room {roomNumber}? A bed that ever held a patient cannot be deleted; set it to Maintenance instead.", { bedNumber: bed.bed_number, name: bed.ward_name, roomNumber: bed.room_number }),
       confirmLabel: "Delete bed",
     })
     if (!ok) return
@@ -93,7 +93,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
       toast.success(`Bed ${bed.bed_number} deleted`)
       await afterChange()
     } catch (err) {
-      toast.error(`Not deleted: ${err.message}`)
+      toast.error(t("Not deleted: {reason}", { reason: err.message }))
     } finally {
       setBusy("")
     }
@@ -109,7 +109,7 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
       setEditing(null)
       await afterChange()
     } catch (err) {
-      setEditError(`Not saved: ${err.message}`)
+      setEditError(t("Not saved: {reason}", { reason: err.message }))
     } finally {
       setBusy("")
     }
@@ -177,17 +177,17 @@ export default function BedsTable({ hospitalId, canManage, refreshKey, onChanged
                               value={bed.status}
                               onChange={(e) => changeStatus(bed, e.target.value)}
                               disabled={busy === `status-${bed.id}`}
-                              aria-label={`Status of bed ${bed.bed_number}`}
+                              aria-label={t("Status of bed {bedNumber}", { bedNumber: bed.bed_number })}
                               className="h-8 min-h-0 w-36 py-1 text-xs"
                             >
                               {MANUAL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                             </Select>
                           )}
-                          <Button size="sm" variant="ghost" icon={Pencil} onClick={() => { setEditError(""); setEditing({ ...bed }) }} aria-label={`Edit bed ${bed.bed_number}`}>
+                          <Button size="sm" variant="ghost" icon={Pencil} onClick={() => { setEditError(""); setEditing({ ...bed }) }} aria-label={t("Edit bed {bedNumber}", { bedNumber: bed.bed_number })}>
                             {t("Edit")}
                           </Button>
                           {!inUse && (
-                            <Button size="sm" variant="ghost" icon={Trash2} loading={busy === `delete-${bed.id}`} onClick={() => removeBed(bed)} aria-label={`Delete bed ${bed.bed_number}`}>
+                            <Button size="sm" variant="ghost" icon={Trash2} loading={busy === `delete-${bed.id}`} onClick={() => removeBed(bed)} aria-label={t("Delete bed {bedNumber}", { bedNumber: bed.bed_number })}>
                               {t("Delete")}
                             </Button>
                           )}

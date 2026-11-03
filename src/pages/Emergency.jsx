@@ -174,7 +174,7 @@ function Emergency() {
   const handleStartConsultation = async (visit) => {
     try {
       await api.emergency.visits.startConsultation(visit.id, { doctor_id: visit.attending_doctor })
-      toast.success(`Consultation started for ${visit.patient_name}`)
+      toast.success(t("Consultation started for {patient}", { patient: visit.patient_name }))
       fetchData()
     } catch (err) {
       toast.error(err.message || "Failed to start consultation")
@@ -246,7 +246,7 @@ function Emergency() {
   const header = (
     <PageHeader
       title={t("Emergency")}
-      description={selectedHospital ? `ER board for ${selectedHospital.name}, sorted by triage priority.` : undefined}
+      description={selectedHospital ? t("ER board for {hospital}, sorted by triage priority.", { hospital: selectedHospital.name }) : undefined}
       breadcrumbs={[{ label: "Home", to: "/" }, { label: "Emergency" }]}
       actions={
         selectedHospital && (
@@ -291,11 +291,11 @@ function Emergency() {
         <>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
             <StatTile icon={Activity} tone="danger" label="Active patients" value={loading ? null : activeVisits.length} />
-            {TRIAGE.map((t) => (
-              <div key={t.level} className="rounded-2xl border border-line bg-white p-4">
-                <TriageBadge level={t.level} />
-                <p className="mt-2 text-2xl font-semibold text-ink-900 tabular-nums">{loading ? "—" : counts[t.level] ?? 0}</p>
-                <p className="text-xs text-ink-500">Target {t.target}</p>
+            {TRIAGE.map((tier) => (
+              <div key={tier.level} className="rounded-2xl border border-line bg-white p-4">
+                <TriageBadge level={tier.level} />
+                <p className="mt-2 text-2xl font-semibold text-ink-900 tabular-nums">{loading ? "—" : counts[tier.level] ?? 0}</p>
+                <p className="text-xs text-ink-500">{t("Target {target}", { target: t(tier.target) })}</p>
               </div>
             ))}
           </div>
@@ -363,7 +363,7 @@ function Emergency() {
                                   <Button size="sm" variant="secondary" icon={LogOut} onClick={() => open("discharge", visit)}>{t("Discharge")}</Button>
                                 </>
                               )}
-                              <Button size="sm" variant="ghost" icon={LayoutGrid} onClick={() => setActionsVisit(visit)} aria-label={`All actions for ${visit.patient_name}`}>{t("All actions")}</Button>
+                              <Button size="sm" variant="ghost" icon={LayoutGrid} onClick={() => setActionsVisit(visit)} aria-label={t("All actions for {patient}", { patient: visit.patient_name })}>{t("All actions")}</Button>
                             </div>
                           </td>
                         </tr>
@@ -401,7 +401,7 @@ function Emergency() {
                           <td className="whitespace-nowrap tabular-nums text-ink-600">{new Date(visit.arrival_time).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</td>
                           <td className="whitespace-nowrap tabular-nums text-ink-600">{visit.discharge_time ? new Date(visit.discharge_time).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—"}</td>
                           <td className="text-right">
-                            <Button size="sm" variant="ghost" icon={LayoutGrid} onClick={() => setActionsVisit(visit)} aria-label={`All actions for ${visit.patient_name}`}>{t("All actions")}</Button>
+                            <Button size="sm" variant="ghost" icon={LayoutGrid} onClick={() => setActionsVisit(visit)} aria-label={t("All actions for {patient}", { patient: visit.patient_name })}>{t("All actions")}</Button>
                           </td>
                         </tr>
                       ))}

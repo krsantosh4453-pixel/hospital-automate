@@ -122,7 +122,7 @@ export default function VisitDocuments({ visit }) {
     run(`status-${referral.id}`, async () => {
       const updated = await api.clinical.referrals.setStatus(referral.id, status)
       setReferrals((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
-    }, `Referral marked ${status.toLowerCase()}.`)
+    }, t("Referral marked {status}.", { status: status.toLowerCase() }))
 
   const setCert = (field) => (event) => setCertificateForm({ ...certificateForm, [field]: event.target.value })
   const setRef = (field) => (event) => setReferralForm({ ...referralForm, [field]: event.target.value })
@@ -135,7 +135,7 @@ export default function VisitDocuments({ visit }) {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <Card as="form" onSubmit={issueCertificate}>
-          <CardHeader title={t("Issue medical certificate")} description={`For ${visit.patientName}. Signed by you; cannot be edited later.`} />
+          <CardHeader title={t("Issue medical certificate")} description={t("For {patient}. Signed by you; cannot be edited later.", { patient: visit.patientName })} />
           <div className="space-y-4 px-5 py-4">
             <Field label="Type" required>
               <Select value={certificateForm.kind} onChange={setCert("kind")}>
@@ -194,7 +194,7 @@ export default function VisitDocuments({ visit }) {
       </div>
 
       <Card>
-        <CardHeader title={t("Certificates and referrals")} description={`All of ${visit.patientName}'s, newest first`} />
+        <CardHeader title={t("Certificates and referrals")} description={t("All of {patient}'s, newest first", { patient: visit.patientName })} />
         <div className="px-5 py-4">
           {loading ? (
             <SkeletonRows rows={3} />
@@ -222,7 +222,7 @@ export default function VisitDocuments({ visit }) {
                   <div className="flex items-center gap-2">
                     <StatusBadge status={ref.status} />
                     <Select
-                      aria-label={`Status of referral ${ref.id}`}
+                      aria-label={t("Status of referral {refId}", { refId: ref.id })}
                       className="w-36"
                       value={ref.status}
                       disabled={saving === `status-${ref.id}`}

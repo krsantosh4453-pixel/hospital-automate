@@ -633,7 +633,7 @@ function Compounder() {
 
     const confirmed =
       (await confirm(
-        `Start discharge process for ${patient.name}?`
+        t("Start discharge process for {patient}?", { patient: patient.name })
       ))
 
     if (!confirmed) return
@@ -749,7 +749,7 @@ function Compounder() {
     <>{confirmDialog}<div className="space-y-5">
       <UiPageHeader
         title={t("Compounder")}
-        description={`${selectedHospital.name} · signed in as ${profile.name}`}
+        description={t("{hospital} · signed in as {name}", { hospital: selectedHospital.name, name: profile.name })}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Compounder" }]}
         actions={isAdmin && <Button icon={UserPlusIcon} onClick={() => setShowAddCompounder(true)}>{t("Add compounder")}</Button>}
       />
@@ -924,7 +924,7 @@ function Compounder() {
 
         <SectionCard
           title={t("My Profile")}
-          subtitle={`Compounder profile — ${selectedHospital.name}`}
+          subtitle={t("Compounder profile — {hospital}", { hospital: selectedHospital.name })}
         >
 
           <div className="flex flex-col md:flex-row gap-6">
@@ -1687,7 +1687,7 @@ function Compounder() {
 
         <SectionCard
           title={t("Blood Management")}
-          subtitle={`Blood records — ${selectedHospital.name}`}
+          subtitle={t("Blood records — {hospital}", { hospital: selectedHospital.name })}
         >
 
           <div className="space-y-4">
@@ -1975,7 +1975,7 @@ function Compounder() {
 
         <Modal
           title={t("Add Compounder")}
-          subtitle={`Add to ${selectedHospital.name}`}
+          subtitle={t("Add to {hospital}", { hospital: selectedHospital.name })}
           onClose={() =>
             setShowAddCompounder(
               false

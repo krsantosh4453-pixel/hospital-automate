@@ -682,7 +682,7 @@ function Billing() {
     const alreadyPaid = Number(selectedBill.apiInvoice.total_paid || 0)
     const additional = Math.round((Number(paid) - alreadyPaid) * 100) / 100
     if (additional < 0) {
-      toast.info(`₹${alreadyPaid} has already been received. To return money, record a refund instead of lowering the paid amount.`)
+      toast.info(t("₹{alreadyPaid} has already been received. To return money, record a refund instead of lowering the paid amount.", { alreadyPaid }))
       return
     }
     const hasPayments = alreadyPaid > 0 || (selectedBill.apiInvoice.payments || []).length > 0
@@ -932,7 +932,7 @@ function Billing() {
 
         <PageHeader
           title={t("Billing")}
-          description={selectedHospital ? `Invoices, payments and refunds at ${selectedHospital.name}.` : "Select a hospital from the header to view billing."}
+          description={selectedHospital ? t("Invoices, payments and refunds at {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital from the header to view billing."}
           breadcrumbs={[{ label: "Home", to: "/" }, { label: "Billing" }]}
           actions={
             selectedHospital && (

@@ -119,7 +119,7 @@ function BloodBank() {
   }
 
   const handleDelete = async (req) => {
-    if (!(await confirm({ title: "Delete blood request?", message: `Delete the request for ${req.patient_name || "this patient"}? This cannot be undone.`, confirmLabel: "Delete" }))) return
+    if (!(await confirm({ title: "Delete blood request?", message: t("Delete the request for {patient}? This cannot be undone.", { patient: req.patient_name || "this patient" }), confirmLabel: "Delete" }))) return
     try {
       await api.bloodbank.requests.delete(req.id)
       toast.success("Blood request deleted")
@@ -131,9 +131,9 @@ function BloodBank() {
 
   const runAction = async (req, action) => {
     const copy = {
-      approve: { title: "Approve request?", message: `Approve ${req.units} unit(s) of ${req.blood_group} ${req.component} for ${req.patient_name}? Stock is checked but not yet deducted.`, label: "Approve", done: "Request approved" },
-      issue: { title: "Issue blood?", message: `Issue ${req.units} unit(s) of ${req.blood_group} ${req.component} to ${req.patient_name}? This deducts the units from stock.`, label: "Issue", done: "Blood issued and stock updated" },
-      reject: { title: "Reject request?", message: `Reject the request for ${req.patient_name}?`, label: "Reject", done: "Request rejected" },
+      approve: { title: "Approve request?", message: t("Approve {units} unit(s) of {bloodGroup} {component} for {patient}? Stock is checked but not yet deducted.", { units: req.units, bloodGroup: req.blood_group, component: req.component, patient: req.patient_name }), label: "Approve", done: "Request approved" },
+      issue: { title: "Issue blood?", message: t("Issue {units} unit(s) of {bloodGroup} {component} to {patient}? This deducts the units from stock.", { units: req.units, bloodGroup: req.blood_group, component: req.component, patient: req.patient_name }), label: "Issue", done: "Blood issued and stock updated" },
+      reject: { title: "Reject request?", message: t("Reject the request for {patient}?", { patient: req.patient_name }), label: "Reject", done: "Request rejected" },
     }[action]
     if (!(await confirm({ title: copy.title, message: copy.message, confirmLabel: copy.label, destructive: action === "reject" }))) return
     setBusy(`${action}-${req.id}`)
@@ -142,7 +142,7 @@ function BloodBank() {
       toast.success(copy.done)
       fetchData()
     } catch (err) {
-      toast.error(err.message || `Could not ${action} the request`)
+      toast.error(err.message || t("Could not {action} the request", { action }))
     } finally {
       setBusy("")
     }
@@ -151,7 +151,7 @@ function BloodBank() {
   const header = (
     <PageHeader
       title={t("Blood bank")}
-      description={selectedHospital ? `Stock and requests at ${selectedHospital.name}.` : undefined}
+      description={selectedHospital ? t("Stock and requests at {hospital}.", { hospital: selectedHospital.name }) : undefined}
       breadcrumbs={[{ label: "Home", to: "/" }, { label: "Blood bank" }]}
       actions={
         selectedHospital && (

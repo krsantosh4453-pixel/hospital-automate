@@ -6,8 +6,10 @@ import { CalendarDays, CalendarPlus } from "lucide-react"
 import { Alert, Button, Card, EmptyState, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
 import BookAppointmentModal from "./BookAppointmentModal.jsx"
 import { UPCOMING_STATUSES } from "../../config/appointmentStatus.js"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 function PatientAppointments() {
+  const { t } = useLanguage()
   const { patient } = useAuth()
   const [appointments, setAppointments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -58,12 +60,12 @@ function PatientAppointments() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">Appointments</h1>
-          <p className="mt-1 text-sm text-ink-500">Your bookings at the hospital.</p>
+          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">{t("Appointments")}</h1>
+          <p className="mt-1 text-sm text-ink-500">{t("Your bookings at the hospital.")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
         <Button onClick={() => setBooking(true)}>
-          <CalendarPlus size={16} aria-hidden="true" /> Book appointment
+          <CalendarPlus size={16} aria-hidden="true" />{" "}{t("Book appointment")}
         </Button>
         <SegmentedControl
           label="Filter appointments"
@@ -86,7 +88,7 @@ function PatientAppointments() {
           if (searchParams.get("book")) setSearchParams({}, { replace: true })
         }}
         onBooked={(appt) => {
-          setNotice(`Booked with ${appt.doctor_name || "the doctor"} on ${formatDate(appt.appointment_date)} at ${String(appt.appointment_time).slice(0, 5)}.`)
+          setNotice(t("Booked with {name} on {appointmentDate} at {time}.", { name: appt.doctor_name || "the doctor", appointmentDate: formatDate(appt.appointment_date), time: String(appt.appointment_time).slice(0, 5) }))
           setReloadToken((n) => n + 1)
         }}
       />

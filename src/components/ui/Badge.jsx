@@ -60,13 +60,25 @@ export function statusTone(status) {
   return "neutral"
 }
 
+// The API sends statuses as "in_progress", "pending" or "In Progress"; the
+// dictionary holds the capitalised form, so try each spelling in turn.
+function translateStatus(tr, text) {
+  const sentence = text.charAt(0).toUpperCase() + text.slice(1)
+  const title = text.replace(/\b[a-z]/g, (c) => c.toUpperCase())
+  for (const candidate of [text, sentence, title]) {
+    const translated = tr(candidate)
+    if (translated !== candidate) return translated
+  }
+  return text
+}
+
 export function StatusBadge({ status, label, className = "" }) {
   const tr = useT()
   if (status === null || status === undefined || status === "") return null
   const text = label || String(status).replace(/_/g, " ")
   return (
     <Badge tone={statusTone(status)} dot className={`capitalize ${className}`}>
-      {tr(text)}
+      {translateStatus(tr, text)}
     </Badge>
   )
 }

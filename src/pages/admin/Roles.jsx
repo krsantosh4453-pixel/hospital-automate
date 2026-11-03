@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import api from "../../services/api.js"
 import { Alert, PageHeader } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Roles are fixed in the backend (users.models.StaffRole) and the server
 // decides access per hospital membership. This matrix summarises the
@@ -48,6 +49,7 @@ const MATRIX = [
 const ROLES = Object.keys(ROLE_DESCRIPTIONS)
 
 function Roles() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
   const [counts, setCounts] = useState({})
   const [countError, setCountError] = useState("")
@@ -72,7 +74,7 @@ function Roles() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Roles"
+        title={t("Roles")}
         description="The server enforces these roles for each hospital membership. Assign roles to people on the Users page."
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Roles" }]}
       />
@@ -85,7 +87,7 @@ function Roles() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-800">{role}</h2>
               <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-                {counts[role] || 0} active
+                {counts[role] || 0}{" "}{t("active")}
               </span>
             </div>
             <p className="text-sm text-gray-500 mt-2">{ROLE_DESCRIPTIONS[role]}</p>
@@ -94,12 +96,12 @@ function Roles() {
       </div>
 
       <div className="bg-white rounded-xl shadow p-5 overflow-x-auto">
-        <h2 className="text-lg font-semibold text-gray-800 mb-1">Access Matrix</h2>
-        <p className="text-xs text-gray-500 mb-4">R = read, RW = read and write. Patients see only their own released records.</p>
+        <h2 className="text-lg font-semibold text-gray-800 mb-1">{t("Access Matrix")}</h2>
+        <p className="text-xs text-gray-500 mb-4">{t("R = read, RW = read and write. Patients see only their own released records.")}</p>
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-gray-500 border-b">
-              <th className="py-2 pr-3 sticky left-0 bg-white">Module</th>
+              <th className="py-2 pr-3 sticky left-0 bg-white">{t("Module")}</th>
               {ROLES.map((role) => (
                 <th key={role} className="py-2 px-2 whitespace-nowrap">{role}</th>
               ))}

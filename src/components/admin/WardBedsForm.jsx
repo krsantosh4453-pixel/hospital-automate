@@ -90,7 +90,7 @@ export default function WardBedsForm({ hospitalId, onCreated }) {
               variant="danger-ghost"
               size="icon"
               icon={Trash2}
-              aria-label={`Remove room ${room.room_number || index + 1}`}
+              aria-label={t("Remove room {number}", { number: room.room_number || index + 1 })}
               disabled={rooms.length === 1}
               onClick={() => setRooms(rooms.filter((_, i) => i !== index))}
             />

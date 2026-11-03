@@ -360,7 +360,7 @@ function Patients() {
         setFormErrors((prev) => ({ ...prev, _duplicates: error.body.duplicates }))
         return
       }
-      setFormErrors((prev) => ({ ...prev, _server: `Not saved: ${error.message}` }))
+      setFormErrors((prev) => ({ ...prev, _server: t("Not saved: {reason}", { reason: error.message }) }))
       if (error.isTimeout) setReloadToken((value) => value + 1)
     } finally {
       setSaving(false)
@@ -383,7 +383,7 @@ function Patients() {
       setTotalRecords((n) => Math.max(n - 1, 0))
     } catch (error) {
       // Refused or unreachable: the patient still exists on the server.
-      setLoadError(`Not deleted: ${error.message}`)
+      setLoadError(t("Not deleted: {reason}", { reason: error.message }))
       setDeleting(false)
       setPendingDelete(null)
       if (error.isTimeout) setReloadToken((value) => value + 1)
@@ -403,7 +403,7 @@ function Patients() {
         title={t("Patients")}
         description={
           selectedHospital
-            ? `Patients registered at ${selectedHospital.name}.`
+            ? t("Patients registered at {hospital}.", { hospital: selectedHospital.name })
             : "Select a hospital from the header to see its patients."
         }
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Patients" }]}
@@ -685,7 +685,7 @@ function Patients() {
         open={Boolean(recordPatient)}
         onClose={() => setRecordPatient(null)}
         size="xl"
-        title={recordPatient ? `Medical record · ${recordPatient.name}` : "Medical record"}
+        title={recordPatient ? t("Medical record · {patient}", { patient: recordPatient.name }) : "Medical record"}
         description="Visits, diagnoses, results and treatment at this hospital, newest first. Every view is recorded in the audit log."
       >
         {recordPatient && <PatientTimeline patientId={recordPatient.id} />}

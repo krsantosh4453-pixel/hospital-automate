@@ -248,7 +248,7 @@ function Doctors() {
       setDoctors(doctors.filter((doctor) => String(doctor.id) !== String(target.id)))
       setSuccessMessage("Doctor deleted.")
     } catch (error) {
-      setLoadError(error.isNetworkError ? "The server could not be reached. Please try again." : `Not deleted: ${error.message}`)
+      setLoadError(error.isNetworkError ? "The server could not be reached. Please try again." : t("Not deleted: {reason}", { reason: error.message }))
     } finally {
       setDeleting(false)
       setPendingDelete(null)
@@ -260,7 +260,7 @@ function Doctors() {
     <div className="space-y-5">
       <PageHeader
         title={t("Doctors")}
-        description={selectedHospital ? `Doctors, specialities and availability at ${selectedHospital.name}.` : "Select a hospital from the header to view doctors."}
+        description={selectedHospital ? t("Doctors, specialities and availability at {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital from the header to view doctors."}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Doctors" }]}
         actions={
           <>

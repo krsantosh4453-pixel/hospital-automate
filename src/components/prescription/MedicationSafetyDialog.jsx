@@ -72,7 +72,7 @@ export default function MedicationSafetyDialog({ result, saving, onCancel, onCon
           <Field
             label="Reason to prescribe anyway"
             required
-            hint={`At least ${MIN_OVERRIDE_REASON} characters. Saved with the prescription and in the audit log.`}
+            hint={t("At least {MIN_OVERRIDE_REASON} characters. Saved with the prescription and in the audit log.", { MIN_OVERRIDE_REASON })}
           >
             <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
           </Field>

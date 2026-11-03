@@ -3,8 +3,10 @@ import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
 import { Eye, FileText, Trash2, Upload } from "lucide-react"
 import { Alert, Badge, Button, Card, EmptyState, Field, Input, Modal, Select, SkeletonRows, TableWrap, useConfirm } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 function PatientDocuments() {
+  const { t } = useLanguage()
   const [confirm, confirmDialog] = useConfirm()
 
   // A family member (proxy) can view documents but not upload or delete them.
@@ -109,10 +111,10 @@ function PatientDocuments() {
     <>{confirmDialog}<div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">Medical records</h1>
-          <p className="mt-1 text-sm text-ink-500">Documents you or the hospital have added to your record.</p>
+          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">{t("Medical records")}</h1>
+          <p className="mt-1 text-sm text-ink-500">{t("Documents you or the hospital have added to your record.")}</p>
         </div>
-        {!isProxy && <Button icon={Upload} onClick={() => setShowUpload(true)}>Upload document</Button>}
+        {!isProxy && <Button icon={Upload} onClick={() => setShowUpload(true)}>{t("Upload document")}</Button>}
       </header>
 
       {error && <Alert tone="danger" onDismiss={() => setError(null)}>{error}</Alert>}
@@ -123,9 +125,9 @@ function PatientDocuments() {
         <Card>
           <EmptyState
             icon={FileText}
-            title="No documents yet"
+            title={t("No documents yet")}
             description="Upload reports or prescriptions from other clinics so your doctors can see them."
-            action={!isProxy && <Button icon={Upload} onClick={() => setShowUpload(true)}>Upload document</Button>}
+            action={!isProxy && <Button icon={Upload} onClick={() => setShowUpload(true)}>{t("Upload document")}</Button>}
           />
         </Card>
       ) : (
@@ -134,11 +136,11 @@ function PatientDocuments() {
             <table className="hms-table">
               <thead>
                 <tr>
-                  <th scope="col">Document</th>
-                  <th scope="col">Category</th>
-                  <th scope="col">Added</th>
-                  <th scope="col" className="num">Size</th>
-                  <th scope="col"><span className="sr-only">Actions</span></th>
+                  <th scope="col">{t("Document")}</th>
+                  <th scope="col">{t("Category")}</th>
+                  <th scope="col">{t("Added")}</th>
+                  <th scope="col" className="num">{t("Size")}</th>
+                  <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -155,9 +157,9 @@ function PatientDocuments() {
                     <td className="num text-ink-600">{formatSize(doc.file_size)}</td>
                     <td>
                       <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="subtle" icon={Eye} onClick={() => handleView(doc)}>View</Button>
+                        <Button size="sm" variant="subtle" icon={Eye} onClick={() => handleView(doc)}>{t("View")}</Button>
                         {!isProxy && (
-                          <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => handleDelete(doc.id)} aria-label={`Delete ${doc.title}`} title="Delete" />
+                          <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => handleDelete(doc.id)} aria-label={`Delete ${doc.title}`} title={t("Delete")} />
                         )}
                       </div>
                     </td>
@@ -172,11 +174,11 @@ function PatientDocuments() {
       <Modal
         open={showUpload}
         onClose={closeUpload}
-        title="Upload document"
+        title={t("Upload document")}
         footer={
           <>
-            <Button variant="secondary" onClick={closeUpload} disabled={uploading}>Cancel</Button>
-            <Button type="submit" form="doc-upload" loading={uploading}>Upload</Button>
+            <Button variant="secondary" onClick={closeUpload} disabled={uploading}>{t("Cancel")}</Button>
+            <Button type="submit" form="doc-upload" loading={uploading}>{t("Upload")}</Button>
           </>
         }
       >

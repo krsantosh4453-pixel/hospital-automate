@@ -55,7 +55,7 @@ function AppointmentList() {
           <p className="text-gray-500 mt-1">
 
             {selectedHospital
-              ? `Scheduled appointments for ${selectedHospital.name}`
+              ? t("Scheduled appointments for {hospital}", { hospital: selectedHospital.name })
               : "Select a hospital to view appointments"}
 
           </p>

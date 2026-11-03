@@ -334,7 +334,7 @@ function Appointments() {
     const known = doctors.length ? doctors : toList(await api.doctors.list(selectedHospital.id))
     const match = known.find((doctor) => (doctor.name || "").trim().toLowerCase() === trimmedName.toLowerCase())
     if (!match) {
-      const error = new Error(`${trimmedName} is not a registered doctor at this hospital.`)
+      const error = new Error(t("{name} is not a registered doctor at this hospital.", { name: trimmedName }))
       error.status = 400
       throw error
     }
@@ -400,7 +400,7 @@ function Appointments() {
       setAppointments((prev) => prev.filter((item) => String(item.id) !== String(appointment.id)))
       setSuccessMessage("Appointment deleted.")
     } catch (error) {
-      setLoadError(`Not deleted: ${error.message}`)
+      setLoadError(t("Not deleted: {reason}", { reason: error.message }))
       setReloadToken((t) => t + 1)
     }
   }
@@ -418,7 +418,7 @@ function Appointments() {
       )
       setSuccessMessage("Appointment cancelled.")
     } catch (error) {
-      setLoadError(`Not cancelled: ${error.message}`)
+      setLoadError(t("Not cancelled: {reason}", { reason: error.message }))
       setReloadToken((t) => t + 1)
     }
   }
@@ -536,7 +536,7 @@ function Appointments() {
     <div className="space-y-5">
       <PageHeader
         title={t("Appointments")}
-        description={selectedHospital ? `Bookings at ${selectedHospital.name}.` : "Select a hospital from the header to see its appointments."}
+        description={selectedHospital ? t("Bookings at {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital from the header to see its appointments."}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Appointments" }]}
         actions={
           <Button icon={CalendarPlus} onClick={openNew} disabled={!selectedHospital}>
@@ -657,18 +657,18 @@ function Appointments() {
                         </td>
                         <td>
                           <div className="flex items-center justify-end gap-0.5">
-                            <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(appointment)} aria-label={`View appointment ${appointment.id}`} title={t("View")} />
-                            <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => handleEdit(appointment)} aria-label={`Edit appointment ${appointment.id}`} title={t("Edit")} />
+                            <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(appointment)} aria-label={t("View appointment {appointmentId}", { appointmentId: appointment.id })} title={t("View")} />
+                            <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => handleEdit(appointment)} aria-label={t("Edit appointment {appointmentId}", { appointmentId: appointment.id })} title={t("Edit")} />
                             <Button
                               variant="ghost"
                               size="icon-sm"
                               icon={Ban}
                               disabled={!canChange(appointment)}
                               onClick={() => setConfirm({ type: "cancel", appointment })}
-                              aria-label={`Cancel appointment ${appointment.id}`}
+                              aria-label={t("Cancel appointment {appointmentId}", { appointmentId: appointment.id })}
                               title={t("Cancel appointment")}
                             />
-                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setConfirm({ type: "delete", appointment })} aria-label={`Delete appointment ${appointment.id}`} title={t("Delete")} />
+                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setConfirm({ type: "delete", appointment })} aria-label={t("Delete appointment {appointmentId}", { appointmentId: appointment.id })} title={t("Delete")} />
                           </div>
                         </td>
                       </tr>
@@ -707,7 +707,7 @@ function Appointments() {
         open={showForm}
         onClose={resetForm}
         size="lg"
-        title={selectedAppointment ? `Edit appointment ${selectedAppointment.id}` : "New appointment"}
+        title={selectedAppointment ? t("Edit appointment {appointmentId}", { appointmentId: selectedAppointment.id }) : "New appointment"}
         description={selectedHospital ? `At ${selectedHospital.name}` : undefined}
         footer={
           <>

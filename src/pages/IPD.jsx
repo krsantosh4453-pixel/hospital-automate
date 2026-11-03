@@ -157,7 +157,7 @@ function IPD() {
   }
 
   const handleReleaseBed = async (admission) => {
-    if (!(await confirm({ title: "Release bed?", message: `Release ${bedLabel(admission.current_bed)} held by ${admission.patient_name}?`, confirmLabel: "Release bed" }))) return
+    if (!(await confirm({ title: "Release bed?", message: t("Release {bed} held by {patient}?", { bed: bedLabel(admission.current_bed), patient: admission.patient_name }), confirmLabel: "Release bed" }))) return
     await run(`release-${admission.id}`, async () => {
       try {
         await api.ipd.admissions.releaseBed(admission.id)
@@ -210,7 +210,7 @@ function IPD() {
   const handleFinalize = async (admission, summary) => {
     const ok = await confirm({
       title: "Finalize discharge summary?",
-      message: `You are signing the discharge summary for ${admission.patient_name}. After finalizing it cannot be edited; later information is added as discharge notes.`,
+      message: t("You are signing the discharge summary for {patient}. After finalizing it cannot be edited; later information is added as discharge notes.", { patient: admission.patient_name }),
       confirmLabel: "Finalize and sign",
       destructive: false,
     })
@@ -227,7 +227,7 @@ function IPD() {
   }
 
   const handleCompleteDischarge = async (admission) => {
-    if (!(await confirm({ title: "Complete discharge?", message: `Complete the discharge of ${admission.patient_name}? This releases their bed.`, confirmLabel: "Complete discharge" }))) return
+    if (!(await confirm({ title: "Complete discharge?", message: t("Complete the discharge of {patient}? This releases their bed.", { patient: admission.patient_name }), confirmLabel: "Complete discharge" }))) return
     await run(`complete-${admission.id}`, async () => {
       try {
         await api.ipd.admissions.completeDischarge(admission.id)
@@ -243,7 +243,7 @@ function IPD() {
   const header = (
     <PageHeader
       title={t("Inpatients (IPD)")}
-      description={selectedHospital ? `Admissions, beds and discharges at ${selectedHospital.name}.` : undefined}
+      description={selectedHospital ? t("Admissions, beds and discharges at {hospital}.", { hospital: selectedHospital.name }) : undefined}
       breadcrumbs={[{ label: "Home", to: "/" }, { label: "IPD" }]}
       actions={
         selectedHospital && (
@@ -407,7 +407,7 @@ function IPD() {
                     const steps = [
                       { label: "Discharge started", done: true },
                       { label: summary ? "Summary written" : "Write summary", done: Boolean(summary) },
-                      { label: summary?.finalized ? `Signed by ${summary.authorized_doctor_name || "doctor"}` : "Doctor signs summary", done: Boolean(summary?.finalized) },
+                      { label: summary?.finalized ? t("Signed by {name}", { name: summary.authorized_doctor_name || "doctor" }) : "Doctor signs summary", done: Boolean(summary?.finalized) },
                       { label: "Complete discharge", done: false },
                     ]
                     return (
@@ -468,7 +468,7 @@ function IPD() {
         onClose={closeDialog}
         hospitalId={selectedHospital?.id}
         onAdded={(bed) => {
-          toast.success(bed.status === "Available" ? `Bed ${bed.bed_number} added` : `Bed ${bed.bed_number} added as ${bed.status}`)
+          toast.success(bed.status === "Available" ? `Bed ${bed.bed_number} added` : t("Bed {bedNumber} added as {status}", { bedNumber: bed.bed_number, status: bed.status }))
           setActiveTab("all-beds")
           setBedsVersion((v) => v + 1)
           fetchData()
@@ -543,7 +543,7 @@ function IPD() {
         onClose={closeDialog}
         size="lg"
         title={t("Discharge summary")}
-        description={`${selectedAdmission?.patient_name || ""} — saved as a draft; the patient's doctor finalizes it.`}
+        description={t("{patient} — saved as a draft; the patient's doctor finalizes it.", { patient: selectedAdmission?.patient_name || "" })}
         footer={<><Button variant="secondary" onClick={closeDialog}>{t("Cancel")}</Button><Button type="submit" form="ipd-summary" loading={busy === "summary"}>{t("Save draft")}</Button></>}
       >
         <form id="ipd-summary" onSubmit={handleSummarySubmit}>

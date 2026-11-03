@@ -4,12 +4,14 @@ import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
 import { Alert, Button, Card, EmptyState, PrintSheet, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
 import { InvoiceDocument } from "../../components/documents/ClinicalDocuments.jsx"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2 })
 // Money arrives as decimal strings calculated by the server.
 const money = (v) => inr.format(Number(v || 0))
 
 function PatientBills() {
+  const { t } = useLanguage()
   const { patient } = useAuth()
   const [bills, setBills] = useState([])
   const [loading, setLoading] = useState(true)
@@ -55,8 +57,8 @@ function PatientBills() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">Bills</h1>
-          <p className="mt-1 text-sm text-ink-500">Your invoices, what has been paid and what is still due.</p>
+          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">{t("Bills")}</h1>
+          <p className="mt-1 text-sm text-ink-500">{t("Your invoices, what has been paid and what is still due.")}</p>
         </div>
         <SegmentedControl
           label="Filter bills"
@@ -73,8 +75,8 @@ function PatientBills() {
       {error && <Alert tone="danger">{error}</Alert>}
 
       {!loading && totalDue > 0 && (
-        <Alert tone="warning" title={`Total balance due: ${inr.format(totalDue)}`}>
-          Please pay at the hospital billing counter. Online payment is not available yet.
+        <Alert tone="warning" title={t("Total balance due: {totalDue}", { totalDue: inr.format(totalDue) })}>
+          {t("Please pay at the hospital billing counter. Online payment is not available yet.")}
         </Alert>
       )}
 
@@ -94,7 +96,7 @@ function PatientBills() {
               <Card>
                 <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
                   <div>
-                    <p className="font-semibold text-ink-900 tabular-nums">Invoice {bill.invoice_number || bill.id}</p>
+                    <p className="font-semibold text-ink-900 tabular-nums">{t("Invoice")}{" "}{bill.invoice_number || bill.id}</p>
                     <p className="text-[13px] text-ink-500">
                       {formatDate(bill.created_at)}
                       {bill.hospital_name ? ` · ${bill.hospital_name}` : ""}
@@ -102,27 +104,27 @@ function PatientBills() {
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={bill.status} />
-                    <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting(bill)}>Print</Button>
+                    <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting(bill)}>{t("Print")}</Button>
                   </div>
                 </div>
                 <dl className="grid grid-cols-3 gap-px border-t border-line bg-line text-sm">
                   <div className="bg-white px-5 py-3">
-                    <dt className="text-xs text-ink-500">Total</dt>
+                    <dt className="text-xs text-ink-500">{t("Total")}</dt>
                     <dd className="mt-0.5 font-semibold text-ink-900 tabular-nums">{money(bill.total_amount ?? bill.total)}</dd>
                   </div>
                   <div className="bg-white px-5 py-3">
-                    <dt className="text-xs text-ink-500">Paid</dt>
+                    <dt className="text-xs text-ink-500">{t("Paid")}</dt>
                     <dd className="mt-0.5 font-semibold text-green-700 tabular-nums">{money(bill.total_paid)}</dd>
                   </div>
                   <div className="bg-white px-5 py-3">
-                    <dt className="text-xs text-ink-500">Balance due</dt>
+                    <dt className="text-xs text-ink-500">{t("Balance due")}</dt>
                     <dd className={`mt-0.5 font-semibold tabular-nums ${Number(bill.balance_due) > 0 ? "text-red-700" : "text-ink-900"}`}>{money(bill.balance_due)}</dd>
                   </div>
                 </dl>
                 {(bill.items || []).length > 0 && (
                   <details className="group border-t border-line">
                     <summary className="cursor-pointer list-none px-5 py-3 text-[13px] font-medium text-brand-700 hover:underline">
-                      Show {bill.items.length} item{bill.items.length === 1 ? "" : "s"}
+                      {t("Show")}{" "}{bill.items.length}{" "}{t("item")}{bill.items.length === 1 ? "" : "s"}
                     </summary>
                     <ul className="divide-y divide-ink-100 px-5 pb-3 text-sm">
                       {bill.items.map((item, i) => (
@@ -140,7 +142,7 @@ function PatientBills() {
         </ul>
       )}
 
-      <PrintSheet open={Boolean(printing)} onClose={() => setPrinting(null)} title="Invoice">
+      <PrintSheet open={Boolean(printing)} onClose={() => setPrinting(null)} title={t("Invoice")}>
         {printing && <InvoiceDocument invoice={printing} />}
       </PrintSheet>
     </div>

@@ -3,6 +3,7 @@ import { Pill } from "lucide-react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
 import { Alert, Card, EmptyState, SegmentedControl, SkeletonRows, StatusBadge, TableWrap } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Prescription.status is free text; these are the values the staff pages set.
 const FILTERS = {
@@ -13,6 +14,7 @@ const FILTERS = {
 }
 
 function PatientPrescriptions() {
+  const { t } = useLanguage()
   const { patient } = useAuth()
   const [prescriptions, setPrescriptions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -48,8 +50,8 @@ function PatientPrescriptions() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">Prescriptions</h1>
-          <p className="mt-1 text-sm text-ink-500">Medicines your doctors have prescribed.</p>
+          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">{t("Prescriptions")}</h1>
+          <p className="mt-1 text-sm text-ink-500">{t("Medicines your doctors have prescribed.")}</p>
         </div>
         <SegmentedControl
           label="Filter prescriptions"
@@ -99,11 +101,11 @@ function PatientPrescriptions() {
                     <table className="hms-table">
                       <thead>
                         <tr>
-                          <th scope="col">Medicine</th>
-                          <th scope="col">Dose</th>
-                          <th scope="col">How often</th>
-                          <th scope="col">For</th>
-                          <th scope="col" className="num">Qty</th>
+                          <th scope="col">{t("Medicine")}</th>
+                          <th scope="col">{t("Dose")}</th>
+                          <th scope="col">{t("How often")}</th>
+                          <th scope="col">{t("For")}</th>
+                          <th scope="col" className="num">{t("Qty")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -123,7 +125,7 @@ function PatientPrescriptions() {
                     </table>
                   </TableWrap>
                 ) : (
-                  <p className="border-t border-line px-5 py-3 text-sm text-ink-500">No medicines listed.</p>
+                  <p className="border-t border-line px-5 py-3 text-sm text-ink-500">{t("No medicines listed.")}</p>
                 )}
               </Card>
             </li>

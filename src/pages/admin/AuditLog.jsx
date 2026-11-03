@@ -4,6 +4,7 @@ import { usePatient } from "../../assets/context/PatientContext.jsx"
 import api from "../../services/api.js"
 import Pagination from "../../components/Pagination.jsx"
 import { Alert, Button, Card, EmptyState, Field, Input, PageHeader, SkeletonRows, TableWrap, Toolbar } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Audit trail viewer (requirement A15). The server scopes rows to the selected
 // hospital and allows only that hospital's Admin; this page only filters.
@@ -30,6 +31,7 @@ function formatDetails(details) {
 }
 
 function AuditLog() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
   const [draft, setDraft] = useState(EMPTY_FILTERS)
   const [filters, setFilters] = useState(EMPTY_FILTERS)
@@ -79,10 +81,10 @@ function AuditLog() {
   return (
     <div>
       <PageHeader
-        title="Audit log"
+        title={t("Audit log")}
         description={`Every recorded change${selectedHospital?.name ? ` at ${selectedHospital.name}` : ""}, newest first. Read only.`}
         breadcrumbs={[{ label: "Administration", to: "/admin" }, { label: "Audit log" }]}
-        actions={<Button variant="secondary" icon={RefreshCw} onClick={() => setReloadToken((n) => n + 1)}>Refresh</Button>}
+        actions={<Button variant="secondary" icon={RefreshCw} onClick={() => setReloadToken((n) => n + 1)}>{t("Refresh")}</Button>}
       />
 
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
@@ -92,15 +94,15 @@ function AuditLog() {
           <Toolbar
             actions={
               <>
-                <Button variant="ghost" onClick={clear}>Clear</Button>
-                <Button type="submit">Apply filters</Button>
+                <Button variant="ghost" onClick={clear}>{t("Clear")}</Button>
+                <Button type="submit">{t("Apply filters")}</Button>
               </>
             }
           >
             <div className="grid w-full grid-cols-2 gap-3 md:grid-cols-5">
-              <Field label="Action"><Input value={draft.action} onChange={set("action")} placeholder="e.g. delete" /></Field>
-              <Field label="Record type"><Input value={draft.model} onChange={set("model")} placeholder="e.g. Patient" /></Field>
-              <Field label="User"><Input value={draft.user} onChange={set("user")} placeholder="username" /></Field>
+              <Field label="Action"><Input value={draft.action} onChange={set("action")} placeholder={t("e.g. delete")} /></Field>
+              <Field label="Record type"><Input value={draft.model} onChange={set("model")} placeholder={t("e.g. Patient")} /></Field>
+              <Field label="User"><Input value={draft.user} onChange={set("user")} placeholder={t("username")} /></Field>
               <Field label="From"><Input type="date" value={draft.from} onChange={set("from")} /></Field>
               <Field label="To"><Input type="date" min={draft.from || undefined} value={draft.to} onChange={set("to")} /></Field>
             </div>
@@ -116,12 +118,12 @@ function AuditLog() {
             <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th scope="col">When</th>
-                  <th scope="col">User</th>
-                  <th scope="col">Action</th>
-                  <th scope="col">Record</th>
-                  <th scope="col">Details</th>
-                  <th scope="col">IP address</th>
+                  <th scope="col">{t("When")}</th>
+                  <th scope="col">{t("User")}</th>
+                  <th scope="col">{t("Action")}</th>
+                  <th scope="col">{t("Record")}</th>
+                  <th scope="col">{t("Details")}</th>
+                  <th scope="col">{t("IP address")}</th>
                 </tr>
               </thead>
               <tbody>

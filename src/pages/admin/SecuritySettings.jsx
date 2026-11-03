@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { CircleAlert, CircleCheck, Info, ShieldCheck } from "lucide-react"
 import api from "../../services/api.js"
 import { Alert, Card, EmptyState, PageHeader, SkeletonRows, TableWrap } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Effective security configuration (requirement A14). Read only: the values
 // are environment variables set on the server, never changed from the browser.
@@ -9,12 +10,14 @@ import { Alert, Card, EmptyState, PageHeader, SkeletonRows, TableWrap } from "..
 const formatValue = (value) => (typeof value === "boolean" ? (value ? "On" : "Off") : String(value))
 
 function Verdict({ secure }) {
-  if (secure === true) return <span className="inline-flex items-center gap-1 text-green-700"><CircleCheck size={15} aria-hidden="true" />Recommended</span>
-  if (secure === false) return <span className="inline-flex items-center gap-1 text-amber-700"><CircleAlert size={15} aria-hidden="true" />Not for production</span>
-  return <span className="inline-flex items-center gap-1 text-ink-500"><Info size={15} aria-hidden="true" />Information</span>
+  const { t } = useLanguage()
+  if (secure === true) return <span className="inline-flex items-center gap-1 text-green-700"><CircleCheck size={15} aria-hidden="true" />{t("Recommended")}</span>
+  if (secure === false) return <span className="inline-flex items-center gap-1 text-amber-700"><CircleAlert size={15} aria-hidden="true" />{t("Not for production")}</span>
+  return <span className="inline-flex items-center gap-1 text-ink-500"><Info size={15} aria-hidden="true" />{t("Information")}</span>
 }
 
 function SecuritySettings() {
+  const { t } = useLanguage()
   const [data, setData] = useState(null)
   const [error, setError] = useState("")
 
@@ -34,13 +37,13 @@ function SecuritySettings() {
   return (
     <div>
       <PageHeader
-        title="Security settings"
+        title={t("Security settings")}
         description="How sign-in, sessions and rate limits are configured on this server. Read only."
         breadcrumbs={[{ label: "Administration", to: "/admin" }, { label: "Security settings" }]}
       />
       {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
       {data && (
-        <Alert tone={weak ? "warning" : "success"} className="mb-4" title={weak ? `${weak} setting(s) are not suitable for production` : "All checked settings are at their recommended values"}>
+        <Alert tone={weak ? "warning" : "success"} className="mb-4" title={weak ? t("{weak} setting(s) are not suitable for production", { weak }) : "All checked settings are at their recommended values"}>
           {data.how_to_change}
         </Alert>
       )}
@@ -48,16 +51,16 @@ function SecuritySettings() {
         {!data && !error ? (
           <SkeletonRows rows={8} />
         ) : !data ? (
-          <EmptyState icon={ShieldCheck} title="Security settings not available" />
+          <EmptyState icon={ShieldCheck} title={t("Security settings not available")} />
         ) : (
           <TableWrap>
             <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th scope="col">Setting</th>
-                  <th scope="col">Value</th>
-                  <th scope="col">Assessment</th>
-                  <th scope="col">Environment variable</th>
+                  <th scope="col">{t("Setting")}</th>
+                  <th scope="col">{t("Value")}</th>
+                  <th scope="col">{t("Assessment")}</th>
+                  <th scope="col">{t("Environment variable")}</th>
                 </tr>
               </thead>
               <tbody>

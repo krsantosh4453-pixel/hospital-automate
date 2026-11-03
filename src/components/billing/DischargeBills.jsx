@@ -79,7 +79,7 @@ export default function DischargeBills({ hospitalId, refreshKey, onCreated }) {
               {bill ? (
                 <p className={`mt-1 text-sm ${Number(bill.balance_due) > 0 ? "text-amber-700" : "text-green-700"}`}>
                   {t("Final bill")}{" "}{bill.invoice_number}: ₹{bill.total}
-                  {Number(bill.balance_due) > 0 ? `, ₹${bill.balance_due} due. Take the payment on the invoice below.` : ", paid."}
+                  {Number(bill.balance_due) > 0 ? t(", ₹{balanceDue} due. Take the payment on the invoice below.", { balanceDue: bill.balance_due }) : ", paid."}
                 </p>
               ) : (
                 <form onSubmit={(event) => create(event, row)} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4 sm:items-end">

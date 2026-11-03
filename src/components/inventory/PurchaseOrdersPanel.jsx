@@ -60,7 +60,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
           unit_cost: Number(line.unit_cost).toFixed(2),
         })),
       })
-      toast.success(`Purchase order ${order.reference.trim()} raised.`)
+      toast.success(t("Purchase order {reference} raised.", { reference: order.reference.trim() }))
       setCreating(false)
       onChanged()
     } catch (err) {
@@ -101,7 +101,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
     }
     const over = lines.find((line) => Number(line.quantity_received) > line.remaining)
     if (over) {
-      toast.warning(`${over.medicine_name}: only ${over.remaining} still to receive.`)
+      toast.warning(t("{name}: only {remaining} still to receive.", { name: over.medicine_name, remaining: over.remaining }))
       return
     }
     setSaving(true)
@@ -121,7 +121,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
         },
         hospital.id,
       )
-      toast.success(`Goods received against ${receiving.reference}. Stock updated.`)
+      toast.success(t("Goods received against {reference}. Stock updated.", { reference: receiving.reference }))
       setReceiving(null)
       onChanged()
     } catch (err) {
@@ -233,7 +233,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
                   variant="danger-ghost"
                   size="icon-sm"
                   icon={Trash2}
-                  aria-label={`Remove item ${index + 1}`}
+                  aria-label={t("Remove item {number}", { number: index + 1 })}
                   disabled={order.lines.length === 1}
                   onClick={() => setOrder({ ...order, lines: order.lines.filter((_, i) => i !== index) })}
                 />
@@ -248,7 +248,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
         open={Boolean(receiving)}
         onClose={() => setReceiving(null)}
         size="lg"
-        title={`Receive goods — ${receiving?.reference || ""}`}
+        title={t("Receive goods — {reference}", { reference: receiving?.reference || "" })}
         description={receiving?.supplier_name}
         footer={
           <>

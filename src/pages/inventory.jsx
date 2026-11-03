@@ -365,7 +365,7 @@ function Inventory() {
       })
 
       await fetchAllData()
-      toast.success(`${selectedItem.name} stock updated successfully.`)
+      toast.success(t("{name} stock updated successfully.", { name: selectedItem.name }))
       resetStock()
     } catch (err) {
       toast.error(err.message || "Failed to update stock")
@@ -395,7 +395,7 @@ function Inventory() {
     <>{confirmDialog}<div className="space-y-5">
       <PageHeader
         title={t("Inventory")}
-        description={`Stock levels for ${selectedHospital.name}.`}
+        description={t("Stock levels for {hospital}.", { hospital: selectedHospital.name })}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Inventory" }]}
         actions={
           <>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import api from "../../services/api.js"
 import { Alert, Button, PageHeader } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const EMPTY_FORM = { name: "", code: "", head: "", description: "", status: "Active" }
 const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
@@ -11,6 +12,7 @@ const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
 // Only that hospital's Admin or Hospital Manager can change them (enforced
 // by the backend; others see the server's refusal).
 function Departments() {
+  const { t } = useLanguage()
   const { selectedHospital } = usePatient()
   const [departments, setDepartments] = useState([])
   const [doctors, setDoctors] = useState([])
@@ -123,25 +125,25 @@ function Departments() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Departments"
-        description={`Departments and clinics of ${selectedHospital?.name || "the selected hospital"}.`}
+        title={t("Departments")}
+        description={t("Departments and clinics of {hospital}.", { hospital: selectedHospital?.name || "the selected hospital" })}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Administration", to: "/admin" }, { label: "Departments" }]}
-        actions={<Button icon={PlusIcon} onClick={openAdd}>Add department</Button>}
+        actions={<Button icon={PlusIcon} onClick={openAdd}>{t("Add department")}</Button>}
       />
 
       {error && !showModal && <Alert tone="danger">{error}</Alert>}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="rounded-2xl border border-line bg-white p-5">
-          <p className="text-gray-500 text-sm">Total Departments</p>
+          <p className="text-gray-500 text-sm">{t("Total Departments")}</p>
           <h2 className="text-3xl font-bold mt-2">{departments.length}</h2>
         </div>
         <div className="rounded-2xl border border-line bg-white p-5">
-          <p className="text-gray-500 text-sm">Active</p>
+          <p className="text-gray-500 text-sm">{t("Active")}</p>
           <h2 className="text-3xl font-bold text-green-600 mt-2">{activeCount}</h2>
         </div>
         <div className="rounded-2xl border border-line bg-white p-5">
-          <p className="text-gray-500 text-sm">Doctors Assigned</p>
+          <p className="text-gray-500 text-sm">{t("Doctors Assigned")}</p>
           <h2 className="text-3xl font-bold text-blue-600 mt-2">{doctorCount}</h2>
         </div>
       </div>
@@ -150,14 +152,14 @@ function Departments() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           <input
             type="text"
-            aria-label="Search departments"
-            placeholder="Search by name, code or head"
+            aria-label={t("Search departments")}
+            placeholder={t("Search by name, code or head")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="hms-input"
           />
           <select
-            aria-label="Filter by status"
+            aria-label={t("Filter by status")}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="hms-input"
@@ -169,19 +171,19 @@ function Departments() {
         </div>
 
         {loading ? (
-          <p className="text-gray-500 text-sm" role="status">Loading departments…</p>
+          <p className="text-gray-500 text-sm" role="status">{t("Loading departments…")}</p>
         ) : filtered.length === 0 ? (
-          <p className="text-gray-500 text-sm">No departments yet.</p>
+          <p className="text-gray-500 text-sm">{t("No departments yet.")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b">
-                  <th className="py-2 pr-4">Department</th>
-                  <th className="py-2 pr-4">Code</th>
-                  <th className="py-2 pr-4">Head</th>
-                  <th className="py-2 pr-4">Doctors</th>
-                  <th className="py-2 pr-4">Status</th>
+                  <th className="py-2 pr-4">{t("Department")}</th>
+                  <th className="py-2 pr-4">{t("Code")}</th>
+                  <th className="py-2 pr-4">{t("Head")}</th>
+                  <th className="py-2 pr-4">{t("Doctors")}</th>
+                  <th className="py-2 pr-4">{t("Status")}</th>
                   <th className="py-2"></th>
                 </tr>
               </thead>
@@ -202,7 +204,7 @@ function Departments() {
                     </td>
                     <td className="py-3 text-right">
                       <button onClick={() => openEdit(dept)} className="px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg">
-                        Edit
+                        {t("Edit")}
                       </button>
                     </td>
                   </tr>
@@ -223,15 +225,15 @@ function Departments() {
               </div>
             )}
             <label className="block text-sm font-medium text-gray-700">
-              Department Name
+              {t("Department Name")}
               <input name="name" value={formData.name} onChange={handleChange} required className="hms-input mt-1 w-full" />
             </label>
             <label className="block text-sm font-medium text-gray-700">
-              Code
+              {t("Code")}
               <input name="code" value={formData.code} onChange={handleChange} maxLength={20} className="hms-input mt-1 w-full" />
             </label>
             <label className="block text-sm font-medium text-gray-700">
-              Head of Department
+              {t("Head of Department")}
               <select name="head" value={formData.head} onChange={handleChange} className="hms-input mt-1 w-full">
                 <option value="">Not assigned</option>
                 {doctors.map((doctor) => (
@@ -240,18 +242,18 @@ function Departments() {
               </select>
             </label>
             <label className="block text-sm font-medium text-gray-700">
-              Description
+              {t("Description")}
               <textarea name="description" value={formData.description} onChange={handleChange} rows={2} className="hms-input mt-1 w-full" />
             </label>
             <label className="block text-sm font-medium text-gray-700">
-              Status
+              {t("Status")}
               <select name="status" value={formData.status} onChange={handleChange} className="hms-input mt-1 w-full">
                 <option>Active</option>
                 <option>Inactive</option>
               </select>
             </label>
             <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={() => { setShowModal(false); setError("") }} className="px-5 py-2.5 bg-gray-100 rounded-lg">Cancel</button>
+              <button type="button" onClick={() => { setShowModal(false); setError("") }} className="px-5 py-2.5 bg-gray-100 rounded-lg">{t("Cancel")}</button>
               <button type="submit" disabled={saving} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50">
                 {saving ? "Saving…" : editing ? "Update Department" : "Add Department"}
               </button>

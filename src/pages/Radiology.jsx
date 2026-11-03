@@ -127,7 +127,7 @@ function Radiology() {
     <div className="space-y-5">
       <PageHeader
         title={t("Radiology")}
-        description={selectedHospital ? `Imaging orders, scans and reports at ${selectedHospital.name}.` : "Select a hospital to see imaging."}
+        description={selectedHospital ? t("Imaging orders, scans and reports at {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital to see imaging."}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Radiology" }]}
         actions={selectedHospital && (
           <>

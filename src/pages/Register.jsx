@@ -8,6 +8,7 @@ import {
 } from "../utils/roleRouting.js"
 import { BrandMark } from "../components/Sidebar.jsx"
 import { Alert } from "../components/ui"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 const inputClass = "hms-input w-full"
 
@@ -16,6 +17,7 @@ const inputClass = "hms-input w-full"
 const REGISTER_ROLES = LOGIN_ROLES.filter((item) => item === "Patient" || item === "Admin")
 
 function Register() {
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -137,14 +139,14 @@ function Register() {
       <div className="w-full max-w-[28rem]">
         <div className="mb-8">
           <BrandMark inverted={false} />
-          <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">Create an account</h1>
-          <p className="mt-1 text-sm text-ink-500">Patients can sign in once their email is verified. Doctors, nurses and other staff join by an invitation from their hospital.</p>
+          <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">{t("Create an account")}</h1>
+          <p className="mt-1 text-sm text-ink-500">{t("Patients can sign in once their email is verified. Doctors, nurses and other staff join by an invitation from their hospital.")}</p>
         </div>
 
         <div className="hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8">
           <div className="mb-6">
             <p id="register-role-label" className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
-              Account type
+              {t("Account type")}
             </p>
             <div className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-labelledby="register-role-label">
               {REGISTER_ROLES.map((item) => (
@@ -164,15 +166,13 @@ function Register() {
 
           {role === "Admin" && (
             <Alert tone="warning" className="mb-4">
-              Admin accounts cannot be created from the role selector alone.
-              An invitation code from an existing administrator is required.
+              {t("Admin accounts cannot be created from the role selector alone. An invitation code from an existing administrator is required.")}
             </Alert>
           )}
 
           {role === "Patient" && (
             <Alert tone="info" className="mb-4">
-              Hospital staff do not sign up here. Your hospital&apos;s administrator
-              sends you an invitation link to set your password.
+              {t("Hospital staff do not sign up here. Your hospital's administrator sends you an invitation link to set your password.")}
             </Alert>
           )}
 
@@ -185,7 +185,7 @@ function Register() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="reg-field-1" className="hms-label">Full Name</label>
+              <label htmlFor="reg-field-1" className="hms-label">{t("Full Name")}</label>
               <input
                 id="reg-field-1"
                 className={inputClass}
@@ -195,7 +195,7 @@ function Register() {
               />
             </div>
             <div>
-              <label htmlFor="reg-field-phone" className="hms-label">Mobile Number</label>
+              <label htmlFor="reg-field-phone" className="hms-label">{t("Mobile Number")}</label>
               <div className="flex">
                 <span className="flex items-center rounded-l-lg border border-r-0 border-line-strong bg-ink-50 px-3 text-sm text-ink-600">
                   +91
@@ -210,13 +210,13 @@ function Register() {
                     const val = e.target.value.replace(/\D/g, "")
                     if (val.length <= 10) setField("phone", val)
                   }}
-                  placeholder="Enter 10-digit number"
+                  placeholder={t("Enter 10-digit number")}
                   required
                 />
               </div>
             </div>
             <div>
-              <label htmlFor="reg-field-2" className="hms-label">Email</label>
+              <label htmlFor="reg-field-2" className="hms-label">{t("Email")}</label>
               <input
                 id="reg-field-2"
                 type="email"
@@ -230,7 +230,7 @@ function Register() {
             {role === "Patient" && (
               <>
                 <div>
-                  <label htmlFor="reg-field-3" className="hms-label">Date of Birth</label>
+                  <label htmlFor="reg-field-3" className="hms-label">{t("Date of Birth")}</label>
                   <input
                     id="reg-field-3"
                     type="date"
@@ -240,7 +240,7 @@ function Register() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="reg-field-4" className="hms-label">Gender</label>
+                  <label htmlFor="reg-field-4" className="hms-label">{t("Gender")}</label>
                   <select
                     id="reg-field-4"
                     className={inputClass}
@@ -253,7 +253,7 @@ function Register() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="reg-field-5" className="hms-label">Address</label>
+                  <label htmlFor="reg-field-5" className="hms-label">{t("Address")}</label>
                   <input
                     id="reg-field-5"
                     className={inputClass}
@@ -266,19 +266,19 @@ function Register() {
 
             {role === "Admin" && (
               <div>
-                <label htmlFor="reg-field-13" className="hms-label">Admin Invitation Code</label>
+                <label htmlFor="reg-field-13" className="hms-label">{t("Admin Invitation Code")}</label>
                 <input
                   id="reg-field-13"
                   className={inputClass}
                   value={form.invite_code}
                   onChange={(e) => setField("invite_code", e.target.value)}
-                  placeholder="Required — issued by an existing admin"
+                  placeholder={t("Required — issued by an existing admin")}
                 />
               </div>
             )}
 
             <div>
-              <label htmlFor="reg-field-14" className="hms-label">Password</label>
+              <label htmlFor="reg-field-14" className="hms-label">{t("Password")}</label>
               <input
                 id="reg-field-14"
                 type="password"
@@ -290,7 +290,7 @@ function Register() {
               />
             </div>
             <div>
-              <label htmlFor="reg-field-15" className="hms-label">Confirm Password</label>
+              <label htmlFor="reg-field-15" className="hms-label">{t("Confirm Password")}</label>
               <input
                 id="reg-field-15"
                 type="password"
@@ -314,20 +314,20 @@ function Register() {
           {pendingEmail && (
             <form onSubmit={handleVerifyEmail} className="mt-6 space-y-4 border-t border-line pt-6">
               <div>
-                <h2 className="text-sm font-semibold text-ink-900">Verify email</h2>
+                <h2 className="text-sm font-semibold text-ink-900">{t("Verify email")}</h2>
                 <p className="text-xs text-gray-500 mt-1">
-                  {otpMessage || `Enter the code sent for ${pendingEmail}.`}
+                  {otpMessage || t("Enter the code sent for {pendingEmail}.", { pendingEmail })}
                 </p>
               </div>
               <div>
-                <label htmlFor="reg-field-16" className="hms-label">Email OTP</label>
+                <label htmlFor="reg-field-16" className="hms-label">{t("Email OTP")}</label>
                 <input
                   id="reg-field-16"
                   className={inputClass}
                   inputMode="numeric"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="Enter the 6-digit code"
+                  placeholder={t("Enter the 6-digit code")}
                   required
                 />
               </div>
@@ -345,14 +345,14 @@ function Register() {
                   disabled={loading || verified}
                   className="rounded text-[13px] font-medium text-brand-700 hover:underline disabled:opacity-50"
                 >
-                  Resend email OTP
+                  {t("Resend email OTP")}
                 </button>
                 {verified && (
                   <Link
                     to={`/patient-login?role=Patient&email=${encodeURIComponent(pendingEmail)}`}
                     className="rounded text-[13px] font-medium text-brand-700 hover:underline disabled:opacity-50"
                   >
-                    Sign in
+                    {t("Sign in")}
                   </Link>
                 )}
               </div>
@@ -360,12 +360,12 @@ function Register() {
           )}
 
           <div className="mt-6 text-center text-[13px] text-ink-500">
-            <p>Already have an account?</p>
+            <p>{t("Already have an account?")}</p>
             <Link
               to={`/patient-login?role=${encodeURIComponent(role)}`}
               className="mt-1 inline-block font-medium text-brand-700 hover:underline"
             >
-              Sign in
+              {t("Sign in")}
             </Link>
           </div>
         </div>

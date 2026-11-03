@@ -35,7 +35,7 @@ export function BrandMark({ compact = false, inverted = true }) {
 
 function NavItems({ groups, collapsed, t, onNavigate }) {
   return (
-    <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 py-3 scrollbar-thin [scrollbar-color:rgb(255_255_255/0.15)_transparent]">
+    <nav aria-label={t("Main")} className="flex-1 overflow-y-auto px-3 py-3 scrollbar-thin [scrollbar-color:rgb(255_255_255/0.15)_transparent]">
       {groups.map((group, gi) => (
         <div key={group.id} className={gi > 0 ? "mt-4" : ""}>
           {collapsed ? (

@@ -327,13 +327,13 @@ function Prescription() {
       const medicine = form.medicines[index]
 
       if (!String(medicine.name || "").trim()) {
-        return `Medicine ${index + 1}: name is required.`
+        return t("Medicine {number}: name is required.", { number: index + 1 })
       }
 
       const quantity = num(medicine.quantity)
 
       if (quantity === null || quantity < 1) {
-        return `Medicine ${index + 1}: quantity must be at least 1.`
+        return t("Medicine {number}: quantity must be at least 1.", { number: index + 1 })
       }
     }
 
@@ -400,7 +400,7 @@ function Prescription() {
       const created = await createPrescription(payload)
 
       setSuccessMessage(
-        `Prescription ${created?.id || ""} created successfully.`
+        t("Prescription {createdId} created successfully.", { createdId: created?.id || "" })
       )
       setForm(emptyForm())
       setSafetyCheck(null)
@@ -422,7 +422,7 @@ function Prescription() {
 
     try {
       await dispensePrescription(record.id, selectedHospital?.id)
-      setSuccessMessage(`Prescription ${record.id} marked as Dispensed.`)
+      setSuccessMessage(t("Prescription {recordId} marked as Dispensed.", { recordId: record.id }))
     } catch (err) {
       setActionError(err.message || "Could not dispense this prescription.")
     }
@@ -456,7 +456,7 @@ function Prescription() {
   const header = (
     <PageHeader
       title={t("Prescriptions")}
-      description={selectedHospital ? `Write and manage prescriptions at ${selectedHospital.name}.` : "Select a hospital to manage prescriptions."}
+      description={selectedHospital ? t("Write and manage prescriptions at {hospital}.", { hospital: selectedHospital.name }) : "Select a hospital to manage prescriptions."}
       breadcrumbs={[{ label: "Home", to: "/" }, { label: "Prescriptions" }]}
       actions={
         <Button variant="secondary" icon={RefreshCw} onClick={refresh} disabled={!selectedHospital || loading}>
@@ -557,7 +557,7 @@ function Prescription() {
                       icon={X}
                       onClick={() => removeMedicineRow(index)}
                       disabled={form.medicines.length === 1}
-                      aria-label={`Remove medicine ${index + 1}`}
+                      aria-label={t("Remove medicine {number}", { number: index + 1 })}
                       title={t("Remove medicine")}
                     />
                   </div>
@@ -633,7 +633,7 @@ function Prescription() {
                         </Button>
                       )}
                       {record.apiId && (
-                        <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => setPending({ kind: "delete", record })} aria-label={`Delete prescription ${record.id}`} title={t("Delete")} />
+                        <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => setPending({ kind: "delete", record })} aria-label={t("Delete prescription {recordId}", { recordId: record.id })} title={t("Delete")} />
                       )}
                     </div>
                   </div>
@@ -682,8 +682,8 @@ function Prescription() {
         confirmLabel={pending?.kind === "delete" ? "Delete" : "Mark dispensed"}
         message={
           pending?.kind === "delete"
-            ? `Prescription ${pending?.record.id} for ${pending?.record.patientName || "this patient"} will be deleted. This cannot be undone.`
-            : `Confirm that every medicine on prescription ${pending?.record.id} has been handed to ${pending?.record.patientName || "the patient"}.`
+            ? t("Prescription {recordId} for {patient} will be deleted. This cannot be undone.", { recordId: pending?.record.id, patient: pending?.record.patientName || "this patient" })
+            : t("Confirm that every medicine on prescription {recordId} has been handed to {patient}.", { recordId: pending?.record.id, patient: pending?.record.patientName || "the patient" })
         }
       />
     </div>

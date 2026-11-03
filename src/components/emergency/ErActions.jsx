@@ -323,7 +323,7 @@ function DrugReceivePanel({ visit, onDone, onError }) {
     run(async () => {
       const updated = await api.emergency.visits.administerMedication(visit.id, { medication_id: med.id })
       setMeds((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
-      onDone(`${med.name} marked as received and given.`)
+      onDone(t("{name} marked as received and given.", { name: med.name }))
     })
   return pending.length === 0 ? (
     <EmptyState compact title={t("Nothing waiting")} description="Every prescribed ER medicine has been given." />
@@ -351,7 +351,7 @@ function AdmitPanel({ visit, onDone, onError }) {
     event.preventDefault()
     run(async () => {
       const result = await api.emergency.visits.admitToIpd(visit.id, Number(bedId))
-      onDone(`Admitted to ${result.admission?.bed || "the ward"}.`)
+      onDone(t("Admitted to {ward}.", { ward: result.admission?.bed || "the ward" }))
     })
   }
   if (beds === null) return <p className="text-sm text-ink-500">{t("Loading free beds…")}</p>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import api from "../../services/api.js"
 import { Alert, Button, Field, Modal, Select, Textarea, Input } from "../../components/ui"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 /** Today's date in the browser's time zone, as YYYY-MM-DD. */
 function todayIso(offsetDays = 0) {
@@ -14,6 +15,7 @@ function todayIso(offsetDays = 0) {
  * re-checks every rule (own hospital, date window, free slot, booking limit).
  */
 function BookAppointmentModal({ open, onClose, onBooked }) {
+  const { t } = useLanguage()
   const [options, setOptions] = useState({ hospitals: [], doctors: [], slots: [], window_days: 60 })
   const [form, setForm] = useState({ hospital: "", doctor: "", date: todayIso(1), time: "", reason: "" })
   const [loading, setLoading] = useState(false)
@@ -82,15 +84,15 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Book an appointment"
+      title={t("Book an appointment")}
       description="Choose a doctor, a date and a free time."
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button onClick={submit} loading={saving} disabled={!form.doctor || !form.date || !form.time}>
-            Confirm booking
+            {t("Confirm booking")}
           </Button>
         </>
       }
@@ -98,7 +100,7 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
       <div className="space-y-4">
         {error && <Alert tone="danger">{error}</Alert>}
         {options.hospitals.length === 0 && !error && (
-          <Alert tone="warning">You are not registered at any hospital yet. Please register at the reception first.</Alert>
+          <Alert tone="warning">{t("You are not registered at any hospital yet. Please register at the reception first.")}</Alert>
         )}
         <Field label="Hospital" required>
           <Select value={form.hospital} onChange={(e) => set("hospital", e.target.value)}>

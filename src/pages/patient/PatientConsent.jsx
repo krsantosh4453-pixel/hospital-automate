@@ -5,6 +5,7 @@ import api from "../../services/api.js"
 import { CircleCheckIcon, ClipboardListIcon, PenLineIcon, XIcon } from "lucide-react"
 import { Alert, Card, SkeletonRows, useConfirm } from "../../components/ui"
 import FamilyAccessCard from "../../components/patient/FamilyAccessCard.jsx"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const SCOPE_LABELS = {
   visits: "Visit history",
@@ -24,6 +25,7 @@ const inDays = (days) => {
 }
 
 function PatientConsent() {
+  const { t } = useLanguage()
   const [confirm, confirmDialog] = useConfirm()
 
   // A family member (proxy) may read this page but not sign, share or manage access.
@@ -109,11 +111,11 @@ function PatientConsent() {
   }
 
   const handleRevokeConsent = async (record) => {
-    if (!(await confirm(`Withdraw your consent for "${record.form_name}"?`))) return
+    if (!(await confirm(t("Withdraw your consent for \"{name}\"?", { name: record.form_name })))) return
     setError(null)
     try {
       await api.consent.records.revoke(record.id)
-      setNotice(`Consent withdrawn: ${record.form_name}`)
+      setNotice(t("Consent withdrawn: {name}", { name: record.form_name }))
       await load()
     } catch (err) {
       setError(err.message)
@@ -153,11 +155,11 @@ function PatientConsent() {
   }
 
   const handleRevokeShare = async (share) => {
-    if (!(await confirm(`Stop sharing with ${share.recipient_hospital_name}? They will lose access immediately.`))) return
+    if (!(await confirm(t("Stop sharing with {hospital}? They will lose access immediately.", { hospital: share.recipient_hospital_name })))) return
     setError(null)
     try {
       await api.consent.shares.revoke(share.id)
-      setNotice(`Sharing with ${share.recipient_hospital_name} stopped.`)
+      setNotice(t("Sharing with {hospital} stopped.", { hospital: share.recipient_hospital_name }))
       await load()
     } catch (err) {
       setError(err.message)
@@ -167,8 +169,8 @@ function PatientConsent() {
   return (
     <>{confirmDialog}<div className="space-y-6">
       <header>
-        <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">Consent and sharing</h1>
-        <p className="mt-1 text-sm text-ink-500">Review and sign consent forms, and control who can see your records.</p>
+        <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">{t("Consent and sharing")}</h1>
+        <p className="mt-1 text-sm text-ink-500">{t("Review and sign consent forms, and control who can see your records.")}</p>
       </header>
 
       {error && <Alert tone="danger" onDismiss={() => setError(null)}>{error}</Alert>}
@@ -189,27 +191,27 @@ function PatientConsent() {
                     <div>
                       <h3 className="text-base font-semibold text-ink-900">{form.name}</h3>
                       <p className="text-sm text-gray-500 mt-1">{form.description}</p>
-                      {form.version && <p className="text-xs text-gray-400 mt-1">Version {form.version}{form.required ? " • Required" : ""}</p>}
+                      {form.version && <p className="text-xs text-gray-400 mt-1">{t("Version")}{" "}{form.version}{form.required ? " • Required" : ""}</p>}
                     </div>
                     <div className="flex items-center gap-3">
                       {isSigned ? (
                         <>
                           <span className="px-4 py-2 bg-green-100 text-green-700 rounded-xl text-sm font-medium flex items-center gap-2">
-                            <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Signed on {formatDate(record.signed_at)}
+                            <CircleCheckIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Signed on")}{" "}{formatDate(record.signed_at)}
                           </span>
                           {!isProxy && (
                             <button
                               onClick={() => handleRevokeConsent(record)}
                               className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200"
                             >
-                              Withdraw
+                              {t("Withdraw")}
                             </button>
                           )}
                         </>
                       ) : (
                         <>
                           <span className="px-4 py-2 bg-red-100 text-red-700 rounded-xl text-sm font-medium">
-                            <ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Not Signed
+                            <ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Not Signed")}
                           </span>
                           {!isProxy && (
                             <button
@@ -217,7 +219,7 @@ function PatientConsent() {
                               disabled={signing}
                               className="px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50"
                             >
-                              Review &amp; Sign
+                              {t("Review & Sign")}
                             </button>
                           )}
                         </>
@@ -231,7 +233,7 @@ function PatientConsent() {
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600"><PenLineIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
                       <div>
-                        <p className="font-medium text-green-800">Signed by {record.signed_by_proxy ? `proxy (${record.proxy_relationship})` : "Patient"}</p>
+                        <p className="font-medium text-green-800">{t("Signed by")}{" "}{record.signed_by_proxy ? `proxy (${record.proxy_relationship})` : "Patient"}</p>
                         <p className="text-sm text-green-600">{record.signed_name}</p>
                       </div>
                     </div>
@@ -244,8 +246,8 @@ function PatientConsent() {
       ) : (
         <div className="rounded-2xl border border-line bg-white p-12 text-center">
           <div className="text-4xl mb-3"><ClipboardListIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></div>
-          <h3 className="font-bold text-gray-800">No consent forms available</h3>
-          <p className="text-sm text-gray-500 mt-1">You don&apos;t have any pending consent forms at the moment.</p>
+          <h3 className="font-bold text-gray-800">{t("No consent forms available")}</h3>
+          <p className="text-sm text-gray-500 mt-1">{t("You don't have any pending consent forms at the moment.")}</p>
         </div>
       )}
 
@@ -253,17 +255,16 @@ function PatientConsent() {
       {!loading && (
         <div className="overflow-hidden rounded-2xl border border-line bg-white">
           <div className="p-5 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-ink-900">Share My Records</h2>
+            <h2 className="text-base font-semibold text-ink-900">{t("Share My Records")}</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Let another hospital see selected records from this hospital until a date you choose.
-              Every time they open your records it is logged here.
+              {t("Let another hospital see selected records from this hospital until a date you choose. Every time they open your records it is logged here.")}
             </p>
           </div>
 
           {!isProxy && (
           <form onSubmit={handleCreateShare} className="p-5 grid gap-4 md:grid-cols-2">
             <div>
-              <label htmlFor="share-hospital" className="block text-xs font-medium text-gray-700 mb-1.5">Share with hospital</label>
+              <label htmlFor="share-hospital" className="block text-xs font-medium text-gray-700 mb-1.5">{t("Share with hospital")}</label>
               <select
                 id="share-hospital"
                 value={shareForm.recipient_hospital}
@@ -278,7 +279,7 @@ function PatientConsent() {
               </select>
             </div>
             <div>
-              <label htmlFor="share-expiry" className="block text-xs font-medium text-gray-700 mb-1.5">Access ends on</label>
+              <label htmlFor="share-expiry" className="block text-xs font-medium text-gray-700 mb-1.5">{t("Access ends on")}</label>
               <input
                 id="share-expiry"
                 type="date"
@@ -291,7 +292,7 @@ function PatientConsent() {
               />
             </div>
             <fieldset className="md:col-span-2">
-              <legend className="block text-xs font-medium text-gray-700 mb-1.5">Records to share</legend>
+              <legend className="block text-xs font-medium text-gray-700 mb-1.5">{t("Records to share")}</legend>
               <div className="flex flex-wrap gap-3">
                 {Object.entries(SCOPE_LABELS).map(([key, label]) => (
                   <label key={key} className="flex items-center gap-2 text-sm text-gray-700">
@@ -302,14 +303,14 @@ function PatientConsent() {
               </div>
             </fieldset>
             <div className="md:col-span-2">
-              <label htmlFor="share-purpose" className="block text-xs font-medium text-gray-700 mb-1.5">Reason</label>
+              <label htmlFor="share-purpose" className="block text-xs font-medium text-gray-700 mb-1.5">{t("Reason")}</label>
               <input
                 id="share-purpose"
                 type="text"
                 maxLength={200}
                 value={shareForm.purpose}
                 onChange={(e) => setShareForm({ ...shareForm, purpose: e.target.value })}
-                placeholder="e.g. Second opinion with cardiologist"
+                placeholder={t("e.g. Second opinion with cardiologist")}
                 className="hms-input w-full"
                 required
               />
@@ -328,7 +329,7 @@ function PatientConsent() {
 
           <div className="border-t border-gray-100">
             {shares.length === 0 ? (
-              <p className="p-5 text-sm text-gray-500">You are not sharing records with any hospital.</p>
+              <p className="p-5 text-sm text-gray-500">{t("You are not sharing records with any hospital.")}</p>
             ) : (
               <ul className="divide-y divide-gray-100">
                 {shares.map((share) => (
@@ -341,7 +342,7 @@ function PatientConsent() {
                         </span>
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
-                        {share.scope.map((key) => SCOPE_LABELS[key] || key).join(", ")} · until {formatDate(share.expires_at)} · opened {share.access_count} time(s)
+                        {share.scope.map((key) => SCOPE_LABELS[key] || key).join(", ")}{" "}{t("· until")}{" "}{formatDate(share.expires_at)}{" "}{t("· opened")}{" "}{share.access_count}{" "}{t("time(s)")}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">{share.purpose}</p>
                     </div>
@@ -350,7 +351,7 @@ function PatientConsent() {
                         onClick={() => handleRevokeShare(share)}
                         className="px-4 py-2 bg-red-50 text-red-700 rounded-xl text-sm font-medium hover:bg-red-100"
                       >
-                        Stop Sharing
+                        {t("Stop Sharing")}
                       </button>
                     )}
                   </li>
@@ -367,34 +368,34 @@ function PatientConsent() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="consent-sign-title">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-              <h2 id="consent-sign-title" className="text-base font-semibold text-ink-900">Sign Consent Form: {selectedForm.name}</h2>
-              <button onClick={() => setShowSignModal(false)} className="text-gray-400 hover:text-gray-700 text-xl font-semibold" aria-label="Close"><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
+              <h2 id="consent-sign-title" className="text-base font-semibold text-ink-900">{t("Sign Consent Form:")}{" "}{selectedForm.name}</h2>
+              <button onClick={() => setShowSignModal(false)} className="text-gray-400 hover:text-gray-700 text-xl font-semibold" aria-label={t("Close")}><XIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /></button>
             </div>
             <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
               <div className="prose prose-sm max-w-none text-gray-700 border border-gray-200 rounded-xl p-4 bg-gray-50">
                 {selectedForm.description}
-                <p className="text-xs text-gray-500 mt-2">Version {selectedForm.version}. You can withdraw this consent later on this page.</p>
+                <p className="text-xs text-gray-500 mt-2">{t("Version")}{" "}{selectedForm.version}{t(". You can withdraw this consent later on this page.")}</p>
               </div>
               <div className="border-t pt-4">
-                <h3 className="font-semibold text-gray-800 mb-3">Your Signature</h3>
-                <label htmlFor="consent-signature" className="text-sm text-gray-500 mb-3 block">Type your full name to provide your electronic signature</label>
+                <h3 className="font-semibold text-gray-800 mb-3">{t("Your Signature")}</h3>
+                <label htmlFor="consent-signature" className="text-sm text-gray-500 mb-3 block">{t("Type your full name to provide your electronic signature")}</label>
                 <input
                   id="consent-signature"
                   type="text"
                   value={signature}
                   onChange={(e) => setSignature(e.target.value)}
-                  placeholder="Enter your full name"
+                  placeholder={t("Enter your full name")}
                   className="hms-input w-full"
                   required
                 />
                 <label className="flex items-start gap-2 text-xs text-gray-600 mt-3">
                   <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-                  I have read and understood this consent form and agree to its terms.
+                  {t("I have read and understood this consent form and agree to its terms.")}
                 </label>
               </div>
             </div>
             <div className="p-5 border-t border-gray-100 flex justify-end gap-3">
-              <button onClick={() => setShowSignModal(false)} className="px-5 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200">Cancel</button>
+              <button onClick={() => setShowSignModal(false)} className="px-5 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200">{t("Cancel")}</button>
               <button onClick={handleSubmitSignature} disabled={signing || !signature.trim() || !confirmed} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50">{signing ? "Signing..." : "Sign Document"}</button>
             </div>
           </div>

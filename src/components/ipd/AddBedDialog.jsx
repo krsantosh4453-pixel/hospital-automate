@@ -26,13 +26,13 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
   const [newRoom, setNewRoom] = useState({ room_number: "", room_type: "" })
   const [bed, setBed] = useState(EMPTY_BED)
   const [error, setError] = useState("")
-  const [loadError, setLoadError] = useState("")
+  const [loadError, setLoadError] = useState(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open || !hospitalId) return undefined
     let active = true
-    setLoadError("")
+    setLoadError(null)
     api.wards
       .list(hospitalId)
       .then((data) => {
@@ -41,7 +41,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
         setWards(rows)
         setWardId((current) => current || (rows.length ? String(rows[0].id) : NEW))
       })
-      .catch((err) => active && setLoadError(`Wards could not be loaded: ${err.message}`))
+      .catch((err) => active && setLoadError({ text: "Wards could not be loaded: {reason}", reason: err.message }))
     return () => {
       active = false
     }
@@ -62,7 +62,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
         setRooms(rows)
         setRoomId(rows.length ? String(rows[0].id) : NEW)
       })
-      .catch((err) => active && setLoadError(`Rooms could not be loaded: ${err.message}`))
+      .catch((err) => active && setLoadError({ text: "Rooms could not be loaded: {reason}", reason: err.message }))
     return () => {
       active = false
     }
@@ -107,7 +107,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
       onAdded(created)
       close()
     } catch (err) {
-      setError(`Not saved: ${err.message || "the server refused the request."}`)
+      setError(t("Not saved: {reason}", { reason: err.message || "the server refused the request." }))
     } finally {
       setSaving(false)
     }
@@ -127,7 +127,7 @@ export default function AddBedDialog({ open, onClose, hospitalId, onAdded }) {
       }
     >
       <form id="ipd-add-bed" onSubmit={handleSubmit} className="space-y-4">
-        {loadError && <Alert tone="danger">{loadError}</Alert>}
+        {loadError && <Alert tone="danger">{t(loadError.text, { reason: loadError.reason })}</Alert>}
         {error && <Alert tone="danger">{error}</Alert>}
 
         <Field label="Ward" required>

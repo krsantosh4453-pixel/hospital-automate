@@ -6,11 +6,13 @@ import api from "../../services/api.js"
 import { Alert, Card, CardHeader, EmptyState, SkeletonRows, StatTile, StatusBadge } from "../../components/ui"
 import { UPCOMING_STATUSES } from "../../config/appointmentStatus.js"
 import PatientTimeline from "../../components/clinical/PatientTimeline.jsx"
+import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 const CURRENT_RX = ["Confirmed", "Pending"]
 
 function PatientDashboard() {
+  const { t } = useLanguage()
   const { patient } = useAuth()
   const [stats, setStats] = useState(null)
   const [appointments, setAppointments] = useState([])
@@ -73,7 +75,7 @@ function PatientDashboard() {
     <div className="space-y-6">
       <header>
         <h1 className="text-[22px] font-semibold tracking-tight text-ink-900 sm:text-2xl">{firstName ? `Hello, ${firstName}` : "Welcome"}</h1>
-        <p className="mt-1 text-sm text-ink-500">Your appointments, medicines, reports and bills in one place.</p>
+        <p className="mt-1 text-sm text-ink-500">{t("Your appointments, medicines, reports and bills in one place.")}</p>
       </header>
 
       {error && <Alert tone="warning">{error}</Alert>}
@@ -88,8 +90,8 @@ function PatientDashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
           <CardHeader
-            title="Upcoming appointments"
-            actions={<Link to="/patient/appointments" className="text-[13px] font-medium text-brand-700 hover:underline">View all</Link>}
+            title={t("Upcoming appointments")}
+            actions={<Link to="/patient/appointments" className="text-[13px] font-medium text-brand-700 hover:underline">{t("View all")}</Link>}
           />
           {loading ? (
             <SkeletonRows rows={3} />
@@ -116,14 +118,14 @@ function PatientDashboard() {
             <EmptyState
               compact
               icon={CalendarDays}
-              title="No upcoming appointments"
-              action={<Link to="/patient/appointments" className="text-sm font-medium text-brand-700 hover:underline">See your appointments</Link>}
+              title={t("No upcoming appointments")}
+              action={<Link to="/patient/appointments" className="text-sm font-medium text-brand-700 hover:underline">{t("See your appointments")}</Link>}
             />
           )}
         </Card>
 
         <Card>
-          <CardHeader title="Your records" />
+          <CardHeader title={t("Your records")} />
           <ul className="divide-y divide-ink-100">
             {links.map(({ to, icon: Icon, title, text }) => (
               <li key={to}>
@@ -143,7 +145,7 @@ function PatientDashboard() {
 
       {patient?.id && (
         <Card>
-          <CardHeader icon={History} title="My health record" description="Your visits, results and treatment at every hospital you use." />
+          <CardHeader icon={History} title={t("My health record")} description="Your visits, results and treatment at every hospital you use." />
           <div className="px-5 py-4"><PatientTimeline patientId={patient.id} /></div>
         </Card>
       )}

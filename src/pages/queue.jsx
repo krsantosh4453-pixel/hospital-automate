@@ -164,7 +164,7 @@ function Queue() {
       // One server-side call: Appointment → (reused/created) Visit →
       // QueueToken with a token_number allocated by Django.
       const token = await api.queue.issue(nextAppointment.apiId)
-      setSuccessMessage(`Token #${token.token_number} generated for ${nextAppointment.patient || "patient"}.`)
+      setSuccessMessage(t("Token #{tokenNumber} generated for {patient}.", { tokenNumber: token.token_number, patient: nextAppointment.patient || "patient" }))
       setReloadToken((value) => value + 1)
     } catch (error) {
       setActionError(error.message || "Failed to generate a token.")
@@ -228,9 +228,9 @@ function Queue() {
     // the next one). The screen changes only from the server's reload.
     try {
       await api.queue.callNext(selectedHospital.id)
-      setSuccessMessage(`Called token #${nextPatient.token}. Start the consultation when the patient comes in.`)
+      setSuccessMessage(t("Called token #{token}. Start the consultation when the patient comes in.", { token: nextPatient.token }))
     } catch (error) {
-      setActionError(`Not changed: ${error.message || "Failed to call the next patient."}`)
+      setActionError(t("Not changed: {reason}", { reason: error.message || "Failed to call the next patient." }))
     } finally {
       setBusy("")
       setReloadToken((value) => value + 1)
@@ -251,7 +251,7 @@ function Queue() {
       await config.apiCall(selectedQueuePatient.apiId)
       setSuccessMessage(`Token #${token} ${config.done}.`)
     } catch (error) {
-      setActionError(`Not changed: ${error.message || config.fail}`)
+      setActionError(t("Not changed: {reason}", { reason: error.message || config.fail }))
     } finally {
       setBusy("")
       setReloadToken((value) => value + 1)
@@ -282,7 +282,7 @@ function Queue() {
     <div className="space-y-5">
       <PageHeader
         title={t("OPD queue")}
-        description={`Tokens and consultation flow at ${selectedHospital.name}.`}
+        description={t("Tokens and consultation flow at {hospital}.", { hospital: selectedHospital.name })}
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Queue" }]}
         actions={
           <>
@@ -292,7 +292,7 @@ function Queue() {
               onClick={generateToken}
               loading={busy === "generate"}
               disabled={loading}
-              title={issueableAppointments.length ? `${issueableAppointments.length} booked appointment(s) without a token` : "No booked appointment is waiting for a token"}
+              title={issueableAppointments.length ? t("{count} booked appointment(s) without a token", { count: issueableAppointments.length }) : "No booked appointment is waiting for a token"}
             >
               {t("Issue token")}{issueableAppointments.length ? ` (${issueableAppointments.length})` : ""}
             </Button>

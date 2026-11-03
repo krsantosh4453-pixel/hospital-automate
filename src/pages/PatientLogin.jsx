@@ -16,8 +16,10 @@ import { Alert } from "../components/ui"
 import DevLoginPanel from "../components/DevLoginPanel.jsx"
 import ProxyLoginPanel from "../components/auth/ProxyLoginPanel.jsx"
 import { useInSignInDialog } from "../components/auth/SignInDialog.jsx"
+import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function PatientLogin() {
+  const { t } = useLanguage()
   const toast = useToast()
 
   const navigate = useNavigate()
@@ -151,7 +153,7 @@ function PatientLogin() {
       }, 500)
     } catch (error) {
       console.error("Google login error:", error)
-      toast.error(`Google Login Error: ${error.message || "Could not connect to server."}`)
+      toast.error(t("Google Login Error: {reason}", { reason: error.message || "Could not connect to server." }))
     } finally {
       setGoogleLoading(false)
       setGoogleStatus("")
@@ -309,18 +311,18 @@ function PatientLogin() {
       <div className={inDialog ? "" : "w-full max-w-[26rem]"}>
 
         {inDialog ? (
-          <p className="mb-5 text-sm text-ink-500">Patients see their own appointments, prescriptions, reports and bills.</p>
+          <p className="mb-5 text-sm text-ink-500">{t("Patients see their own appointments, prescriptions, reports and bills.")}</p>
         ) : (
           <div className="mb-8">
             <BrandMark inverted={false} />
-            <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">Sign in</h1>
-            <p className="mt-1 text-sm text-ink-500">Patients see their own appointments, prescriptions, reports and bills.</p>
+            <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">{t("Sign in")}</h1>
+            <p className="mt-1 text-sm text-ink-500">{t("Patients see their own appointments, prescriptions, reports and bills.")}</p>
           </div>
         )}
 
         <div className="mb-6">
           <p id="login-role-label" className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
-            I am a
+            {t("I am a")}
           </p>
           <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-labelledby="login-role-label">
             {LOGIN_ROLES.map((role) => (
@@ -344,7 +346,7 @@ function PatientLogin() {
         <div className={inDialog ? "" : "hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8"}>
 
           {/* Mode Switcher Tabs */}
-          <div className="mb-6 flex rounded-lg bg-ink-100 p-0.5" role="tablist" aria-label="Sign-in method">
+          <div className="mb-6 flex rounded-lg bg-ink-100 p-0.5" role="tablist" aria-label={t("Sign-in method")}>
             <button
               type="button"
               onClick={() => {
@@ -355,7 +357,7 @@ function PatientLogin() {
               aria-selected={loginMode === "mobile"}
               className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors ${loginMode === "mobile" ? "bg-white text-brand-700 shadow-sm" : "text-ink-600 hover:text-ink-900"}`}
             >
-              <SmartphoneIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Mobile OTP
+              <SmartphoneIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Mobile OTP")}
             </button>
             <button
               type="button"
@@ -367,7 +369,7 @@ function PatientLogin() {
               aria-selected={loginMode === "token"}
               className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors ${loginMode === "token" ? "bg-white text-brand-700 shadow-sm" : "text-ink-600 hover:text-ink-900"}`}
             >
-              <TicketIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Token / ID
+              <TicketIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Token / ID")}
             </button>
             <button
               type="button"
@@ -379,17 +381,17 @@ function PatientLogin() {
               aria-selected={loginMode === "email"}
               className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors ${loginMode === "email" ? "bg-white text-brand-700 shadow-sm" : "text-ink-600 hover:text-ink-900"}`}
             >
-              <MailIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Email
+              <MailIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Email")}
             </button>
             <button
               type="button"
               onClick={() => setLoginMode("family")}
               role="tab"
               aria-selected={loginMode === "family"}
-              title="Family member or caregiver (view only)"
+              title={t("Family member or caregiver (view only)")}
               className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-colors ${loginMode === "family" ? "bg-white text-brand-700 shadow-sm" : "text-ink-600 hover:text-ink-900"}`}
             >
-              <UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" /> Family
+              <UsersIcon size="1em" aria-hidden="true" className="inline-block shrink-0 align-[-0.125em]" />{" "}{t("Family")}
             </button>
           </div>
 
@@ -404,10 +406,10 @@ function PatientLogin() {
                 <>
                   <div className="mb-5">
                     <h2 className="text-lg font-semibold text-ink-900">
-                      Login with Mobile
+                      {t("Login with Mobile")}
                     </h2>
                     <p className="mt-0.5 text-[13px] text-ink-500">
-                      We&apos;ll send a 6-digit verification code
+                      {t("We'll send a 6-digit verification code")}
                     </p>
                   </div>
 
@@ -420,7 +422,7 @@ function PatientLogin() {
 
                   <form onSubmit={handleSendOTP} className="space-y-4">
                     <div>
-                      <label htmlFor="pl-field-1" className="hms-label">Mobile Number</label>
+                      <label htmlFor="pl-field-1" className="hms-label">{t("Mobile Number")}</label>
                       <div className="flex">
                         <span className="flex items-center rounded-l-lg border border-r-0 border-line-strong bg-ink-50 px-3 text-sm text-ink-600">
                           +91
@@ -433,7 +435,7 @@ function PatientLogin() {
                             const val = e.target.value.replace(/\D/g, "")
                             if (val.length <= 10) setMobile(val)
                           }}
-                          placeholder="Enter 10-digit number"
+                          placeholder={t("Enter 10-digit number")}
                           className="hms-input w-full rounded-l-none"
                           required
                         />
@@ -457,7 +459,7 @@ function PatientLogin() {
                       }}
                       className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Verify using Email
+                      {t("Verify using Email")}
                     </button>
                   )}
                 </>
@@ -465,12 +467,12 @@ function PatientLogin() {
                 <>
                   <div className="mb-5">
                     <h2 className="text-lg font-semibold text-ink-900">
-                      Verify OTP
+                      {t("Verify OTP")}
                     </h2>
                     <p className="mt-0.5 text-[13px] text-ink-500">
                       {otpNotice || (
                         <>
-                          Enter 6-digit OTP sent to <span className="font-semibold text-gray-800">+91 {mobile}</span>
+                          {t("Enter 6-digit OTP sent to")}{" "}<span className="font-semibold text-gray-800">+91 {mobile}</span>
                         </>
                       )}
                     </p>
@@ -482,7 +484,7 @@ function PatientLogin() {
 
                   <form onSubmit={handleVerifyOTP} className="space-y-4">
                     <div>
-                      <label htmlFor="pl-field-2" className="hms-label">6-Digit OTP Code</label>
+                      <label htmlFor="pl-field-2" className="hms-label">{t("6-Digit OTP Code")}</label>
                       <input
                         id="pl-field-2"
                         type="text"
@@ -517,14 +519,14 @@ function PatientLogin() {
                       }}
                       className="rounded text-[13px] font-medium text-brand-700 hover:underline"
                     >
-                      Change number
+                      {t("Change number")}
                     </button>
                     <button
                       type="button"
                       onClick={handleSendOTP}
                       className="rounded text-[13px] font-medium text-ink-600 hover:text-ink-900"
                     >
-                      Resend code
+                      {t("Resend code")}
                     </button>
                   </div>
                   <button
@@ -535,7 +537,7 @@ function PatientLogin() {
                     }}
                     className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Verify using Email
+                    {t("Verify using Email")}
                   </button>
                 </>
               )}
@@ -563,7 +565,7 @@ function PatientLogin() {
               {emailStep === "credentials" ? (
                 <form onSubmit={handleEmailLogin} className="space-y-4">
                   <div>
-                    <label htmlFor="pl-field-3" className="hms-label">Email</label>
+                    <label htmlFor="pl-field-3" className="hms-label">{t("Email")}</label>
                     <input
                       id="pl-field-3"
                       type="email"
@@ -574,7 +576,7 @@ function PatientLogin() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="pl-field-4" className="hms-label">Password</label>
+                    <label htmlFor="pl-field-4" className="hms-label">{t("Password")}</label>
                     <input
                       id="pl-field-4"
                       type="password"
@@ -589,20 +591,20 @@ function PatientLogin() {
                     type="submit"
                     className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Sign In
+                    {t("Sign In")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEmailStep("otp")}
                     className="rounded text-[13px] font-medium text-brand-700 hover:underline"
                   >
-                    Email not verified? Send email OTP
+                    {t("Email not verified? Send email OTP")}
                   </button>
                 </form>
               ) : (
                 <form onSubmit={handleVerifyEmailOtp} className="space-y-4">
                   <div>
-                    <label htmlFor="pl-field-5" className="hms-label">Email</label>
+                    <label htmlFor="pl-field-5" className="hms-label">{t("Email")}</label>
                     <input
                       id="pl-field-5"
                       type="email"
@@ -621,7 +623,7 @@ function PatientLogin() {
                     {otpLoading ? "Sending..." : "Send Email OTP"}
                   </button>
                   <div>
-                    <label htmlFor="pl-field-6" className="hms-label">OTP</label>
+                    <label htmlFor="pl-field-6" className="hms-label">{t("OTP")}</label>
                     <input
                       id="pl-field-6"
                       inputMode="numeric"
@@ -636,14 +638,14 @@ function PatientLogin() {
                     disabled={otpLoading}
                     className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Verify OTP
+                    {t("Verify OTP")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEmailStep("credentials")}
                     className="rounded text-[13px] font-medium text-brand-700 hover:underline"
                   >
-                    Back to email login
+                    {t("Back to email login")}
                   </button>
                 </form>
               )}
@@ -657,16 +659,16 @@ function PatientLogin() {
             <div>
               <div className="mb-5">
                 <h2 className="text-lg font-semibold text-ink-900">
-                  Login with Token / ID
+                  {t("Login with Token / ID")}
                 </h2>
                 <p className="mt-0.5 text-[13px] text-ink-500">
-                  Enter your token number or hospital patient ID
+                  {t("Enter your token number or hospital patient ID")}
                 </p>
               </div>
 
               <form onSubmit={handleTokenLogin} className="space-y-4">
                 <div>
-                  <label htmlFor="pl-field-7" className="hms-label">Token Number / Patient ID</label>
+                  <label htmlFor="pl-field-7" className="hms-label">{t("Token Number / Patient ID")}</label>
                   <input
                     id="pl-field-7"
                     type="text"
@@ -675,7 +677,7 @@ function PatientLogin() {
                       setTokenInput(e.target.value)
                       if (tokenError) setTokenError("")
                     }}
-                    placeholder="e.g. T-001 or PAT-001 or 1"
+                    placeholder={t("e.g. T-001 or PAT-001 or 1")}
                     className="hms-input w-full font-medium"
                     required
                   />
@@ -683,18 +685,18 @@ function PatientLogin() {
                     <p className="text-xs text-red-500 mt-1">{tokenError}</p>
                   )}
                   <p className="text-[11px] text-gray-400 mt-1.5">
-                    Use the patient ID from registration together with your account password.
+                    {t("Use the patient ID from registration together with your account password.")}
                   </p>
                 </div>
 
                 <div>
-                  <label htmlFor="pl-field-8" className="hms-label">Password</label>
+                  <label htmlFor="pl-field-8" className="hms-label">{t("Password")}</label>
                   <input
                     id="pl-field-8"
                     type="password"
                     value={tokenPassword}
                     onChange={(e) => setTokenPassword(e.target.value)}
-                    placeholder="Account password"
+                    placeholder={t("Account password")}
                     className="hms-input w-full"
                     autoComplete="current-password"
                     required
@@ -705,7 +707,7 @@ function PatientLogin() {
                   type="submit"
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Lookup & Login
+                  {t("Lookup & Login")}
                 </button>
               </form>
             </div>
@@ -717,7 +719,7 @@ function PatientLogin() {
           <div className="flex items-center my-6">
             <div className="flex-1 border-t border-line" />
             <span className="px-3 text-xs font-medium text-ink-400">
-              OR
+              {t("OR")}
             </span>
             <div className="flex-1 border-t border-line" />
           </div>
@@ -739,11 +741,10 @@ function PatientLogin() {
           {selectedRole !== "Patient" && (
             <div className="mt-6 border-t border-line pt-6">
               <h3 className="mb-1 text-sm font-semibold text-ink-900">
-                Staff username / password
+                {t("Staff username / password")}
               </h3>
               <p className="text-[11px] text-gray-500 mb-4">
-                Approved {selectedRole} accounts sign in here. OTP, Token/ID, and
-                Google still identify a patient session and never grant {selectedRole} access by themselves.
+                {t("Approved")}{" "}{selectedRole}{" "}{t("accounts sign in here. OTP, Token/ID, and Google still identify a patient session and never grant")}{" "}{selectedRole}{" "}{t("access by themselves.")}
               </p>
               {staffError && (
                 <Alert tone="danger" className="mb-4">{staffError}</Alert>
@@ -753,8 +754,8 @@ function PatientLogin() {
                   type="text"
                   value={staffUsername}
                   onChange={(e) => setStaffUsername(e.target.value)}
-                  placeholder="Username or email"
-                  aria-label="Staff username or email"
+                  placeholder={t("Username or email")}
+                  aria-label={t("Staff username or email")}
                   className="hms-input w-full"
                   autoComplete="username"
                   required
@@ -763,8 +764,8 @@ function PatientLogin() {
                   type="password"
                   value={staffPassword}
                   onChange={(e) => setStaffPassword(e.target.value)}
-                  placeholder="Password"
-                  aria-label="Staff password"
+                  placeholder={t("Password")}
+                  aria-label={t("Staff password")}
                   className="hms-input w-full"
                   autoComplete="current-password"
                   required
@@ -774,19 +775,19 @@ function PatientLogin() {
                   disabled={staffLoading}
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {staffLoading ? "Signing in..." : `Sign in as ${selectedRole}`}
+                  {staffLoading ? "Signing in..." : t("Sign in as {selectedRole}", { selectedRole })}
                 </button>
               </form>
             </div>
           )}
 
           <div className="mt-6 border-t border-line pt-6 text-center">
-            <p className="text-xs text-gray-500">New to the Hospital Management System?</p>
+            <p className="text-xs text-gray-500">{t("New to the Hospital Management System?")}</p>
             <Link
               to={`/register?role=${encodeURIComponent(selectedRole)}`}
               className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Create Account
+              {t("Create Account")}
             </Link>
           </div>
 
