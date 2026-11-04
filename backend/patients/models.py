@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import Lower
 
 
 class Patient(models.Model):
@@ -99,6 +100,16 @@ class PatientHospital(models.Model):
         indexes = [
             models.Index(fields=["hospital", "is_active"]),
             models.Index(fields=["patient", "is_active"]),
+        ]
+        constraints = [
+            # R-08: a UHID is a login identifier, so it never repeats within a
+            # hospital, ignoring case. Blank UHIDs are left to the API.
+            models.UniqueConstraint(
+                Lower("uhid"),
+                "hospital",
+                condition=~models.Q(uhid=""),
+                name="unique_uhid_per_hospital",
+            ),
         ]
 
     def __str__(self):

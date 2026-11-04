@@ -1,12 +1,13 @@
 import { useState } from "react"
 import { ClipboardList, PackageCheck, Plus, Trash2 } from "lucide-react"
 import api from "../../services/api.js"
+import { hospitalToday } from "../../utils/hospitalDate.js"
 import { useToast } from "../Toast.jsx"
 import { Button, EmptyState, Field, Input, Modal, Select, StatusBadge, TableWrap } from "../ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const RECEIVABLE = ["Draft", "Ordered", "Partial"]
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => hospitalToday()
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const orderTotal = (order) => (order.items || []).reduce((sum, line) => sum + Number(line.line_total || 0), 0)
 const emptyLine = () => ({ medicine: "", quantity_ordered: "", unit_cost: "" })

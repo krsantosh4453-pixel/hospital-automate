@@ -26,6 +26,7 @@ import {
   Toolbar,
 } from "../components/ui"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
+import { hospitalToday } from "../utils/hospitalDate.js"
 
 const EMPTY_FORM = {
   name: "", age: "", gender: "", phone: "", condition: "",
@@ -638,7 +639,7 @@ function Patients() {
             <div className="mt-3 space-y-3 pb-2">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Date of birth">
-                  <Input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleFormChange} max={new Date().toISOString().slice(0, 10)} />
+                  <Input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleFormChange} max={hospitalToday()} />
                 </Field>
                 <Field label="Marital status">
                   <Select name="maritalStatus" value={formData.maritalStatus} onChange={handleFormChange}>

@@ -3,6 +3,7 @@
 from io import StringIO
 
 from django.core.management import call_command
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -56,15 +57,23 @@ class UhidUniquenessTests(TestCase):
         PatientHospital.objects.create(patient=self.second, hospital=self.other, uhid="UH-100")
         self.assertEqual(PatientHospital.objects.filter(uhid="UH-100").count(), 2)
 
-    def test_report_lists_existing_duplicates_without_changing_them(self):
-        PatientHospital.objects.create(patient=self.second, hospital=self.hospital, uhid="uh-100")
+    def test_database_refuses_a_repeat_ignoring_case(self):
+        # The constraint catches writes that bypass the API (admin, scripts, imports).
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            PatientHospital.objects.create(patient=self.second, hospital=self.hospital, uhid="uh-100")
+
+    def test_blank_uhids_may_repeat(self):
+        PatientHospital.objects.create(patient=self.second, hospital=self.hospital, uhid="")
+        PatientHospital.objects.create(patient=self.first, hospital=self.other, uhid="")
+        third = Patient.objects.create(name="Synthetic Third", age=32, gender="Male",
+                                       phone="9000000503", hospital=self.other)
+        PatientHospital.objects.create(patient=third, hospital=self.other, uhid="")
+        self.assertEqual(PatientHospital.objects.filter(uhid="").count(), 3)
+
+    def test_report_does_not_name_patients(self):
         out = StringIO()
         call_command("report_duplicate_uhids", stdout=out)
-        report = out.getvalue()
-        self.assertIn(f"hospital {self.hospital.id}", report)
-        self.assertIn("uh-100", report)
-        self.assertNotIn("Synthetic", report)  # no patient names in the report
-        self.assertEqual(PatientHospital.objects.filter(hospital=self.hospital).count(), 2)
+        self.assertNotIn("Synthetic", out.getvalue())
 
     def test_report_is_quiet_when_there_are_none(self):
         out = StringIO()

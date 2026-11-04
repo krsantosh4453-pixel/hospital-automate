@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronRight, Printer } from "lucide-react"
 import api from "../../services/api.js"
 import { Alert, Button, EmptyState, Field, Input, Modal, PrintSheet, PrintedDocument, PrintedFacts, Select, Textarea } from "../ui"
 import { formatPrintDate } from "../../utils/printDate.js"
+import { hospitalToday } from "../../utils/hospitalDate.js"
 import { EMERGENCY_FORM_CODES, ER_ACTIONS, GENERIC_FORM_CODES, patientLink } from "./erActionList.js"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
@@ -454,7 +455,7 @@ function DischargeSummaryPanel({ visit }) {
 
 function CertificatePanel({ visit, onDone, onError }) {
   const { t } = useLanguage()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = hospitalToday()
   const [form, setForm] = useState({ kind: "Sick leave", diagnosis: visit.discharge_diagnosis || "", start: today, end: "" })
   const [saving, run] = useSubmit(onError)
   const issue = (event) => {

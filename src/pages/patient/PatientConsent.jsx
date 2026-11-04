@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import { useHospitals } from "../../assets/context/HospitalsContext.jsx"
 import api from "../../services/api.js"
+import { hospitalToday } from "../../utils/hospitalDate.js"
 import { CircleCheckIcon, ClipboardListIcon, PenLineIcon, XIcon } from "lucide-react"
 import { Alert, Card, SkeletonRows, useConfirm } from "../../components/ui"
 import FamilyAccessCard from "../../components/patient/FamilyAccessCard.jsx"
@@ -21,7 +22,7 @@ const readResults = (data) => (Array.isArray(data) ? data : data?.results || dat
 const inDays = (days) => {
   const date = new Date()
   date.setDate(date.getDate() + days)
-  return date.toISOString().slice(0, 10)
+  return hospitalToday(date)
 }
 
 function PatientConsent() {
