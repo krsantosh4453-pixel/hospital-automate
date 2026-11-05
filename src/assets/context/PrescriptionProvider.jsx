@@ -339,49 +339,8 @@ export function PrescriptionProvider({ children }) {
   }
 
 
-  // =====================================
-  // PHARMACY DISPENSES PRESCRIPTION
-  // =====================================
-  //
-  // Preserves the synchronous contract (pharmacy.jsx reads the returned
-  // object). When the record came from the API we also best-effort PATCH
-  // the backend status. NOTE: stock deduction is intentionally NOT done
-  // here — that belongs to a future Pharmacy task.
-
-  // Marks the prescription Dispensed on the server, then in the list.
-  // Throws if it is unknown here or the server refuses. Stock is deducted
-  // by the pharmacy sale, not here.
-  const dispensePrescription = async (
-    id,
-    hospitalId = null
-  ) => {
-
-    const record = prescriptions.find(
-      (prescription) =>
-        String(prescription.id) === String(id) &&
-        (hospitalId === null || String(prescription.hospitalId) === String(hospitalId))
-    )
-
-    if (!record?.apiId) {
-      throw new Error("Prescription not found on the server.")
-    }
-
-    await api.prescriptions.patch(record.apiId, { status: "Dispensed" })
-
-    const updatedPrescription = {
-      ...record,
-      status: "Dispensed",
-      dispensedAt: new Date().toLocaleDateString("en-IN"),
-    }
-
-    setPrescriptions((prev) =>
-      prev.map((prescription) =>
-        prescription.apiId === record.apiId ? updatedPrescription : prescription
-      )
-    )
-
-    return updatedPrescription
-  }
+  // Dispensing is not done here: the Pharmacy page's dispense endpoint
+  // issues stock and is the only thing that marks a prescription Dispensed.
 
 
   // =====================================
@@ -422,8 +381,6 @@ export function PrescriptionProvider({ children }) {
         findPrescription,
 
         fetchPrescription,
-
-        dispensePrescription,
 
         getHospitalPrescriptions,
 

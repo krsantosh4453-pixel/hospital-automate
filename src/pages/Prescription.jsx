@@ -5,13 +5,12 @@ import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import MedicationSafetyDialog from "../components/prescription/MedicationSafetyDialog.jsx"
-import { FilePlus2, Hospital, PackageCheck, Pill, Plus, RefreshCw, Trash2, X } from "lucide-react"
+import { FilePlus2, Hospital, Pill, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import {
   Alert,
   Button,
   Card,
   CardHeader,
-  ConfirmDialog,
   RemoveRecordDialog,
   EmptyState,
   Field,
@@ -83,10 +82,10 @@ const mapVisitOption = (record) => ({
       : "",
 })
 
+// "Dispensed" is not offered: only the pharmacy sets it, when it issues the medicine.
 const PRESCRIPTION_STATUSES = [
   "Confirmed",
   "Pending",
-  "Dispensed",
   "Cancelled",
 ]
 
@@ -116,7 +115,6 @@ function Prescription() {
 
   const {
     prescriptions,
-    dispensePrescription,
     getHospitalPrescriptions,
     loadPrescriptions,
     createPrescription,
@@ -146,7 +144,7 @@ function Prescription() {
   const [actionError, setActionError] = useState("")
   const [search, setSearch] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
-  const [pending, setPending] = useState(null) // { kind: 'dispense' | 'delete', record }
+  const [pending, setPending] = useState(null) // { kind: 'delete', record }
   const [working, setWorking] = useState(false)
 
   const refresh = () => setReloadToken((token) => token + 1)
@@ -417,18 +415,8 @@ function Prescription() {
 
   // ---------------------------------------------------------
   // ACTIONS on an existing prescription
+  // (Dispensing happens on the Pharmacy page, which issues stock.)
   // ---------------------------------------------------------
-  const handleDispense = async (record) => {
-    setActionError("")
-
-    try {
-      await dispensePrescription(record.id, selectedHospital?.id)
-      setSuccessMessage(t("Prescription {recordId} marked as Dispensed.", { recordId: record.id }))
-    } catch (err) {
-      setActionError(err.message || "Could not dispense this prescription.")
-    }
-  }
-
   const handleDelete = async (record, reason) => {
     setActionError("")
 
@@ -448,8 +436,7 @@ function Prescription() {
   const runPending = async (reason) => {
     if (!pending) return
     setWorking(true)
-    if (pending.kind === "dispense") await handleDispense(pending.record)
-    else await handleDelete(pending.record, reason)
+    await handleDelete(pending.record, reason)
     setWorking(false)
     setPending(null)
   }
@@ -628,11 +615,6 @@ function Prescription() {
                       </p>
                     </div>
                     <div className="flex gap-1.5">
-                      {record.status !== "Dispensed" && (
-                        <Button size="sm" variant="subtle" icon={PackageCheck} onClick={() => setPending({ kind: "dispense", record })}>
-                          {t("Dispense")}
-                        </Button>
-                      )}
                       {record.apiId && (
                         <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => setPending({ kind: "delete", record })} aria-label={t("Delete prescription {recordId}", { recordId: record.id })} title={t("Delete")} />
                       )}
@@ -673,15 +655,6 @@ function Prescription() {
         </Card>
       </div>
 
-      <ConfirmDialog
-        open={pending?.kind === "dispense"}
-        onCancel={() => setPending(null)}
-        onConfirm={() => runPending()}
-        loading={working}
-        title={t("Mark as dispensed?")}
-        confirmLabel="Mark dispensed"
-        message={t("Confirm that every medicine on prescription {recordId} has been handed to {patient}.", { recordId: pending?.record.id, patient: pending?.record.patientName || "the patient" })}
-      />
       <RemoveRecordDialog
         open={pending?.kind === "delete"}
         onCancel={() => setPending(null)}

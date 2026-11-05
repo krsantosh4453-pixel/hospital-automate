@@ -19,6 +19,7 @@ from appointments.models import Appointment
 from config.hospital_time import hospital_today
 from doctors.models import Doctor
 from encounters.models import QueueToken, Visit
+from encounters.services.appointment_status import sync_appointment_status
 from hospital.models import Bed, Department, Hospital, Room, Ward
 from ipd.models import Admission, BedAllocation
 from nurses.models import Nurse, NurseWardAssignment
@@ -151,14 +152,16 @@ class Command(BaseCommand):
 
     def _opd(self, hospital, patient, doctor, number):
         today = hospital_today()
-        Appointment.objects.get_or_create(
+        appointment, _ = Appointment.objects.get_or_create(
             hospital=hospital, patient=patient, doctor=doctor, appointment_date=today,
             defaults={"appointment_time": time(10, number * 15 % 60), "status": "Scheduled"},
         )
         if not QueueToken.objects.filter(hospital=hospital, patient=patient, token_date=today).exists():
             visit = Visit.objects.create(hospital=hospital, patient=patient, doctor=doctor)
-            QueueToken.objects.create(hospital=hospital, visit=visit, patient=patient, doctor=doctor,
-                                      token_date=today, token_number=number)
+            # Linked to its appointment, or the queue offers that appointment a second token.
+            token = QueueToken.objects.create(hospital=hospital, visit=visit, patient=patient, doctor=doctor,
+                                              appointment=appointment, token_date=today, token_number=number)
+            sync_appointment_status(token)
 
     def _admit(self, hospital, patient, doctor, ward):
         admission, _ = Admission.objects.get_or_create(

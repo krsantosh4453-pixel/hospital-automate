@@ -60,6 +60,15 @@ class SeedDemoTests(TestCase):
         self.seed(password=DEMO_PASSWORD)
         self.assertEqual(Patient.objects.count(), count)
 
+    def test_opd_tokens_belong_to_their_appointments(self):
+        # An unlinked token left the appointment "without a token", so the queue issued a second one.
+        from appointments.models import Appointment
+        from encounters.models import QueueToken
+
+        self.seed(password=DEMO_PASSWORD)
+        for appointment in Appointment.objects.filter(hospital_id=self.hospital_id()):
+            self.assertTrue(QueueToken.objects.filter(appointment=appointment).exists(), appointment.patient.name)
+
     def test_remove_deletes_only_demo_data(self):
         other = Hospital.objects.create(name="Real Hospital", is_active=True)
         self.seed(password=DEMO_PASSWORD)

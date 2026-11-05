@@ -225,6 +225,8 @@ class PrescriptionItemSerializer(serializers.ModelSerializer):
 
 
 MIN_OVERRIDE_REASON = 10
+# Set only by the pharmacy's dispense endpoint, when medicine is really issued.
+DISPENSE_STATUSES = ("Dispensed", "Partially Dispensed")
 
 
 class PrescriptionSerializer(serializers.ModelSerializer):
@@ -294,6 +296,15 @@ class PrescriptionSerializer(serializers.ModelSerializer):
                 "doctor": "This doctor does not belong to this hospital."
             })
 
+        status = attrs.get("status")
+        if status in DISPENSE_STATUSES and status != getattr(instance, "status", None):
+            raise serializers.ValidationError({
+                "status": "The pharmacy records dispensing when it issues the medicine."
+            })
+
+        if hospital:
+            self._sign_as_requesting_doctor(attrs, instance, hospital)
+
         if visit:
             if hospital and visit.hospital_id != hospital.id:
                 raise serializers.ValidationError({
@@ -308,6 +319,26 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             self._check_medication_safety(attrs, hospital, patient)
 
         return attrs
+
+    def _sign_as_requesting_doctor(self, attrs, instance, hospital):
+        """A doctor prescribes in their own name; an Admin may record one for any doctor here."""
+        from doctors.models import Doctor
+        from users.models import StaffRole
+        from users.permissions import get_user_roles
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        roles = get_user_roles(user, hospital.id)
+        if StaffRole.DOCTOR not in roles or StaffRole.ADMIN in roles:
+            return
+        own = Doctor.objects.filter(user=user, hospital=hospital).first()
+        if own is None:
+            return
+        named = attrs.get("doctor")
+        if named is not None and named != own:
+            raise serializers.ValidationError({"doctor": "You can only prescribe in your own name."})
+        if instance is None and named is None:
+            attrs["doctor"] = own
 
     def _check_medication_safety(self, attrs, hospital, patient):
         """High-severity alerts block the prescription unless the doctor records why."""
