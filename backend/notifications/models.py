@@ -86,3 +86,37 @@ class OTPVerification(models.Model):
     attempts = models.PositiveIntegerField(default=0)
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class VoiceCallFallback(models.Model):
+    """
+    An automated voice call queued because a notification's SMS/WhatsApp
+    delivery failed. The call reads a short message without clinical details.
+    """
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        PLACED = "placed", "Placed"
+        FAILED = "failed", "Failed"
+        SKIPPED = "skipped", "Skipped"
+
+    hospital = models.ForeignKey(
+        "hospital.Hospital", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="voice_call_fallbacks", db_index=True,
+    )
+    patient = models.ForeignKey("patients.Patient", on_delete=models.CASCADE, related_name="voice_call_fallbacks")
+    event = models.CharField(max_length=50)
+    message = models.CharField(max_length=500)
+    # Why the call was needed, e.g. "sms: Provider not configured".
+    reason = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    provider = models.CharField(max_length=30, blank=True)
+    provider_call_id = models.CharField(max_length=100, blank=True)
+    error = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    placed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["hospital", "created_at"]), models.Index(fields=["status", "created_at"])]

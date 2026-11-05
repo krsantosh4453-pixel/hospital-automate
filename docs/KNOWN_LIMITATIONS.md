@@ -11,17 +11,19 @@ State as of 2026-10-25, updated 2026-11-03, branch `ui/redesign-2026-10-25`. Row
 | L4 | No clinical safety review of the workflows | MAR, discharge, lab release, AI-draft, break-glass and family-access rules were designed by engineering only | Sign-off by a clinical safety officer / pharmacist using `CLINICAL_SAFETY_REVIEW_PACK.md` (updated 2026-11-03) |
 | L5 | No penetration test or DPDP Act privacy assessment | Required for health data in India | Commission both; brief and baseline in `PRIVACY_AND_PENTEST_PACK.md` (updated 2026-11-03) |
 
-## Missing features (14 MISSING rows, recounted 2026-11-03; A12, B13 and D15 are now done)
+## Missing features (11 MISSING rows, recounted 2026-11-05; A12, B13, D15, D6, K6 and K8 are now done)
 
 - **Access / portal:** breadcrumbs (A18); sticky patient context strip (A19).
-- **EMR:** extra vitals set (D2); ICD-10 terminology search (D6).
+- **EMR:** extra vitals set (D2).
 - **Pharmacy:** OPD/IPD returns (F5); substitutes (F8). Drug alerts (F7) are partial: allergy, duplicate-salt and a starter list of 8 interactions, pending Pharmacy & Therapeutics approval; no licensed drug database and no dose-range checks (`CLINICAL_SAFETY_REVIEW_PACK.md` section 9).
 - **Billing:** advance payments (H4).
 - **Supply chain:** purchase requisition approval (I2); supplier return, department issue, consignment, quotation (I4); CSSD / laundry (I6).
 - **Other services:** ambulance, mortuary, phlebotomy, OT (J5); HR, feedback, templates (J6).
-- **AI / notifications:** discharge-summary AI assist (K6); voice-call fallback workflow (K8).
+D6, K6 and K8 were ported on 2026-11-05 from the branch `claude/intelligent-keller-502e5b`, which can now be retired. Limits that remain:
 
-D6, K6 and K8 have finished implementations with tests on the unmerged branch `claude/intelligent-keller-502e5b` (28 Oct). K6 was written inside `backend/ai_advanced`, which has since been removed, so it needs a new home. Merging or retiring that branch is the owner's decision.
+- **ICD-10 (D6):** only about 190 common ICD-10-CM codes ship with the app (`terminology/data/icd10_common.csv`, loaded at start when the table is empty). Load the full yearly CMS release with `manage.py load_icd10 <file>`. The diagnosis box still accepts free text.
+- **AI discharge draft (K6):** with no AI provider configured, the draft is assembled from the admission's records, not written by a model. A doctor must tick "I have reviewed" before saving, and finalizing and signing stays a separate step. The draft prompt and its output need clinical review before a real model is used.
+- **Voice-call fallback (K8):** the default provider is `noop`, which records every call as skipped and dials nothing. Real calls need `VOICE_CALL_PROVIDER=twilio`, Twilio Voice credentials and a voice-capable number; this has not been tested with a real call. A call waits 10 minutes and is skipped if a text message or call reached the patient meanwhile.
 
 ## Partial features (8 PARTIAL rows, recounted 2026-11-03; main ones)
 

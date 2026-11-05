@@ -32,15 +32,30 @@ def send_notification_channel(self, payload_data, channel_value):
 
     from notifications.services import NotificationChannel, NotificationPayload, get_notification_engine
 
+    from notifications.services.voice_fallback import queue_voice_fallback
+
     payload = NotificationPayload.from_dict(payload_data)
-    result = get_notification_engine().send_channel(payload, NotificationChannel(channel_value))
-    if result.success or not result.retryable:
-        return result.success
-    if self.request.retries >= self.max_retries:
+    engine = get_notification_engine()
+    result = engine.send_channel(payload, NotificationChannel(channel_value))
+    if result.success:
+        return True
+    if result.retryable and self.request.retries < self.max_retries:
+        raise self.retry(countdown=NOTIFICATION_RETRY_BASE_SECONDS * 2 ** self.request.retries)
+    if result.retryable:
         # Ids only: the message may contain clinical details.
         logging.getLogger(__name__).error(
             "Giving up on %s notification for patient %s after %s attempts",
             channel_value, payload.patient_id, self.request.retries + 1,
         )
-        return False
-    raise self.retry(countdown=NOTIFICATION_RETRY_BASE_SECONDS * 2 ** self.request.retries)
+    # K8: the text message finally failed, so try a voice call.
+    queue_voice_fallback(engine, payload, [result])
+    return False
+
+
+@shared_task(bind=True, max_retries=None)
+def place_voice_call(self, fallback_id):
+    """Dial a queued VoiceCallFallback; retried while attempts remain."""
+    from notifications.services.voice_fallback import RETRY_DELAY_SECONDS, place_queued_call
+
+    if place_queued_call(fallback_id):
+        raise self.retry(countdown=RETRY_DELAY_SECONDS)

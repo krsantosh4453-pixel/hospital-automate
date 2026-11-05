@@ -99,7 +99,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | D3 | Allergies | P1 5 | IMPLEMENTED | Allergy (now hospital-scoped) | T (isolation) |
 | D4 | Current medication / complaint / history and examination | P1 5 | VERIFIED | Clinical notes have structured sections: chief complaint, history of present illness, past history, current medications, examination, assessment, plan, plus free-text other notes (older notes keep working); at least one part required; sections shown in Consultation and the patient timeline | clinical.test_structured_notes (4); browser 2026-11-02 |
 | D5 | Diagnosis with ICD-10, type, responsible clinician | P1 6 | VERIFIED | Diagnosis.icd10_code, recorded_by | T:test_e2e_workflows |
-| D6 | ICD-10 search by name / code | P1 6 | MISSING | Code is free text; no terminology table | — |
+| D6 | ICD-10 search by name / code | P1 6 | DONE (2026-11-05) | `terminology` app: ICD-10 table, `load_icd10`, staff search `/api/terminology/icd10/?q=`; diagnosis typeahead in Consultation; ~190 common codes bundled | `terminology/tests.py`, `Icd10Typeahead.test.jsx`, Playwright `clinical-assist` |
 | D7 | Investigation / procedure orders | P1 5, P4 2 | IMPLEMENTED | ServiceOrder, Procedure, LabTest | T (lab flow) |
 | D8 | Prescription medicine | P1 5 | VERIFIED | Prescription + items; UI saves only on server success | T:test_e2e_workflows |
 | D9 | Advice | P1 5 | PARTIAL | Prescription item instructions only | R |
@@ -195,9 +195,9 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | K3 | "AI Draft — Pending Review" until approval; no auto-finalize | AI 7, UI 5 | VERIFIED | review_label; read-only status; linked doctor approves | T, B (label shown) |
 | K4 | Provider failure does not corrupt records | Brief 14 | VERIFIED | 503 response; no note is written | T |
 | K5 | Hindi / Hinglish speech | AI 2 | BLOCKED | Depends on the chosen STT provider; not validated | — |
-| K6 | Discharge-summary AI assist, patient-friendly explanation | UI 5 | MISSING | — | — |
+| K6 | Discharge-summary AI assist, patient-friendly explanation | UI 5 | PARTIAL (2026-11-05) | Doctor-only draft from the admission's records (`/api/ai/discharge/`), required review checkbox, outcome audited; no patient-friendly version; real AI provider untested | `ai_advanced/tests.py`, `DischargeDraftAssist.test.jsx`, Playwright `clinical-assist` |
 | K7 | Waiting-list notifications with consent and delivery log | CALL 1, 7 | PARTIAL | In-app sent and logged; SMS/WhatsApp need consent and credentials | T:test_notifications. Real channels: BLOCKED |
-| K8 | Voice-call fallback, acknowledgement, "no answer ≠ left" | CALL 3 | MISSING | VoiceProvider class only; no call workflow | — |
+| K8 | Voice-call fallback, acknowledgement, "no answer ≠ left" | CALL 3 | PARTIAL (2026-11-05) | Call queued after SMS/WhatsApp finally fail, once per patient and event, skipped if the patient was reached; 3 attempts; admin log. Provider `noop` by default; no real call tested; no answer/acknowledgement tracking | `notifications/test_voice_fallback.py` |
 | K9 | ML / DL use cases | P2 12 | N/A | Not implemented on purpose: no labelled data, validation or monitoring available, and the PDF itself says "only after validation". Queue estimates are rule-based. | — |
 | K10 | ABDM / ABHA | P1 3.5 | BLOCKED | Mounted at `/api/abdm/` behind `ABDM_ENABLED` (off in production); needs ABDM sandbox credentials and approval | — |
 | K11 | FHIR / HL7 interoperability | P1 2 | BLOCKED | FHIR R4 read API mounted at `/api/fhir/` behind `FHIR_ENABLED` (off in production, Admin only); needs a conformance and security review | — |

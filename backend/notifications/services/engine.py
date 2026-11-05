@@ -225,6 +225,12 @@ class NotificationEngine:
             return
         self._delivery_history.append(DeliveryRecord(payload=payload, results=results))
         self._persist(payload, results)
+        # A text channel that failed for good (no provider, permanent error)
+        # falls back to a voice call now; a retryable failure does so only
+        # when the Celery task runs out of retries.
+        from .voice_fallback import queue_voice_fallback
+
+        queue_voice_fallback(self, payload, [r for r in results if not r.retryable])
 
     def _persist(self, payload, results):
         """Write one NotificationDelivery row per channel attempt; never raises."""

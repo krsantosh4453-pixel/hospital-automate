@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import (
+    VoiceCallFallback,
     NotificationDelivery,
     Notification,
     Consent,
@@ -58,5 +59,17 @@ class NotificationDeliverySerializer(serializers.ModelSerializer):
         fields = [
             "id", "hospital", "patient", "patient_name", "notification", "event", "channel",
             "status", "error", "provider_message_id", "attempted_at", "acknowledged_at",
+        ]
+        read_only_fields = fields
+
+
+class VoiceCallFallbackSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source="patient.name", read_only=True)
+
+    class Meta:
+        model = VoiceCallFallback
+        fields = [
+            "id", "hospital", "patient", "patient_name", "event", "message", "reason", "status",
+            "attempts", "provider", "provider_call_id", "error", "created_at", "placed_at",
         ]
         read_only_fields = fields

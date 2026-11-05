@@ -2024,6 +2024,25 @@ const HI_PAGES = {
   "Medicine stopped.": "दवा रोक दी गई।",
   "Removed records": "हटाए गए रिकॉर्ड",
   "Values before": "पहले के मान",
+  // ICD-10 search (D6), AI discharge drafts (K6), voice-call fallback (K8)
+  "ICD-10 suggestions are unavailable; you can still type the diagnosis.": "ICD-10 सुझाव अभी उपलब्ध नहीं हैं; आप निदान खुद लिख सकते हैं।",
+  "ICD-10 suggestions": "ICD-10 सुझाव",
+  "Type a condition or ICD-10 code to see suggestions": "सुझाव देखने के लिए बीमारी या ICD-10 कोड लिखें",
+  "Draft with AI": "AI से ड्राफ़्ट बनाएँ",
+  "From this admission's notes, vitals, medicines and lab results.": "इस भर्ती के नोट्स, वाइटल्स, दवाओं और लैब रिपोर्ट से।",
+  "AI-assisted draft. Check every line against the record and edit before saving.": "AI की मदद से बना ड्राफ़्ट। सेव करने से पहले हर लाइन रिकॉर्ड से मिलाएँ और ज़रूरत हो तो बदलें।",
+  "Written by {provider} ({model}). ": "{provider} ({model}) द्वारा लिखा गया। ",
+  "Replace every “[clinician to complete]”.": "हर “[clinician to complete]” को भरें।",
+  "I have reviewed this draft against the record and edited it where needed.": "मैंने यह ड्राफ़्ट रिकॉर्ड से मिलाकर जाँचा है और ज़रूरत के हिसाब से बदला है।",
+  "Replace the current text?": "मौजूदा टेक्स्ट बदलें?",
+  "The AI draft replaces what is in the summary box now.": "AI ड्राफ़्ट सारांश बॉक्स के मौजूदा टेक्स्ट की जगह ले लेगा।",
+  "Replace": "बदलें",
+  "Voice call fallback": "वॉइस कॉल (बैकअप)",
+  "Automated calls queued when a text message could not be delivered.": "मैसेज न पहुँचने पर अपने-आप लगने वाली कॉल।",
+  "No voice calls queued": "कोई वॉइस कॉल कतार में नहीं",
+  "Could not load voice calls": "वॉइस कॉल लोड नहीं हो सकीं",
+  "Why": "कारण",
+  "Queued": "कतार में",
 }
 
 export default HI_PAGES

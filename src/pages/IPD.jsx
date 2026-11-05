@@ -6,6 +6,7 @@ import api from "../services/api"
 import { useToast } from "../components/Toast.jsx"
 import AddBedDialog from "../components/ipd/AddBedDialog.jsx"
 import BedsTable from "../components/ipd/BedsTable.jsx"
+import DischargeDraftAssist from "../components/ipd/DischargeDraftAssist.jsx"
 import DischargeReadiness from "../components/ipd/DischargeReadiness.jsx"
 import MedicationOrders from "../components/ipd/MedicationOrders.jsx"
 import {
@@ -559,6 +560,7 @@ function IPD() {
         footer={<><Button variant="secondary" onClick={closeDialog}>{t("Cancel")}</Button><Button type="submit" form="ipd-summary" loading={busy === "summary"}>{t("Save draft")}</Button></>}
       >
         <form id="ipd-summary" onSubmit={handleSummarySubmit}>
+          <DischargeDraftAssist admission={selectedAdmission} text={summaryText} onText={setSummaryText} />
           <Field label="Clinical summary" required hint="Diagnosis, course in hospital, condition at discharge, medicines and follow-up.">
             <Textarea rows={10} value={summaryText} onChange={(e) => setSummaryText(e.target.value)} />
           </Field>

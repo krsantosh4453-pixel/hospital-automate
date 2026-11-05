@@ -18,6 +18,7 @@ import {
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import { useRole } from "../../assets/context/RoleContext.jsx"
 import api from "../../services/api.js"
+import VoiceCallLog from "../../components/notifications/VoiceCallLog.jsx"
 import { Alert, Button, Card, CardHeader, EmptyState, PageHeader, StatTile } from "../../components/ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
@@ -168,6 +169,7 @@ function AdminDashboard() {
               )}
             </Card>
           </div>
+          <VoiceCallLog hospitalId={selectedHospital.id} />
         </>
       )}
     </div>

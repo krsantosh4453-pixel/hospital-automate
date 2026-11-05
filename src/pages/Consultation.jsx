@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
+import Icd10Typeahead from "../components/clinical/Icd10Typeahead.jsx"
 import { CalendarClock, ClipboardList, FileText, HeartPulse, History, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Syringe, Trash2, UserRound } from "lucide-react"
 import {
   Alert,
@@ -1276,8 +1277,14 @@ function Consultation() {
                   <Card as="form" onSubmit={handleSaveDiagnosis}>
                     <CardHeader title={editingDiagnosis ? t("Edit diagnosis") : t("Add diagnosis")} />
                     <div className="space-y-4 px-5 py-4">
-                      <Field label="Diagnosis" required>
-                        <Input value={diagnosisForm.name} onChange={(e) => setDiagnosisForm({ ...diagnosisForm, name: e.target.value })} />
+                      <Field label="Diagnosis" required hint="Type a condition or ICD-10 code to see suggestions">
+                        <Icd10Typeahead
+                          value={diagnosisForm.name}
+                          onChange={(name) => setDiagnosisForm((prev) => ({ ...prev, name }))}
+                          onSelect={({ code, description }) =>
+                            setDiagnosisForm((prev) => ({ ...prev, name: description, icd10Code: code }))
+                          }
+                        />
                       </Field>
                       <div className="grid grid-cols-2 gap-3">
                         <Field label="ICD-10 code" hint="e.g. A09.9">

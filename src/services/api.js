@@ -1697,6 +1697,15 @@ const api = {
       },
     },
 
+    // Voice-call fallbacks (queued when SMS/WhatsApp delivery failed)
+    voiceCalls: {
+      // GET /api/notifications/voice-calls/?hospital=<id>
+      list: async (hospitalId) => {
+        const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ''
+        return request(`${API_BASE_URL}/notifications/voice-calls/${query}`)
+      },
+    },
+
     // Consent
     consent: {
       // GET /api/notifications/consents/?hospital=<id>&patient=<id>
@@ -2228,6 +2237,20 @@ api.aiScribe.reviews = {
   },
 }
 
+api.ai = {
+  dischargeDrafts: {
+    // POST /api/ai/discharge/admissions/<id>/draft/ — doctor only; returns a draft, saves nothing
+    generate: async (admissionId) =>
+      request(`${API_BASE_URL}/ai/discharge/admissions/${admissionId}/draft/`, { method: "POST", timeout: 60000 }),
+    // data: { draft_id, outcome: "accepted" | "edited" | "discarded" }
+    review: async (admissionId, data) =>
+      request(`${API_BASE_URL}/ai/discharge/admissions/${admissionId}/draft-review/`, {
+        method: "POST",
+        ...jsonBody(data),
+      }),
+  },
+}
+
 api.consent = {
   forms: {
     list: async () => request(`${API_BASE_URL}/consent/forms/`),
@@ -2257,6 +2280,14 @@ api.consent = {
 }
 
 const queryForHospital = (hospitalId) => (hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : "")
+
+api.terminology = {
+  // GET /api/terminology/icd10/?q=<text>&limit=<n> — staff only
+  icd10Search: async (query, limit = 15) => {
+    const params = new URLSearchParams({ q: query, limit: String(limit) })
+    return request(`${API_BASE_URL}/terminology/icd10/?${params.toString()}`)
+  },
+}
 
 api.procurement = {
   suppliers: {

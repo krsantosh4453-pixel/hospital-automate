@@ -65,6 +65,8 @@ INSTALLED_APPS = [
 
     # AI Medical Scribe
     "ai_scribe",
+    # AI discharge summary drafts (K6), reviewed by the doctor before saving
+    "ai_advanced",
 
     # Analytics & Reports
     "reports",
@@ -74,6 +76,9 @@ INSTALLED_APPS = [
 
     # ABDM / ABHA linking (Ayushman Bharat Digital Mission)
     "abdm",
+
+    # Clinical terminology (ICD-10 search)
+    "terminology",
 ]
 
 # ============================================================
