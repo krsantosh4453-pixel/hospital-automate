@@ -5,9 +5,14 @@ import { useLinkedPatient } from "../utils/linkedPatient.js"
 import { CreditCardIcon, HospitalIcon, PrinterIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import { Alert, Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
+import AdvancePayments from "../components/billing/AdvancePayments.jsx"
 import DischargeBills from "../components/billing/DischargeBills.jsx"
 import { Plus as PlusIcon } from "lucide-react"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
+
+// Refunds of advance money are for billing staff and above (the server enforces this).
+const REFUND_ROLES = ["Admin", "Hospital Manager", "Billing Staff"]
 
 function Billing() {
   const { t } = useLanguage()
@@ -16,6 +21,7 @@ function Billing() {
 
 
   const { selectedHospital } = usePatient()
+  const { activeRoleName } = useRole()
   // Bumped when a discharge final bill is created, to reload the invoices.
   const [billsReloadToken, setBillsReloadToken] = useState(0)
 
@@ -929,6 +935,12 @@ function Billing() {
               hospitalId={selectedHospital.id}
               refreshKey={bills}
               onCreated={() => setBillsReloadToken((n) => n + 1)}
+            />
+
+            <AdvancePayments
+              hospitalId={selectedHospital.id}
+              canRefund={REFUND_ROLES.includes(activeRoleName)}
+              onChanged={() => setBillsReloadToken((n) => n + 1)}
             />
 
             {/* =========================

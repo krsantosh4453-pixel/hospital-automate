@@ -11,12 +11,11 @@ State as of 2026-10-25, updated 2026-11-03, branch `ui/redesign-2026-10-25`. Row
 | L4 | No clinical safety review of the workflows | MAR, discharge, lab release, AI-draft, break-glass and family-access rules were designed by engineering only | Sign-off by a clinical safety officer / pharmacist using `CLINICAL_SAFETY_REVIEW_PACK.md` (updated 2026-11-03) |
 | L5 | No penetration test or DPDP Act privacy assessment | Required for health data in India | Commission both; brief and baseline in `PRIVACY_AND_PENTEST_PACK.md` (updated 2026-11-03) |
 
-## Missing features (11 MISSING rows, recounted 2026-11-05; A12, B13, D15, D6, K6 and K8 are now done)
+## Missing features (10 MISSING rows, recounted 2026-11-05; A12, B13, D15, D6, H4, K6 and K8 are now done)
 
 - **Access / portal:** breadcrumbs (A18); sticky patient context strip (A19).
 - **EMR:** extra vitals set (D2).
 - **Pharmacy:** OPD/IPD returns (F5); substitutes (F8). Drug alerts (F7) are partial: allergy, duplicate-salt and a starter list of 8 interactions, pending Pharmacy & Therapeutics approval; no licensed drug database and no dose-range checks (`CLINICAL_SAFETY_REVIEW_PACK.md` section 9).
-- **Billing:** advance payments (H4).
 - **Supply chain:** purchase requisition approval (I2); supplier return, department issue, consignment, quotation (I4); CSSD / laundry (I6).
 - **Other services:** ambulance, mortuary, phlebotomy, OT (J5); HR, feedback, templates (J6).
 D6, K6 and K8 were ported on 2026-11-05 from the branch `claude/intelligent-keller-502e5b`, which can now be retired. Limits that remain:
@@ -35,7 +34,8 @@ D6, K6 and K8 were ported on 2026-11-05 from the branch `claude/intelligent-kell
 - Records removed as entered in error are hidden everywhere, including from the Django admin; they are read through `all_objects` or the Audit log page. A removed patient's visits, bills and other records stay visible where they are listed on their own.
 - Dispensing a prescription (2026-11-03) issues every medicine in one step, or none if any line fails. The pharmacist picks a stock batch per medicine (earliest-expiring batch with enough stock is pre-selected). The batch must have the prescribed medicine's exact name: brand substitution (F8) and partial dispensing are not supported.
 - Lab staff (2026-11-03) find a walk-in patient by searching name, phone or UHID (3+ characters, at most 20 matches, masked phone, every lookup audited); they still cannot browse the patient list or register a new patient.
-- The financial report returns `laboratory_revenue: null`: lab tests carry no price, so lab charges appear only as invoice lines inside billing revenue.
+- The financial report returns `laboratory_revenue: null` by design (checked 2026-11-05): lab tests carry no price, and no requirement defines a lab price list, so lab charges appear only as invoice lines inside billing revenue. A real figure needs a hospital-approved lab tariff and invoice lines linked to lab tests; it is not invented.
+- Advance payments (H4) are per patient and hospital. Advance money cannot move to another hospital, and the advance is shown on the Billing page, not on the patient's own portal.
 
 ## Blocked (3) and not applicable (1)
 

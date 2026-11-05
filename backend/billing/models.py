@@ -178,3 +178,61 @@ class InsuranceClaim(models.Model):
             models.Index(fields=["patient", "status"]),
             models.Index(fields=["invoice", "status"]),
         ]
+
+class AdvanceAccount(models.Model):
+    """
+    A patient's advance (deposit) balance at one hospital (H4). The balance
+    changes only through AdvanceTransaction rows written by billing.advances,
+    with this row locked, so it never goes below zero or double-counts.
+    """
+
+    hospital = models.ForeignKey("hospital.Hospital", on_delete=models.PROTECT, related_name="advance_accounts")
+    patient = models.ForeignKey("patients.Patient", on_delete=models.PROTECT, related_name="advance_accounts")
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["hospital", "patient"], name="advance_account_one_per_patient"),
+            models.CheckConstraint(condition=models.Q(balance__gte=0), name="advance_balance_non_negative"),
+        ]
+
+    def __str__(self):
+        return f"Advance {self.patient_id} @ {self.hospital_id}: {self.balance}"
+
+
+class AdvanceTransaction(models.Model):
+    """One movement of advance money. Rows are never edited or deleted."""
+
+    class Kind(models.TextChoices):
+        DEPOSIT = "deposit", "Deposit"
+        APPLIED = "applied", "Applied to bill"
+        RETURNED = "returned", "Returned from bill"
+        REFUND = "refund", "Refunded to patient"
+
+    account = models.ForeignKey(AdvanceAccount, on_delete=models.PROTECT, related_name="transactions")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    balance_after = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(max_length=30, blank=True, default="")
+    receipt_number = models.CharField(max_length=40)
+    reference = models.CharField(max_length=200, blank=True, default="")
+    idempotency_key = models.CharField(max_length=80, blank=True, default="")
+    # The invoice payment (or refund) this movement created, for applied/returned rows.
+    invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, null=True, blank=True, related_name="advance_transactions")
+    payment = models.OneToOneField(Payment, on_delete=models.PROTECT, null=True, blank=True, related_name="advance_transaction")
+    created_by = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["account", "created_at"])]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="advance_amount_positive"),
+            models.CheckConstraint(condition=models.Q(balance_after__gte=0), name="advance_balance_after_non_negative"),
+            models.UniqueConstraint(
+                fields=["account", "idempotency_key"], condition=~models.Q(idempotency_key=""),
+                name="advance_unique_idempotency_key",
+            ),
+        ]

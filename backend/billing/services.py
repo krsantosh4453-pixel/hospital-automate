@@ -86,7 +86,7 @@ def _locked(invoice):
 
 
 @transaction.atomic
-def record_payment(invoice, amount, method="Cash", user=None, idempotency_key="", reference=""):
+def record_payment(invoice, amount, method="Cash", user=None, idempotency_key="", reference="", _from_advance=False):
     """
     Record money received. The invoice row is locked so two concurrent
     payments cannot both pass the balance check. Re-sending the same
@@ -94,6 +94,9 @@ def record_payment(invoice, amount, method="Cash", user=None, idempotency_key=""
     """
     from .models import Invoice, Payment
 
+    if (method or "").strip().lower() == "advance" and not _from_advance:
+        # Advance money moves only through billing.advances, which debits the deposit.
+        raise ValidationError({"payment_method": "Use 'Adjust advance' to pay from the patient's advance."})
     invoice = _locked(invoice)
     if idempotency_key:
         existing = invoice.payments.filter(idempotency_key=idempotency_key).first()
@@ -122,9 +125,11 @@ def record_payment(invoice, amount, method="Cash", user=None, idempotency_key=""
 
 
 @transaction.atomic
-def record_refund(invoice, amount, reason, method="Cash", user=None):
+def record_refund(invoice, amount, reason, method="Cash", user=None, _from_advance=False):
     from .models import Payment
 
+    if (method or "").strip().lower() == "advance" and not _from_advance:
+        raise ValidationError({"payment_method": "Use 'Return to advance' to put money back into the advance."})
     invoice = _locked(invoice)
     amount = money(amount)
     if amount <= ZERO:

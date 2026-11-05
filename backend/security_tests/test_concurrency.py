@@ -143,6 +143,39 @@ class ConcurrentWriteTests(WardMixin, TransactionTestCase):
         self.assertEqual(sum(created for _, created in results), 1)
         self.assertEqual(Payment.objects.filter(invoice=invoice).count(), 1)
 
+    def test_parallel_adjustments_never_spend_more_advance_than_was_deposited(self):
+        # H4: 100 in advance, eight bills of 100 each, eight adjustments of 50 at once.
+        from billing import advances
+        from billing.models import AdvanceAccount
+
+        patient = self.make_patient(0)
+        advances.record_deposit(self.hospital.id, patient.id, Decimal("100.00"))
+        invoices = []
+        for i in range(THREADS):
+            invoice = Invoice.objects.create(patient=patient, hospital=self.hospital, invoice_number=f"INV-ADV-{i}",
+                                             total=Decimal("100.00"))
+            InvoiceItem.objects.create(invoice=invoice, description="Consult", quantity=1,
+                                       unit_price=Decimal("100.00"), subtotal=Decimal("100.00"))
+            invoices.append(invoice)
+
+        results = run_together(lambda i: advances.apply_to_invoice(invoices[i], Decimal("50.00")))
+
+        accepted = [r for r in results if isinstance(r, tuple)]
+        self.assertEqual(len(accepted), 2, results)
+        self.assertEqual(AdvanceAccount.objects.get(patient=patient).balance, Decimal("0.00"))
+        self.assertEqual(sum(p.amount for p in Payment.objects.filter(invoice__in=invoices)), Decimal("100.00"))
+
+    def test_parallel_deposit_retries_with_one_key_count_once(self):
+        from billing import advances
+        from billing.models import AdvanceAccount
+
+        patient = self.make_patient(0)
+        results = run_together(lambda i: advances.record_deposit(self.hospital.id, patient.id, Decimal("500.00"),
+                                                                 idempotency_key="adv-retry"))
+        self.assertTrue(all(isinstance(r, tuple) for r in results), results)
+        self.assertEqual(sum(created for _, created in results), 1)
+        self.assertEqual(AdvanceAccount.objects.get(patient=patient).balance, Decimal("500.00"))
+
     def test_one_bed_goes_to_exactly_one_of_many_admissions(self):
         user, doctor, [bed] = self.bed_setup(beds=1)
         admissions = [Admission.objects.create(patient=self.make_patient(i), hospital=self.hospital,

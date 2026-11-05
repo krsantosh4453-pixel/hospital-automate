@@ -1,11 +1,16 @@
 from rest_framework import serializers
 from .models import (
+    AdvanceAccount,
+    AdvanceTransaction,
     Invoice,
     InvoiceItem,
     Payment,
     InsuranceClaim,
 )
 from django.db import transaction
+
+from hospital.models import Hospital
+from patients.models import Patient
 
 from .services import line_subtotal, money, new_reference, recalculate
 
@@ -240,3 +245,53 @@ class InvoiceSerializer(serializers.ModelSerializer):
                     InvoiceItem.objects.create(invoice=instance, **item_data)
             recalculate(instance)
         return instance
+
+
+class AdvanceTransactionSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
+    invoice_number = serializers.CharField(source="invoice.invoice_number", read_only=True, default="")
+
+    class Meta:
+        model = AdvanceTransaction
+        fields = ["id", "kind", "amount", "balance_after", "payment_method", "receipt_number", "reference",
+                  "invoice", "invoice_number", "created_by", "created_by_name", "created_at"]
+        read_only_fields = fields
+
+    def get_created_by_name(self, obj) -> str:
+        user = obj.created_by
+        return (user.get_full_name() or user.username) if user else ""
+
+
+class AdvanceAccountSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source="patient.name", read_only=True)
+    transactions = serializers.SerializerMethodField()
+
+    # The latest movements; the full history is in the transactions list.
+    RECENT = 50
+
+    class Meta:
+        model = AdvanceAccount
+        fields = ["id", "hospital", "patient", "patient_name", "balance", "updated_at", "transactions"]
+        read_only_fields = fields
+
+    def get_transactions(self, obj) -> list:
+        return AdvanceTransactionSerializer(obj.transactions.select_related("invoice", "created_by")[: self.RECENT],
+                                            many=True).data
+
+
+class AdvanceDepositSerializer(serializers.Serializer):
+    hospital = serializers.PrimaryKeyRelatedField(queryset=Hospital.objects.all(), required=False)
+    patient = serializers.PrimaryKeyRelatedField(queryset=Patient.objects.all())
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = serializers.CharField(max_length=30, default="Cash")
+    reference = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
+    idempotency_key = serializers.CharField(max_length=80, required=False, allow_blank=True, default="")
+
+
+class AdvanceMoveSerializer(serializers.Serializer):
+    """Amount plus what the action needs: a reason for refunds, a key against double submits."""
+
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    reason = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
+    payment_method = serializers.CharField(max_length=30, required=False, default="Cash")
+    idempotency_key = serializers.CharField(max_length=80, required=False, allow_blank=True, default="")

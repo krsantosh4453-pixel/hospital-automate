@@ -2071,6 +2071,24 @@ api.billing = {
     patch: async (id, data) =>
       request(`${API_BASE_URL}/billing/payments/${id}/`, { method: "PATCH", ...jsonBody(data) }),
   },
+  // Advance payments (H4). The server keeps the balance; every call here is one ledger movement.
+  advances: {
+    list: async (hospitalId, patientId) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set("hospital", hospitalId)
+      if (patientId) params.set("patient", patientId)
+      return request(`${API_BASE_URL}/billing/advances/?${params.toString()}`)
+    },
+    // data: { hospital, patient, amount, payment_method, reference, idempotency_key }
+    deposit: async (data) =>
+      request(`${API_BASE_URL}/billing/advances/deposit/`, { method: "POST", ...jsonBody(data) }),
+    // data: { amount, reason, payment_method } — billing staff, manager or admin
+    refund: async (accountId, data) =>
+      request(`${API_BASE_URL}/billing/advances/${accountId}/refund/`, { method: "POST", ...jsonBody(data) }),
+    // data: { amount, idempotency_key }
+    applyToInvoice: async (invoiceId, data) =>
+      request(`${API_BASE_URL}/billing/invoices/${invoiceId}/apply-advance/`, { method: "POST", ...jsonBody(data) }),
+  },
 }
 
 api.emergency = {

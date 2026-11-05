@@ -157,7 +157,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | H1 | Invoice line items, quantity, subtotal, discount, tax, total (server computed, Decimal) | P2 16, P4 8 | VERIFIED | `billing/services.py` | T:test_financial_integrity |
 | H2 | Payments, receipts, outstanding balance | P2 6 | VERIFIED | record_payment (row lock, idempotency) | T |
 | H3 | Refunds | P2 6 | VERIFIED | refund action | T |
-| H4 | Advance payments | P2 6 | MISSING | Payments cannot exceed the bill | — |
+| H4 | Advance payments | P2 6 | DONE (2026-11-05) | `billing/advances.py`: per-patient advance account and append-only ledger (deposit, applied to bill, returned from bill, refunded); account and invoice rows locked, idempotency keys, balance never below zero; adjusting records an ordinary "Advance" payment on the invoice; plain payment/refund APIs refuse the "Advance" method; every movement audited. Billing page "Advance payments" card | `billing/test_advances.py` (9), `test_concurrency` (2 PostgreSQL race tests), `advancePayments.test.jsx`, Playwright `advance-payment` |
 | H5 | Duplicate-payment prevention | Brief 4 | VERIFIED | Idempotency-Key | T |
 | H6 | Insurance / TPA claims | UI 3.8 | IMPLEMENTED | InsuranceClaim (amount ≤ invoice) | Existing tests |
 | H7 | Invoice PDF / export | P2 16 | IMPLEMENTED | Layout shared with the tested PrintSheet | Added 2026-10-28: patient Bills page prints the invoice with payments (browser "Save as PDF"); staff Billing already had Print Bill. Not clicked through in a browser |
