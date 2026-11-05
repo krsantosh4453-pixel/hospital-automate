@@ -8,7 +8,7 @@ import {
   Button,
   Card,
   CardHeader,
-  ConfirmDialog,
+  RemoveRecordDialog,
   EmptyState,
   Field,
   Input,
@@ -647,11 +647,11 @@ function Consultation() {
   }
 
   const handleDeleteVitals = (vital) =>
-    setPendingDelete({ title: "Delete these vital signs?", run: () => handleDeleteVitalsNow(vital) })
+    setPendingDelete({ title: "Remove these vital signs?", run: (reason) => handleDeleteVitalsNow(vital, reason) })
 
-  const handleDeleteVitalsNow = async (vital) => {
+  const handleDeleteVitalsNow = async (vital, reason) => {
     try {
-      await api.clinical.vitals.delete(vital.apiId)
+      await api.clinical.vitals.delete(vital.apiId, reason)
 
       setVitals((prev) =>
         prev.filter(
@@ -761,11 +761,11 @@ function Consultation() {
   }
 
   const handleDeleteDiagnosis = (diagnosis) =>
-    setPendingDelete({ title: "Delete this diagnosis?", run: () => handleDeleteDiagnosisNow(diagnosis) })
+    setPendingDelete({ title: "Remove this diagnosis?", run: (reason) => handleDeleteDiagnosisNow(diagnosis, reason) })
 
-  const handleDeleteDiagnosisNow = async (diagnosis) => {
+  const handleDeleteDiagnosisNow = async (diagnosis, reason) => {
     try {
-      await api.clinical.diagnoses.delete(diagnosis.apiId)
+      await api.clinical.diagnoses.delete(diagnosis.apiId, reason)
 
       setDiagnoses((prev) =>
         prev.filter(
@@ -854,11 +854,11 @@ function Consultation() {
   }
 
   const handleDeleteNote = (note) =>
-    setPendingDelete({ title: "Delete this clinical note?", run: () => handleDeleteNoteNow(note) })
+    setPendingDelete({ title: "Remove this clinical note?", run: (reason) => handleDeleteNoteNow(note, reason) })
 
-  const handleDeleteNoteNow = async (note) => {
+  const handleDeleteNoteNow = async (note, reason) => {
     try {
-      await api.clinical.notes.delete(note.apiId)
+      await api.clinical.notes.delete(note.apiId, reason)
 
       setNotes((prev) =>
         prev.filter(
@@ -961,11 +961,11 @@ function Consultation() {
   }
 
   const handleDeleteOrder = (order) =>
-    setPendingDelete({ title: "Delete this service order?", run: () => handleDeleteOrderNow(order) })
+    setPendingDelete({ title: "Remove this service order?", run: (reason) => handleDeleteOrderNow(order, reason) })
 
-  const handleDeleteOrderNow = async (order) => {
+  const handleDeleteOrderNow = async (order, reason) => {
     try {
-      await api.clinical.serviceOrders.delete(order.apiId)
+      await api.clinical.serviceOrders.delete(order.apiId, reason)
 
       setOrders((prev) =>
         prev.filter(
@@ -1025,10 +1025,10 @@ function Consultation() {
   // RENDER
   // =========================================================
 
-  const confirmDelete = async () => {
+  const confirmDelete = async (reason) => {
     if (!pendingDelete) return
     setDeleting(true)
-    await pendingDelete.run()
+    await pendingDelete.run(reason)
     setDeleting(false)
     setPendingDelete(null)
   }
@@ -1469,15 +1469,13 @@ function Consultation() {
         </div>
       )}
 
-      <ConfirmDialog
+      <RemoveRecordDialog
         open={Boolean(pendingDelete)}
         onCancel={() => setPendingDelete(null)}
         onConfirm={confirmDelete}
         loading={deleting}
-        destructive
-        title={pendingDelete?.title || t("Delete record?")}
-        confirmLabel="Delete"
-        message="This removes the record from the patient's visit. It cannot be undone."
+        title={pendingDelete?.title || t("Remove record?")}
+        message="This removes the record from the patient's visit."
       />
     </div>
   )

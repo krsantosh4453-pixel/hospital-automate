@@ -12,6 +12,7 @@ import {
   Card,
   CardHeader,
   ConfirmDialog,
+  RemoveRecordDialog,
   EmptyState,
   Field,
   Input,
@@ -428,7 +429,7 @@ function Prescription() {
     }
   }
 
-  const handleDelete = async (record) => {
+  const handleDelete = async (record, reason) => {
     setActionError("")
 
     if (!record.apiId) {
@@ -437,18 +438,18 @@ function Prescription() {
     }
 
     try {
-      await deletePrescription(record.apiId)
-      setSuccessMessage(`Prescription ${record.id} deleted.`)
+      await deletePrescription(record.apiId, reason)
+      setSuccessMessage(`Prescription ${record.id} removed.`)
     } catch (err) {
       setActionError(err?.message || "Unable to delete the prescription.")
     }
   }
 
-  const runPending = async () => {
+  const runPending = async (reason) => {
     if (!pending) return
     setWorking(true)
     if (pending.kind === "dispense") await handleDispense(pending.record)
-    else await handleDelete(pending.record)
+    else await handleDelete(pending.record, reason)
     setWorking(false)
     setPending(null)
   }
@@ -673,18 +674,21 @@ function Prescription() {
       </div>
 
       <ConfirmDialog
-        open={Boolean(pending)}
+        open={pending?.kind === "dispense"}
+        onCancel={() => setPending(null)}
+        onConfirm={() => runPending()}
+        loading={working}
+        title={t("Mark as dispensed?")}
+        confirmLabel="Mark dispensed"
+        message={t("Confirm that every medicine on prescription {recordId} has been handed to {patient}.", { recordId: pending?.record.id, patient: pending?.record.patientName || "the patient" })}
+      />
+      <RemoveRecordDialog
+        open={pending?.kind === "delete"}
         onCancel={() => setPending(null)}
         onConfirm={runPending}
         loading={working}
-        destructive={pending?.kind === "delete"}
-        title={pending?.kind === "delete" ? t("Delete prescription?") : t("Mark as dispensed?")}
-        confirmLabel={pending?.kind === "delete" ? "Delete" : "Mark dispensed"}
-        message={
-          pending?.kind === "delete"
-            ? t("Prescription {recordId} for {patient} will be deleted. This cannot be undone.", { recordId: pending?.record.id, patient: pending?.record.patientName || "this patient" })
-            : t("Confirm that every medicine on prescription {recordId} has been handed to {patient}.", { recordId: pending?.record.id, patient: pending?.record.patientName || "the patient" })
-        }
+        title={t("Remove prescription?")}
+        message={t("Prescription {recordId} for {patient} will be removed from the list.", { recordId: pending?.record.id, patient: pending?.record.patientName || "this patient" })}
       />
     </div>
   )

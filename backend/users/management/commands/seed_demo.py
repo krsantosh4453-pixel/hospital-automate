@@ -74,7 +74,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             hospital = Hospital.objects.filter(name=HOSPITAL_NAME).first()
             if hospital is not None:
-                Patient.objects.filter(hospital=hospital).delete()
+                Patient.all_objects.filter(hospital=hospital).delete()
                 hospital.delete()
             get_user_model().objects.filter(username__startswith=USERNAME_PREFIX).delete()
         self.stdout.write(self.style.SUCCESS("Demo hospital and demo logins removed."))

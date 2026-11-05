@@ -1,9 +1,11 @@
 from django.conf import settings
 from django.db import models
+
+from audit.entered_in_error import EnteredInError
 from django.db.models.functions import Lower
 
 
-class Patient(models.Model):
+class Patient(EnteredInError):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

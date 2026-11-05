@@ -12,7 +12,7 @@ import {
   Badge,
   Button,
   Card,
-  ConfirmDialog,
+  RemoveRecordDialog,
   DescriptionList,
   EmptyState,
   Field,
@@ -372,19 +372,19 @@ function Patients() {
   // DELETE
   // =====================================================
 
-  const confirmDelete = async () => {
+  const confirmDelete = async (reason) => {
     const patient = pendingDelete
     if (!patient) return
     setDeleting(true)
     setLoadError("")
 
     try {
-      await api.patients.delete(patient.id)
-      setSuccessMessage("Patient deleted successfully.")
+      await api.patients.delete(patient.id, reason)
+      setSuccessMessage("Patient removed. The record is kept with your name and the reason.")
       setTotalRecords((n) => Math.max(n - 1, 0))
     } catch (error) {
       // Refused or unreachable: the patient still exists on the server.
-      setLoadError(t("Not deleted: {reason}", { reason: error.message }))
+      setLoadError(t("Not removed: {reason}", { reason: error.message }))
       setDeleting(false)
       setPendingDelete(null)
       if (error.isTimeout) setReloadToken((value) => value + 1)
@@ -510,7 +510,7 @@ function Patients() {
                           <div className="flex items-center justify-end gap-0.5">
                             <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => setViewPatient(patient)} aria-label={`View ${patient.name}`} title={t("View")} />
                             {canEdit("Patients") && <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => openEditForm(patient)} aria-label={`Edit ${patient.name}`} title={t("Edit")} />}
-                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setPendingDelete(patient)} aria-label={`Delete ${patient.name}`} title={t("Delete")} />
+                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setPendingDelete(patient)} aria-label={`Remove ${patient.name}`} title={t("Remove")} />
                           </div>
                         </td>
                       </tr>
@@ -702,7 +702,7 @@ function Patients() {
           viewPatient && (
             <>
               <Button variant="danger-ghost" icon={Trash2} onClick={() => setPendingDelete(viewPatient)} className="mr-auto">
-                {t("Delete")}
+                {t("Remove")}
               </Button>
               {["Doctor", "Nurse", "Admin"].includes(activeRoleName) && (
                 <Button variant="secondary" icon={History} onClick={() => { setRecordPatient(viewPatient); setViewPatient(null) }}>{t("Medical record")}</Button>
@@ -749,7 +749,7 @@ function Patients() {
         )}
       </Modal>
 
-      <ConfirmDialog
+      <RemoveRecordDialog
         open={Boolean(pendingDelete)}
         onCancel={() => {
           setPendingDelete(null)
@@ -757,9 +757,7 @@ function Patients() {
         }}
         onConfirm={confirmDelete}
         loading={deleting}
-        destructive
-        title={t("Permanently delete patient?")}
-        confirmLabel="Delete patient and records"
+        title={t("Remove patient?")}
         confirmDisabled={
           pendingDelete?.source === "api" &&
           deleteConfirmText.trim().toLowerCase() !== String(pendingDelete?.name || "").trim().toLowerCase()
@@ -767,7 +765,7 @@ function Patients() {
         message={
           <>
             {t("Deleting")}{" "}<strong className="font-semibold text-ink-900">{pendingDelete?.name}</strong> (
-            {pendingDelete && formatPatientId(pendingDelete)}{t(") also permanently deletes their visits, clinical notes, prescriptions, medication records, lab tests, admissions, invoices and consent records. This cannot be undone. Use it only for a registration made in error.")}
+            {pendingDelete && formatPatientId(pendingDelete)}{t(") removes them from patient lists and search. Use it only for a registration made in error.")}
           </>
         }
       >
@@ -785,7 +783,7 @@ function Patients() {
             />
           </div>
         )}
-      </ConfirmDialog>
+      </RemoveRecordDialog>
     </div>
   )
 }

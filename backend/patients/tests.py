@@ -278,10 +278,19 @@ class PatientAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_delete_patient(self):
-        """Test deleting a patient."""
-        response = self.client.delete(self._get_detail_url(self.patient_a.id))
+        """Removing a patient hides them; the row stays, marked entered in error (R-03)."""
+        response = self.client.delete(self._get_detail_url(self.patient_a.id),
+                                      {"reason": "Registered twice by mistake"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Patient.objects.filter(pk=self.patient_a.id).exists())
+        kept = Patient.all_objects.get(pk=self.patient_a.id)
+        self.assertEqual(kept.entered_in_error_reason, "Registered twice by mistake")
+        self.assertIsNotNone(kept.entered_in_error_at)
+
+    def test_delete_patient_needs_a_reason(self):
+        response = self.client.delete(self._get_detail_url(self.patient_a.id))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Patient.objects.filter(pk=self.patient_a.id).exists())
 
     def test_patient_hospital_membership(self):
         """Test patient hospital membership functionality."""

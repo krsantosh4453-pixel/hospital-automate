@@ -7,6 +7,8 @@ from django.db.models import Q
 from django.utils import timezone
 from datetime import datetime, timedelta
 
+from audit.services import record_audit
+from config.hospital_time import hospital_today
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsHospitalManager, IsNurse, IsDoctor
 from .models import (
@@ -29,6 +31,17 @@ from .serializers import (
     NurseWardAssignmentSerializer,
     PatientAssignmentSerializer,
 )
+
+
+NO_ORDER = "No active doctor's order for this medicine. Ask the doctor to order or restart it."
+
+
+def audit_dose(request, admin):
+    """Who recorded which outcome for which dose."""
+    record_audit(request, f"nurses.maradministration.{admin.status.lower()}", admin,
+                 hospital=admin.mar.hospital_id,
+                 details={"mar": admin.mar_id, "medicine": admin.mar.medicine_name, "status": admin.status,
+                          "dose_given": admin.dose_given, "notes": admin.notes})
 
 
 class NurseViewSet(HospitalScopedViewSet):
@@ -175,9 +188,25 @@ class CareTaskViewSet(HospitalScopedViewSet):
 
 
 class MARViewSet(HospitalScopedViewSet):
-    queryset = MAR.objects.select_related("hospital", "patient", "admission", "prescription", "prescription_item")
+    """
+    Medication orders. Only a doctor writes, changes, stops or schedules one;
+    nurses read them and record doses given under them.
+    """
+    queryset = MAR.objects.select_related("hospital", "patient", "admission", "prescription", "prescription_item",
+                                          "ordered_by")
     serializer_class = MARSerializer
     permission_classes = [IsNurse | IsDoctor]
+    DOCTOR_ONLY_ACTIONS = {"create", "update", "partial_update", "destroy", "generate_schedule"}
+
+    def get_permissions(self):
+        if getattr(self, "action", None) in self.DOCTOR_ONLY_ACTIONS:
+            return [IsDoctor()]
+        return super().get_permissions()
+
+    def perform_create(self, serializer):
+        extra = self._check_tenancy(serializer.validated_data)
+        instance = serializer.save(ordered_by=self.request.user, **extra)
+        self._audit("create", instance)
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -271,8 +300,8 @@ class MARViewSet(HospitalScopedViewSet):
         if "PRN" not in mar.frequency.upper():
             return Response({"detail": "This order is not PRN; use the scheduled doses."},
                             status=status.HTTP_400_BAD_REQUEST)
-        if not mar.is_active:
-            return Response({"detail": "This medication order is discontinued."}, status=status.HTTP_400_BAD_REQUEST)
+        if not mar.in_force(hospital_today()):
+            return Response({"detail": NO_ORDER}, status=status.HTTP_400_BAD_REQUEST)
         now = timezone.now()
         admin = MARAdministration.objects.create(
             mar=mar, scheduled_time=now, administered_time=now, status=MARAdministration.ADMINISTERED,
@@ -280,6 +309,7 @@ class MARViewSet(HospitalScopedViewSet):
             dose_given=request.data.get("dose_given", mar.dose), route_given=request.data.get("route_given", mar.route),
             notes=request.data.get("notes", ""),
         )
+        audit_dose(request, admin)
         return Response(MARAdministrationSerializer(admin).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"])
@@ -327,6 +357,11 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
             qs = qs.filter(status=admin_status)
         return qs
 
+    def get_permissions(self):
+        if getattr(self, "action", None) == "exclude":
+            return [IsDoctor()]
+        return super().get_permissions()
+
     def create(self, request, *args, **kwargs):
         return Response(
             {"detail": "Doses come from MAR generate_schedule/ or prn/; outcomes from the dose actions."},
@@ -357,6 +392,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         admin.administered_time = timezone.now()
         admin.recorded_by = request.user
         admin.save()
+        audit_dose(request, admin)
         return Response(MARAdministrationSerializer(admin).data)
 
     @action(detail=True, methods=["post"])
@@ -369,6 +405,8 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
                 {"detail": f"Already {admin.status.lower()}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if not admin.mar.in_force(hospital_today()):
+            return Response({"detail": NO_ORDER}, status=status.HTTP_400_BAD_REQUEST)
 
         admin.administered_time = timezone.now()
         admin.administered_by = self._nurse(request, admin)
@@ -379,6 +417,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         admin.notes = request.data.get("notes", "")
         admin.status = "Administered"
         admin.save()
+        audit_dose(request, admin)
 
         return Response(MARAdministrationSerializer(admin).data)
 
@@ -400,6 +439,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         admin.recorded_by = request.user
         admin.administered_time = timezone.now()
         admin.save()
+        audit_dose(request, admin)
 
         return Response(MARAdministrationSerializer(admin).data)
 
@@ -421,6 +461,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         admin.recorded_by = request.user
         admin.administered_time = timezone.now()
         admin.save()
+        audit_dose(request, admin)
 
         return Response(MARAdministrationSerializer(admin).data)
 
@@ -440,6 +481,7 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         admin.administered_time = timezone.now()
         admin.recorded_by = request.user
         admin.save()
+        audit_dose(request, admin)
 
         return Response(MARAdministrationSerializer(admin).data)
 

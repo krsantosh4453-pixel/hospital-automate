@@ -231,6 +231,12 @@ async function request(url, options = {}) {
 // Requests that wait on an email or SMS provider before the server answers.
 const DELIVERY_TIMEOUT_MS = 30000
 
+// Clinical records and patients are never erased: removing one marks it
+// entered in error, and the server requires the reason (R-03).
+function removalRequest(reason) {
+  return { method: 'DELETE', ...jsonBody({ reason }) }
+}
+
 function jsonBody(data) {
   return {
     headers: { 'Content-Type': 'application/json' },
@@ -464,10 +470,8 @@ const api = {
       }),
 
     // DELETE /api/patients/{id}/
-    delete: async (id) => {
-      await request(`${API_BASE_URL}/patients/${id}/`, {
-        method: 'DELETE',
-      })
+    delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/patients/${id}/`, removalRequest(reason))
       return true
     },
   },
@@ -599,8 +603,8 @@ const api = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         }),
-      delete: async (id) => {
-        await request(`${API_BASE_URL}/nurses/assessments/${id}/`, { method: 'DELETE' });
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/nurses/assessments/${id}/`, removalRequest(reason));
         return true;
       },
     },
@@ -626,8 +630,8 @@ const api = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         }),
-      delete: async (id) => {
-        await request(`${API_BASE_URL}/nurses/notes/${id}/`, { method: 'DELETE' });
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/nurses/notes/${id}/`, removalRequest(reason));
         return true;
       },
     },
@@ -690,6 +694,9 @@ const api = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         }),
+      // Doctor only: stopping an order ends further doses under it.
+      stop: async (id) =>
+        request(`${API_BASE_URL}/nurses/mar/${id}/`, { method: 'PATCH', ...jsonBody({ is_active: false }) }),
       generateSchedule: async (id, startDate) =>
         request(`${API_BASE_URL}/nurses/mar/${id}/generate_schedule/`, {
           method: 'POST',
@@ -1101,10 +1108,8 @@ const api = {
         }),
 
       // DELETE /api/clinical/vitals/{id}/
-      delete: async (id) => {
-        await request(`${API_BASE_URL}/clinical/vitals/${id}/`, {
-          method: 'DELETE',
-        })
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/clinical/vitals/${id}/`, removalRequest(reason))
         return true
       },
     },
@@ -1142,13 +1147,8 @@ const api = {
         }),
 
       // DELETE /api/clinical/clinical-notes/{id}/
-      delete: async (id) => {
-        await request(
-          `${API_BASE_URL}/clinical/clinical-notes/${id}/`,
-          {
-            method: 'DELETE',
-          }
-        )
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/clinical/clinical-notes/${id}/`, removalRequest(reason))
         return true
       },
     },
@@ -1186,13 +1186,8 @@ const api = {
         }),
 
       // DELETE /api/clinical/diagnoses/{id}/
-      delete: async (id) => {
-        await request(
-          `${API_BASE_URL}/clinical/diagnoses/${id}/`,
-          {
-            method: 'DELETE',
-          }
-        )
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/clinical/diagnoses/${id}/`, removalRequest(reason))
         return true
       },
     },
@@ -1233,13 +1228,8 @@ const api = {
         ),
 
       // DELETE /api/clinical/service-orders/{id}/
-      delete: async (id) => {
-        await request(
-          `${API_BASE_URL}/clinical/service-orders/${id}/`,
-          {
-            method: 'DELETE',
-          }
-        )
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/clinical/service-orders/${id}/`, removalRequest(reason))
         return true
       },
     },
@@ -1304,10 +1294,8 @@ const api = {
         }),
 
       // DELETE /api/clinical/prescriptions/{id}/
-      delete: async (id) => {
-        await request(`${API_BASE_URL}/clinical/prescriptions/${id}/`, {
-          method: 'DELETE',
-        })
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/clinical/prescriptions/${id}/`, removalRequest(reason))
         return true
       },
     },

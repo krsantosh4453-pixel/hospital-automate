@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { History, RefreshCw } from "lucide-react"
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import api from "../../services/api.js"
+import AuditDetails from "../../components/AuditDetails.jsx"
 import Pagination from "../../components/Pagination.jsx"
 import { Alert, Button, Card, EmptyState, Field, Input, PageHeader, SkeletonRows, TableWrap, Toolbar } from "../../components/ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
@@ -19,16 +20,8 @@ function formatWhen(value) {
     : date.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
 }
 
-// The service writes details as JSON text; show it compactly when it is.
-function formatDetails(details) {
-  if (!details) return ""
-  try {
-    const parsed = JSON.parse(details)
-    return typeof parsed === "object" ? JSON.stringify(parsed) : String(parsed)
-  } catch {
-    return details
-  }
-}
+// Removals are marked "entered_in_error" (R-03); this filter lists only them.
+const REMOVED_FILTERS = { ...EMPTY_FILTERS, action: "entered_in_error" }
 
 function AuditLog() {
   const { t } = useLanguage()
@@ -76,6 +69,12 @@ function AuditLog() {
     setPage(1)
   }
 
+  const showRemoved = () => {
+    setDraft(REMOVED_FILTERS)
+    setFilters(REMOVED_FILTERS)
+    setPage(1)
+  }
+
   const set = (field) => (event) => setDraft({ ...draft, [field]: event.target.value })
 
   return (
@@ -97,6 +96,7 @@ function AuditLog() {
             actions={
               <>
                 <Button variant="ghost" onClick={clear}>{t("Clear")}</Button>
+                <Button variant="secondary" onClick={showRemoved}>{t("Removed records")}</Button>
                 <Button type="submit">{t("Apply filters")}</Button>
               </>
             }
@@ -135,7 +135,7 @@ function AuditLog() {
                     <td>{row.username || (row.user ? `user ${row.user}` : t("system"))}</td>
                     <td className="font-medium text-ink-900">{row.action}</td>
                     <td>{row.model_name}{row.object_id ? ` #${row.object_id}` : ""}</td>
-                    <td className="max-w-xs truncate text-ink-600" title={formatDetails(row.details)}>{formatDetails(row.details) || "—"}</td>
+                    <td className="min-w-[14rem] max-w-md"><AuditDetails details={row.details} /></td>
                     <td className="tabular-nums text-ink-600">{row.ip_address || "—"}</td>
                   </tr>
                 ))}

@@ -192,9 +192,9 @@ export function PrescriptionProvider({ children }) {
   // DELETE (API-BACKED, ASYNC)
   // =====================================
 
-  const deletePrescription = async (apiId) => {
+  const deletePrescription = async (apiId, reason) => {
 
-    await api.prescriptions.delete(apiId)
+    await api.prescriptions.delete(apiId, reason)
 
     setPrescriptions((prev) => {
       const next = prev.filter(

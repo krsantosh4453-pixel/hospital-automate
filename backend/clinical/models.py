@@ -2,8 +2,10 @@ from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from audit.entered_in_error import EnteredInError
 
-class VitalSign(models.Model):
+
+class VitalSign(EnteredInError):
     class Avpu(models.TextChoices):
         ALERT = "A", "Alert"
         VOICE = "V", "Responds to voice"
@@ -46,7 +48,7 @@ class VitalSign(models.Model):
         ]
 
 
-class Allergy(models.Model):
+class Allergy(EnteredInError):
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
@@ -70,7 +72,7 @@ class Allergy(models.Model):
         return self.name
 
 
-class ClinicalNote(models.Model):
+class ClinicalNote(EnteredInError):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -121,7 +123,7 @@ class ClinicalNote(models.Model):
         )
 
 
-class Diagnosis(models.Model):
+class Diagnosis(EnteredInError):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -151,7 +153,7 @@ class Diagnosis(models.Model):
         ]
 
 
-class ServiceOrder(models.Model):
+class ServiceOrder(EnteredInError):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -170,7 +172,7 @@ class ServiceOrder(models.Model):
         ]
 
 
-class Procedure(models.Model):
+class Procedure(EnteredInError):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -188,7 +190,7 @@ class Procedure(models.Model):
         ]
 
 
-class MedicalRecord(models.Model):
+class MedicalRecord(EnteredInError):
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
@@ -221,7 +223,7 @@ class MedicalRecord(models.Model):
         ]
 
 
-class Prescription(models.Model):
+class Prescription(EnteredInError):
     hospital = models.ForeignKey(
         "hospital.Hospital",
         on_delete=models.CASCADE,
@@ -271,7 +273,7 @@ class Prescription(models.Model):
         return f"RX-{self.pk}"
 
 
-class PrescriptionItem(models.Model):
+class PrescriptionItem(EnteredInError):
     prescription = models.ForeignKey(
         Prescription,
         on_delete=models.CASCADE,

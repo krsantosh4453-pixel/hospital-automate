@@ -7,6 +7,7 @@ from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 
+from audit.entered_in_error import is_entered_in_error_model, removal_reason, snapshot
 from audit.read_audit import SensitiveReadAuditMixin
 from hospital.models import Hospital
 from users.care_scope import limit_to_patients_in_care, may_write_for_patients
@@ -283,7 +284,15 @@ class HospitalScopedViewSet(SensitiveReadAuditMixin, viewsets.ModelViewSet):
         self._audit("update", instance, details={"changes": changes})
 
     def perform_destroy(self, instance):
-        self._audit("delete", instance)
+        # The audit log keeps the values as they were, whatever happens next.
+        before = snapshot(instance)
+        if is_entered_in_error_model(type(instance)):
+            # R-03: clinical records and patients are marked entered in error, never erased.
+            reason = removal_reason(self.request)
+            instance.mark_entered_in_error(self.request.user, reason)
+            self._audit("entered_in_error", instance, details={"reason": reason, "before": before})
+            return
+        self._audit("delete", instance, details={"before": before})
         instance.delete()
 
     def get_serializer_context(self):

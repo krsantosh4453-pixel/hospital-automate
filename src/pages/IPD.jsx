@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { BedDouble, BedSingle, ClipboardCheck, FileSignature, Hospital, LogOut, Plus, RefreshCw, UserRoundCheck } from "lucide-react"
+import { BedDouble, BedSingle, ClipboardCheck, FileSignature, Hospital, LogOut, Pill, Plus, RefreshCw, UserRoundCheck } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api"
@@ -7,6 +7,7 @@ import { useToast } from "../components/Toast.jsx"
 import AddBedDialog from "../components/ipd/AddBedDialog.jsx"
 import BedsTable from "../components/ipd/BedsTable.jsx"
 import DischargeReadiness from "../components/ipd/DischargeReadiness.jsx"
+import MedicationOrders from "../components/ipd/MedicationOrders.jsx"
 import {
   Alert,
   Badge,
@@ -58,7 +59,7 @@ function IPD() {
   // Bumped after IPD data reloads so the All beds tab reloads too.
   const [bedsVersion, setBedsVersion] = useState(0)
 
-  const [dialog, setDialog] = useState(null) // "admission" | "bed" | "add-bed" | "plan" | "summary"
+  const [dialog, setDialog] = useState(null) // "admission" | "bed" | "add-bed" | "plan" | "summary" | "orders"
   const [selectedAdmission, setSelectedAdmission] = useState(null)
   const [admissionForm, setAdmissionForm] = useState({ patient: "", reason: "", admitting_doctor: "" })
   const [bedId, setBedId] = useState("")
@@ -340,6 +341,9 @@ function IPD() {
                               {admission.current_bed && (
                                 <Button size="sm" variant="ghost" loading={busy === `release-${admission.id}`} onClick={() => handleReleaseBed(admission)}>{t("Release bed")}</Button>
                               )}
+                              {admission.status !== "Discharged" && (
+                                <Button size="sm" variant="subtle" icon={Pill} onClick={() => { setSelectedAdmission(admission); setDialog("orders") }}>{t("Medicines")}</Button>
+                              )}
                               {admission.status === "Admitted" && (
                                 <Button size="sm" variant="secondary" icon={LogOut} onClick={() => { setSelectedAdmission(admission); setDialog("plan") }}>{t("Start discharge")}</Button>
                               )}
@@ -461,6 +465,14 @@ function IPD() {
           )}
         </>
       )}
+
+      <MedicationOrders
+        open={dialog === "orders"}
+        onClose={closeDialog}
+        admission={selectedAdmission}
+        hospitalId={selectedHospital?.id}
+        canOrder={activeRoleName === "Doctor"}
+      />
 
       {/* New admission */}
       <AddBedDialog
