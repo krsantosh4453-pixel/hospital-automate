@@ -17,7 +17,7 @@ test("advance is received, adjusted against a bill and the rest refunded", async
   await expect(page.getByRole("heading", { name: "Advance payments" })).toBeVisible()
   await page.getByRole("button", { name: "Receive advance" }).click()
   const dialog = page.getByRole("dialog")
-  await dialog.getByPlaceholder("Search by name or phone").fill("Demo Kiran")
+  await dialog.getByPlaceholder("Search by name, phone or UHID").fill("Demo Kiran")
   await dialog.getByRole("button", { name: new RegExp(PATIENT.replace(/[()]/g, "\\$&")) }).click()
   await dialog.getByLabel(/^Amount/).fill("1000")
   await dialog.getByRole("button", { name: "Save" }).click()

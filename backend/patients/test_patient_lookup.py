@@ -63,8 +63,16 @@ class PatientLookupTests(TestCase):
     def test_only_minimal_fields_and_masked_phone(self):
         row = self._get("ravi").data[0]
 
-        self.assertEqual(set(row), {"id", "name", "age", "gender", "phone"})
+        self.assertEqual(set(row), {"id", "name", "age", "gender", "phone", "uhid"})
         self.assertEqual(row["phone"], "******2345")
+
+    def test_shows_the_uhid_of_the_acting_hospital(self):
+        """RL-03: same-name patients are told apart by UHID, not only a masked phone."""
+        PatientHospital.objects.filter(patient=self.ravi, hospital=self.hospital).update(uhid="HA-2026-000042")
+
+        row = self._get("ravi").data[0]
+
+        self.assertEqual(row["uhid"], "HA-2026-000042")
 
     def test_finds_by_phone(self):
         self.assertEqual([r["id"] for r in self._get("12345").data], [self.ravi.pk])

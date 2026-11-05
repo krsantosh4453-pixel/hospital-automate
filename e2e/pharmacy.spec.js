@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { signInAs } from "./helpers.js"
+import { pickPatient, signInAs } from "./helpers.js"
 
 // The pharmacist stocks a medicine and keeps the pharmacy page open; a doctor
 // then prescribes it, and the pharmacist finds and dispenses that prescription.
@@ -7,7 +7,7 @@ import { signInAs } from "./helpers.js"
 const RUN = Date.now().toString(36).toUpperCase()
 const MEDICINE = `Tab Cetirizine 10 E2E${RUN}`
 const PAIR = [`Tab Levocetirizine 5 E2E${RUN}`, `Tab Pantoprazole 40 E2E${RUN}`]
-const PATIENT = "Demo Ravi (Cardiology OPD) (9000003011)"
+const PATIENT = "Demo Ravi (Cardiology OPD)"
 
 async function addMedicine(page, name = MEDICINE, salt = "cetirizine", stock = "50") {
   await page.getByRole("button", { name: "Add medicine" }).click()
@@ -29,7 +29,7 @@ function stockCell(page, name = MEDICINE) {
 
 async function prescribe(doctor, lines) {
   await doctor.goto("/prescription")
-  await doctor.getByLabel(/^Patient/).selectOption({ label: PATIENT })
+  await pickPatient(doctor, PATIENT)
   for (const [index, [name, qty]] of lines.entries()) {
     if (index > 0) await doctor.getByRole("button", { name: "Add medicine" }).click()
     await doctor.getByPlaceholder("Drug and strength").nth(index).fill(name)
@@ -52,7 +52,7 @@ test("pharmacist dispenses a prescription written after the page opened", async 
   await signInAs(doctor, "demo.doctor1")
   const rx = await prescribe(doctor, [[MEDICINE, "3"]])
 
-  await pharmacist.getByPlaceholder("RX-2026-001").fill(rx)
+  await pharmacist.getByPlaceholder("RX-0001").fill(rx)
   await pharmacist.getByRole("button", { name: "Search Prescription" }).click()
   await expect(pharmacist.getByText("Required: 3")).toBeVisible()
   await pharmacist.getByRole("button", { name: "Dispense Prescription" }).click()
@@ -62,7 +62,7 @@ test("pharmacist dispenses a prescription written after the page opened", async 
 
   // Looked up again later, it shows as dispensed and cannot be dispensed twice.
   await pharmacist.reload()
-  await pharmacist.getByPlaceholder("RX-2026-001").fill(rx)
+  await pharmacist.getByPlaceholder("RX-0001").fill(rx)
   await pharmacist.getByRole("button", { name: "Search Prescription" }).click()
   await expect(pharmacist.getByText("Dispensed", { exact: true })).toBeVisible()
   await expect(pharmacist.getByRole("button", { name: "Dispense Prescription" })).toHaveCount(0)
@@ -71,7 +71,7 @@ test("pharmacist dispenses a prescription written after the page opened", async 
 test("an unknown prescription number is reported, not dispensed", async ({ page }) => {
   await signInAs(page, "demo.pharmacist")
   await page.goto("/pharmacy")
-  await page.getByPlaceholder("RX-2026-001").fill("RX-999999")
+  await page.getByPlaceholder("RX-0001").fill("RX-999999")
   await page.getByRole("button", { name: "Search Prescription" }).click()
   await expect(page.getByText("Prescription not found for this hospital.")).toBeVisible()
   await expect(page.getByRole("button", { name: "Dispense Prescription" })).toHaveCount(0)
@@ -91,7 +91,7 @@ test("a prescription with two medicines is dispensed in one step", async ({ brow
   await signInAs(doctor, "demo.doctor1")
   const rx = await prescribe(doctor, [[first, "2"], [second, "5"]])
 
-  await pharmacist.getByPlaceholder("RX-2026-001").fill(rx)
+  await pharmacist.getByPlaceholder("RX-0001").fill(rx)
   await pharmacist.getByRole("button", { name: "Search Prescription" }).click()
   // Each medicine gets its own batch, chosen for it already.
   await expect(pharmacist.getByLabel(`Stock batch for ${first}`)).not.toHaveValue("")
@@ -118,7 +118,7 @@ test("short stock: part now, a same-salt brand for the rest, then a return", asy
   await signInAs(doctor, "demo.doctor1")
   const rx = await prescribe(doctor, [[brand, "5"]])
 
-  await pharmacist.getByPlaceholder("RX-2026-001").fill(rx)
+  await pharmacist.getByPlaceholder("RX-0001").fill(rx)
   await pharmacist.getByRole("button", { name: "Search Prescription" }).click()
   const batch = pharmacist.getByLabel(`Stock batch for ${brand}`)
   // Only 2 of the prescribed brand: give those now.

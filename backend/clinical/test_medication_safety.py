@@ -123,3 +123,43 @@ class MedicationSafetyTests(TestCase):
         }, format="json")
 
         self.assertEqual(response.status_code, 403)
+
+    # --- medicines change only through the checked prescription ------------
+
+    def test_medicine_lines_cannot_be_written_outside_the_prescription(self):
+        """RL-01: the item endpoint skipped the allergy check, so it is read-only."""
+        Allergy.objects.create(patient=self.patient, hospital=self.hospital, name="Penicillin")
+        rx = Prescription.objects.get(pk=self.prescribe("Tab Paracetamol 500").json()["id"])
+        item = rx.items.get()
+        url = "/api/clinical/prescription-items/"
+
+        responses = [
+            self.client.patch(f"{url}{item.pk}/", {"name": "Cap Amoxicillin 500"}, format="json"),
+            self.client.put(f"{url}{item.pk}/", {"name": "Cap Amoxicillin 500", "quantity": 1}, format="json"),
+            self.client.post(url, {"prescription": rx.pk, "name": "Cap Amoxicillin 500", "quantity": 1},
+                             format="json"),
+            self.client.delete(f"{url}{item.pk}/"),
+        ]
+
+        self.assertEqual([r.status_code for r in responses], [405, 405, 405, 405])
+        self.assertEqual(list(rx.items.values_list("name", flat=True)), ["Tab Paracetamol 500"])
+        self.assertEqual(self.client.get(f"{url}{item.pk}/").status_code, 200)
+
+    def test_changing_medicines_on_the_prescription_is_checked_again(self):
+        Allergy.objects.create(patient=self.patient, hospital=self.hospital, name="Penicillin")
+        rx_id = self.prescribe("Tab Paracetamol 500").json()["id"]
+        change = {"items": [{"name": "Cap Amoxicillin 500", "quantity": 1}]}
+
+        blocked = self.client.patch(f"{RX_URL}{rx_id}/", change, format="json")
+        self.assertEqual(blocked.status_code, 400, blocked.content)
+        self.assertIn("Penicillin", blocked.content.decode())
+        self.assertEqual(list(Prescription.objects.get(pk=rx_id).items.values_list("name", flat=True)),
+                         ["Tab Paracetamol 500"])
+
+        allowed = self.client.patch(
+            f"{RX_URL}{rx_id}/", {**change, "safety_override_reason": "Tolerated amoxicillin last year"},
+            format="json")
+        self.assertEqual(allowed.status_code, 200, allowed.content)
+        rx = Prescription.objects.get(pk=rx_id)
+        self.assertEqual(rx.safety_alerts[0]["type"], "allergy")
+        self.assertTrue(AuditLog.objects.filter(action="clinical.prescription.safety_override").exists())

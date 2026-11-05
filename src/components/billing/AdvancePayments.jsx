@@ -4,6 +4,7 @@ import api from "../../services/api.js"
 import { useToast } from "../Toast.jsx"
 import { Alert, Button, Card, CardHeader, EmptyState, Field, Input, Modal, Select, StatusBadge, TableWrap } from "../ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import PatientPicker from "../patients/PatientPicker.jsx"
 
 // Advance payments (H4): money a patient deposits before or during care,
 // adjusted against bills or refunded. The server keeps the balance and the
@@ -15,54 +16,6 @@ const rupees = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { min
 const newKey = () => `adv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const METHODS = ["Cash", "UPI", "Card", "Bank Transfer"]
 const KIND_LABELS = { deposit: "Deposit", applied: "Applied to bill", returned: "Returned from bill", refund: "Refunded to patient" }
-
-function PatientPicker({ hospitalId, value, onPick }) {
-  const { t } = useLanguage()
-  const [query, setQuery] = useState("")
-  const [matches, setMatches] = useState([])
-
-  useEffect(() => {
-    if (query.trim().length < 2) {
-      setMatches([])
-      return undefined
-    }
-    let stale = false
-    const timer = setTimeout(() => {
-      api.patients.list(hospitalId, 1, query.trim())
-        .then((data) => !stale && setMatches(list(data).slice(0, 8)))
-        .catch(() => !stale && setMatches([]))
-    }, 250)
-    return () => {
-      stale = true
-      clearTimeout(timer)
-    }
-  }, [query, hospitalId])
-
-  if (value) {
-    return (
-      <div className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm">
-        <span className="font-medium text-ink-900">{value.name}</span>
-        <Button size="sm" variant="ghost" onClick={() => onPick(null)}>{t("Change")}</Button>
-      </div>
-    )
-  }
-  return (
-    <div>
-      <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Search by name or phone")} />
-      {matches.length > 0 && (
-        <ul className="mt-1 divide-y divide-ink-100 rounded-lg border border-line">
-          {matches.map((patient) => (
-            <li key={patient.id}>
-              <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-ink-50" onClick={() => onPick(patient)}>
-                {patient.name} <span className="text-ink-500">· P{String(patient.id).padStart(3, "0")}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
 
 function useAdvanceAccounts(hospitalId, reloadToken) {
   const [accounts, setAccounts] = useState([])
@@ -148,7 +101,8 @@ export default function AdvancePayments({ hospitalId, canRefund, onChanged }) {
         await api.billing.advances.applyToInvoice(form.invoice, { amount: form.amount, idempotency_key: form.key })
         done("Advance adjusted against the bill.")
       } else {
-        await api.billing.advances.refund(dialog.account.id, { amount: form.amount, reason: form.reason, payment_method: form.payment_method })
+        await api.billing.advances.refund(dialog.account.id, { amount: form.amount, reason: form.reason,
+          payment_method: form.payment_method, idempotency_key: form.key })
         done("Advance refunded.")
       }
     } catch (err) {
@@ -199,7 +153,8 @@ export default function AdvancePayments({ hospitalId, canRefund, onChanged }) {
         <form id="advance-form" onSubmit={submit} className="space-y-4">
           {dialog?.type === "deposit" ? (
             <Field label="Patient" required>
-              <PatientPicker hospitalId={hospitalId} value={form.patient} onPick={(patient) => setForm((prev) => ({ ...prev, patient }))} />
+              <PatientPicker hospitalId={hospitalId} value={form.patient ? String(form.patient.id) : ""} selected={form.patient}
+                onChange={(id, patient) => setForm((prev) => ({ ...prev, patient }))} />
             </Field>
           ) : (
             <p className="text-sm text-ink-700">

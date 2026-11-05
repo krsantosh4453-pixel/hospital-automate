@@ -4,6 +4,7 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api"
 import { useLinkedPatient } from "../utils/linkedPatient.js"
 import { useToast } from "../components/Toast.jsx"
+import PatientPicker from "../components/patients/PatientPicker.jsx"
 import {
   Alert,
   Button,
@@ -37,7 +38,6 @@ function BloodBank() {
 
   const [inventory, setInventory] = useState([])
   const [requests, setRequests] = useState([])
-  const [patients, setPatients] = useState([])
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState("")
   const [editingRequest, setEditingRequest] = useState(null)
@@ -58,14 +58,12 @@ function BloodBank() {
     setLoading(true)
     setLoadError("")
     try {
-      const [invRes, reqRes, patientRes] = await Promise.all([
+      const [invRes, reqRes] = await Promise.all([
         api.bloodbank.inventory.list(selectedHospital.id),
         api.bloodbank.requests.list(selectedHospital.id),
-        api.patients.list(selectedHospital.id),
       ])
       setInventory(list(invRes))
       setRequests(list(reqRes))
-      setPatients(list(patientRes))
     } catch (err) {
       setLoadError(err.message || "Failed to load blood bank data")
     } finally {
@@ -322,10 +320,9 @@ function BloodBank() {
       >
         <form id="blood-form" onSubmit={handleRequestSubmit} className="space-y-4">
           <Field label="Patient" required>
-            <Select value={requestForm.patient} onChange={(e) => setRequestForm({ ...requestForm, patient: e.target.value })}>
-              <option value="">{t("Select patient")}</option>
-              {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.phone ? ` · ${p.phone}` : ""}</option>)}
-            </Select>
+            <PatientPicker hospitalId={selectedHospital?.id} value={requestForm.patient}
+              selected={editingRequest ? { id: editingRequest.patient, name: editingRequest.patient_name } : null}
+              onChange={(id) => setRequestForm((form) => ({ ...form, patient: id }))} />
           </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Blood group" required>

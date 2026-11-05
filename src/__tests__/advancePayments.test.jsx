@@ -75,7 +75,7 @@ describe("Advance payments card", () => {
   it("receives an advance for a chosen patient with an idempotency key", async () => {
     await render()
     await act(async () => button("Receive advance").click())
-    type(document.body.querySelector('input[placeholder="Search by name or phone"]'), "Synth")
+    type(document.body.querySelector('input[placeholder="Search by name, phone or UHID"]'), "Synth")
     await flush(300)
     await act(async () => [...document.body.querySelectorAll("li button")].find((b) => b.textContent.includes("Synthetic")).click())
     type(document.body.querySelector('input[type="number"]'), "500")

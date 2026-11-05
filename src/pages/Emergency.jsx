@@ -5,6 +5,7 @@ import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api"
 import { useToast } from "../components/Toast.jsx"
 import ErActions from "../components/emergency/ErActions.jsx"
+import PatientPicker from "../components/patients/PatientPicker.jsx"
 import {
   Badge,
   Button,
@@ -73,7 +74,6 @@ function Emergency() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState("active")
   const [dashboardStats, setDashboardStats] = useState({})
-  const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [nurses, setNurses] = useState([])
 
@@ -94,9 +94,8 @@ function Emergency() {
     setLoading(true)
     setError(null)
     try {
-      const [visitsRes, patientsRes, doctorsRes, nursesRes, dashboardRes] = await Promise.all([
+      const [visitsRes, doctorsRes, nursesRes, dashboardRes] = await Promise.all([
         api.emergency.visits.list(selectedHospital.id),
-        api.patients.list(selectedHospital.id),
         api.doctors.list(selectedHospital.id),
         // Only fills the "recorded by" pickers; Doctors may not read the nurse
         // list, and that must not blank the whole ER board.
@@ -104,7 +103,6 @@ function Emergency() {
         api.emergency.visits.dashboard(selectedHospital.id),
       ])
       setVisits(list(visitsRes))
-      setPatients(list(patientsRes))
       setDoctors(list(doctorsRes))
       setNurses(list(nursesRes))
       setDashboardStats(dashboardRes || {})
@@ -457,10 +455,8 @@ function Emergency() {
       <Modal open={dialog === "registration"} onClose={close} title={t("New emergency visit")} footer={footer("er-reg", "Register visit")}>
         <form id="er-reg" onSubmit={handleRegistration} className="space-y-4">
           <Field label="Patient" required>
-            <Select value={f.registration.patient} onChange={setForm("registration")("patient")}>
-              <option value="">{t("Select patient")}</option>
-              {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.age ? ` (${p.age} y` : ""}{p.gender ? `, ${p.gender})` : p.age ? ")" : ""}{p.phone ? ` · ${p.phone}` : ""}</option>)}
-            </Select>
+            <PatientPicker hospitalId={selectedHospital?.id} value={f.registration.patient}
+              onChange={(id) => setForm("registration")("patient")({ target: { value: id } })} />
           </Field>
           <Field label="Initial triage level" required>
             <Select value={f.registration.triage_level} onChange={setForm("registration")("triage_level")}>{triageOptions}</Select>

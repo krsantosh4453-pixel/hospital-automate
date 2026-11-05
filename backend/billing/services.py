@@ -125,12 +125,22 @@ def record_payment(invoice, amount, method="Cash", user=None, idempotency_key=""
 
 
 @transaction.atomic
-def record_refund(invoice, amount, reason, method="Cash", user=None, _from_advance=False):
+def record_refund(invoice, amount, reason, method="Cash", user=None, idempotency_key="", _from_advance=False):
+    """
+    Pay money back on an invoice. Returns ``(refund, created)``: re-sending the
+    same idempotency key returns the original refund instead of paying twice.
+    """
     from .models import Payment
 
     if (method or "").strip().lower() == "advance" and not _from_advance:
         raise ValidationError({"payment_method": "Use 'Return to advance' to put money back into the advance."})
     invoice = _locked(invoice)
+    if idempotency_key:
+        existing = invoice.payments.filter(idempotency_key=idempotency_key).first()
+        if existing is not None:
+            if existing.kind != Payment.Kind.REFUND:
+                raise ValidationError({"idempotency_key": "This key was already used for a payment on this bill."})
+            return existing, False
     amount = money(amount)
     if amount <= ZERO:
         raise ValidationError({"amount": "Amount must be greater than zero."})
@@ -146,7 +156,8 @@ def record_refund(invoice, amount, reason, method="Cash", user=None, _from_advan
         payment_method=method or "Cash",
         receipt_number=new_reference("RFND"),
         reference=reason.strip()[:200],
+        idempotency_key=idempotency_key or "",
         received_by=user if getattr(user, "is_authenticated", False) else None,
     )
     recalculate(invoice)
-    return refund
+    return refund, True

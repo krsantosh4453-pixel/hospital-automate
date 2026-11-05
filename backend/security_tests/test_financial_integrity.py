@@ -106,6 +106,39 @@ class FinancialIntegrityTests(TestCase):
         resp = client.patch(f"/api/billing/invoices/{invoice.id}/", {"items_data": []}, format="json")
         self.assertEqual(resp.status_code, 400)
 
+    def test_refund_retried_with_one_key_is_recorded_once(self):
+        """RL-05: a double click on Refund must not pay the money back twice."""
+        client = self.client_for(self.biller)
+        invoice = self.make_invoice(client)
+        client.post("/api/billing/payments/", {"invoice": invoice.id, "amount": "300.00",
+                                               "idempotency_key": "pay-1"}, format="json")
+        url = f"/api/billing/invoices/{invoice.id}/refund/"
+        body = {"amount": "50.00", "reason": "Test not done", "idempotency_key": "refund-1"}
+
+        first = client.post(url, body, format="json")
+        retry = client.post(url, body, format="json")
+        by_header = client.post(url, {"amount": "50.00", "reason": "Test not done"}, format="json",
+                                HTTP_IDEMPOTENCY_KEY="refund-1")
+
+        self.assertEqual((first.status_code, retry.status_code, by_header.status_code), (201, 200, 200), first.content)
+        self.assertEqual(retry.json()["id"], first.json()["id"])
+        self.assertEqual(Payment.objects.filter(kind=Payment.Kind.REFUND).count(), 1)
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.total_paid, Decimal("250.00"))
+
+    def test_refund_key_already_used_by_a_payment_is_refused(self):
+        client = self.client_for(self.biller)
+        invoice = self.make_invoice(client)
+        client.post("/api/billing/payments/", {"invoice": invoice.id, "amount": "300.00",
+                                               "idempotency_key": "same-key"}, format="json")
+
+        resp = client.post(f"/api/billing/invoices/{invoice.id}/refund/",
+                           {"amount": "50.00", "reason": "Test not done", "idempotency_key": "same-key"},
+                           format="json")
+
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertFalse(Payment.objects.filter(kind=Payment.Kind.REFUND).exists())
+
     def test_sale_uses_catalogue_price_and_keeps_ledger_consistent(self):
         client = self.client_for(self.pharmacist)
         created = client.post("/api/pharmacy/", {

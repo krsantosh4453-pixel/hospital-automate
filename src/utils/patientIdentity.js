@@ -6,3 +6,9 @@ export const displayPatientId = (patient) => {
   const value = String(patient?.id ?? "")
   return value.toUpperCase().startsWith("PAT-") ? value : `PAT-${value}`
 }
+
+/** Last four digits only, enough to tell patients apart at a counter; "" for short numbers. */
+export const maskedPhone = (phone) => {
+  const digits = String(phone || "").replace(/\D/g, "")
+  return digits.length > 4 ? `••••${digits.slice(-4)}` : ""
+}

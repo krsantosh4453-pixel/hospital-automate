@@ -37,7 +37,7 @@ class InvoiceViewSet(HospitalScopedViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset().select_related("patient", "hospital").prefetch_related(
-            "items", "payments"
+            "items", "payments", "patient__hospital_memberships"
         )
         patient_id = self.request.query_params.get("patient")
         if patient_id:
@@ -90,15 +90,18 @@ class InvoiceViewSet(HospitalScopedViewSet):
             record_audit(request, "billing.advance.returned", invoice,
                          details={"amount": str(move.amount), "balance_after": str(move.balance_after)})
             return Response(PaymentSerializer(refund).data, status=status.HTTP_201_CREATED)
-        refund = record_refund(
+        key = str(request.data.get("idempotency_key") or request.headers.get("Idempotency-Key", ""))
+        refund, created = record_refund(
             invoice,
             request.data.get("amount"),
             request.data.get("reason", ""),
             method=request.data.get("payment_method", "Cash"),
             user=request.user,
+            idempotency_key=key[:80],
         )
-        record_audit(request, "billing.refund.create", refund, details={"amount": str(refund.amount)})
-        return Response(PaymentSerializer(refund).data, status=status.HTTP_201_CREATED)
+        if created:
+            record_audit(request, "billing.refund.create", refund, details={"amount": str(refund.amount)})
+        return Response(PaymentSerializer(refund).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
 class InvoiceItemViewSet(HospitalScopedViewSet):
@@ -231,13 +234,18 @@ class AdvanceAccountViewSet(HospitalScopedViewSet):
         account = self.get_object()
         body = AdvanceMoveSerializer(data=request.data)
         body.is_valid(raise_exception=True)
-        move = advances.refund_to_patient(account, body.validated_data["amount"], body.validated_data["reason"],
-                                          method=body.validated_data["payment_method"], user=request.user)
-        record_audit(request, "billing.advance.refund", account,
-                     details={"amount": str(move.amount), "reason": move.reference,
-                              "balance_after": str(move.balance_after)})
+        key = body.validated_data["idempotency_key"] or request.headers.get("Idempotency-Key", "")
+        move, created = advances.refund_to_patient(account, body.validated_data["amount"],
+                                                   body.validated_data["reason"],
+                                                   method=body.validated_data["payment_method"], user=request.user,
+                                                   idempotency_key=key[:80])
+        if created:
+            record_audit(request, "billing.advance.refund", account,
+                         details={"amount": str(move.amount), "reason": move.reference,
+                                  "balance_after": str(move.balance_after)})
         account.refresh_from_db()
-        return Response(self.get_serializer(account).data, status=status.HTTP_201_CREATED)
+        return Response(self.get_serializer(account).data,
+                        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
 class InsuranceClaimViewSet(HospitalScopedViewSet):

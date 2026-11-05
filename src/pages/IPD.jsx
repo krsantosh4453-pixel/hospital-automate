@@ -9,6 +9,7 @@ import BedsTable from "../components/ipd/BedsTable.jsx"
 import DischargeDraftAssist from "../components/ipd/DischargeDraftAssist.jsx"
 import DischargeReadiness from "../components/ipd/DischargeReadiness.jsx"
 import MedicationOrders from "../components/ipd/MedicationOrders.jsx"
+import PatientPicker from "../components/patients/PatientPicker.jsx"
 import {
   Alert,
   Badge,
@@ -54,7 +55,6 @@ function IPD() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState("admissions")
   const [availableBeds, setAvailableBeds] = useState([])
-  const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [busy, setBusy] = useState("")
   // Bumped after IPD data reloads so the All beds tab reloads too.
@@ -75,13 +75,11 @@ function IPD() {
     setLoading(true)
     setError(null)
     try {
-      const [admissionsRes, patientsRes, doctorsRes] = await Promise.all([
+      const [admissionsRes, doctorsRes] = await Promise.all([
         api.ipd.admissions.list(selectedHospital.id),
-        api.patients.list(selectedHospital.id),
         api.doctors.list(selectedHospital.id),
       ])
       setAdmissions(list(admissionsRes))
-      setPatients(list(patientsRes))
       setDoctors(list(doctorsRes))
 
       const [bedsRes, summariesRes] = await Promise.allSettled([
@@ -496,10 +494,8 @@ function IPD() {
       >
         <form id="ipd-admission" onSubmit={handleAdmissionSubmit} className="space-y-4">
           <Field label="Patient" required>
-            <Select value={admissionForm.patient} onChange={(e) => setAdmissionForm({ ...admissionForm, patient: e.target.value })}>
-              <option value="">{t("Select patient")}</option>
-              {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.age ? ` (${p.age} y)` : ""}{p.phone ? ` · ${p.phone}` : ""}</option>)}
-            </Select>
+            <PatientPicker hospitalId={selectedHospital?.id} value={admissionForm.patient}
+              onChange={(id) => setAdmissionForm((form) => ({ ...form, patient: id }))} />
           </Field>
           <Field label="Admitting doctor">
             <Select value={admissionForm.admitting_doctor} onChange={(e) => setAdmissionForm({ ...admissionForm, admitting_doctor: e.target.value })}>

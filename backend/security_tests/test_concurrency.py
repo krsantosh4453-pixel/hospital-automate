@@ -143,6 +143,19 @@ class ConcurrentWriteTests(WardMixin, TransactionTestCase):
         self.assertEqual(sum(created for _, created in results), 1)
         self.assertEqual(Payment.objects.filter(invoice=invoice).count(), 1)
 
+    def test_parallel_refund_retries_with_one_key_refund_once(self):
+        from billing.services import record_refund
+
+        invoice = self.make_invoice("INV-RACE-REFUND")
+        record_payment(invoice, Decimal("100.00"))
+
+        results = run_together(lambda i: record_refund(invoice, Decimal("10.00"), "Double click",
+                                                       idempotency_key="refund-retry"))
+
+        self.assertTrue(all(isinstance(r, tuple) for r in results), results)
+        self.assertEqual(sum(created for _, created in results), 1)
+        self.assertEqual(Payment.objects.filter(invoice=invoice, kind=Payment.Kind.REFUND).count(), 1)
+
     def test_parallel_adjustments_never_spend_more_advance_than_was_deposited(self):
         # H4: 100 in advance, eight bills of 100 each, eight adjustments of 50 at once.
         from billing import advances

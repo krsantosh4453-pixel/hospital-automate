@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { signInAs } from "./helpers.js"
+import { pickPatient, signInAs } from "./helpers.js"
 
 // A doctor prescribes for an admitted patient and orders the medicine from
 // the IPD screen (only a doctor may); the ward nurse gives the due dose from
@@ -9,10 +9,7 @@ const PATIENT = "Demo Kiran (Ward A)"
 
 async function prescribe(page) {
   await page.goto("/prescription")
-  const patient = page.getByLabel(/^Patient/)
-  const option = patient.locator("option", { hasText: PATIENT })
-  await option.waitFor({ state: "attached" })
-  await patient.selectOption(await option.getAttribute("value"))
+  await pickPatient(page, PATIENT)
   await page.getByPlaceholder("Drug and strength").first().fill(MEDICINE)
   await page.getByLabel("Dosage").first().fill("1 g")
   await page.getByLabel("Frequency").first().fill("BID")

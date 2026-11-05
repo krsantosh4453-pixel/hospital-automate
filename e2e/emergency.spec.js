@@ -1,19 +1,14 @@
 import { expect, test } from "@playwright/test"
-import { signInAs } from "./helpers.js"
+import { pickPatient, signInAs } from "./helpers.js"
 
 // The nurse registers two ER arrivals (the second used to fail on a duplicate
 // visit number), triages one up to Critical, and the board puts it first.
 const COMPLAINT = `Head injury after fall ${Date.now().toString(36)}`
 
-async function pickOption(select, text) {
-  const value = await select.locator("option", { hasText: text }).first().getAttribute("value")
-  await select.selectOption(value)
-}
-
 async function registerVisit(page, patient, level) {
   await page.getByRole("button", { name: "New ER visit" }).first().click()
   const dialog = page.getByRole("dialog", { name: "New emergency visit" })
-  await pickOption(dialog.getByLabel("Patient"), patient)
+  await pickPatient(dialog, patient)
   await dialog.getByLabel("Initial triage level").selectOption({ label: level })
   await dialog.getByRole("button", { name: "Register visit" }).click()
   await expect(dialog).toBeHidden()

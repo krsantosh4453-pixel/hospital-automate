@@ -110,6 +110,8 @@ class InsuranceClaimSerializer(serializers.ModelSerializer):
 class InvoiceSerializer(serializers.ModelSerializer):
     # Read-only display helpers
     patient_name = serializers.CharField(source="patient.name", read_only=True)
+    # RL-16: the UHID this bill's hospital issued, shown instead of a made-up number.
+    patient_uhid = serializers.SerializerMethodField()
     hospital_name = serializers.CharField(source="hospital.name", read_only=True)
     items = InvoiceItemSerializer(many=True, read_only=True)
     payments = PaymentSerializer(many=True, read_only=True)
@@ -134,6 +136,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "prescription",
             "patient",
             "patient_name",
+            "patient_uhid",
             "hospital",
             "hospital_name",
             "discount",
@@ -189,6 +192,14 @@ class InvoiceSerializer(serializers.ModelSerializer):
                     "This patient is not registered in this hospital."
                 )
         return value
+
+    def get_patient_uhid(self, obj) -> str:
+        if not obj.patient_id:
+            return ""
+        memberships = getattr(obj.patient, "_prefetched_objects_cache", {}).get("hospital_memberships")
+        if memberships is None:
+            memberships = obj.patient.hospital_memberships.all()
+        return next((m.uhid for m in memberships if m.hospital_id == obj.hospital_id and m.is_active), "")
 
     def get_total_paid(self, obj):
         # Exact decimal string, like the stored money fields.

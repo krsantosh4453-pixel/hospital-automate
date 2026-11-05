@@ -83,7 +83,8 @@ services:
       dockerfile: backend/Dockerfile
       target: builder
     container_name: hms-celery-worker-dev
-    command: celery -A config worker --loglevel=info --concurrency=2
+    # Same queues as docker-compose.prod.yml (config/test_celery_routes.py).
+    command: celery -A config worker --loglevel=info --concurrency=2 -Q default,notifications,reports,ai_processing,audit,maintenance
     environment:
       - DJANGO_ENV=development
       - DJANGO_SECRET_KEY=django-insecure-dev-key-change-in-production

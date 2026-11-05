@@ -268,26 +268,16 @@ class PrescriptionViewSet(HospitalScopedViewSet):
 
 
 class PrescriptionItemViewSet(HospitalScopedViewSet):
+    """
+    Read-only. Medicines change only through the prescription itself
+    (PrescriptionSerializer), which re-runs the medication safety check;
+    writing a line here would skip it (RL-01).
+    """
+
     queryset = PrescriptionItem.objects.select_related("prescription")
     serializer_class = PrescriptionItemSerializer
     permission_classes = [IsAdmin | IsDoctor | IsPharmacistReadOnly | IsNurseReadOnly | IsCompounderReadOnly]
-
-    @staticmethod
-    def _not_issued(prescription):
-        if prescription is not None and prescription.pharmacy_sales.exists():
-            raise ValidationError("Medicine has already been issued for this prescription; write a new one instead.")
-
-    def perform_create(self, serializer):
-        self._not_issued(serializer.validated_data.get("prescription"))
-        super().perform_create(serializer)
-
-    def perform_update(self, serializer):
-        self._not_issued(serializer.instance.prescription)
-        super().perform_update(serializer)
-
-    def perform_destroy(self, instance):
-        self._not_issued(instance.prescription)
-        super().perform_destroy(instance)
+    http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
         queryset = super().get_queryset()

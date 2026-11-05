@@ -224,6 +224,7 @@ class DispensingGuardTests(TestCase):
         doctor = self.api(self.doctor_user)
         resp = doctor.patch(f"{URL}{rx.pk}/", {"items": [{"name": "Other", "quantity": 1}]}, format="json")
         self.assertEqual(resp.status_code, 400)
+        # The item endpoint is read-only (RL-01); lines change only through the prescription.
         self.assertEqual(doctor.patch(f"/api/clinical/prescription-items/{item.pk}/", {"quantity": 9},
-                                      format="json").status_code, 400)
+                                      format="json").status_code, 405)
         self.assertEqual(list(rx.items.values_list("name", "quantity")), [("Cetirizine", 2)])

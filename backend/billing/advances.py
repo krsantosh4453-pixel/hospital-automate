@@ -117,15 +117,15 @@ def return_to_advance(invoice, amount, reason, user=None):
     returnable = min(applied_to_invoice(invoice), net_paid(invoice))
     if amount > returnable:
         raise ValidationError({"amount": f"Only advance money can go back to the advance ({returnable})."})
-    refund = record_refund(invoice, amount, reason, method=ADVANCE_METHOD, user=user, _from_advance=True)
+    refund, _ = record_refund(invoice, amount, reason, method=ADVANCE_METHOD, user=user, _from_advance=True)
     move = _move(account, AdvanceTransaction.Kind.RETURNED, amount, user, payment_method=ADVANCE_METHOD,
                  invoice=invoice, payment=refund, reference=(reason or "").strip()[:200])
     return refund, move
 
 
 @transaction.atomic
-def refund_to_patient(account, amount, reason, method="Cash", user=None):
-    """Pay unused advance back to the patient."""
+def refund_to_patient(account, amount, reason, method="Cash", user=None, idempotency_key=""):
+    """Pay unused advance back to the patient. Re-sending the same key returns the first refund."""
     from .models import AdvanceTransaction
 
     if not (reason or "").strip():
@@ -133,8 +133,11 @@ def refund_to_patient(account, amount, reason, method="Cash", user=None):
     if (method or "").strip() == ADVANCE_METHOD:
         raise ValidationError({"payment_method": "Choose how the money is paid back."})
     account = _locked_account(account.hospital_id, account.patient_id)
+    existing = _existing(account, idempotency_key)
+    if existing:
+        return existing, False
     amount = _positive(amount)
     if amount > account.balance:
         raise ValidationError({"amount": f"Refund exceeds the advance balance ({account.balance})."})
     return _move(account, AdvanceTransaction.Kind.REFUND, amount, user, payment_method=method or "Cash",
-                 reference=reason.strip()[:200])
+                 idempotency_key=idempotency_key or "", reference=reason.strip()[:200]), True

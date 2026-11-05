@@ -77,8 +77,8 @@ describe("Prescription opened from a consultation", () => {
     await render("/prescription?visit=3")
     expect(api.visits.get).toHaveBeenCalledWith("3")
     expect(selectNear("Visit").value).toBe("3")
-    expect(selectNear("Patient").value).toBe("6")
-    expect(host.textContent).toContain("Synthetic Consult")
+    // The patient field (PatientPicker) shows the visit's patient as chosen.
+    expect(selectNear("Patient").textContent).toContain("Synthetic Consult")
     expect(host.querySelector('a[href="/consultation?visit=3"]')).not.toBeNull()
   })
 

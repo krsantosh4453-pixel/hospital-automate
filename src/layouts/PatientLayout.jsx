@@ -7,6 +7,7 @@ import { useHospitals } from "../assets/context/HospitalsContext.jsx"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { BrandMark } from "../components/Sidebar.jsx"
 import { PageLoading } from "../components/LoadingSpinner.jsx"
+import ErrorBoundary from "../components/ErrorBoundary.jsx"
 import { HeaderActions } from "../components/HeaderMenus.jsx"
 
 const patientRoutes = [
@@ -158,9 +159,11 @@ export default function PatientLayout() {
               </p>
             </div>
           )}
-          <Suspense fallback={<PageLoading />}>
-            <Outlet />
-          </Suspense>
+          <ErrorBoundary resetKey={location.pathname}>
+            <Suspense fallback={<PageLoading />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       </main>
     </div>

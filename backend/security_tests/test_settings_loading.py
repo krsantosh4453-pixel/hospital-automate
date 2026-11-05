@@ -65,6 +65,53 @@ class SettingsLoadingTests(SimpleTestCase):
         self.assertIn("script-src 'self'", result.stdout)
         self.assertIn("frame-ancestors 'none'", result.stdout)
 
+    # --- Twilio is needed only when SMS OTP is used (RL-06) -------------------
+
+    def production(self, **env):
+        """Load production settings with ``env`` on top of PRODUCTION_ENV; print OTP_PROVIDER."""
+        result = subprocess.run(
+            [sys.executable, "-c", "import django; django.setup(); from django.conf import settings; "
+                                   "print(settings.OTP_PROVIDER)"],
+            cwd=BACKEND_DIR, capture_output=True, text=True, timeout=120,
+            env={**os.environ, **PRODUCTION_ENV, **env, "DJANGO_SETTINGS_MODULE": "config.settings.production",
+                 "DJANGO_ENV": ""},
+        )
+        return result
+
+    NO_TWILIO = {"TWILIO_ACCOUNT_SID": "", "TWILIO_API_KEY": "", "TWILIO_API_SECRET": "",
+                 "TWILIO_VERIFY_SERVICE_SID": ""}
+
+    def test_production_boots_without_twilio_when_sms_otp_is_off(self):
+        result = self.production(**self.NO_TWILIO, STAFF_LOGIN_REQUIRE_OTP="False", PATIENT_OTP_DELIVERY="off")
+
+        self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "disabled")
+
+    def test_production_still_requires_twilio_for_staff_sms_otp(self):
+        result = self.production(**self.NO_TWILIO, PATIENT_OTP_DELIVERY="off")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("STAFF_LOGIN_REQUIRE_OTP=False", result.stderr)
+
+    def test_production_still_requires_twilio_for_patient_sms_otp(self):
+        result = self.production(**self.NO_TWILIO, STAFF_LOGIN_REQUIRE_OTP="False")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("PATIENT_OTP_DELIVERY=off", result.stderr)
+
+    def test_production_refuses_development_otp_delivery(self):
+        for mode in ("console", "cache"):
+            with self.subTest(mode=mode):
+                result = self.production(PATIENT_OTP_DELIVERY=mode)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("PATIENT_OTP_DELIVERY", result.stderr)
+
+    def test_production_with_twilio_keeps_sms_otp(self):
+        result = self.production()
+
+        self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "twilio")
+
     def test_package_settings_still_require_development_secret(self):
         result = load_settings("config.settings")
         self.assertNotEqual(result.returncode, 0)

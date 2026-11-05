@@ -6,6 +6,7 @@ import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import MedicationSafetyDialog from "../components/prescription/MedicationSafetyDialog.jsx"
+import PatientPicker from "../components/patients/PatientPicker.jsx"
 import { FilePlus2, Hospital, Pill, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import {
   Alert,
@@ -60,13 +61,6 @@ const formatDate = (value) => {
 
 // Build a dropdown option from a Django record. We always keep the real
 // integer id as `value` so writes use stable database ids, never names.
-const mapPatientOption = (record) => ({
-  value: String(record.id),
-  label: record.name
-    ? `${record.name}${record.phone ? ` (${record.phone})` : ""}`
-    : `Patient #${record.id}`,
-})
-
 const mapDoctorOption = (record) => ({
   value: String(record.id),
   label: record.name
@@ -131,9 +125,8 @@ function Prescription() {
   } = usePrescription()
 
   // ---------------------------------------------------------
-  // Dropdown option state (patients / doctors / visits)
+  // Dropdown option state (doctors / visits); the patient is found by search (PatientPicker)
   // ---------------------------------------------------------
-  const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [visits, setVisits] = useState([])
   const [loadingOptions, setLoadingOptions] = useState(false)
@@ -178,7 +171,6 @@ function Prescription() {
         fromVisitRef.current = option
         setFromVisit(option)
         setVisits((prev) => withOption(prev, option))
-        setPatients((prev) => withOption(prev, { value: option.patientId, label: option.patientName || `Patient #${option.patientId}` }))
         setForm((prev) => ({ ...prev, visitId: option.value, patientId: option.patientId }))
       })
       .catch(() => !cancelled && setFormError("The consultation's visit could not be loaded; choose it below."))
@@ -195,7 +187,6 @@ function Prescription() {
 
     const loadOptions = async () => {
       if (!selectedHospital || !canWrite) {
-        setPatients([])
         setDoctors([])
         setVisits([])
         return
@@ -203,11 +194,10 @@ function Prescription() {
 
       setLoadingOptions(true)
 
-      // Load all three in parallel. If one fails we still keep the others
+      // Load both in parallel. If one fails we still keep the other
       // so the form degrades gracefully instead of going blank.
-      const [patientsResult, doctorsResult, visitsResult] =
+      const [doctorsResult, visitsResult] =
         await Promise.allSettled([
-          api.patients.list(selectedHospital.id),
           api.doctors.list(selectedHospital.id),
           api.visits.list(selectedHospital.id),
         ])
@@ -215,14 +205,6 @@ function Prescription() {
       if (cancelled) {
         return
       }
-
-      setPatients(() => {
-        const loaded = patientsResult.status === "fulfilled"
-          ? readResults(patientsResult.value).map(mapPatientOption)
-          : []
-        const visit = fromVisitRef.current
-        return visit ? withOption(loaded, { value: visit.patientId, label: visit.patientName || `Patient #${visit.patientId}` }) : loaded
-      })
 
       setDoctors(
         doctorsResult.status === "fulfilled"
@@ -333,8 +315,14 @@ function Prescription() {
     }))
   }
 
+  // The chosen visit names its patient, so the picker can show who it is.
+  const selectedPatient = useMemo(() => {
+    const visit = visits.find((item) => item.patientId && item.patientId === form.patientId)
+    return visit ? { id: visit.patientId, name: visit.patientName || `Patient #${visit.patientId}` } : null
+  }, [visits, form.patientId])
+
   // Selecting a visit also selects the patient that visit belongs to so the
-  // two dropdowns never contradict each other.
+  // two fields never contradict each other.
   const handleVisitChange = (value) => {
     setForm((prev) => {
       const match = visits.find((visit) => visit.value === value)
@@ -554,9 +542,8 @@ function Prescription() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Patient" required>
-                <Select value={form.patientId} onChange={(e) => setField("patientId", e.target.value)}>
-                  {optionList(patients, loadingOptions ? "Loading…" : "Select patient")}
-                </Select>
+                <PatientPicker hospitalId={selectedHospital.id} value={form.patientId} selected={selectedPatient}
+                  onChange={(id) => setField("patientId", id)} />
               </Field>
               <Field label="Visit" hint="Optional; selects its patient">
                 <Select value={form.visitId} onChange={(e) => handleVisitChange(e.target.value)}>

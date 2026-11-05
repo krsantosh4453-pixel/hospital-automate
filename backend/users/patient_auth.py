@@ -82,9 +82,13 @@ def request_patient_otp(phone):
     if not normalized:
         return "invalid", "A valid 10-digit mobile number is required.", None
 
+    mode = getattr(settings, "PATIENT_OTP_DELIVERY", "sms")
+    if mode == "off":
+        # Answered before looking the number up, so it reveals nothing (RL-06).
+        return "unavailable", SMS_NOT_CONFIGURED, "sms"
+
     patients = linked_patients_for_phone(normalized)
     if not patients:
-        mode = getattr(settings, "PATIENT_OTP_DELIVERY", "sms")
         if mode == "sms" and not _sms_provider_configured():
             return "unavailable", SMS_NOT_CONFIGURED, "sms"
         return (

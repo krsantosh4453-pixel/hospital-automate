@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test"
-import { signInAs } from "./helpers.js"
+import { pickPatient, signInAs } from "./helpers.js"
 
 // A doctor orders a test; lab staff take it through every stage to release,
 // and the doctor then reads the released result.
-const PATIENT = "Demo Ravi (Cardiology OPD) · 9000003011"
+const PATIENT = "Demo Ravi (Cardiology OPD)"
 const TEST = "Thyroid Profile"
 const RESULT = `TSH 2.1 mIU/L (run ${Date.now().toString(36)})`
 
@@ -22,7 +22,7 @@ test("doctor orders a test, lab releases the result, doctor reads it", async ({ 
   await doctor.goto("/laboratory")
   await doctor.getByRole("button", { name: "New lab order" }).first().click()
   const order = doctor.getByRole("dialog", { name: "New lab order" })
-  await order.getByLabel("Patient").selectOption({ label: PATIENT })
+  await pickPatient(order, PATIENT)
   await order.getByLabel("Test").selectOption({ label: TEST })
   await order.getByLabel("Priority").selectOption("Urgent")
   await order.getByRole("button", { name: "Create order" }).click()
@@ -67,10 +67,11 @@ test("lab staff find a walk-in patient by search and place the order", async ({ 
   await page.getByRole("button", { name: "New lab order" }).first().click()
   const order = page.getByRole("dialog", { name: "New lab order" })
   // Lab Staff may not browse patients: the picker is empty until they search.
-  await order.getByLabel("Find patient").fill("Demo Ravi")
-  const walkIn = "Demo Ravi (Cardiology OPD) · ******3011"
-  await expect(order.getByRole("option", { name: walkIn })).toBeAttached()
-  await order.locator("select[name=patient]").selectOption({ label: walkIn })
+  await order.getByLabel(/^Patient/).fill("Demo Ravi")
+  // The result tells patients apart by UHID and a masked phone, never the full number.
+  const walkIn = order.getByRole("button", { name: /Demo Ravi \(Cardiology OPD\).*3011/ })
+  await expect(walkIn).toContainText("******3011")
+  await walkIn.click()
   await order.getByLabel("Test").selectOption({ label: "Blood Sugar" })
   await order.getByLabel("Priority").selectOption("Urgent")
   await order.getByRole("button", { name: "Create order" }).click()

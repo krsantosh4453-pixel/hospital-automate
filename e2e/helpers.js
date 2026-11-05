@@ -18,6 +18,16 @@ export async function signInAs(page, username) {
   await expect(page).toHaveURL("/")
 }
 
+/**
+ * Choose a patient in a PatientPicker (RL-03): search the "Patient" field by
+ * name and click the matching result. ``scope`` is the page or a dialog.
+ */
+export async function pickPatient(scope, name) {
+  await scope.getByLabel(/^Patient/).fill(name)
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  await scope.getByRole("button", { name: new RegExp(escaped) }).first().click()
+}
+
 /** A name no earlier run has used, so each test works on its own records. */
 export function uniqueName(prefix) {
   return `${prefix} ${Date.now().toString(36).toUpperCase()}`

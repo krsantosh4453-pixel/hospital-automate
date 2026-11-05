@@ -27,7 +27,7 @@ from .serializers import (
     SaleSerializer,
 )
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import get_user_hospital_ids, IsAdmin, IsCompounder, IsHospitalManager, IsInventoryStaff, IsPharmacist
+from users.permissions import IsAdmin, IsCompounder, IsHospitalManager, IsInventoryStaff, IsPharmacist
 from config.hospital_time import hospital_today
 
 
@@ -271,8 +271,10 @@ class SaleViewSet(HospitalScopedViewSet):
         """
         payload = DispensePrescriptionSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
+        # Only hospitals where this user's role passed this view's permissions
+        # (RL-02): Pharmacist in A must not issue Hospital B's medicine.
         prescription = get_object_or_404(
-            Prescription.objects.select_for_update().filter(hospital_id__in=get_user_hospital_ids(request.user)),
+            Prescription.objects.select_for_update().filter(hospital_id__in=self.get_acting_hospital_ids()),
             pk=payload.validated_data["prescription"],
         )
         if prescription.dispensed_at is not None:

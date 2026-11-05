@@ -558,6 +558,11 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
+# Tasks without a route go here. Celery's own default ("celery") is not in the
+# workers' -Q lists, so unrouted tasks (voice fallback, OTP cleanup) never ran
+# (RL-08b; config/test_celery_routes.py checks every task against the compose files).
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+
 # Celery task routes for priority queues
 CELERY_TASK_ROUTES = {
     'notifications.tasks.send_*': {'queue': 'notifications'},

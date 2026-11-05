@@ -1905,6 +1905,13 @@ const HI_PAGES = {
   "Save correction": "सुधार सहेजें",
   "Saved prescriptions for this hospital appear here.": "इस अस्पताल के सहेजे गए पर्चे यहाँ दिखते हैं।",
   "Saving…": "सहेजा जा रहा है…",
+  // Error boundary and billing save (RL-04, RL-08)
+  "This page could not be shown": "यह पेज नहीं दिखाया जा सका",
+  "Your work on other pages is safe. Try again, or reload the page if it keeps happening.":
+    "दूसरे पेजों पर आपका काम सुरक्षित है। फिर से कोशिश करें, या बार-बार हो तो पेज दोबारा लोड करें।",
+  "Try again": "फिर से कोशिश करें",
+  "Reload page": "पेज दोबारा लोड करें",
+  "Could not save the bill.": "बिल सहेजा नहीं जा सका।",
   "Select a hospital from the header to see its appointments.": "अपॉइंटमेंट देखने के लिए हेडर से अस्पताल चुनें।",
   "Select a hospital from the header to see its patients.": "मरीज़ देखने के लिए हेडर से अस्पताल चुनें।",
   "Select a hospital from the header to view billing.": "बिलिंग देखने के लिए हेडर से अस्पताल चुनें।",

@@ -135,13 +135,15 @@ class PatientViewSet(HospitalScopedViewSet):
                 {"error": f"Type at least {LOOKUP_MIN_CHARS} characters of a name, phone or UHID."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        acting = set(self.get_acting_hospital_ids())
         uhid_match = Patient.objects.filter(
-            hospital_memberships__hospital_id__in=self.get_acting_hospital_ids(),
+            hospital_memberships__hospital_id__in=acting,
             hospital_memberships__uhid__icontains=search,
         ).values("pk")
         patients = list(
             self.get_queryset()
             .filter(Q(name__icontains=search) | Q(phone__icontains=search) | Q(pk__in=uhid_match))
+            .prefetch_related("hospital_memberships")
             .order_by("name", "pk")[:LOOKUP_MAX_RESULTS]
         )
         audit_patient_read(self, "lookup", [patient.pk for patient in patients])
@@ -152,6 +154,9 @@ class PatientViewSet(HospitalScopedViewSet):
                 "age": patient.age,
                 "gender": patient.gender,
                 "phone": _masked_phone(patient.phone),
+                # RL-03: the acting hospital's UHID tells same-name patients apart.
+                "uhid": next((m.uhid for m in patient.hospital_memberships.all()
+                              if m.hospital_id in acting and m.is_active and m.uhid), ""),
             }
             for patient in patients
         ])

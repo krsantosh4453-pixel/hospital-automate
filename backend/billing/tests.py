@@ -175,3 +175,15 @@ class BillingAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data.get("results", response.data)
         self.assertEqual(len(data), 1)
+
+    def test_invoice_shows_the_uhid_its_own_hospital_issued(self):
+        """RL-16: bills identify the patient by UHID, not a number made from the database id."""
+        PatientHospital.objects.filter(patient=self.patient, hospital=self.hospital_a).update(uhid="HA-2026-000007")
+        PatientHospital.objects.create(patient=self.patient, hospital=self.hospital_b, uhid="HB-2026-000001",
+                                       is_active=True)
+        Invoice.objects.create(patient=self.patient, hospital=self.hospital_a, total=Decimal("10.00"))
+
+        data = self.client.get(self._get_invoices_url()).data
+        rows = data.get("results", data)
+
+        self.assertEqual(rows[0]["patient_uhid"], "HA-2026-000007")

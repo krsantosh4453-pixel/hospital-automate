@@ -12,6 +12,7 @@ import PatientLogin from "./pages/PatientLogin.jsx"
 import { SignInDialog } from "./components/auth/SignInDialog.jsx"
 import { ProtectedRoute } from "./components/ProtectedRoute.jsx"
 import AppBackground from "./components/AppBackground.jsx"
+import ErrorBoundary from "./components/ErrorBoundary.jsx"
 import { PageLoading } from "./components/LoadingSpinner.jsx"
 
 import { AuthProvider } from "./assets/context/AuthProvider.jsx"
@@ -104,6 +105,8 @@ function App() {
                 <SidebarProvider>
                   <AppBackground />
                   <BrowserRouter>
+                    {/* Last line of defence; each layout also wraps its page (RL-08). */}
+                    <ErrorBoundary>
                     <Suspense fallback={<PageLoading />}>
                     <RoutesWithSignInDialog>
                       <Route path="/staff-login" element={<StaffLogin />} />
@@ -165,6 +168,7 @@ function App() {
                         </Route>
                     </RoutesWithSignInDialog>
                     </Suspense>
+                    </ErrorBoundary>
                   </BrowserRouter>
                 </SidebarProvider>
                 </RoleAuthBridge>

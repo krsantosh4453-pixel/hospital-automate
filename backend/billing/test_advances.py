@@ -140,6 +140,22 @@ class AdvancePaymentTests(TestCase):
         self.assertEqual(Decimal(resp.json()["balance"]), Decimal("300.00"))
         self.assertTrue(AuditLog.objects.filter(action="billing.advance.refund", user=self.billing).exists())
 
+    def test_refund_to_patient_retried_with_one_key_pays_once(self):
+        """RL-05: a double click on 'Refund advance' must not pay the money back twice."""
+        account_id = self.deposit("500.00").json()["id"]
+        url = f"/api/billing/advances/{account_id}/refund/"
+        body = {"amount": "200.00", "reason": "Discharged early", "payment_method": "Cash",
+                "idempotency_key": "adv-refund-1"}
+        billing = self.client_for(self.billing)
+
+        first = billing.post(url, body, format="json")
+        retry = billing.post(url, body, format="json")
+
+        self.assertEqual((first.status_code, retry.status_code), (201, 200), first.content)
+        self.assertEqual(Decimal(retry.json()["balance"]), Decimal("300.00"))
+        self.assertEqual(AdvanceTransaction.objects.filter(kind=AdvanceTransaction.Kind.REFUND).count(), 1)
+        self.assertEqual(AuditLog.objects.filter(action="billing.advance.refund").count(), 1)
+
     def test_another_hospital_sees_and_spends_nothing(self):
         account_id = self.deposit().json()["id"]
         outsider = self.client_for(self.outsider, self.other)

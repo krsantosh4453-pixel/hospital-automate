@@ -110,7 +110,8 @@ def apply_return(sale_return, user=None):
     refund = None
     over_paid = money(net_paid(invoice) - invoice.total)
     if over_paid > ZERO:
-        refund = record_refund(invoice, over_paid, f"Pharmacy return RET-{sale_return.pk}", user=user)
+        refund, _ = record_refund(invoice, over_paid, f"Pharmacy return RET-{sale_return.pk}", user=user,
+                                  idempotency_key=f"pharmacy-return-{sale_return.pk}")
     invoice.refresh_from_db()
     return {"invoice": invoice, "refund": refund, "discount_capped": discount_capped}
 

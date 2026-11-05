@@ -4,6 +4,7 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import api from "../services/api.js"
+import { displayPatientId } from "../utils/patientIdentity.js"
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, Field, Input, PageHeader, SkeletonRows, TableWrap, Textarea,
   usePrompt,
@@ -66,7 +67,7 @@ function GrantTable({ grants, showUser, onEnd, onReview }) {
                 <div className="text-xs text-ink-500">{t("until")} {formatWhen(grant.ended_at || grant.expires_at)}</div>
               </td>
               {showUser && <td>{grant.username}</td>}
-              <td className="font-medium text-ink-900">{grant.patient_name} <span className="text-ink-500">P{String(grant.patient).padStart(3, "0")}</span></td>
+              <td className="font-medium text-ink-900">{grant.patient_name} <span className="text-ink-500">{displayPatientId({ id: grant.patient, uhid: grant.patient_uhid })}</span></td>
               <td className="max-w-xs text-ink-700">{grant.reason}</td>
               <td><GrantState grant={grant} /></td>
               <td className="text-ink-700">
