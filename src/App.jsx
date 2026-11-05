@@ -37,6 +37,7 @@ const Laboratory = lazy(() => import("./pages/laboratory.jsx"))
 const Radiology = lazy(() => import("./pages/Radiology.jsx"))
 const Billing = lazy(() => import("./pages/billing.jsx"))
 const Inventory = lazy(() => import("./pages/inventory.jsx"))
+const HospitalServices = lazy(() => import("./pages/HospitalServices.jsx"))
 const Reports = lazy(() => import("./pages/reports.jsx"))
 const Settings = lazy(() => import("./pages/settings.jsx"))
 const Register = lazy(() => import("./pages/Register.jsx"))
@@ -141,6 +142,7 @@ function App() {
                           <Route path="/radiology" element={<Radiology />} />
                           <Route path="/billing" element={<Billing />} />
                           <Route path="/inventory" element={<Inventory />} />
+                          <Route path="/services" element={<HospitalServices />} />
                           <Route path="/reports" element={<Reports />} />
                           <Route path="/emergency" element={<Emergency />} />
                           <Route path="/blood-bank" element={<BloodBank />} />

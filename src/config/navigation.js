@@ -1,4 +1,5 @@
 import {
+  Ambulance,
   ChartColumn,
   BedDouble,
   Hospital,
@@ -80,6 +81,8 @@ export const STAFF_NAV = [
     items: [
       { to: "/billing", label: "Billing", icon: ReceiptIndianRupee, module: "Billing" },
       { to: "/inventory", label: "Inventory", icon: Package, module: "Inventory" },
+      // Every staff member applies for leave here; other tabs follow the role.
+      { to: "/services", label: "Hospital services", icon: Ambulance, module: null },
       { to: "/reports", label: "Reports", icon: ChartColumn, module: "Reports" },
     ],
   },

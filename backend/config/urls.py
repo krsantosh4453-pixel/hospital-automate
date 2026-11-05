@@ -124,6 +124,9 @@ urlpatterns = [
 
     # Clinical terminology (ICD-10 search)
     path("api/terminology/", include("terminology.urls")),
+
+    # Support services: OT, ambulance, mortuary, CSSD, laundry, leave, feedback, templates
+    path("api/services/", include("hospital_services.urls")),
 ]
 
 # Serve media files in development

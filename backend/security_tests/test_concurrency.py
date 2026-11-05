@@ -207,6 +207,44 @@ class ConcurrentWriteTests(WardMixin, TransactionTestCase):
         medicine.refresh_from_db()
         self.assertEqual(medicine.quantity, 5)
 
+    def test_one_theatre_slot_goes_to_one_booking(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+        from hospital_services.models import OperatingTheatre, OTBooking
+        from hospital_services.serializers import OTBookingSerializer
+        from hospital_services.workflows import book_theatre
+
+        _, doctor, _ = self.bed_setup(beds=0)
+        theatre = OperatingTheatre.objects.create(hospital=self.hospital, name="Race OT")
+        patient = self.make_patient(0)
+        start = timezone.now() + timedelta(days=1)
+
+        def book(i):
+            serializer = OTBookingSerializer(data={
+                "theatre": theatre.id, "patient": patient.id, "surgeon": doctor.id, "procedure_name": f"Case {i}",
+                "scheduled_start": (start + timedelta(minutes=i)).isoformat(),
+                "scheduled_end": (start + timedelta(hours=2)).isoformat()})
+            serializer.is_valid(raise_exception=True)
+            return book_theatre(serializer, hospital=self.hospital)
+
+        results = run_together(book)
+
+        self.assertEqual(len([r for r in results if isinstance(r, OTBooking)]), 1, results)
+
+    def test_one_ambulance_goes_on_one_trip(self):
+        from hospital_services.models import Ambulance, AmbulanceTrip
+        from hospital_services.workflows import dispatch_trip
+
+        ambulance = Ambulance.objects.create(hospital=self.hospital, vehicle_number="RACE-1")
+        trips = [AmbulanceTrip.objects.create(hospital=self.hospital, caller_name="Caller", caller_phone="9000000000",
+                                              pickup="A", destination="B") for _ in range(THREADS)]
+
+        results = run_together(lambda i: dispatch_trip(trips[i], ambulance))
+
+        self.assertEqual(len([r for r in results if isinstance(r, AmbulanceTrip)]), 1, results)
+        self.assertEqual(AmbulanceTrip.objects.filter(status="Dispatched").count(), 1)
+
     def test_one_bed_goes_to_exactly_one_of_many_admissions(self):
         user, doctor, [bed] = self.bed_setup(beds=1)
         admissions = [Admission.objects.create(patient=self.make_patient(i), hospital=self.hospital,

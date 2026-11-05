@@ -2312,6 +2312,42 @@ api.terminology = {
   },
 }
 
+// Hospital services (J5, J6, I6). Each resource is listed so the backend
+// contract test (security_tests/test_frontend_contract.py) checks its route.
+const SERVICE_PATHS = {
+  theatres: `${API_BASE_URL}/services/theatres/`,
+  "ot-bookings": `${API_BASE_URL}/services/ot-bookings/`,
+  ambulances: `${API_BASE_URL}/services/ambulances/`,
+  "ambulance-trips": `${API_BASE_URL}/services/ambulance-trips/`,
+  mortuary: `${API_BASE_URL}/services/mortuary/`,
+  "sterile-sets": `${API_BASE_URL}/services/sterile-sets/`,
+  "sterilization-cycles": `${API_BASE_URL}/services/sterilization-cycles/`,
+  laundry: `${API_BASE_URL}/services/laundry/`,
+  leave: `${API_BASE_URL}/services/leave/`,
+  feedback: `${API_BASE_URL}/services/feedback/`,
+  templates: `${API_BASE_URL}/services/templates/`,
+}
+
+const servicePath = (resource) => {
+  const path = SERVICE_PATHS[resource]
+  if (!path) throw new Error(`Unknown hospital service: ${resource}`)
+  return path
+}
+
+api.services = {
+  list: async (resource, hospitalId, params = {}) => {
+    const query = new URLSearchParams({ ...(hospitalId ? { hospital: hospitalId } : {}), ...params })
+    return request(`${servicePath(resource)}?${query.toString()}`)
+  },
+  create: async (resource, data, hospitalId) =>
+    request(`${servicePath(resource)}${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  update: async (resource, id, data, hospitalId) =>
+    request(`${servicePath(resource)}${id}/${queryForHospital(hospitalId)}`, { method: "PATCH", ...jsonBody(data) }),
+  // POST <resource>/<id>/<verb>/, e.g. ot-bookings/4/start/
+  act: async (resource, id, verb, data, hospitalId) =>
+    request(`${servicePath(resource)}${id}/${verb}/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data || {}) }),
+}
+
 api.procurement = {
   suppliers: {
     list: async (hospitalId) => {

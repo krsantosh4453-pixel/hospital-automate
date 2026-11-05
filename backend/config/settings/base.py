@@ -67,6 +67,8 @@ INSTALLED_APPS = [
     "ai_scribe",
     # AI discharge summary drafts (K6), reviewed by the doctor before saving
     "ai_advanced",
+    # Support services: OT, ambulance, mortuary, CSSD, laundry, leave, feedback, templates (J5, J6, I6)
+    "hospital_services",
 
     # Analytics & Reports
     "reports",
