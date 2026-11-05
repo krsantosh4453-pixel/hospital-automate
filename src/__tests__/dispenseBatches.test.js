@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest"
-import { defaultBatches, missingBatches, usableBatches } from "../utils/dispenseBatches.js"
+import { availabilityOf, defaultBatches, missingBatches, usableBatches } from "../utils/dispenseBatches.js"
 
 const TODAY = new Date(2026, 10, 3)
 
@@ -78,5 +78,22 @@ describe("substitutes and partial dispensing", () => {
     const { buildDispenseRequest } = await import("../utils/dispenseBatches.js")
     const result = buildDispenseRequest(5, [item], { 9: { batch: 2, quantity: 7, reason: "" } }, shelf)
     expect(result.problems).toEqual(["Crocin 500: at most 6", "Crocin 500: give the reason for the substitute"])
+  })
+})
+
+// F6: the pharmacy queue says whether each medicine can be given from stock.
+describe("availabilityOf", () => {
+  it("compares what is still owed with unexpired stock of that name", () => {
+    expect(availabilityOf({ name: "Paracetamol", quantity: 60 }, stock, TODAY)).toBe("in-stock")
+    expect(availabilityOf({ name: "Paracetamol", quantity: 104 }, stock, TODAY)).toBe("split")
+    expect(availabilityOf({ name: "Paracetamol", quantity: 200 }, stock, TODAY)).toBe("short")
+    expect(availabilityOf({ name: "Cetirizine", quantity: 1 }, stock, TODAY)).toBe("none")
+  })
+
+  it("ignores expired batches and counts what was already given", () => {
+    const expiredOnly = [{ id: 9, name: "Ondansetron", stock: 30, expiry: "09/2026" }]
+    expect(availabilityOf({ name: "Ondansetron", quantity: 2 }, expiredOnly, TODAY)).toBe("none")
+    expect(availabilityOf({ name: "Amoxicillin", quantity: 25, dispensed: 10 }, stock, TODAY)).toBe("in-stock")
+    expect(availabilityOf({ name: "Amoxicillin", quantity: 5, dispensed: 5 }, stock, TODAY)).toBe("done")
   })
 })

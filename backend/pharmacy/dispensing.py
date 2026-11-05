@@ -22,6 +22,23 @@ NOT_SAME_SALT = (
 )
 
 
+CANCELLED = "Cancelled"
+PENDING_VERIFICATION = "Pending Verification"
+NOT_DISPENSABLE = {
+    CANCELLED: "This prescription was cancelled; it cannot be dispensed.",
+    PENDING_VERIFICATION: (
+        "This paper prescription must be verified by a second pharmacist or an Admin before it is dispensed."
+    ),
+}
+
+
+def check_dispensable(prescription):
+    """Refuses a cancelled prescription or an unverified paper transcription (F13)."""
+    reason = NOT_DISPENSABLE.get(prescription.status)
+    if reason:
+        raise serializers.ValidationError({"prescription": reason})
+
+
 def dispensed_quantities(prescription):
     """Quantity already issued for each prescription item id."""
     rows = (Sale.objects.filter(prescription=prescription, prescription_item__isnull=False)

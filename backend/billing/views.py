@@ -50,6 +50,8 @@ class InvoiceViewSet(HospitalScopedViewSet):
     def perform_destroy(self, instance):
         if instance.payments.exists():
             raise ValidationError("An invoice with payments cannot be deleted; cancel or refund it instead.")
+        if instance.items.filter(pharmacy_sale__isnull=False).exists():
+            raise ValidationError("This bill holds dispensed medicine; cancel it instead of deleting it.")
         super().perform_destroy(instance)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdmin | IsHospitalManager | IsBillingStaff])
@@ -122,14 +124,22 @@ class InvoiceItemViewSet(HospitalScopedViewSet):
             super().perform_create(serializer)
             recalculate(serializer.instance.invoice)
 
+    @staticmethod
+    def _not_pharmacy_line(item):
+        # F9: a medicine line mirrors a pharmacy sale; it changes only through a pharmacy return.
+        if item.pharmacy_sale_id:
+            raise ValidationError("Medicine lines come from the pharmacy; return the medicine there to change them.")
+
     def perform_update(self, serializer):
         self._editable(serializer.instance.invoice)
+        self._not_pharmacy_line(serializer.instance)
         with transaction.atomic():
             super().perform_update(serializer)
             recalculate(serializer.instance.invoice)
 
     def perform_destroy(self, instance):
         self._editable(instance.invoice)
+        self._not_pharmacy_line(instance)
         invoice = instance.invoice
         with transaction.atomic():
             super().perform_destroy(instance)

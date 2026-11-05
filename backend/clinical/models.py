@@ -274,8 +274,29 @@ class Prescription(EnteredInError):
         related_name="prescriptions",
         db_index=True
     )
+    class Source(models.TextChoices):
+        ELECTRONIC = "Electronic", "Written in the system by a doctor"
+        PAPER = "Paper transcription", "Transcribed from a paper prescription"
+
+    # F13: a paper prescription copied in by the pharmacy waits here until a
+    # second person (another pharmacist or an Admin) checks it against the paper.
+    PENDING_VERIFICATION = "Pending Verification"
+
     status = models.CharField(max_length=30, default="Confirmed", db_index=True)
     dispensed_at = models.DateTimeField(null=True, blank=True)
+    source = models.CharField(max_length=30, choices=Source.choices, default=Source.ELECTRONIC)
+    # Who signed the paper: a doctor of this hospital (``doctor``) or, for an
+    # outside doctor, their name and registration number as written on it.
+    original_prescriber_name = models.CharField(max_length=150, blank=True, default="")
+    original_prescriber_registration = models.CharField(max_length=50, blank=True, default="")
+    original_prescription_date = models.DateField(null=True, blank=True)
+    transcribed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
     # Medication safety check at the time of writing (clinical/medication_safety.py):
     # the alerts shown and, for high-severity ones, the doctor's reason to go ahead.
     safety_alerts = models.JSONField(default=list, blank=True)

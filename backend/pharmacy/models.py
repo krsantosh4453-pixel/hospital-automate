@@ -18,6 +18,8 @@ class Medicine(models.Model):
     batch = models.CharField(max_length=100, blank=True, db_index=True)
     quantity = models.PositiveIntegerField(default=0)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    # GST % charged on this medicine when it is billed to a patient (F9).
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     expiry_date = models.DateField(null=True, blank=True, db_index=True)
     status = models.CharField(max_length=20, default="Available", db_index=True)
     # Generic (salt) names, comma-separated for combinations; used by the prescription safety check.
@@ -45,6 +47,9 @@ class Medicine(models.Model):
             models.Index(fields=["hospital", "expiry_date"]),
             models.Index(fields=["hospital", "status"]),
             models.Index(fields=["name", "hospital"]),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(tax_rate__gte=0, tax_rate__lte=100), name="medicine_tax_rate_range"),
         ]
 
 

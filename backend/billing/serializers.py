@@ -20,9 +20,10 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = InvoiceItem
-        fields = ["id", "invoice", "description", "quantity", "unit_price", "subtotal", "tax_rate"]
+        fields = ["id", "invoice", "description", "quantity", "unit_price", "subtotal", "tax_rate", "pharmacy_sale"]
         extra_kwargs = {"invoice": {"required": False}}
-        read_only_fields = ["id", "subtotal"]
+        # pharmacy_sale is set only by billing/pharmacy_charges.py (F9).
+        read_only_fields = ["id", "subtotal", "pharmacy_sale"]
 
     def validate_quantity(self, value):
         if value < 1:
@@ -130,6 +131,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "id",
             "invoice_number",
             "admission",
+            "prescription",
             "patient",
             "patient_name",
             "hospital",
@@ -152,6 +154,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         # Money and status are derived from items and payments (billing.services).
         read_only_fields = [
             "id", "created_at", "total_paid", "balance_due", "is_paid", "hospital", "invoice_number", "admission",
+            "prescription",
             "subtotal", "tax_amount", "total_amount", "tax", "total", "status",
         ]
 
@@ -232,6 +235,10 @@ class InvoiceSerializer(serializers.ModelSerializer):
         if items_data is not None and instance.payments.exists():
             raise serializers.ValidationError(
                 {"items_data": "Items cannot be replaced after a payment; issue a refund or a new invoice."}
+            )
+        if items_data is not None and instance.items.filter(pharmacy_sale__isnull=False).exists():
+            raise serializers.ValidationError(
+                {"items_data": "Medicine lines come from the pharmacy; return the medicine there to change them."}
             )
         with transaction.atomic():
             for attr, value in validated_data.items():

@@ -23,6 +23,7 @@ class MedicineSerializer(serializers.ModelSerializer):
             "batch",
             "quantity",
             "price",
+            "tax_rate",
             "expiry_date",
             "status",
             "generic_name",
@@ -46,6 +47,11 @@ class MedicineSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Quantity cannot be negative."
             )
+        return value
+
+    def validate_tax_rate(self, value):
+        if value is None or value < 0 or value > 100:
+            raise serializers.ValidationError("GST must be between 0 and 100 %.")
         return value
 
     def validate(self, attrs):
@@ -95,6 +101,8 @@ class SaleSerializer(serializers.ModelSerializer):
         read_only=True
     )
     returned_quantity = serializers.SerializerMethodField()
+    # F9: the patient bill this sale is charged on ("" for walk-in sales).
+    invoice_number = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
@@ -114,6 +122,7 @@ class SaleSerializer(serializers.ModelSerializer):
             "substitution_reason",
             "dispensed_by",
             "returned_quantity",
+            "invoice_number",
             "created_at",
         ]
         # Price comes from the medicine record, never from the client.
@@ -123,6 +132,10 @@ class SaleSerializer(serializers.ModelSerializer):
             "hospital": {"required": False},
             "unit_price": {"required": False},
         }
+
+    def get_invoice_number(self, obj) -> str:
+        item = getattr(obj, "invoice_item", None) if obj.pk else None
+        return item.invoice.invoice_number if item is not None else ""
 
     def validate_patient_name(self, value):
         if not value or not value.strip():

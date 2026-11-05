@@ -25,12 +25,27 @@ class HospitalSerializer(serializers.ModelSerializer):
     def validate_code(self, value):
         return (value or "").strip().upper() or None
 
+    def validate_uhid_prefix(self, value):
+        from patients.uhid import MAX_PREFIX_LENGTH, clean_prefix
+
+        value = (value or "").strip().upper()
+        if value and clean_prefix(value) != value:
+            raise serializers.ValidationError(
+                f"Use only letters and digits, at most {MAX_PREFIX_LENGTH} characters.")
+        taken = Hospital.objects.filter(uhid_prefix=value)
+        if self.instance is not None:
+            taken = taken.exclude(pk=self.instance.pk)
+        if value and taken.exists():
+            raise serializers.ValidationError("Another hospital already uses this UHID prefix.")
+        return value
+
     class Meta:
         model = Hospital
         fields = [
             "id",
             "name",
             "code",
+            "uhid_prefix",
             "type",
             "status",
             "departments",

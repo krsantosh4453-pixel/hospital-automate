@@ -2,52 +2,14 @@ import { useCallback, useState } from "react"
 
 import api from "../../services/api.js"
 import { PrescriptionContext } from "./PrescriptionContext.jsx"
+import { mapPrescriptionFromApi } from "../../utils/prescriptionRecord.js"
 
 
 const OFFLINE_CACHE_KEY = "hospitalPrescriptions"
 
 
-// =====================================
-// API -> UI MAPPING
-// =====================================
-//
-// Backend now owns the integer id. We expose a display id (`RX-0001`) used
-// by the search boxes in Pharmacy/Reports while retaining `apiId` for every
-// write operation, so we never identify a prescription by display name.
-
-const formatDate = (value) => {
-  if (!value) return ""
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) return ""
-
-  return date.toLocaleDateString("en-IN")
-}
-
-const mapPrescriptionFromApi = (record) => ({
-  id: `RX-${String(record.id).padStart(4, "0")}`,
-  apiId: record.id,
-  hospitalId: record.hospital,
-  patientId: record.patient,
-  patientName: record.patient_name || "",
-  doctor: record.doctor_name || record.doctor || "",
-  doctorId: record.doctor,
-  visitId: record.visit,
-  status: record.status,
-  dispensedAt: record.dispensed_at || null,
-  createdAt: formatDate(record.created_at),
-  medicines: (record.items || []).map((item) => ({
-    id: item.id,
-    name: item.name,
-    dosage: item.dosage,
-    frequency: item.frequency,
-    duration: item.duration,
-    quantity: item.quantity,
-    dispensed: item.dispensed_quantity || 0,
-    instructions: item.instructions,
-  })),
-})
+// API -> UI mapping lives in utils/prescriptionRecord.js (shared with the
+// pharmacy queue): display id RX-0001, `apiId` for every write.
 
 // Prescriptions are not cached in the browser: they contain patient data and
 // hospital PCs are shared. The list always comes from the API.

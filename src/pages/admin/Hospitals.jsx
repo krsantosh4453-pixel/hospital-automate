@@ -31,6 +31,7 @@ function Hospitals() {
   const [formData, setFormData] = useState({
     name: "",
     code: "",
+    uhid_prefix: "",
     address: "",
     phone: "",
     email: "",
@@ -42,6 +43,7 @@ function Hospitals() {
     setFormData({
       name: "",
       code: "",
+      uhid_prefix: "",
       address: "",
       phone: "",
       email: "",
@@ -63,6 +65,7 @@ function Hospitals() {
     setFormData({
       name: hospital.name || "",
       code: hospital.code || "",
+      uhid_prefix: hospital.uhid_prefix || "",
       address: hospital.address || "",
       phone: hospital.phone || "",
       email: hospital.email || "",
@@ -589,6 +592,30 @@ function Hospitals() {
                   placeholder={t("Example: CHB001")}
                   className="hms-input w-full"
                 />
+
+              </div>
+
+              {/* UHID prefix (F1) */}
+              <div>
+
+                <label htmlFor="hospital-uhid-prefix" className="block text-sm font-medium mb-1">
+                  {t("UHID prefix")}
+                </label>
+
+                <input
+                  id="hospital-uhid-prefix"
+                  type="text"
+                  name="uhid_prefix"
+                  value={formData.uhid_prefix}
+                  onChange={handleChange}
+                  maxLength={10}
+                  placeholder={t("Example: DCH")}
+                  aria-describedby="hospital-uhid-prefix-hint"
+                  className="hms-input w-full"
+                />
+                <p id="hospital-uhid-prefix-hint" className="mt-1 text-xs text-ink-500">
+                  {t("Letters and digits. New patients get UHIDs like {example}. Blank uses the hospital code.", { example: `${(formData.uhid_prefix || formData.code || "DCH").toUpperCase()}-${new Date().getFullYear()}-000001` })}
+                </p>
 
               </div>
 

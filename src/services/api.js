@@ -1236,12 +1236,18 @@ const api = {
 
     prescriptions: {
       // GET /api/clinical/prescriptions/?hospital=<id>&patient=<id>&visit=<id>
-      list: async ({ hospitalId, patientId, visitId } = {}) => {
+      // The pharmacy queue (F6) also sends status (comma-separated), search
+      // (RX number, patient, UHID, doctor), order=oldest and page.
+      list: async ({ hospitalId, patientId, visitId, status, search, order, page } = {}) => {
         const params = new URLSearchParams()
 
         if (hospitalId) params.set('hospital', hospitalId)
         if (patientId) params.set('patient', patientId)
         if (visitId) params.set('visit', visitId)
+        if (status) params.set('status', status)
+        if (search) params.set('search', search)
+        if (order) params.set('order', order)
+        if (page) params.set('page', page)
 
         const query = params.toString() ? `?${params.toString()}` : ''
 
@@ -1262,6 +1268,15 @@ const api = {
           },
           body: JSON.stringify(data),
         }),
+
+      // POST /api/clinical/prescriptions/transcribe/ — the pharmacy copies in a
+      // paper prescription; it waits for a second person to verify it (F13).
+      transcribe: async (data) =>
+        request(`${API_BASE_URL}/clinical/prescriptions/transcribe/`, { method: 'POST', ...jsonBody(data) }),
+
+      // POST /api/clinical/prescriptions/{id}/verify/ — someone other than the transcriber.
+      verify: async (id) =>
+        request(`${API_BASE_URL}/clinical/prescriptions/${id}/verify/`, { method: 'POST', ...jsonBody({}) }),
 
       // POST /api/clinical/prescriptions/
       create: async (data) =>

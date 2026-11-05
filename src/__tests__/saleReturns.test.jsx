@@ -71,4 +71,15 @@ describe("Medicine returns card", () => {
     await act(async () => buttons("Record return")[0].click())
     expect(api.pharmacy.sales.returnSale).toHaveBeenCalledWith(1, { quantity: 3, reason: "Course stopped", restock: true })
   })
+
+  it("uses the sales the Pharmacy page already loaded instead of asking again (F7)", async () => {
+    host = document.createElement("div")
+    document.body.appendChild(host)
+    root = createRoot(host)
+    const sales = [{ id: 5, patient_name: "Synthetic Given", medicine_name: "Pan 40", quantity: 3, returned_quantity: 0 }]
+    act(() => root.render(<LanguageProvider><SaleReturns hospitalId={4} canReturn sales={sales} /></LanguageProvider>))
+    await flush()
+    expect(host.textContent).toContain("Synthetic Given")
+    expect(api.pharmacy.sales.list).not.toHaveBeenCalled()
+  })
 })

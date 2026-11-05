@@ -35,6 +35,8 @@ const mapMedicineFromApi = (record = {}) => {
     stock,
     expiry: formatExpiry(record.expiry_date),
     price: num(record.price),
+    // GST % added when the medicine is billed to a patient (F9).
+    taxRate: num(record.tax_rate),
     genericName: record.generic_name || "",
     // Same rule as Inventory: low at or below the item's own reorder level (server default 10).
     status: stock <= num(record.reorder_level ?? 10) ? "Low Stock" : "In Stock",
@@ -54,6 +56,10 @@ const mapSaleFromApi = (record = {}) => ({
   date: formatDate(record.created_at),
   hospitalId: record.hospital,
   prescriptionId: record.prescription ?? null,
+  invoiceNumber: record.invoice_number || "",
+  // The API row as received, for components that read its fields directly
+  // (SaleReturns), so they need not fetch the same list again (F7).
+  record,
 })
 
 const mapSupplierFromApi = (record = {}) => ({
@@ -217,8 +223,14 @@ export function PharmacyProvider({ children }) {
     const response = await api.pharmacy.sales.dispensePrescription(payload)
     const created = (response?.sales || []).map(mapSaleFromApi)
     setSales((prev) => [...created, ...prev])
-    // status is "Dispensed" or "Partially Dispensed"; issued lists the raw sale rows.
-    return { status: response?.status, remaining: response?.remaining || {}, issued: response?.sales || [] }
+    // status is "Dispensed" or "Partially Dispensed"; issued lists the raw sale rows;
+    // invoice is the patient bill the medicine was charged on (F9), unpaid until billing takes payment.
+    return {
+      status: response?.status,
+      remaining: response?.remaining || {},
+      issued: response?.sales || [],
+      invoice: response?.invoice || null,
+    }
   }, [])
 
   // =====================================

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Link, useSearchParams } from "react-router-dom"
 
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
@@ -80,7 +81,12 @@ const mapVisitOption = (record) => ({
     record.patient !== null && record.patient !== undefined
       ? String(record.patient)
       : "",
+  patientName: record.patient_name || "",
 })
+
+// Adds ``option`` to a dropdown list unless it is already there (lists hold one page only).
+const withOption = (options, option) =>
+  options.some((item) => item.value === option.value) ? options : [option, ...options]
 
 // "Dispensed" is not offered: only the pharmacy sets it, when it issues the medicine.
 const PRESCRIPTION_STATUSES = [
@@ -149,6 +155,38 @@ function Prescription() {
 
   const refresh = () => setReloadToken((token) => token + 1)
 
+  // F4: opened from a consultation as /prescription?visit=<id>: that visit and
+  // its patient are filled in; the server signs it as the requesting doctor.
+  const [searchParams] = useSearchParams()
+  const fromVisitId = searchParams.get("visit") || ""
+  const [fromVisit, setFromVisit] = useState(null)
+  // Read by the options loader, which may finish before or after this visit;
+  // set as soon as the visit arrives, not after the next render.
+  const fromVisitRef = useRef(null)
+
+  useEffect(() => {
+    if (!fromVisitId || !selectedHospital || !canWrite) {
+      fromVisitRef.current = null
+      setFromVisit(null)
+      return undefined
+    }
+    let cancelled = false
+    api.visits.get(fromVisitId)
+      .then((record) => {
+        if (cancelled || String(record.hospital) !== String(selectedHospital.id)) return
+        const option = mapVisitOption(record)
+        fromVisitRef.current = option
+        setFromVisit(option)
+        setVisits((prev) => withOption(prev, option))
+        setPatients((prev) => withOption(prev, { value: option.patientId, label: option.patientName || `Patient #${option.patientId}` }))
+        setForm((prev) => ({ ...prev, visitId: option.value, patientId: option.patientId }))
+      })
+      .catch(() => !cancelled && setFormError("The consultation's visit could not be loaded; choose it below."))
+    return () => {
+      cancelled = true
+    }
+  }, [fromVisitId, selectedHospital, canWrite])
+
   // ---------------------------------------------------------
   // LOAD DROPDOWN OPTIONS for the selected hospital
   // ---------------------------------------------------------
@@ -178,11 +216,13 @@ function Prescription() {
         return
       }
 
-      setPatients(
-        patientsResult.status === "fulfilled"
+      setPatients(() => {
+        const loaded = patientsResult.status === "fulfilled"
           ? readResults(patientsResult.value).map(mapPatientOption)
           : []
-      )
+        const visit = fromVisitRef.current
+        return visit ? withOption(loaded, { value: visit.patientId, label: visit.patientName || `Patient #${visit.patientId}` }) : loaded
+      })
 
       setDoctors(
         doctorsResult.status === "fulfilled"
@@ -190,11 +230,12 @@ function Prescription() {
           : []
       )
 
-      setVisits(
-        visitsResult.status === "fulfilled"
+      setVisits(() => {
+        const loaded = visitsResult.status === "fulfilled"
           ? readResults(visitsResult.value).map(mapVisitOption)
           : []
-      )
+        return fromVisitRef.current ? withOption(loaded, fromVisitRef.current) : loaded
+      })
 
       setLoadingOptions(false)
     }
@@ -401,7 +442,8 @@ function Prescription() {
       setSuccessMessage(
         t("Prescription {createdId} created successfully.", { createdId: created?.id || "" })
       )
-      setForm(emptyForm())
+      // From a consultation, the next prescription is for the same visit.
+      setForm(fromVisit ? { ...emptyForm(), visitId: fromVisit.value, patientId: fromVisit.patientId } : emptyForm())
       setSafetyCheck(null)
     } catch (err) {
       setSafetyCheck(null)
@@ -503,6 +545,11 @@ function Prescription() {
         <Card as="form" onSubmit={handleSubmit} className="self-start" noValidate>
           <CardHeader icon={FilePlus2} title={t("New prescription")} description="Patient, visit and doctor, then one row per medicine." />
           <div className="space-y-5 px-5 py-4">
+            {fromVisit && (
+              <Alert tone="info" action={<Link to={`/consultation?visit=${fromVisit.value}`} className="text-sm font-medium text-brand-700 underline">{t("Back to consultation")}</Link>}>
+                {t("For visit #{visit} · {patient}. Signed in your name when saved.", { visit: fromVisit.value, patient: fromVisit.patientName })}
+              </Alert>
+            )}
             {formError && <Alert tone="danger" title={t("Not saved")}>{formError}</Alert>}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

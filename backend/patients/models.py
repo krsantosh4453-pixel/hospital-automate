@@ -118,6 +118,26 @@ class PatientHospital(models.Model):
         return f"{self.patient.name} - {self.hospital.name}"
 
 
+class UhidSequence(models.Model):
+    """
+    F1: the last UHID number issued by a hospital in a year. Only
+    patients/uhid.py changes it, through a row-locking UPDATE, so two desks
+    registering at the same moment never get the same number.
+    """
+
+    hospital = models.ForeignKey("hospital.Hospital", on_delete=models.CASCADE, related_name="uhid_sequences")
+    year = models.PositiveIntegerField()
+    last_value = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["hospital", "year"], name="one_uhid_sequence_per_hospital_year"),
+        ]
+
+    def __str__(self):
+        return f"UHID sequence {self.hospital_id}/{self.year}: {self.last_value}"
+
+
 class PatientDocument(models.Model):
     patient = models.ForeignKey(
         Patient,

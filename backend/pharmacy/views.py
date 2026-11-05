@@ -4,6 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from audit.services import record_audit
+from billing import pharmacy_charges
 from procurement.models import StockTransaction
 from django.db.models import F, Sum
 from django.db.models.functions import Coalesce
@@ -108,6 +109,7 @@ class SaleViewSet(HospitalScopedViewSet):
         "medicine",
         "hospital",
         "prescription",
+        "invoice_item__invoice",
     )
     serializer_class = SaleSerializer
     # Dispensing: pharmacist and compounder.
@@ -225,6 +227,8 @@ class SaleViewSet(HospitalScopedViewSet):
         prescription = serializer.validated_data.get("prescription")
         if prescription is not None and prescription.hospital_id != hospital.pk:
             raise serializers.ValidationError({"prescription": "Prescription is from another hospital."})
+        if prescription is not None:
+            dispensing.check_dispensable(prescription)
 
         # Deduct stock first: rolled back automatically if the
         # sale insert below fails.
@@ -240,6 +244,17 @@ class SaleViewSet(HospitalScopedViewSet):
         # free text, so the first sale marks the whole prescription.
         if prescription is not None and prescription.dispensed_at is None:
             self._mark_dispensed(prescription)
+        if prescription is not None:
+            self._bill(prescription, [sale])
+
+    def _bill(self, prescription, sales):
+        """F9: put the sales on the patient's medicine bill, in this transaction."""
+        invoice = pharmacy_charges.post_sales(prescription, sales)
+        if invoice is not None:
+            record_audit(self.request, "billing.invoice.pharmacy_charges", invoice, hospital=invoice.hospital_id,
+                         details={"prescription": prescription.pk, "sales": [sale.pk for sale in sales],
+                                  "total": str(invoice.total)})
+        return invoice
 
     @action(detail=False, methods=["post"], url_path="dispense-prescription")
     @transaction.atomic
@@ -263,6 +278,7 @@ class SaleViewSet(HospitalScopedViewSet):
         if prescription.dispensed_at is not None:
             return Response({"detail": "This prescription has already been dispensed."},
                             status=status.HTTP_409_CONFLICT)
+        dispensing.check_dispensable(prescription)
         lines = payload.validated_data["lines"]
         partial = payload.validated_data["partial"]
         items = {item.pk: item for item in prescription.items.all()}
@@ -304,11 +320,13 @@ class SaleViewSet(HospitalScopedViewSet):
         else:
             prescription.status, prescription.dispensed_at = "Dispensed", timezone.now()
             prescription.save(update_fields=["status", "dispensed_at"])
+        invoice = self._bill(prescription, sales)
 
         return Response(
             {"prescription": prescription.pk, "status": prescription.status,
              "remaining": {str(pk): qty for pk, qty in left.items()},
-             "sales": SaleSerializer(sales, many=True).data},
+             "sales": SaleSerializer(sales, many=True).data,
+             "invoice": pharmacy_charges.bill_summary(invoice)},
             status=status.HTTP_201_CREATED,
         )
 
@@ -335,8 +353,12 @@ class SaleViewSet(HospitalScopedViewSet):
                     {"lines": f"Only {remaining[item.pk]} of {item.name} is still to be dispensed."})
 
     @action(detail=True, methods=["post"], url_path="return", permission_classes=[IsAdmin | IsHospitalManager | IsPharmacist])
+    @transaction.atomic
     def return_sale(self, request, pk=None):
-        """{quantity, reason, restock}: medicine handed back by the patient (F5)."""
+        """
+        {quantity, reason, restock}: medicine handed back by the patient (F5).
+        A billed sale is also taken off its bill, refunding any over-payment (F9).
+        """
         sale = self.get_object()
         body = SaleReturnRequestSerializer(data=request.data)
         body.is_valid(raise_exception=True)
@@ -345,4 +367,16 @@ class SaleViewSet(HospitalScopedViewSet):
         record_audit(request, "pharmacy.sale.returned", sale, hospital=sale.hospital_id,
                      details={"quantity": returned.quantity, "restocked": returned.restocked,
                               "refund": str(returned.refund_amount), "reason": returned.reason})
-        return Response(SaleReturnSerializer(returned).data, status=status.HTTP_201_CREATED)
+        billed = pharmacy_charges.apply_return(returned, user=request.user)
+        data = SaleReturnSerializer(returned).data
+        data["invoice"] = None
+        data["invoice_refund"] = None
+        if billed is not None:
+            invoice, refund = billed["invoice"], billed["refund"]
+            record_audit(request, "billing.invoice.pharmacy_return", invoice, hospital=invoice.hospital_id,
+                         details={"return": returned.pk, "sale": sale.pk, "quantity": returned.quantity,
+                                  "refund": str(refund.amount) if refund else "0.00",
+                                  "discount_capped": billed["discount_capped"]})
+            data["invoice"] = pharmacy_charges.bill_summary(invoice)
+            data["invoice_refund"] = str(refund.amount) if refund else None
+        return Response(data, status=status.HTTP_201_CREATED)

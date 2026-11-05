@@ -140,10 +140,17 @@ class PatientHospitalSerializer(serializers.ModelSerializer):
             "joined_at",
         ]
         read_only_fields = ["id", "joined_at"]
+        # F1: leave the UHID out to have the hospital's next one issued.
+        extra_kwargs = {"uhid": {"required": False, "allow_blank": True}}
+
+    def validate_uhid(self, value):
+        return (value or "").strip()
 
     def validate(self, attrs):
         # A UHID is also a patient login identifier, so it is unique per
         # hospital (ignoring case). Existing duplicates: report_duplicate_uhids.
+        if self.instance is not None and self.instance.uhid and attrs.get("uhid", None) == "":
+            raise serializers.ValidationError({"uhid": "A UHID cannot be removed once issued."})
         hospital = attrs.get("hospital", getattr(self.instance, "hospital", None))
         uhid = attrs.get("uhid", getattr(self.instance, "uhid", ""))
         clash = PatientHospital.objects.filter(hospital=hospital, uhid__iexact=uhid)

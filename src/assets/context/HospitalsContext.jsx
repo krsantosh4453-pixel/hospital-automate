@@ -53,6 +53,8 @@ export function HospitalsProvider({ children }) {
   const toPayload = (data) => ({
     name: data.name,
     code: data.code || null,
+    // F1: start of the UHIDs issued here; blank uses the code.
+    uhid_prefix: (data.uhid_prefix || "").trim().toUpperCase(),
     type: data.type || "Private",
     address: data.address || "",
     city: data.city || "",

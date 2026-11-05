@@ -21,9 +21,21 @@ export default function DispenseLine({ medicine, stock, choice, onChange, done }
   return (
     <div className="rounded-xl border border-gray-200 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="font-semibold text-gray-800">{medicine.name}</p>
-          <p className="text-sm text-gray-500">{[medicine.dosage, medicine.frequency, medicine.duration].filter(Boolean).join(" • ")}</p>
+          {/* F8: as the prescription saved them; blank stays blank. */}
+          <dl className="mt-1 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-sm">
+            {[["Dose", medicine.dosage], ["Frequency", medicine.frequency], ["Duration", medicine.duration]].map(([label, value]) => (
+              <div key={label} className="contents">
+                <dt className="text-gray-500">{t(label)}</dt>
+                <dd className="text-gray-800">{value || "—"}</dd>
+              </div>
+            ))}
+            <dt className="text-gray-500">{t("Instructions")}</dt>
+            <dd className={medicine.instructions ? "font-medium text-gray-900" : "text-gray-400"}>
+              {medicine.instructions || t("None written")}
+            </dd>
+          </dl>
         </div>
         <div className="text-sm">
           <p>{t("Required:")} <span className="font-bold">{medicine.quantity}</span></p>

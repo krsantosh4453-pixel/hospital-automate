@@ -118,3 +118,24 @@ export function buildDispenseRequest(prescriptionId, items, lines, medicines) {
   if (body.length === 0) problems.push("Enter a quantity for at least one medicine")
   return problems.length ? { problems } : { body: { prescription: prescriptionId, partial, lines: body } }
 }
+
+/**
+ * F6: can the pharmacy give what is still owed of this medicine from unexpired
+ * stock of the prescribed name? "done" when nothing is owed, "in-stock" when
+ * one batch covers it, "split" when only several batches together do,
+ * "short" when there is some but not enough, "none" when there is none.
+ * @param {{name: string, quantity: number, dispensed?: number}} item
+ * @param {Array<{name: string, stock: number, expiry: string}>} medicines
+ * @param {Date} [today]
+ * @returns {"done"|"in-stock"|"split"|"short"|"none"}
+ */
+export function availabilityOf(item, medicines, today = new Date()) {
+  const owed = remainingOf(item)
+  if (owed === 0) return "done"
+  const batches = usableBatches(medicines, item.name, today)
+  const stocks = batches.map((batch) => Number(batch.stock || 0))
+  const total = stocks.reduce((sum, stock) => sum + stock, 0)
+  if (total === 0) return "none"
+  if (stocks.some((stock) => stock >= owed)) return "in-stock"
+  return total >= owed ? "split" : "short"
+}

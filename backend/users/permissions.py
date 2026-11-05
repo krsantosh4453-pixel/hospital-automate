@@ -360,6 +360,8 @@ def read_only(permission_class):
 IsNurseReadOnly = read_only(IsNurse)
 IsReceptionistReadOnly = read_only(IsReceptionist)
 IsCompounderReadOnly = read_only(IsCompounder)
+# F13: pharmacists read prescriptions; they write only paper transcriptions.
+IsPharmacistReadOnly = read_only(IsPharmacist)
 # A Hospital Manager oversees clinical work without changing it.
 IsHospitalManagerReadOnly = read_only(IsHospitalManager)
 # Billing Staff look patients up to bill them; they never change the record.

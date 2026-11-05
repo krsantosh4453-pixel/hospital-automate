@@ -13,10 +13,13 @@ const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 const rupees = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
 const EMPTY = { quantity: "", reason: "", restock: false }
 
-export default function SaleReturns({ hospitalId, canReturn, onReturned, refreshKey }) {
+// F7: the Pharmacy page passes the sales it already loaded (``sales``) and
+// reloads them after a return, so this card makes no request of its own.
+// Without ``sales`` it fetches the list itself.
+export default function SaleReturns({ hospitalId, canReturn, onReturned, sales: givenSales }) {
   const { t } = useLanguage()
   const toast = useToast()
-  const [sales, setSales] = useState([])
+  const [fetchedSales, setFetchedSales] = useState([])
   const [error, setError] = useState("")
   const [query, setQuery] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
@@ -24,17 +27,19 @@ export default function SaleReturns({ hospitalId, canReturn, onReturned, refresh
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState("")
+  const sales = givenSales ?? fetchedSales
+  const selfLoading = givenSales === undefined
 
   useEffect(() => {
-    if (!hospitalId) return undefined
+    if (!hospitalId || !selfLoading) return undefined
     let cancelled = false
     api.pharmacy.sales.list(hospitalId)
-      .then((data) => !cancelled && (setSales(list(data)), setError("")))
+      .then((data) => !cancelled && (setFetchedSales(list(data)), setError("")))
       .catch((err) => !cancelled && setError(err.message || "Could not load sales."))
     return () => {
       cancelled = true
     }
-  }, [hospitalId, reloadToken, refreshKey])
+  }, [hospitalId, reloadToken, selfLoading])
 
   const needle = query.trim().toLowerCase()
   const shown = sales
@@ -55,7 +60,15 @@ export default function SaleReturns({ hospitalId, canReturn, onReturned, refresh
       const result = await api.pharmacy.sales.returnSale(returning.id, {
         quantity: Number(form.quantity), reason: form.reason, restock: form.restock,
       })
-      toast.success(t("Return recorded. Refund {amount}.", { amount: rupees(result.refund_amount) }))
+      // F9: a billed sale is also taken off the patient's bill; a paid bill refunds the difference there.
+      if (result.invoice_refund) {
+        toast.success(t("Return recorded. {amount} refunded on bill {invoice}.",
+          { amount: rupees(result.invoice_refund), invoice: result.invoice?.invoice_number }))
+      } else if (result.invoice) {
+        toast.success(t("Return recorded and taken off bill {invoice}.", { invoice: result.invoice.invoice_number }))
+      } else {
+        toast.success(t("Return recorded. Refund {amount}.", { amount: rupees(result.refund_amount) }))
+      }
       setReturning(null)
       setReloadToken((n) => n + 1)
       onReturned?.()

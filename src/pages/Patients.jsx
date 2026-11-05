@@ -25,6 +25,7 @@ import {
   TableWrap,
   Toolbar,
 } from "../components/ui"
+import { displayPatientId } from "../utils/patientIdentity.js"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { hospitalToday } from "../utils/hospitalDate.js"
 
@@ -89,6 +90,8 @@ function Patients() {
   // Maps a Django Patient record into the shape this UI already uses.
   const mapFromApi = (record) => ({
     id: record.id,
+    // F1: issued by the server at registration, per hospital.
+    uhid: record.uhid || "",
     name: record.name || "",
     age: record.age ?? "",
     gender: record.gender || "",
@@ -115,12 +118,7 @@ function Patients() {
     source: "api",
   })
 
-  // Keeps IDs readable whether they are Django integers or local "PAT-..."
-  // strings, so "PAT-PAT-..." never happens.
-  const formatPatientId = (patient) => {
-    const value = String(patient?.id ?? "")
-    return value.toUpperCase().startsWith("PAT-") ? value : `PAT-${value}`
-  }
+  const formatPatientId = displayPatientId
 
   // Auto-hide the success banner after a few seconds.
   useEffect(() => {
@@ -348,7 +346,9 @@ function Patients() {
         const created = await api.patients.create(confirmNew ? { ...payload, confirm_new: true } : payload)
         setPatients((prev) => [mapFromApi(created), ...prev])
         setTotalRecords((n) => n + 1)
-        setSuccessMessage("Patient added successfully.")
+        setSuccessMessage(
+          created.uhid ? t("Patient registered. UHID {uhid}.", { uhid: created.uhid }) : t("Patient added successfully."),
+        )
       }
 
       closeForm()
@@ -725,6 +725,7 @@ function Patients() {
             </div>
             <DescriptionList
               items={[
+                { label: "UHID", value: viewPatient.uhid || t("Not issued") },
                 { label: "Age", value: viewPatient.age !== "" ? `${viewPatient.age} years` : "" },
                 { label: "Gender", value: viewPatient.gender },
                 { label: "Mobile", value: viewPatient.phone },

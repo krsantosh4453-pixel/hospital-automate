@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
+import { Link, useSearchParams } from "react-router-dom"
+import { useRole } from "../assets/context/RoleContext.jsx"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import Icd10Typeahead from "../components/clinical/Icd10Typeahead.jsx"
-import { CalendarClock, ClipboardList, FileText, HeartPulse, History, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Syringe, Trash2, UserRound } from "lucide-react"
+import { CalendarClock, ClipboardList, FilePlus2, FileText, HeartPulse, History, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Syringe, Trash2, UserRound } from "lucide-react"
 import {
   Alert,
   Avatar,
@@ -292,7 +294,11 @@ function Consultation() {
   const [visits, setVisits] = useState([])
   const [loadingVisits, setLoadingVisits] = useState(false)
   const [visitsError, setVisitsError] = useState("")
-  const [selectedVisitId, setSelectedVisitId] = useState("")
+  // ?visit=<id> (from the Prescription page's "Back to consultation") opens that visit.
+  const [searchParams] = useSearchParams()
+  const requestedVisitId = searchParams.get("visit") || ""
+  const [selectedVisitId, setSelectedVisitId] = useState(requestedVisitId)
+  const { canAdd } = useRole()
 
   // ---------------------------------------------------------
   // Clinical record state (for the selected visit)
@@ -1182,6 +1188,17 @@ function Consultation() {
                     <p className="text-ink-500">{t("Doctor")}</p>
                     <p className="font-medium text-ink-900">{selectedVisit.doctorName}</p>
                   </div>
+                  {/* F4: the prescription opens for this visit and patient; the server signs it as the doctor. */}
+                  {canAdd("Prescriptions") && (
+                    <Link
+                      to={`/prescription?visit=${selectedVisit.apiId}`}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 text-sm font-medium text-ink-800 hover:bg-ink-50"
+                      aria-label={t("Write a prescription for {patient}, visit {visit}", { patient: selectedVisit.patientName, visit: selectedVisit.apiId })}
+                    >
+                      <FilePlus2 size={16} aria-hidden="true" />
+                      {t("Write prescription")}
+                    </Link>
+                  )}
                   <div className="ml-auto w-full sm:w-52">
                     <label htmlFor="visit-status" className="sr-only">{t("Visit status")}</label>
                     <Select

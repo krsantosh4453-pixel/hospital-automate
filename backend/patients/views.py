@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -7,6 +8,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 
 from .models import Patient, PatientDocument, PatientHospital
 from .serializers import PatientSerializer, PatientHospitalSerializer
+from .uhid import ensure_uhid, next_uhid
 from audit.read_audit import audit_patient_read
 from audit.services import record_audit
 from users.care_scope import limit_to_patients_in_care
@@ -20,6 +22,7 @@ from users.permissions import (
     IsHospitalManager,
     IsHospitalManagerReadOnly,
     IsLabStaff,
+    IsPharmacist,
     IsPatientReadOnly,
     IsLinkedPatient,
     get_linked_patient,
@@ -61,7 +64,8 @@ class PatientViewSet(HospitalScopedViewSet):
             return [(IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
         if action_name == "lookup":
             # Finding a patient to order for; Lab Staff may not browse the list.
-            return [(IsLabStaff | IsReceptionist | IsDoctor | IsNurse | IsAdmin)()]
+            # Pharmacists find the patient named on a paper prescription (F13).
+            return [(IsLabStaff | IsPharmacist | IsReceptionist | IsDoctor | IsNurse | IsAdmin)()]
         if action_name == "timeline":
             # Clinical history: clinicians, and the patient for their own record.
             return [(IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
@@ -306,6 +310,16 @@ class PatientViewSet(HospitalScopedViewSet):
             status=status.HTTP_201_CREATED
         )
 
+    @transaction.atomic
+    def perform_create(self, serializer):
+        # F1: registration and the UHID succeed or fail together.
+        super().perform_create(serializer)
+        patient = serializer.instance
+        if patient.hospital_id:
+            membership, _ = ensure_uhid(patient, patient.hospital)
+            record_audit(self.request, "patients.uhid.issue", patient, hospital=patient.hospital_id,
+                         details={"uhid": membership.uhid})
+
     def _possible_duplicates(self, data, limit=5):
         """Patients at the acting hospitals with the same mobile number (B5)."""
         phone = data.get("phone")
@@ -352,3 +366,13 @@ class PatientHospitalViewSet(HospitalScopedViewSet):
             queryset = queryset.filter(hospital_id=hospital_id)
 
         return queryset
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        # F1: a blank UHID means "issue the next one" for that hospital.
+        extra = self._check_tenancy(serializer.validated_data)
+        hospital = serializer.validated_data.get("hospital") or extra.get("hospital")
+        if not serializer.validated_data.get("uhid") and hospital is not None:
+            extra["uhid"] = next_uhid(hospital)
+        instance = serializer.save(**extra)
+        self._audit("create", instance)

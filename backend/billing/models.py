@@ -29,8 +29,16 @@ class Invoice(models.Model):
         blank=True,
         related_name="invoices",
     )
+    # F9: set on the medicine bill of a prescription (billing/pharmacy_charges.py).
+    prescription = models.ForeignKey(
+        "clinical.Prescription",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invoices",
+    )
     invoice_number = models.CharField(max_length=50, unique=True)
-    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    discount =models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tax = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=30, default="Unpaid", db_index=True)
@@ -90,6 +98,15 @@ class InvoiceItem(models.Model):
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    # F9: the pharmacy sale this line bills. One line per sale, so a sale is
+    # never charged twice; the quantity drops when medicine is returned.
+    pharmacy_sale = models.OneToOneField(
+        "pharmacy.Sale",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="invoice_item",
+    )
 
     def __str__(self):
         return self.description
