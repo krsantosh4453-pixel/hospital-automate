@@ -113,6 +113,8 @@ MAX_SAFETY_CHECK_ITEMS = 50
 
 
 class PrescriptionViewSet(HospitalScopedViewSet):
+    # Restrictable on the Permissions page as "Prescriptions" (users/module_access.py).
+    access_module = "Prescriptions"
     queryset = Prescription.objects.select_related(
         "patient", "doctor", "hospital", "visit"
     ).prefetch_related("items")

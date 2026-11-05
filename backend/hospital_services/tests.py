@@ -202,3 +202,19 @@ class CreateFromScreenTests(ServicesCase):
                 self.assertEqual(first.status_code, 201, first.content)
                 self.assertEqual(first.json()["hospital"], self.hospital.id)
                 self.assertEqual(self.post(self.manager, path, body).status_code, 400)
+
+
+class DeskVisibilityTests(ServicesCase):
+    def test_nurses_see_calls_and_bodies_without_a_registered_patient(self):
+        trip = self.post(self.desk, "ambulance-trips/", {"caller_name": "Unknown caller", "caller_phone": "9000001009",
+                                                         "pickup": "Highway", "destination": "Emergency"})
+        self.assertEqual(trip.status_code, 201, trip.content)
+        rows = self.client_for(self.nurse).get(f"{API}/ambulance-trips/").json()
+        self.assertEqual([r["caller_name"] for r in rows.get("results", rows)], ["Unknown caller"])
+        body = self.post(self.manager, "mortuary/", {"deceased_name": "Unidentified male", "storage_unit": "C-9",
+                                                     "time_of_death": timezone.now().isoformat()})
+        self.assertEqual(body.status_code, 201, body.content)
+        record = self.client_for(self.nurse).get(f"{API}/mortuary/").json()
+        self.assertEqual([r["deceased_name"] for r in record.get("results", record)], ["Unidentified male"])
+        outsider = self.client_for(self.outsider, self.other).get(f"{API}/mortuary/").json()
+        self.assertEqual(outsider.get("results", outsider), [])

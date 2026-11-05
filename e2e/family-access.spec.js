@@ -74,3 +74,19 @@ test("an unknown number gets the same answer and cannot sign in", async ({ page 
   await expect(page.getByText(/invalid/i).first()).toBeVisible()
   await expect(page).not.toHaveURL(/\/patient$/)
 })
+
+test("patient chooses how the hospital may contact them, and the choice is kept (K7)", async ({ browser }) => {
+  const page = await (await browser.newContext()).newPage()
+  await patientSignsIn(page)
+  await page.goto("/patient/consent")
+  const sms = page.getByRole("checkbox", { name: "Text message (SMS)" })
+  // Enabled once the saved choices have loaded.
+  await expect(sms).toBeEnabled()
+  const wanted = !(await sms.isChecked())
+  await sms.setChecked(wanted)
+  await expect(sms).toBeChecked({ checked: wanted })
+  // Disabled while the choice is being saved.
+  await expect(sms).toBeEnabled()
+  await page.reload()
+  await expect(page.getByRole("checkbox", { name: "Text message (SMS)" })).toBeChecked({ checked: wanted })
+})

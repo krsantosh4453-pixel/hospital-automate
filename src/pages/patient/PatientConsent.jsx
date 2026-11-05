@@ -7,6 +7,8 @@ import { CircleCheckIcon, ClipboardListIcon, PenLineIcon, XIcon } from "lucide-r
 import { Alert, Card, SkeletonRows, useConfirm } from "../../components/ui"
 import FamilyAccessCard from "../../components/patient/FamilyAccessCard.jsx"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import { usePatient } from "../../assets/context/PatientContext.jsx"
+import NotificationPreferences from "../../components/notifications/NotificationPreferences.jsx"
 
 const SCOPE_LABELS = {
   visits: "Visit history",
@@ -32,6 +34,7 @@ function PatientConsent() {
   // A family member (proxy) may read this page but not sign, share or manage access.
   const { patient, isProxy } = useAuth()
   const { hospitals } = useHospitals()
+  const { selectedHospital } = usePatient() || {}
   const [consentForms, setConsentForms] = useState([])
   const [consentRecords, setConsentRecords] = useState([])
   const [shares, setShares] = useState([])
@@ -176,6 +179,9 @@ function PatientConsent() {
 
       {error && <Alert tone="danger" onDismiss={() => setError(null)}>{error}</Alert>}
       {notice && !error && <Alert tone="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
+
+      {/* K7: a family member cannot change the patient's contact choices. */}
+      {selectedHospital && !isProxy && <NotificationPreferences hospitalId={selectedHospital.id} />}
 
       {loading ? (
         <Card><SkeletonRows rows={3} /></Card>

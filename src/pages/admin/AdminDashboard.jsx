@@ -19,6 +19,7 @@ import { usePatient } from "../../assets/context/PatientContext.jsx"
 import { useRole } from "../../assets/context/RoleContext.jsx"
 import api from "../../services/api.js"
 import VoiceCallLog from "../../components/notifications/VoiceCallLog.jsx"
+import DeliveryLog from "../../components/notifications/DeliveryLog.jsx"
 import { Alert, Button, Card, CardHeader, EmptyState, PageHeader, StatTile } from "../../components/ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 import { describeAction, timeAgo } from "../../utils/activityText.js"
@@ -153,6 +154,7 @@ function AdminDashboard() {
               )}
             </Card>
           </div>
+          <DeliveryLog hospitalId={selectedHospital.id} />
           <VoiceCallLog hospitalId={selectedHospital.id} />
         </>
       )}

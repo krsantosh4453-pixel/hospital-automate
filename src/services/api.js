@@ -1877,6 +1877,18 @@ api.wardSetup = {
 }
 
 // Departments / clinics of a hospital (Admin or Manager write).
+// Admin narrowing of built-in roles per module at a hospital ("view" or "none").
+// Every staff member can read them; only an administrator changes them.
+api.roleRestrictions = {
+  list: async (hospitalId) => request(`${API_BASE_URL}/hospital/role-restrictions/${queryForHospital(hospitalId)}`),
+  create: async (data, hospitalId) =>
+    request(`${API_BASE_URL}/hospital/role-restrictions/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  update: async (id, data, hospitalId) =>
+    request(`${API_BASE_URL}/hospital/role-restrictions/${id}/${queryForHospital(hospitalId)}`, { method: "PATCH", ...jsonBody(data) }),
+  remove: async (id, hospitalId) =>
+    request(`${API_BASE_URL}/hospital/role-restrictions/${id}/${queryForHospital(hospitalId)}`, { method: "DELETE" }),
+}
+
 api.departments = {
   list: async (hospitalId) => {
     const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""

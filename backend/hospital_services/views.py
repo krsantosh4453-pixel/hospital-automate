@@ -63,6 +63,17 @@ class _ServiceViewSet(HospitalScopedViewSet):
     write = MANAGERS
     action_permissions = {}
     http_method_names = ["get", "post", "patch", "head", "options"]
+    # Hospital-wide desks (theatre list, ambulance calls, mortuary register)
+    # set this False: their staff handle cases outside their own patients, and
+    # rows without a registered patient must not vanish from doctors and nurses.
+    # Writes still check that the patient belongs to the hospital.
+    care_scoped = True
+
+    def get_queryset(self):
+        if self.care_scoped:
+            return super().get_queryset()
+        hospital_ids = self.get_acting_hospital_ids()
+        return self._base_queryset().filter(hospital_id__in=hospital_ids) if hospital_ids else self._base_queryset().none()
 
     def get_permissions(self):
         name = getattr(self, "action", None)
@@ -104,13 +115,7 @@ class OTBookingViewSet(_ServiceViewSet):
     write = MANAGERS | IsDoctor
     action_permissions = {"start": MANAGERS | IsDoctor | IsNurse, "complete": MANAGERS | IsDoctor | IsNurse}
     http_method_names = ["get", "post", "head", "options"]
-
-    def get_queryset(self):
-        # The theatre list is one schedule for the whole hospital: theatre
-        # nurses and anaesthetists work cases outside their own patients, so
-        # the per-patient care scope is not applied here (writes still are).
-        hospital_ids = self.get_acting_hospital_ids()
-        return self._base_queryset().filter(hospital_id__in=hospital_ids) if hospital_ids else OTBooking.objects.none()
+    care_scoped = False
 
     def perform_create(self, serializer):
         extra = self._check_tenancy(serializer.validated_data)
@@ -145,6 +150,7 @@ class AmbulanceTripViewSet(_ServiceViewSet):
     serializer_class = AmbulanceTripSerializer
     read = write = AMBULANCE_DESK
     http_method_names = ["get", "post", "head", "options"]
+    care_scoped = False
 
     def perform_create(self, serializer):
         extra = self._check_tenancy(serializer.validated_data)
@@ -174,6 +180,7 @@ class MortuaryRecordViewSet(_ServiceViewSet):
     read = write = MANAGERS | IsDoctor | IsNurse
     action_permissions = {"release": MANAGERS | IsDoctor}
     http_method_names = ["get", "post", "head", "options"]
+    care_scoped = False
 
     def perform_create(self, serializer):
         extra = self._check_tenancy(serializer.validated_data)

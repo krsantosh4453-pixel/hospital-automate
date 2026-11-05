@@ -231,7 +231,7 @@ class MARSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "ordered_by", "ordered_by_name", "created_at", "patient_name", "hospital_name",
                             "administrations"]
 
-    def get_ordered_by_name(self, obj):
+    def get_ordered_by_name(self, obj) -> str:
         user = obj.ordered_by
         return (user.get_full_name() or user.username) if user else ""
 

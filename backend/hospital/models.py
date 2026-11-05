@@ -116,3 +116,27 @@ class Bed(models.Model):
         indexes = [
             models.Index(fields=["room", "status"]),
         ]
+
+class RoleModuleRestriction(models.Model):
+    """
+    A hospital administrator's narrowing of a built-in role for one module:
+    "view" (read only) or "none" (no access). It can only take access away;
+    what a role may do at all is still defined in code. Admin cannot be
+    restricted. Enforced for every hospital-scoped API (users/module_access.py).
+    """
+
+    VIEW, NONE = "view", "none"
+
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE, related_name="role_restrictions")
+    role = models.CharField(max_length=30)
+    module = models.CharField(max_length=30)
+    access = models.CharField(max_length=4, choices=[(VIEW, "View only"), (NONE, "No access")])
+    created_by = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["role", "module"]
+        constraints = [models.UniqueConstraint(fields=["hospital", "role", "module"], name="one_restriction_per_role_module")]
+
+    def __str__(self):
+        return f"{self.role} / {self.module}: {self.access}"

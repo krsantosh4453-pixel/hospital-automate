@@ -1,6 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
+from .role_restrictions import RoleModuleRestrictionViewSet
+
 from .views import (
     HospitalViewSet,
     DepartmentViewSet,
@@ -17,6 +19,7 @@ router.register(r"departments", DepartmentViewSet, basename="department")
 router.register(r"wards", WardViewSet, basename="ward")
 router.register(r"rooms", RoomViewSet, basename="room")
 router.register(r"beds", BedViewSet, basename="bed")
+router.register(r"role-restrictions", RoleModuleRestrictionViewSet, basename="role-restriction")
 
 urlpatterns = [
     path("directory/", HospitalDirectoryView.as_view(), name="hospital-directory"),

@@ -216,7 +216,8 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # config.openapi_schema.HMSAutoSchema: plain APIViews are documented as JSON objects.
+    'DEFAULT_SCHEMA_CLASS': 'config.openapi_schema.HMSAutoSchema',
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.MultiPartParser',
