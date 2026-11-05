@@ -52,8 +52,8 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | A15 | Audit log viewer (admin only) | UI 3.1, 6 | VERIFIED | Admin → Audit log (`/admin/audit`): filters by action, record type, user and dates; newest first; read only | T:test_rbac_and_writes (AuditTrail), audit.tests.AuditLogFilterTests (5); browser 2026-10-28 |
 | A16 | Role-specific dashboards and navigation | UI 2, 3 | IMPLEMENTED | Sidebar uses `canView`; ProtectedRoute checks backend roles | B (Admin role only) |
 | A17 | Hindi / English toggle | UI 2, P1 | VERIFIED | Page text translated through the shared UI components (page headers, buttons, form labels/hints/placeholders, tabs, empty states, card/dialog titles, alerts, stat tiles, status badges, table headers, options with explicit values) and directly in page code, including dropdown options (each keeps its English value) and list-driven labels, using `src/assets/i18n/hiPages.js` (~1,900 strings), with `{placeholders}` for sentences with names or numbers and status values matched in any spelling. Patient data stays as entered; option values never change | hindiPages.test.jsx (6); Hindi probe over 30 routes 2026-11-03 (229 → 63 distinct English strings, mostly data) |
-| A18 | Breadcrumb bar | UI 2 | MISSING | — | — |
-| A19 | Patient context strip (sticky) | UI 2 | MISSING | — | — |
+| A18 | Breadcrumb bar | UI 2 | IMPLEMENTED (re-checked 2026-11-05) | One bar in the staff shell (Home > section > page) from `config/navigation.js` (`components/Breadcrumbs.jsx`, commit 32ae6b0); PageHeader keeps its own trail only on pages outside the menu | Existing page tests; seen in Playwright runs |
+| A19 | Patient context strip (sticky) | UI 2 | IMPLEMENTED (2026-11-05) | Sticky strip on Consultation (`PatientContextStrip.jsx`): UHID at this hospital (added 2026-11-05), age, sex, phone, ward/bed, allergies (a failed check says so) | `patients/test_uhid.py` (UHID of this hospital only) |
 | A20 | Global patient search (UHID / name / mobile) | UI 2, 6 | VERIFIED | `/api/patients/?search=` matches name, phone and the acting hospital's UHIDs (never another hospital's) | patients.tests (2 UHID tests); browser 2026-10-28 |
 | A21 | Notifications bell / notification center | UI 2, 6 | VERIFIED | Header bell (`HeaderMenus.jsx` NotificationsMenu) lists the hospital's notifications and marks them read | T:test_notifications; browser 2026-10-28 |
 
@@ -95,7 +95,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | ID | Requirement | Source | Status | Implementation | Evidence |
 |---|---|---|---|---|---|
 | D1 | Vitals (BP, temperature, pulse, RR, SpO2, height, weight, sugar) | P1 5.2, P4 1 | VERIFIED | VitalSign | T:test_e2e_workflows |
-| D2 | Extra vitals (BMI, urine output, AVPU, trauma, mobility, O2, intake/output), recorder | P4 1 | MISSING | — | — |
+| D2 | Extra vitals (BMI, urine output, AVPU, trauma, mobility, O2, intake/output), recorder | P4 1 | DONE (2026-11-05) | VitalSign: pain, GCS, AVPU, urine output (2026-10-28) plus fluid intake, oxygen device and flow (a flow needs a device), mobility, injuries (free text, no trauma score invented) and the recorder (server-set); BMI computed by the API | `clinical/test_vitals_immunizations.py`, Playwright `clinical-assist` |
 | D3 | Allergies | P1 5 | IMPLEMENTED | Allergy (now hospital-scoped) | T (isolation) |
 | D4 | Current medication / complaint / history and examination | P1 5 | VERIFIED | Clinical notes have structured sections: chief complaint, history of present illness, past history, current medications, examination, assessment, plan, plus free-text other notes (older notes keep working); at least one part required; sections shown in Consultation and the patient timeline | clinical.test_structured_notes (4); browser 2026-11-02 |
 | D5 | Diagnosis with ICD-10, type, responsible clinician | P1 6 | VERIFIED | Diagnosis.icd10_code, recorded_by | T:test_e2e_workflows |

@@ -12,6 +12,19 @@ class VitalSign(EnteredInError):
         PAIN = "P", "Responds to pain"
         UNRESPONSIVE = "U", "Unresponsive"
 
+    class OxygenDevice(models.TextChoices):
+        ROOM_AIR = "Room air", "Room air"
+        NASAL = "Nasal cannula", "Nasal cannula"
+        MASK = "Face mask", "Face mask"
+        NON_REBREATHER = "Non-rebreather mask", "Non-rebreather mask"
+        HIGH_FLOW = "High-flow nasal", "High-flow nasal"
+        VENTILATOR = "Ventilator", "Ventilator"
+
+    class Mobility(models.TextChoices):
+        INDEPENDENT = "Independent", "Independent"
+        ASSISTED = "With assistance", "With assistance"
+        BEDBOUND = "Bedbound", "Bedbound"
+
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -39,6 +52,15 @@ class VitalSign(EnteredInError):
     head_circumference = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="cm")
     muac = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Mid-upper arm circumference, cm")
     urine_output = models.PositiveIntegerField(null=True, blank=True, help_text="mL since the last reading")
+    # D2: intake/output, oxygen, mobility, injuries and who took the reading.
+    fluid_intake = models.PositiveIntegerField(null=True, blank=True, help_text="mL since the last reading")
+    oxygen_device = models.CharField(max_length=30, choices=OxygenDevice.choices, blank=True)
+    oxygen_flow = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True,
+                                      validators=[MinValueValidator(0), MaxValueValidator(80)], help_text="L/min")
+    mobility = models.CharField(max_length=20, choices=Mobility.choices, blank=True)
+    injuries = models.CharField(max_length=255, blank=True, help_text="Injuries or trauma seen, as written")
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name="+")
     comments = models.TextField(blank=True)
     recorded_at = models.DateTimeField(auto_now_add=True, db_index=True)
 

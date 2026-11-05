@@ -139,6 +139,12 @@ const mapVitalFromApi = (record) => ({
   headCircumference: record.head_circumference,
   muac: record.muac,
   urineOutput: record.urine_output,
+  fluidIntake: record.fluid_intake,
+  oxygenDevice: record.oxygen_device || "",
+  oxygenFlow: record.oxygen_flow,
+  mobility: record.mobility || "",
+  injuries: record.injuries || "",
+  recordedBy: record.recorded_by_name || "",
   comments: record.comments || "",
   recordedAt: record.recorded_at || null,
 })
@@ -225,8 +231,25 @@ const emptyVitalForm = {
   headCircumference: "",
   muac: "",
   urineOutput: "",
+  fluidIntake: "",
+  oxygenDevice: "",
+  oxygenFlow: "",
+  mobility: "",
+  injuries: "",
   comments: "",
 }
+
+// D2: values match VitalSign.OxygenDevice and VitalSign.Mobility on the server.
+const OXYGEN_DEVICES = ["Room air", "Nasal cannula", "Face mask", "Non-rebreather mask", "High-flow nasal", "Ventilator"]
+const MOBILITY_OPTIONS = ["Independent", "With assistance", "Bedbound"]
+
+// One line of the less common readings for the vitals table.
+const extraVitals = (vital, t) => [
+  vital.fluidIntake != null || vital.urineOutput != null ? `${t("In/Out")} ${vital.fluidIntake ?? "—"}/${vital.urineOutput ?? "—"} mL` : "",
+  vital.oxygenDevice ? `${t(vital.oxygenDevice)}${vital.oxygenFlow != null ? ` ${Number(vital.oxygenFlow)} L/min` : ""}` : "",
+  vital.mobility ? t(vital.mobility) : "",
+  vital.injuries,
+].filter(Boolean).join(" · ")
 
 const AVPU_OPTIONS = [
   { value: "", label: "—" },
@@ -518,6 +541,8 @@ function Consultation() {
       ["headCircumference", 20, 70, "Head circumference"],
       ["muac", 5, 60, "MUAC"],
       ["urineOutput", 0, 10000, "Urine output"],
+      ["fluidIntake", 0, 20000, "Fluid intake"],
+      ["oxygenFlow", 0, 80, "Oxygen flow"],
     ]
 
     for (const [field, min, max, label] of checks) {
@@ -545,7 +570,11 @@ function Consultation() {
         vitalForm[field] !== undefined
     )
 
-    if (!hasAnyValue && !vitalForm.avpu) {
+    if (vitalForm.oxygenFlow !== "" && ["", "Room air"].includes(vitalForm.oxygenDevice)) {
+      return "Choose the oxygen device for a flow rate."
+    }
+
+    if (!hasAnyValue && !vitalForm.avpu && !vitalForm.oxygenDevice && !vitalForm.mobility && !vitalForm.injuries.trim()) {
       return "Enter at least one vital sign value."
     }
 
@@ -586,6 +615,11 @@ function Consultation() {
       head_circumference: num(vitalForm.headCircumference),
       muac: num(vitalForm.muac),
       urine_output: num(vitalForm.urineOutput),
+      fluid_intake: num(vitalForm.fluidIntake),
+      oxygen_device: vitalForm.oxygenDevice,
+      oxygen_flow: num(vitalForm.oxygenFlow),
+      mobility: vitalForm.mobility,
+      injuries: vitalForm.injuries.trim(),
       comments: vitalForm.comments.trim(),
     }
 
@@ -643,6 +677,11 @@ function Consultation() {
       headCircumference: vital.headCircumference ?? "",
       muac: vital.muac ?? "",
       urineOutput: vital.urineOutput ?? "",
+      fluidIntake: vital.fluidIntake ?? "",
+      oxygenDevice: vital.oxygenDevice || "",
+      oxygenFlow: vital.oxygenFlow ?? "",
+      mobility: vital.mobility || "",
+      injuries: vital.injuries || "",
       comments: vital.comments || "",
     })
   }
@@ -1195,7 +1234,7 @@ function Consultation() {
                       {bmiOf(vitalForm.weight, vitalForm.height) && (
                         <p className="text-sm text-ink-600">{t("BMI")}{" "}<span className="font-medium tabular-nums text-ink-900">{bmiOf(vitalForm.weight, vitalForm.height)}</span></p>
                       )}
-                      <details className="rounded-lg border border-ink-200 px-3 py-2" open={Boolean(editingVital && (vitalForm.painScore !== "" || vitalForm.gcs !== "" || vitalForm.avpu || vitalForm.headCircumference !== "" || vitalForm.muac !== "" || vitalForm.urineOutput !== ""))}>
+                      <details className="rounded-lg border border-ink-200 px-3 py-2" open={Boolean(editingVital && (vitalForm.painScore !== "" || vitalForm.gcs !== "" || vitalForm.avpu || vitalForm.headCircumference !== "" || vitalForm.muac !== "" || vitalForm.urineOutput !== "" || vitalForm.fluidIntake !== "" || vitalForm.oxygenDevice || vitalForm.mobility || vitalForm.injuries))}>
                         <summary className="cursor-pointer text-sm font-medium text-ink-700">{t("More vitals")}</summary>
                         <div className="mt-3 grid grid-cols-2 gap-3">
                           <Field label="Pain score (0–10)"><Input type="number" min="0" max="10" inputMode="numeric" value={vitalForm.painScore} onChange={setVital("painScore")} /></Field>
@@ -1208,6 +1247,21 @@ function Consultation() {
                           <Field label="Urine output (mL)"><Input type="number" inputMode="numeric" value={vitalForm.urineOutput} onChange={setVital("urineOutput")} /></Field>
                           <Field label="Head circ. (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.headCircumference} onChange={setVital("headCircumference")} /></Field>
                           <Field label="MUAC (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.muac} onChange={setVital("muac")} /></Field>
+                          <Field label="Fluid intake (mL)"><Input type="number" inputMode="numeric" value={vitalForm.fluidIntake} onChange={setVital("fluidIntake")} /></Field>
+                          <Field label="Mobility">
+                            <Select value={vitalForm.mobility} onChange={setVital("mobility")}>
+                              <option value="">—</option>
+                              {MOBILITY_OPTIONS.map((o) => <option key={o} value={o}>{t(o)}</option>)}
+                            </Select>
+                          </Field>
+                          <Field label="Oxygen">
+                            <Select value={vitalForm.oxygenDevice} onChange={setVital("oxygenDevice")}>
+                              <option value="">—</option>
+                              {OXYGEN_DEVICES.map((o) => <option key={o} value={o}>{t(o)}</option>)}
+                            </Select>
+                          </Field>
+                          <Field label="O₂ flow (L/min)"><Input type="number" step="0.5" min="0" max="80" inputMode="decimal" value={vitalForm.oxygenFlow} onChange={setVital("oxygenFlow")} /></Field>
+                          <Field label="Injuries / trauma" className="col-span-2"><Input value={vitalForm.injuries} onChange={setVital("injuries")} placeholder={t("e.g. Abrasion left forearm")} /></Field>
                         </div>
                       </details>
                       <Field label="Comments"><Textarea value={vitalForm.comments} onChange={setVital("comments")} /></Field>
@@ -1243,6 +1297,7 @@ function Consultation() {
                               <th scope="col" className="num">{t("BMI")}</th>
                               <th scope="col" className="num">{t("Pain")}</th>
                               <th scope="col">{t("GCS / AVPU")}</th>
+                              <th scope="col">{t("Other")}</th>
                               <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                             </tr>
                           </thead>
@@ -1261,6 +1316,10 @@ function Consultation() {
                                 <td className="num">{show(bmiOf(vital.weight, vital.height))}</td>
                                 <td className="num">{show(vital.painScore)}</td>
                                 <td className="whitespace-nowrap">{[vital.gcs, vital.avpu].filter((v) => v !== null && v !== undefined && v !== "").join(" · ") || "—"}</td>
+                                <td className="min-w-[10rem] text-xs text-ink-600">
+                                  {extraVitals(vital, t) || "—"}
+                                  {vital.recordedBy && <span className="block text-ink-400">{t("by {name}", { name: vital.recordedBy })}</span>}
+                                </td>
                                 <td><RowActions label="vital signs" onEdit={() => handleEditVitals(vital)} onDelete={() => handleDeleteVitals(vital)} /></td>
                               </tr>
                             ))}

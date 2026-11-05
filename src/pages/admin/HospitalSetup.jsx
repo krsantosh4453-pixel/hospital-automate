@@ -9,6 +9,7 @@ import WardBedsForm from "../../components/admin/WardBedsForm.jsx"
 import api from "../../services/api.js"
 import { Alert, Badge, Button, Card, CardBody, CardHeader, Field, Input, PageHeader, Select } from "../../components/ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import { withNodes } from "../../utils/withNodes.jsx"
 
 const STEPS = [
   { title: "Hospital", icon: Building2 },
@@ -225,8 +226,9 @@ function WardsStep({ hospitalId, wards, onChange }) {
         }}
       />
       <p className="text-[13px] text-ink-500">
-        {t("Beds can be renamed or put under maintenance later on the")}{" "}
-        <Link to="/ipd" className="text-brand-700 hover:underline">{t("IPD")}</Link>{" "}{t("page.")}
+        {withNodes(t("Beds can be renamed or put under maintenance later on the {link} page."), {
+          link: <Link to="/ipd" className="text-brand-700 hover:underline">{t("IPD")}</Link>,
+        })}
       </p>
     </div>
   )
@@ -300,8 +302,9 @@ function HospitalSetup() {
 
       {last && invitedCount > 0 && (
         <Alert tone="info">
-          {t(invitedCount === 1 ? "{count} person was invited. Manage everyone's roles on the" : "{count} people were invited. Manage everyone's roles on the", { count: invitedCount })}{" "}
-          <Link to="/admin/users" className="font-medium underline">{t("Users")}</Link>{" "}{t("page.")}
+          {withNodes(t(invitedCount === 1 ? "{count} person was invited. Manage everyone's roles on the {link} page." : "{count} people were invited. Manage everyone's roles on the {link} page.", { count: invitedCount }), {
+            link: <Link to="/admin/users" className="font-medium underline">{t("Users")}</Link>,
+          })}
         </Alert>
       )}
 

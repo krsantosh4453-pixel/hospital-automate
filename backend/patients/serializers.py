@@ -3,10 +3,14 @@ from .models import Patient, PatientHospital
 
 
 class PatientSerializer(serializers.ModelSerializer):
+    # A19: the patient's UHID at the hospital being acted in (blank if none).
+    uhid = serializers.SerializerMethodField()
+
     class Meta:
         model = Patient
         fields = [
             "id",
+            "uhid",
             "name",
             "age",
             "gender",
@@ -35,7 +39,17 @@ class PatientSerializer(serializers.ModelSerializer):
             "phone_verified",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at", "email_verified", "phone_verified"]
+        read_only_fields = ["id", "uhid", "created_at", "email_verified", "phone_verified"]
+
+    def get_uhid(self, obj) -> str:
+        hospital = self.context.get("scoped_hospital")
+        if hospital is None or not obj.pk:
+            return ""
+        memberships = getattr(obj, "_prefetched_objects_cache", {}).get("hospital_memberships")
+        if memberships is not None:
+            return next((m.uhid for m in memberships if m.hospital_id == hospital.pk and m.is_active), "")
+        row = obj.hospital_memberships.filter(hospital=hospital, is_active=True).values_list("uhid", flat=True).first()
+        return row or ""
 
     def validate_name(self, value):
         if not value or not value.strip():

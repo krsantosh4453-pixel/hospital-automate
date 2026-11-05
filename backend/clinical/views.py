@@ -47,9 +47,16 @@ from users.permissions import (
 
 
 class VitalSignViewSet(HospitalScopedViewSet):
-    queryset = VitalSign.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-recorded_at", "-id")
+    queryset = VitalSign.objects.select_related(
+        "visit", "visit__patient", "visit__doctor", "visit__hospital", "recorded_by").order_by("-recorded_at", "-id")
     serializer_class = VitalSignSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
+
+    def perform_create(self, serializer):
+        # D2: the login that took the reading, never sent by the client.
+        extra = self._check_tenancy(serializer.validated_data)
+        instance = serializer.save(recorded_by=self.request.user, **extra)
+        self._audit("create", instance)
 
 
 class AllergyViewSet(HospitalScopedViewSet):

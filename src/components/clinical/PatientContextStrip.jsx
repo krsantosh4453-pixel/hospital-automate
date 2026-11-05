@@ -5,7 +5,7 @@ import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Who the open record belongs to, kept in view while charting (A19):
 // age, sex, phone, ward/bed when admitted and allergies, so the safety facts
-// never scroll away. UHID is not shown: doctors cannot read it yet.
+// never scroll away, with the UHID at this hospital.
 
 const readResults = (data) => (Array.isArray(data) ? data : data?.results || [])
 
@@ -53,6 +53,7 @@ export default function PatientContextStrip({ patientId }) {
 
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line px-5 py-2.5 text-[13px]" aria-label={t("Patient summary")}>
+      {patient?.uhid && <span className="font-semibold tabular-nums text-ink-900">{t("UHID")} {patient.uhid}</span>}
       {facts.length > 0 && <span className="font-medium text-ink-800">{facts.join(" · ")}</span>}
       {patient?.phone && (
         <span className="inline-flex items-center gap-1.5 text-ink-600 tabular-nums">

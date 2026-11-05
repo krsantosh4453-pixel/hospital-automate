@@ -4,6 +4,7 @@ import { BrandMark } from "../components/Sidebar.jsx"
 import api from "../services/api.js"
 import { Alert, Button, Field, Input } from "../components/ui"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
+import { withNodes } from "../utils/withNodes.jsx"
 
 /**
  * Opened from a staff invitation link: shows who it is for and lets the
@@ -69,7 +70,7 @@ function StaffInvite() {
             {done ? (
               <>
                 <Alert tone="success">
-                  {t("Your password is set. Sign in with username")}{" "}<strong>{invite.username}</strong>.
+                  {withNodes(t("Your password is set. Sign in with username {username}."), { username: <strong>{invite.username}</strong> })}
                 </Alert>
                 <Link
                   to="/staff-login"

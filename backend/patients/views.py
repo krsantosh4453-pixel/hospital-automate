@@ -46,7 +46,7 @@ def _masked_phone(phone):
 
 
 class PatientViewSet(HospitalScopedViewSet):
-    queryset = Patient.objects.select_related("hospital")
+    queryset = Patient.objects.select_related("hospital").prefetch_related("hospital_memberships")
     serializer_class = PatientSerializer
     permission_classes = [
         IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsPatientReadOnly | IsHospitalManagerReadOnly | IsBillingStaffReadOnly

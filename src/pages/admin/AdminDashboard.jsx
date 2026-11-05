@@ -21,26 +21,10 @@ import api from "../../services/api.js"
 import VoiceCallLog from "../../components/notifications/VoiceCallLog.jsx"
 import { Alert, Button, Card, CardHeader, EmptyState, PageHeader, StatTile } from "../../components/ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import { describeAction, timeAgo } from "../../utils/activityText.js"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 
-function timeAgo(value) {
-  const then = new Date(value).getTime()
-  if (!Number.isFinite(then)) return ""
-  const mins = Math.round((Date.now() - then) / 60000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return `${mins} min ago`
-  const hrs = Math.round(mins / 60)
-  if (hrs < 24) return `${hrs} h ago`
-  return new Date(value).toLocaleDateString("en-IN")
-}
-
-// "ipd.discharge_summary.finalize" -> "Discharge summary finalize"
-const describeAction = (action) => {
-  const parts = String(action || "").split(".")
-  const text = (parts.length > 1 ? parts.slice(1) : parts).join(" ").replace(/_/g, " ")
-  return text.charAt(0).toUpperCase() + text.slice(1)
-}
 
 const MODULES = [
   { to: "/admin/setup", icon: Hospital, title: "Hospital setup", text: "New hospital, wards, beds and staff", module: "Users" },
@@ -157,11 +141,11 @@ function AdminDashboard() {
                 <ol className="divide-y divide-ink-100">
                   {data.audit.map((entry) => (
                     <li key={entry.id} className="px-5 py-3">
-                      <p className="text-sm font-medium text-ink-900">{describeAction(entry.action)}</p>
+                      <p className="text-sm font-medium text-ink-900">{describeAction(entry.action, t)}</p>
                       <p className="text-xs text-ink-500">
                         {entry.model_name}
                         {entry.object_id ? ` #${entry.object_id}` : ""}
-                        {entry.username ? ` · ${entry.username}` : entry.user ? ` · user ${entry.user}` : ""} · {timeAgo(entry.created_at)}
+                        {entry.username ? ` · ${entry.username}` : entry.user ? ` · user ${entry.user}` : ""} · {timeAgo(entry.created_at, t)}
                       </p>
                     </li>
                   ))}

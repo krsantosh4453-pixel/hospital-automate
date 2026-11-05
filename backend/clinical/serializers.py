@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from config.hospital_time import hospital_today
 
 from django.db import transaction
@@ -47,6 +49,9 @@ def _patient_belongs_to_hospital(patient, hospital):
 
 
 class VitalSignSerializer(serializers.ModelSerializer):
+    bmi = serializers.SerializerMethodField()
+    recorded_by_name = serializers.SerializerMethodField()
+
     class Meta:
         model = VitalSign
         fields = [
@@ -67,10 +72,36 @@ class VitalSignSerializer(serializers.ModelSerializer):
             "head_circumference",
             "muac",
             "urine_output",
+            "fluid_intake",
+            "oxygen_device",
+            "oxygen_flow",
+            "mobility",
+            "injuries",
+            "bmi",
+            "recorded_by",
+            "recorded_by_name",
             "comments",
             "recorded_at",
         ]
-        read_only_fields = ["id", "recorded_at"]
+        read_only_fields = ["id", "bmi", "recorded_by", "recorded_by_name", "recorded_at"]
+
+    def get_bmi(self, obj):
+        """kg / m^2 to one decimal, from this reading's weight and height (cm)."""
+        if not obj.weight or not obj.height:
+            return None
+        metres = Decimal(obj.height) / 100
+        return float(round(Decimal(obj.weight) / (metres * metres), 1))
+
+    def get_recorded_by_name(self, obj) -> str:
+        user = obj.recorded_by
+        return (user.get_full_name() or user.username) if user else ""
+
+    def validate(self, attrs):
+        device = attrs.get("oxygen_device", getattr(self.instance, "oxygen_device", ""))
+        flow = attrs.get("oxygen_flow", getattr(self.instance, "oxygen_flow", None))
+        if flow and device in ("", VitalSign.OxygenDevice.ROOM_AIR):
+            raise serializers.ValidationError({"oxygen_flow": "Give the oxygen device for a flow rate."})
+        return attrs
 
 
 class AllergySerializer(serializers.ModelSerializer):

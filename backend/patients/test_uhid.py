@@ -79,3 +79,26 @@ class UhidUniquenessTests(TestCase):
         out = StringIO()
         call_command("report_duplicate_uhids", stdout=out)
         self.assertIn("No duplicate UHIDs", out.getvalue())
+
+
+class UhidShownToStaffTests(TestCase):
+    """A19: the patient record carries the UHID of the hospital being acted in, and only that one."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.hospital = Hospital.objects.create(name="Synthetic UHID Show A", is_active=True)
+        cls.other = Hospital.objects.create(name="Synthetic UHID Show B", is_active=True)
+        cls.patient = Patient.objects.create(name="Synthetic Shown", age=40, gender="Male", phone="9000000511",
+                                             hospital=cls.hospital)
+        PatientHospital.objects.create(patient=cls.patient, hospital=cls.hospital, uhid="A-511")
+        PatientHospital.objects.create(patient=cls.patient, hospital=cls.other, uhid="B-511")
+        cls.reception, _ = make_staff("uhid_show_desk", cls.hospital, role=StaffRole.RECEPTIONIST)
+
+    def test_detail_and_list_show_this_hospitals_uhid_only(self):
+        client = APIClient(raise_request_exception=False)
+        client.force_authenticate(self.reception)
+        client.credentials(HTTP_X_HOSPITAL_ID=str(self.hospital.id))
+        self.assertEqual(client.get(f"/api/patients/{self.patient.id}/").json()["uhid"], "A-511")
+        listed = client.get(f"/api/patients/?hospital={self.hospital.id}").json()
+        rows = listed.get("results", listed)
+        self.assertEqual([r["uhid"] for r in rows if r["id"] == self.patient.id], ["A-511"])
