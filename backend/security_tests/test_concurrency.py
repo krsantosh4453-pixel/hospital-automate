@@ -240,6 +240,39 @@ class ConcurrentWriteTests(WardMixin, TransactionTestCase):
         self.assertEqual(medicine.quantity, 90)
         self.assertEqual(Sale.objects.filter(prescription=prescription).count(), 1)
 
+    def test_parallel_partial_dispenses_never_issue_more_than_prescribed(self):
+        # 10 prescribed; eight counters each try to issue 4 now.
+        user, medicine, [(prescription, item)] = self.dispense_setup(prescriptions=1, stock=100)
+
+        def partial(i):
+            client = APIClient()
+            client.force_authenticate(user)
+            client.credentials(HTTP_X_HOSPITAL_ID=str(self.hospital.id))
+            return client.post("/api/pharmacy-sales/dispense-prescription/", {
+                "prescription": prescription.id, "partial": True,
+                "lines": [{"item": item.id, "medicine": medicine.id, "quantity": 4}],
+            }, format="json").status_code
+
+        statuses = run_together(partial)
+
+        self.assertEqual((statuses.count(201), statuses.count(400)), (2, THREADS - 2), statuses)
+        medicine.refresh_from_db()
+        self.assertEqual(medicine.quantity, 92)
+
+    def test_parallel_returns_never_take_back_more_than_was_sold(self):
+        from pharmacy.dispensing import record_return
+        from pharmacy.models import SaleReturn
+
+        user, medicine, [(prescription, item)] = self.dispense_setup(prescriptions=1, stock=100)
+        self.assertEqual(self.dispense(user, prescription, item, medicine), 201)
+        sale = Sale.objects.get(prescription=prescription)
+
+        results = run_together(lambda i: record_return(sale, 3, "Course stopped", restock=True))
+
+        self.assertEqual(len([r for r in results if isinstance(r, SaleReturn)]), 3, results)
+        medicine.refresh_from_db()
+        self.assertEqual(medicine.quantity, 99)  # 100 - 10 + 9
+
     def test_parallel_dispenses_never_oversell_and_roll_back_cleanly(self):
         # Stock for two prescriptions of 10; eight pharmacists try at once.
         user, medicine, rx_items = self.dispense_setup(prescriptions=THREADS, stock=25)

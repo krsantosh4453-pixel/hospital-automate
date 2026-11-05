@@ -50,3 +50,33 @@ describe("missingBatches", () => {
     expect(missingBatches(items, { 10: 1, 11: "" })).toEqual(["Amoxicillin"])
   })
 })
+
+describe("substitutes and partial dispensing", () => {
+  const shelf = [
+    { id: 1, name: "Crocin 500", genericName: "Paracetamol", batch: "C1", stock: 2, expiry: "12/2027" },
+    { id: 2, name: "Dolo 500", genericName: " paracetamol", batch: "D1", stock: 50, expiry: "12/2027" },
+    { id: 3, name: "Brufen 400", genericName: "Ibuprofen", batch: "B1", stock: 50, expiry: "12/2027" },
+  ]
+  const item = { id: 9, name: "Crocin 500", quantity: 10, dispensed: 4 }
+
+  it("offers only other brands of the same salt as substitutes", async () => {
+    const { substituteBatches } = await import("../utils/dispenseBatches.js")
+    expect(substituteBatches(shelf, "Crocin 500", TODAY).map((b) => b.id)).toEqual([2])
+    expect(substituteBatches([{ ...shelf[0], genericName: "" }, shelf[1]], "Crocin 500", TODAY)).toEqual([])
+  })
+
+  it("starts from the remaining quantity and sends a partial request when less is given", async () => {
+    const { buildDispenseRequest, defaultLines } = await import("../utils/dispenseBatches.js")
+    expect(defaultLines([item], shelf, TODAY)[9].quantity).toBe(6)
+    const lines = { 9: { batch: 1, quantity: 2, reason: "" } }
+    expect(buildDispenseRequest(5, [item], lines, shelf)).toEqual({
+      body: { prescription: 5, partial: true, lines: [{ item: 9, medicine: 1, quantity: 2 }] },
+    })
+  })
+
+  it("needs a reason for a substitute and refuses more than is owed", async () => {
+    const { buildDispenseRequest } = await import("../utils/dispenseBatches.js")
+    const result = buildDispenseRequest(5, [item], { 9: { batch: 2, quantity: 7, reason: "" } }, shelf)
+    expect(result.problems).toEqual(["Crocin 500: at most 6", "Crocin 500: give the reason for the substitute"])
+  })
+})

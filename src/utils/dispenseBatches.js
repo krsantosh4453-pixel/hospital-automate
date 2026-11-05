@@ -60,3 +60,61 @@ export function defaultBatches(items, medicines, today = new Date()) {
 export function missingBatches(items, chosen) {
   return items.filter((item) => !chosen[item.id]).map((item) => item.name)
 }
+
+const saltOf = (medicine) => String(medicine?.genericName || "").trim().toLowerCase().split(/\s+/).join(" ")
+
+/**
+ * Quantity of a prescription item not yet dispensed.
+ * @param {{quantity: number, dispensed?: number}} item
+ */
+export const remainingOf = (item) => Math.max(Number(item.quantity || 0) - Number(item.dispensed || 0), 0)
+
+/**
+ * Unexpired batches of other brands with the same salt as the prescribed
+ * medicine (F8). Empty when the prescribed brand's salt is not recorded:
+ * the server then refuses any substitute.
+ */
+export function substituteBatches(medicines, name, today = new Date()) {
+  const salts = new Set(medicines.filter((m) => sameName(m.name, name)).map(saltOf).filter(Boolean))
+  if (salts.size === 0) return []
+  const others = medicines.filter((m) => !sameName(m.name, name) && salts.has(saltOf(m)))
+  return [...new Set(others.map((m) => m.name.trim().toLowerCase()))]
+    .flatMap((brand) => usableBatches(others, brand, today))
+}
+
+/**
+ * Item id -> { batch, quantity, reason }: the batch defaultBatches would pick
+ * and the whole remaining quantity.
+ */
+export function defaultLines(items, medicines, today = new Date()) {
+  const owed = items.map((item) => ({ ...item, quantity: remainingOf(item) }))
+  const batches = defaultBatches(owed, medicines, today)
+  return Object.fromEntries(owed.map((item) => [item.id, { batch: batches[item.id], quantity: item.quantity, reason: "" }]))
+}
+
+/**
+ * The dispense-prescription request body, or { problems } to show instead.
+ * Lines with quantity 0 are left for later; anything short of the whole
+ * remaining quantity is sent as a partial dispense.
+ */
+export function buildDispenseRequest(prescriptionId, items, lines, medicines) {
+  const problems = []
+  const body = []
+  let partial = false
+  for (const item of items) {
+    const owed = remainingOf(item)
+    if (owed === 0) continue
+    const line = lines[item.id] || {}
+    const quantity = Number(line.quantity || 0)
+    if (quantity < owed) partial = true
+    if (quantity === 0) continue
+    if (quantity > owed) problems.push(`${item.name}: at most ${owed}`)
+    if (!line.batch) problems.push(`${item.name}: choose a stock batch`)
+    const chosen = medicines.find((m) => String(m.id) === String(line.batch))
+    const substitute = chosen && !sameName(chosen.name, item.name)
+    if (substitute && !String(line.reason || "").trim()) problems.push(`${item.name}: give the reason for the substitute`)
+    body.push({ item: item.id, medicine: Number(line.batch), quantity, ...(substitute ? { substitute_reason: line.reason.trim() } : {}) })
+  }
+  if (body.length === 0) problems.push("Enter a quantity for at least one medicine")
+  return problems.length ? { problems } : { body: { prescription: prescriptionId, partial, lines: body } }
+}

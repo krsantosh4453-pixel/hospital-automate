@@ -1433,7 +1433,8 @@ const api = {
           }),
 
         // POST /api/pharmacy-sales/dispense-prescription/
-        // { prescription, lines: [{ item, medicine }] }: all medicines or none.
+        // { prescription, partial?, lines: [{ item, medicine, quantity?, substitute_reason? }] }:
+        // every line in the request or none; partial: true leaves the rest for later.
         dispensePrescription: async (data) =>
           request(`${API_BASE_URL}/pharmacy-sales/dispense-prescription/`, {
             method: 'POST',
@@ -1442,6 +1443,10 @@ const api = {
             },
             body: JSON.stringify(data),
           }),
+
+        // POST /api/pharmacy-sales/<id>/return/ { quantity, reason, restock } — pharmacist (F5)
+        returnSale: async (saleId, data) =>
+          request(`${API_BASE_URL}/pharmacy-sales/${saleId}/return/`, { method: 'POST', ...jsonBody(data) }),
       },
     },
   },

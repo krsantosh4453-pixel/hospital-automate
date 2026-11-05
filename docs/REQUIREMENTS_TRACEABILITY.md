@@ -135,10 +135,10 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | F2 | Stock deduction with ledger | P2 7 | VERIFIED | StockTransaction OUT / IN / ADJUST | T:test_financial_integrity |
 | F3 | Batch and expiry tracking; expired batches blocked | P2 4 | VERIFIED | Expired sale refused | T |
 | F4 | OPD sale | P2 4 | VERIFIED | Server-side price | T |
-| F5 | OPD / IPD returns | P2 4 | MISSING | — | — |
+| F5 | OPD / IPD returns | P2 4 | DONE (2026-11-05) | `pharmacy/dispensing.record_return`: return against a sale (sale row locked, never more than sold), restocked only when the pharmacist confirms it is fit and the batch is unexpired (stock ledger entry), else recorded as discarded; refund amount recorded; pharmacist/manager/admin only; audited. Pharmacy page "Medicine returns" card | `pharmacy/test_returns_substitutes.py`, PostgreSQL race test, `saleReturns.test.jsx`, Playwright `pharmacy` |
 | F6 | Barcode scan | P2 4 | VERIFIED | Laboratory → Print sample label (Code 39 barcode of the sample number, patient, test, tube) and Scan sample: a USB/handheld scanner's code (or typed number) finds the order at this hospital and offers its next step. The lab worklist now loads for Lab Staff (patient list optional) | laboratory.test_sample_scan (4), code39.test.js (4); browser 2026-10-28. Not tried with a physical scanner |
 | F7 | Drug interaction / contraindication alerts | P2 4 | PARTIAL | Phase A (2026-11-03): allergy (incl. drug classes), duplicate salt and a starter list of 8 interactions at prescribing; high alerts need a recorded, audited reason (`clinical/medication_safety.py`). Starter list pending P&T approval; no licensed drug database, no dose checks. | T:clinical/test_medication_safety, E2E `medication-safety.spec.js` |
-| F8 | Generic / substitute | P2 4 | MISSING | — | — |
+| F8 | Generic / substitute | P2 4 | DONE (2026-11-05) | Same-salt brand only (salt from the prescribed brand's catalogue entry; refused if unknown or different), pharmacist only, reason required, recorded on the sale and audited. Partial dispensing (`partial: true`) issues part now and the rest later, never more than prescribed, prescription row locked | `pharmacy/test_returns_substitutes.py`, PostgreSQL race test, `dispenseBatches.test.js`, Playwright `pharmacy` |
 
 ## G. Laboratory and radiology
 

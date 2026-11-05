@@ -170,9 +170,17 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
 
 
 class PrescriptionItemSerializer(serializers.ModelSerializer):
+    # Issued so far by the pharmacy; the rest can still be dispensed.
+    dispensed_quantity = serializers.SerializerMethodField()
+
     class Meta:
         model = PrescriptionItem
-        fields = ["id", "name", "dosage", "frequency", "duration", "quantity", "instructions"]
+        fields = ["id", "name", "dosage", "frequency", "duration", "quantity", "instructions", "dispensed_quantity"]
+
+    def get_dispensed_quantity(self, obj) -> int:
+        if not obj.pk:
+            return 0
+        return sum(sale.quantity for sale in obj.pharmacy_sales.all())
 
     def validate_name(self, value):
         if not value or not value.strip():

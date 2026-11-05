@@ -217,7 +217,8 @@ export function PharmacyProvider({ children }) {
     const response = await api.pharmacy.sales.dispensePrescription(payload)
     const created = (response?.sales || []).map(mapSaleFromApi)
     setSales((prev) => [...created, ...prev])
-    return created
+    // status is "Dispensed" or "Partially Dispensed"; issued lists the raw sale rows.
+    return { status: response?.status, remaining: response?.remaining || {}, issued: response?.sales || [] }
   }, [])
 
   // =====================================

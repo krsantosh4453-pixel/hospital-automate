@@ -44,6 +44,7 @@ const mapPrescriptionFromApi = (record) => ({
     frequency: item.frequency,
     duration: item.duration,
     quantity: item.quantity,
+    dispensed: item.dispensed_quantity || 0,
     instructions: item.instructions,
   })),
 })

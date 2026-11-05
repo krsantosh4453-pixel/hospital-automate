@@ -102,3 +102,49 @@ test("a prescription with two medicines is dispensed in one step", async ({ brow
   await expect(stockCell(pharmacist, first)).toHaveText("18")
   await expect(stockCell(pharmacist, second)).toHaveText("25")
 })
+
+test("short stock: part now, a same-salt brand for the rest, then a return", async ({ browser }) => {
+  test.setTimeout(90000)
+  const brand = `Tab Crocin 500 E2E${RUN}`
+  const generic = `Tab Dolo 500 E2E${RUN}`
+  const pharmacist = await (await browser.newContext()).newPage()
+  await signInAs(pharmacist, "demo.pharmacist")
+  await pharmacist.goto("/pharmacy")
+  await addMedicine(pharmacist, brand, "paracetamol", "2")
+  await addMedicine(pharmacist, generic, "paracetamol", "50")
+  await expect(stockCell(pharmacist, generic)).toHaveText("50")
+
+  const doctor = await (await browser.newContext()).newPage()
+  await signInAs(doctor, "demo.doctor1")
+  const rx = await prescribe(doctor, [[brand, "5"]])
+
+  await pharmacist.getByPlaceholder("RX-2026-001").fill(rx)
+  await pharmacist.getByRole("button", { name: "Search Prescription" }).click()
+  const batch = pharmacist.getByLabel(`Stock batch for ${brand}`)
+  // Only 2 of the prescribed brand: give those now.
+  await batch.selectOption(await batch.locator("option", { hasText: "2 in stock" }).getAttribute("value"))
+  await pharmacist.getByLabel("Give now").fill("2")
+  await pharmacist.getByRole("button", { name: "Dispense Prescription" }).click()
+  await expect(pharmacist.getByText(`Part of prescription ${rx} dispensed; the rest can be given later.`)).toBeVisible()
+  await expect(pharmacist.getByText("Already given: 2 · Still to give: 3")).toBeVisible()
+
+  // The rest from the same-salt brand, with the pharmacist's reason.
+  await batch.selectOption(await batch.locator("option", { hasText: generic }).getAttribute("value"))
+  await pharmacist.getByLabel(`Why ${generic} instead of ${brand}?`).fill("Prescribed brand out of stock")
+  await pharmacist.getByRole("button", { name: "Dispense Prescription" }).click()
+  await expect(pharmacist.getByText(`Prescription ${rx} dispensed successfully.`)).toBeVisible()
+  await expect(stockCell(pharmacist, generic)).toHaveText("47")
+
+  // The patient brings one sealed strip back.
+  await pharmacist.getByPlaceholder("Search patient, medicine or SALE-number").fill(generic)
+  const sale = pharmacist.getByRole("row", { name: new RegExp(generic) }).filter({ hasText: `Instead of ${brand}` })
+  await sale.getByRole("button", { name: "Return" }).click()
+  const dialog = pharmacist.getByRole("dialog", { name: "Return medicine" })
+  await dialog.getByLabel(/^Quantity returned/).fill("1")
+  await dialog.getByLabel(/^Reason/).fill("Course stopped by doctor")
+  await dialog.getByLabel("Sealed and fit to give again: put back in stock").check()
+  await dialog.getByRole("button", { name: "Record return" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(sale.getByRole("cell").nth(4)).toHaveText("1")
+  await expect(stockCell(pharmacist, generic)).toHaveText("48")
+})

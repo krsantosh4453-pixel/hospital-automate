@@ -6,7 +6,13 @@ import { AlarmClockIcon, CheckIcon, HospitalIcon, PillIcon, ReceiptIcon, SearchI
 import { useToast } from "../components/Toast.jsx"
 import { Alert, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, useConfirm } from "../components/ui"
 import { Plus as PlusIcon } from "lucide-react"
-import { defaultBatches, missingBatches, usableBatches } from "../utils/dispenseBatches.js"
+import { buildDispenseRequest, defaultLines } from "../utils/dispenseBatches.js"
+import DispenseLine from "../components/pharmacy/DispenseLine.jsx"
+import SaleReturns from "../components/pharmacy/SaleReturns.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
+
+// Taking back dispensed medicine is the pharmacist's call (the server enforces this).
+const RETURN_ROLES = ["Admin", "Hospital Manager", "Pharmacist"]
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 // Convert "MM/YYYY" (UI) to "YYYY-MM-01" (API DateField). Returns null if invalid.
@@ -46,6 +52,7 @@ function Pharmacy() {
   } = usePharmacy()
 
   const { selectedHospital } = usePatient()
+  const { activeRoleName } = useRole()
 
   const {
     fetchPrescription,
@@ -86,7 +93,8 @@ function Pharmacy() {
   const [prescriptionId, setPrescriptionId] = useState("")
   const [foundPrescription, setFoundPrescription] = useState(null)
   // Prescription item id -> stock batch (medicine id) to issue it from.
-  const [dispenseBatchIds, setDispenseBatchIds] = useState({})
+  // Item id -> { batch, quantity, reason } for the prescription being dispensed.
+  const [dispenseLines, setDispenseLines] = useState({})
 
   // =========================
   // EXPIRY & LOW STOCK ALERTS
@@ -763,8 +771,8 @@ function Pharmacy() {
     setFoundPrescription(
       prescription
     )
-    setDispenseBatchIds(
-      defaultBatches(prescription.medicines || [], hospitalMedicines)
+    setDispenseLines(
+      defaultLines(prescription.medicines || [], hospitalMedicines)
     )
   }
 
@@ -812,48 +820,41 @@ function Pharmacy() {
     }
 
 
-    const missing =
-      missingBatches(prescribedMedicines, dispenseBatchIds)
+    const request = buildDispenseRequest(
+      foundPrescription.apiId, prescribedMedicines, dispenseLines, hospitalMedicines
+    )
 
-    if (missing.length > 0) {
+    if (request.problems) {
 
-      toast.warning(
-        t("Choose a stock batch for: {medicines}.", { medicines: missing.join(", ") })
-      )
+      toast.warning(request.problems.join("; "))
 
       return
     }
 
 
-    // One server transaction: every medicine is issued, or none is.
+    // One server transaction: every line given now is issued, or none is.
     try {
 
-      await dispensePrescriptionSales({
-
-        prescription:
-          foundPrescription.apiId,
-
-        lines:
-          prescribedMedicines.map((item) => ({
-            item: item.id,
-            medicine: Number(dispenseBatchIds[item.id]),
-          })),
-
-      })
+      const result = await dispensePrescriptionSales(request.body)
 
 
       await reloadPharmacyData()
 
 
-      setFoundPrescription({
-
+      const given = Object.fromEntries(result.issued.map((sale) => [sale.prescription_item, sale.quantity]))
+      const updated = {
         ...foundPrescription,
+        status: result.status,
+        medicines: prescribedMedicines.map((item) => ({ ...item, dispensed: Number(item.dispensed || 0) + Number(given[item.id] || 0) })),
+      }
+      setFoundPrescription(updated)
+      setDispenseLines(defaultLines(updated.medicines, hospitalMedicines))
 
-        status:
-          "Dispensed",
 
-      })
-
+      if (result.status !== "Dispensed") {
+        toast.success(t("Part of prescription {rx} dispensed; the rest can be given later.", { rx: foundPrescription.id }))
+        return
+      }
 
       toast.success(
         t("Prescription {rx} dispensed successfully.", { rx: foundPrescription.id })
@@ -1098,177 +1099,16 @@ function Pharmacy() {
 
                     <div className="space-y-3">
 
-                      {
-                        foundPrescription.medicines.map(
-                          (
-                            medicine,
-                            index
-                          ) => {
-
-                            const batches =
-                              usableBatches(
-                                hospitalMedicines,
-                                medicine.name
-                              )
-
-
-                            const stockMedicine =
-                              batches.find(
-                                (item) =>
-                                  String(item.id) ===
-                                  String(dispenseBatchIds[medicine.id])
-                              )
-
-
-                            const availableStock =
-                              stockMedicine
-                                ? stockMedicine.stock
-                                : 0
-
-
-                            const enoughStock =
-                              Number(
-                                availableStock
-                              ) >=
-                              Number(
-                                medicine.quantity
-                              )
-
-
-                            return (
-
-                              <div
-
-                                key={
-                                  medicine.id ?? index
-                                }
-
-                                className="border border-gray-200 rounded-xl p-4"
-
-                              >
-
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-
-
-                                  <div>
-
-                                    <p className="font-semibold text-gray-800">
-                                      {
-                                        medicine.name
-                                      }
-                                    </p>
-
-                                    <p className="text-sm text-gray-500">
-                                      {
-                                        medicine.dosage
-                                      }
-
-                                      {" • "}
-
-                                      {
-                                        medicine.frequency
-                                      }
-
-                                      {" • "}
-
-                                      {
-                                        medicine.duration
-                                      }
-                                    </p>
-
-                                  </div>
-
-
-                                  <div className="text-sm">
-
-                                    <p>
-
-                                      {t("Required:")}
-
-                                      {" "}
-
-                                      <span className="font-bold">
-                                        {
-                                          medicine.quantity
-                                        }
-                                      </span>
-
-                                    </p>
-
-
-                                    <p
-                                      className={
-                                        enoughStock
-                                          ? "text-green-600"
-                                          : "text-red-600"
-                                      }
-                                    >
-
-                                      {t("Stock:")}
-
-                                      {" "}
-
-                                      <span className="font-bold">
-                                        {
-                                          availableStock
-                                        }
-                                      </span>
-
-                                    </p>
-
-                                  </div>
-
-                                </div>
-
-
-                                {foundPrescription.status !==
-                                  "Dispensed" && (
-
-                                    <div className="mt-3">
-
-                                      <label
-                                        htmlFor={`dispense-batch-${medicine.id}`}
-                                        className="block text-xs text-gray-500 mb-1"
-                                      >
-                                        {t("Stock batch for")}{" "}{medicine.name}
-                                      </label>
-
-                                      <select
-                                        id={`dispense-batch-${medicine.id}`}
-                                        value={dispenseBatchIds[medicine.id] ?? ""}
-                                        onChange={(e) =>
-                                          setDispenseBatchIds({
-                                            ...dispenseBatchIds,
-                                            [medicine.id]: e.target.value,
-                                          })
-                                        }
-                                        className="hms-input w-full md:w-auto"
-                                      >
-                                        <option value="">
-                                          {batches.length > 0
-                                            ? "Choose a batch"
-                                            : "Not in stock"}
-                                        </option>
-                                        {batches.map((batch) => (
-                                          <option
-                                            key={batch.id}
-                                            value={batch.id}
-                                          >
-                                            {batch.batch || "No batch no."} · Exp {batch.expiry || "—"} · {batch.stock} in stock
-                                          </option>
-                                        ))}
-                                      </select>
-
-                                    </div>
-
-                                  )}
-
-                              </div>
-
-                            )
-                          }
-                        )
-                      }
+                      {foundPrescription.medicines.map((medicine) => (
+                        <DispenseLine
+                          key={medicine.id}
+                          medicine={medicine}
+                          stock={hospitalMedicines}
+                          done={foundPrescription.status === "Dispensed"}
+                          choice={dispenseLines[medicine.id] || {}}
+                          onChange={(choice) => setDispenseLines((prev) => ({ ...prev, [medicine.id]: choice }))}
+                        />
+                      ))}
 
                     </div>
 
@@ -2249,6 +2089,13 @@ function Pharmacy() {
 
           )}
 
+
+          <SaleReturns
+            hospitalId={selectedHospital.id}
+            canReturn={RETURN_ROLES.includes(activeRoleName)}
+            onReturned={reloadPharmacyData}
+            refreshKey={sales}
+          />
 
           {/* =========================
               SALES HISTORY

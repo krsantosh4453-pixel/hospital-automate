@@ -5,7 +5,8 @@ from django.utils import timezone
 
 from audit.services import record_audit
 from procurement.models import StockTransaction
-from django.db.models import F
+from django.db.models import F, Sum
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
@@ -15,8 +16,15 @@ from clinical.models import Prescription
 
 from hospital.models import Hospital
 
+from . import dispensing
 from .models import Medicine, Sale
-from .serializers import DispensePrescriptionSerializer, MedicineSerializer, SaleSerializer
+from .serializers import (
+    DispensePrescriptionSerializer,
+    MedicineSerializer,
+    SaleReturnRequestSerializer,
+    SaleReturnSerializer,
+    SaleSerializer,
+)
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import get_user_hospital_ids, IsAdmin, IsCompounder, IsHospitalManager, IsInventoryStaff, IsPharmacist
 from config.hospital_time import hospital_today
@@ -107,7 +115,7 @@ class SaleViewSet(HospitalScopedViewSet):
     http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().annotate(returned_total=Coalesce(Sum("returns__quantity"), 0))
 
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
@@ -225,6 +233,7 @@ class SaleViewSet(HospitalScopedViewSet):
             hospital=hospital,
             unit_price=unit_price,
             total=total,
+            dispensed_by=self.request.user,
         )
         self._record_sale(sale)
         # A sale against a prescription means it has been dispensed. Items are
@@ -235,63 +244,105 @@ class SaleViewSet(HospitalScopedViewSet):
     @action(detail=False, methods=["post"], url_path="dispense-prescription")
     @transaction.atomic
     def dispense_prescription(self, request):
-        """Dispenses every medicine on a prescription, or none of them.
+        """Dispenses a prescription in one transaction: every line, or none.
 
         Each line names a prescription item and the stock batch to issue it
-        from; the quantity is the prescribed one. Any failing line rolls back
-        the stock already deducted for the others.
+        from. By default every medicine still owed is issued in full. With
+        ``partial: true`` some lines, or smaller quantities, can be issued now
+        and the rest later (F5/partial). A same-salt brand may replace the
+        prescribed one with a reason, by a pharmacist only (F8). The
+        prescription row is locked, so two counters cannot issue the same
+        medicine twice.
         """
         payload = DispensePrescriptionSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
         prescription = get_object_or_404(
-            Prescription.objects.filter(hospital_id__in=get_user_hospital_ids(request.user)),
+            Prescription.objects.select_for_update().filter(hospital_id__in=get_user_hospital_ids(request.user)),
             pk=payload.validated_data["prescription"],
         )
+        if prescription.dispensed_at is not None:
+            return Response({"detail": "This prescription has already been dispensed."},
+                            status=status.HTTP_409_CONFLICT)
         lines = payload.validated_data["lines"]
+        partial = payload.validated_data["partial"]
         items = {item.pk: item for item in prescription.items.all()}
         if not items:
             raise serializers.ValidationError({"prescription": "This prescription has no medicines to dispense."})
-        line_items = [line["item"] for line in lines]
-        if sorted(line_items) != sorted(items):
-            raise serializers.ValidationError(
-                {"lines": "Give exactly one stock batch for every medicine on the prescription."}
-            )
+        remaining = dispensing.remaining_quantities(prescription, items)
+        self._check_lines(lines, items, remaining, partial)
 
         medicines = Medicine.objects.in_bulk([line["medicine"] for line in lines])
         hospital = prescription.hospital
-        # Marked first so a second, parallel dispense stops here; rolled back
-        # with everything else if a line fails.
-        if not self._mark_dispensed(prescription):
-            return Response(
-                {"detail": "This prescription has already been dispensed."},
-                status=status.HTTP_409_CONFLICT,
-            )
-
+        may_substitute = IsPharmacist().has_permission(request, self)
         sales = []
         for line in lines:
             item = items[line["item"]]
             medicine = medicines.get(line["medicine"])
             if medicine is None:
                 raise serializers.ValidationError({"lines": f"Stock for {item.name} was not found."})
-            if medicine.name.strip().lower() != item.name.strip().lower():
-                raise serializers.ValidationError(
-                    {"lines": f"{medicine.name} is not the prescribed medicine ({item.name})."}
-                )
             self._check_batch(medicine, hospital)
-            unit_price, total = self._deduct_stock(medicine, item.quantity)
+            substituted_for = dispensing.substitution_for(item, medicine, line["substitute_reason"], may_substitute)
+            quantity = line.get("quantity") if partial else remaining[item.pk]
+            unit_price, total = self._deduct_stock(medicine, quantity)
             sale = Sale.objects.create(
-                medicine=medicine,
-                hospital=hospital,
-                patient_name=prescription.patient.name,
-                quantity=item.quantity,
-                unit_price=unit_price,
-                total=total,
-                prescription=prescription,
+                medicine=medicine, hospital=hospital, patient_name=prescription.patient.name, quantity=quantity,
+                unit_price=unit_price, total=total, prescription=prescription, prescription_item=item,
+                substituted_for=substituted_for, substitution_reason=line["substitute_reason"].strip() if substituted_for else "",
+                dispensed_by=request.user,
             )
             self._record_sale(sale)
+            if substituted_for:
+                record_audit(request, "pharmacy.sale.substituted", sale, hospital=hospital.pk,
+                             details={"prescribed": substituted_for, "given": medicine.name,
+                                      "reason": sale.substitution_reason})
             sales.append(sale)
 
+        left = dispensing.remaining_quantities(prescription, items)
+        if any(left.values()):
+            prescription.status = dispensing.PARTIALLY_DISPENSED
+            prescription.save(update_fields=["status"])
+        else:
+            prescription.status, prescription.dispensed_at = "Dispensed", timezone.now()
+            prescription.save(update_fields=["status", "dispensed_at"])
+
         return Response(
-            {"prescription": prescription.pk, "sales": SaleSerializer(sales, many=True).data},
+            {"prescription": prescription.pk, "status": prescription.status,
+             "remaining": {str(pk): qty for pk, qty in left.items()},
+             "sales": SaleSerializer(sales, many=True).data},
             status=status.HTTP_201_CREATED,
         )
+
+    @staticmethod
+    def _check_lines(lines, items, remaining, partial):
+        line_items = [line["item"] for line in lines]
+        if len(set(line_items)) != len(line_items) or not set(line_items) <= set(items):
+            raise serializers.ValidationError({"lines": "Each line must be a different medicine on this prescription."})
+        owed = {pk for pk, qty in remaining.items() if qty > 0}
+        if not partial:
+            if set(line_items) != owed:
+                raise serializers.ValidationError(
+                    {"lines": "Give exactly one stock batch for every medicine still to dispense."})
+            return
+        if not lines:
+            raise serializers.ValidationError({"lines": "Choose at least one medicine to dispense."})
+        for line in lines:
+            item = items[line["item"]]
+            quantity = line.get("quantity")
+            if quantity is None:
+                raise serializers.ValidationError({"lines": f"Give the quantity of {item.name} to dispense now."})
+            if quantity > remaining[item.pk]:
+                raise serializers.ValidationError(
+                    {"lines": f"Only {remaining[item.pk]} of {item.name} is still to be dispensed."})
+
+    @action(detail=True, methods=["post"], url_path="return", permission_classes=[IsAdmin | IsHospitalManager | IsPharmacist])
+    def return_sale(self, request, pk=None):
+        """{quantity, reason, restock}: medicine handed back by the patient (F5)."""
+        sale = self.get_object()
+        body = SaleReturnRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        returned = dispensing.record_return(sale, body.validated_data["quantity"], body.validated_data["reason"],
+                                            body.validated_data["restock"], user=request.user)
+        record_audit(request, "pharmacy.sale.returned", sale, hospital=sale.hospital_id,
+                     details={"quantity": returned.quantity, "restocked": returned.restocked,
+                              "refund": str(returned.refund_amount), "reason": returned.reason})
+        return Response(SaleReturnSerializer(returned).data, status=status.HTTP_201_CREATED)
