@@ -2341,6 +2341,51 @@ api.procurement = {
       request(`${API_BASE_URL}/procurement/purchases/${id}/${queryForHospital(hospitalId)}`, { method: "PUT", ...jsonBody(data) }),
     receive: async (id, data, hospitalId) =>
       request(`${API_BASE_URL}/procurement/purchases/${id}/receive/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+    // Admin or manager; only while nothing has been received. data: { reason }
+    cancel: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/purchases/${id}/cancel/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  },
+  // I2: department requests for stock, approved by an admin or manager other than the requester.
+  requisitions: {
+    list: async (hospitalId) => request(`${API_BASE_URL}/procurement/requisitions/${queryForHospital(hospitalId)}`),
+    // data: { department, reason, items: [{ medicine, quantity, note }] }
+    create: async (data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/requisitions/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+    approve: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/requisitions/${id}/approve/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+    reject: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/requisitions/${id}/reject/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+    // data: { supplier, unit_costs: [{ item, unit_cost }], reference? }
+    order: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/requisitions/${id}/order/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  },
+  quotations: {
+    list: async (hospitalId, requisitionId) =>
+      request(`${API_BASE_URL}/procurement/quotations/?hospital=${encodeURIComponent(hospitalId)}&requisition=${encodeURIComponent(requisitionId)}`),
+    // data: { requisition, supplier, reference, valid_until, items: [{ requisition_item, unit_cost }] }
+    create: async (data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/quotations/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+    accept: async (id, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/quotations/${id}/accept/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody({}) }),
+  },
+  // I4: stock out of the store other than sales.
+  stockIssues: {
+    list: async (hospitalId) => request(`${API_BASE_URL}/procurement/stock-issues/${queryForHospital(hospitalId)}`),
+    // data: { department, medicine, quantity, received_by_name, note, idempotency_key }
+    create: async (data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/stock-issues/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  },
+  supplierReturns: {
+    list: async (hospitalId) => request(`${API_BASE_URL}/procurement/supplier-returns/${queryForHospital(hospitalId)}`),
+    // data: { receipt_item, quantity, reason }
+    create: async (data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/supplier-returns/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  },
+  consignmentSettlements: {
+    list: async (hospitalId) => request(`${API_BASE_URL}/procurement/consignment-settlements/${queryForHospital(hospitalId)}`),
+    // data: { receipt_item, quantity, reference }
+    create: async (data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/consignment-settlements/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
   },
   purchaseItems: {
     list: async (hospitalId, purchaseId) => {

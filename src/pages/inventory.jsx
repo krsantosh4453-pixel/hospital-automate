@@ -3,8 +3,10 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import SuppliersPanel from "../components/inventory/SuppliersPanel.jsx"
 import PurchaseOrdersPanel from "../components/inventory/PurchaseOrdersPanel.jsx"
+import RequisitionsPanel from "../components/inventory/RequisitionsPanel.jsx"
+import StockMovementsPanel from "../components/inventory/StockMovementsPanel.jsx"
 import api from "../services/api.js"
-import { Boxes, ClipboardList, Eye, History, Hospital, Package, PackageMinus, PackageX, Pencil, Plus, Trash2, Truck } from "lucide-react"
+import { ArrowRightLeft, Boxes, ClipboardCheck, ClipboardList, Eye, History, Hospital, Package, PackageMinus, PackageX, Pencil, Plus, Trash2, Truck } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
 import {
   Alert,
@@ -29,6 +31,9 @@ import {
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 const STORE_ROLES = ["Admin", "Hospital Manager", "Inventory Staff"]
+// Requisitions (procurement/workflow_views.py): approved by admin or manager; raised also by pharmacy.
+const APPROVER_ROLES = ["Admin", "Hospital Manager"]
+const REQUESTER_ROLES = [...STORE_ROLES, "Pharmacist", "Nurse"]
 // Matches the Medicine.reorder_level default on the server.
 const DEFAULT_REORDER_LEVEL = 10
 
@@ -419,6 +424,8 @@ function Inventory() {
           { id: "stock", label: "Stock", icon: Package },
           { id: "suppliers", label: "Suppliers", icon: Truck, count: suppliers.length },
           { id: "purchases", label: "Purchase orders", icon: ClipboardList, count: purchaseOrders.length },
+          { id: "requisitions", label: "Requisitions", icon: ClipboardCheck },
+          { id: "movements", label: "Issues & returns", icon: ArrowRightLeft },
         ]}
       />
 
@@ -512,9 +519,30 @@ function Inventory() {
               suppliers={suppliers}
               medicines={hospitalItems}
               canEdit={canManageStore}
+              canCancel={APPROVER_ROLES.includes(activeRoleName)}
               onChanged={fetchAllData}
             />
           )}
+        </Card>
+      )}
+
+      {tab === "requisitions" && (
+        <Card className="overflow-hidden">
+          <RequisitionsPanel
+            hospital={selectedHospital}
+            medicines={hospitalItems}
+            suppliers={suppliers}
+            canRaise={REQUESTER_ROLES.includes(activeRoleName)}
+            canApprove={APPROVER_ROLES.includes(activeRoleName)}
+            canOrder={canManageStore}
+            onChanged={fetchAllData}
+          />
+        </Card>
+      )}
+
+      {tab === "movements" && (
+        <Card className="overflow-hidden">
+          <StockMovementsPanel hospital={selectedHospital} medicines={hospitalItems} canEdit={canManageStore} onChanged={fetchAllData} />
         </Card>
       )}
 

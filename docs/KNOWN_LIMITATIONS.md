@@ -11,12 +11,12 @@ State as of 2026-10-25, updated 2026-11-03, branch `ui/redesign-2026-10-25`. Row
 | L4 | No clinical safety review of the workflows | MAR, discharge, lab release, AI-draft, break-glass and family-access rules were designed by engineering only | Sign-off by a clinical safety officer / pharmacist using `CLINICAL_SAFETY_REVIEW_PACK.md` (updated 2026-11-03) |
 | L5 | No penetration test or DPDP Act privacy assessment | Required for health data in India | Commission both; brief and baseline in `PRIVACY_AND_PENTEST_PACK.md` (updated 2026-11-03) |
 
-## Missing features (8 MISSING rows, recounted 2026-11-05; A12, B13, D15, D6, F5, F8, H4, K6 and K8 are now done)
+## Missing features (6 MISSING rows, recounted 2026-11-05; A12, B13, D15, D6, F5, F8, H4, I2, I4, K6 and K8 are now done)
 
 - **Access / portal:** breadcrumbs (A18); sticky patient context strip (A19).
 - **EMR:** extra vitals set (D2).
 - **Pharmacy:** drug alerts (F7) are partial: allergy, duplicate-salt and a starter list of 8 interactions, pending Pharmacy & Therapeutics approval; no licensed drug database and no dose-range checks (`CLINICAL_SAFETY_REVIEW_PACK.md` section 9).
-- **Supply chain:** purchase requisition approval (I2); supplier return, department issue, consignment, quotation (I4); CSSD / laundry (I6).
+- **Supply chain:** CSSD / laundry (I6).
 - **Other services:** ambulance, mortuary, phlebotomy, OT (J5); HR, feedback, templates (J6).
 D6, K6 and K8 were ported on 2026-11-05 from the branch `claude/intelligent-keller-502e5b`, which can now be retired. Limits that remain:
 
@@ -28,7 +28,7 @@ D6, K6 and K8 were ported on 2026-11-05 from the branch `claude/intelligent-kell
 
 - Hindi (A17, 2026-11-03): every page shows its own text in Hindi, including Laboratory and Pharmacy, dropdown options, filter and role labels kept in JavaScript lists, server status values, toast messages and sentences with names or numbers (through `t()` `{placeholders}`). A Hindi pass over 30 pages leaves 63 distinct English strings, nearly all names, dates, IDs and abbreviations (MAR, OPD, AVPU). Still English: "just now" in notification times, audit-entry text from the server, and a few sentence fragments split around links. Clinical and patient data (diagnoses, bill lines, document titles, notifications) stay exactly as entered. The translations were written by engineering and need review by Hindi-speaking clinical staff.
 - Notifications: in-app works; SMS/WhatsApp need consent and credentials (K7).
-- Procurement (2026-11-03): Inventory has Suppliers and Purchase orders tabs (raise an order, receive full or partial goods with invoice number, batch and expiry) and per-item unit, reorder level and usual supplier. Not built: purchase requisition approval (I2), supplier returns, department issue, consignment and quotations (I4), and cancelling a purchase order from the screen.
+- Procurement (2026-11-05): Inventory has Suppliers, Purchase orders, Requisitions and Issues & returns tabs. Requisitions are approved by an admin or manager other than the requester and ordered directly or through a quotation; stock can be issued to departments, returned to suppliers and, for consignment orders, settled as used. Limits: stock issued to a department leaves the store's count and is not tracked as ward stock afterwards; consignment settlement records the amount payable but is not linked to accounts payable; nurses can raise requisitions through the API but do not have the Inventory page.
 - Admin → Permissions is a read-only view of the built-in roles (2026-11-03). Roles cannot be customised: changing what a role may do needs a code change to both `RoleContext.jsx` and the backend permission classes.
 - Medicine orders (MAR) are written only by doctors, from the IPD page, and only from the patient's own prescription. There is no verbal or telephone order path for nurses, by the owner's decision (2026-11-05).
 - Records removed as entered in error are hidden everywhere, including from the Django admin; they are read through `all_objects` or the Audit log page. A removed patient's visits, bills and other records stay visible where they are listed on their own.

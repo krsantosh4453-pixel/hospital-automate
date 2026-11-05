@@ -26,6 +26,8 @@ from .serializers import (
     StockAdjustmentSerializer,
 )
 from .services import receive_purchase, adjust_stock
+from .workflows import cancel_purchase
+from audit.services import record_audit
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import (
     IsAdmin, IsHospitalManager, IsInventoryStaff, 
@@ -182,6 +184,14 @@ class PurchaseOrderViewSet(HospitalScopedViewSet):
         self.check_object_permissions(self.request, obj)
         return obj
 
+    @action(detail=True, methods=["post"], permission_classes=[IsAdmin | IsHospitalManager])
+    def cancel(self, request, pk=None):
+        """{reason}: cancel an order nothing has been received on (admin or manager)."""
+        purchase = cancel_purchase(self.get_object(), request.user, request.data.get("reason", ""))
+        record_audit(request, "procurement.purchaseorder.cancelled", purchase, hospital=purchase.hospital_id,
+                     details={"reason": purchase.cancel_reason})
+        return Response(PurchaseOrderSerializer(purchase).data)
+
     @action(detail=True, methods=["post"], url_path="receive")
     def receive(self, request, pk=None):
         """Atomically receive stock against this purchase order (GRN).
@@ -319,7 +329,8 @@ class GoodsReceiptItemViewSet(
 ):
     """Individual GRN lines are append-only: read-only access."""
 
-    queryset = GoodsReceiptItem.objects.all()
+    queryset = GoodsReceiptItem.objects.select_related(
+        "medicine", "goods_receipt__supplier", "goods_receipt__purchase").prefetch_related("returns", "settlements")
     serializer_class = GoodsReceiptItemSerializer
     permission_classes = [ReadOnlyScopePermission]
     http_method_names = ['get', 'head', 'options']

@@ -55,6 +55,10 @@ def receive_purchase(purchase, payload, scoped_hospital=None):
         without it a replayed request would be indistinguishable from a
         brand-new receipt and could double-increment stock.
     """
+    # Lock the order first: two receipts with different references must not
+    # both pass the remaining-quantity check below.
+    purchase = PurchaseOrder.objects.select_for_update().get(pk=purchase.pk)
+
     # 1. Validate the PurchaseOrder state.
     if purchase.status == PurchaseOrder.STATUS_CANCELLED:
         raise serializers.ValidationError(

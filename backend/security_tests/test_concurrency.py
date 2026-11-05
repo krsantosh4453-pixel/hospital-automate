@@ -176,6 +176,37 @@ class ConcurrentWriteTests(WardMixin, TransactionTestCase):
         self.assertEqual(sum(created for _, created in results), 1)
         self.assertEqual(AdvanceAccount.objects.get(patient=patient).balance, Decimal("500.00"))
 
+    def test_parallel_receipts_never_receive_more_than_ordered(self):
+        # 10 ordered; eight receipts with different invoice numbers try to receive 6 each.
+        from procurement.models import PurchaseOrder, Supplier
+        from procurement.services import receive_purchase
+
+        medicine = Medicine.objects.create(name="Gloves", hospital=self.hospital, quantity=0, price=Decimal("5"))
+        supplier = Supplier.objects.create(name="Race Supplier", hospital=self.hospital)
+        po = PurchaseOrder.objects.create(hospital=self.hospital, supplier=supplier, reference="PO-RACE",
+                                          purchase_date="2026-11-05")
+        line = po.items.create(medicine=medicine, quantity_ordered=10, unit_cost=Decimal("4"), line_total=Decimal("40"))
+
+        results = run_together(lambda i: receive_purchase(po, {"reference": f"INV-RACE-{i}", "items": [
+            {"purchase_item": line.id, "quantity_received": 6}]}))
+
+        self.assertEqual(len([r for r in results if not isinstance(r, Exception)]), 1, results)
+        medicine.refresh_from_db()
+        self.assertEqual(medicine.quantity, 6)
+
+    def test_parallel_issues_never_take_stock_below_zero(self):
+        from hospital.models import Department
+        from procurement.workflows import issue_stock
+
+        ward = Department.objects.create(hospital=self.hospital, name="Race Ward")
+        medicine = Medicine.objects.create(name="Saline", hospital=self.hospital, quantity=25, price=Decimal("30"))
+
+        results = run_together(lambda i: issue_stock(self.hospital, ward, medicine, 10))
+
+        self.assertEqual(len([r for r in results if isinstance(r, tuple)]), 2, results)
+        medicine.refresh_from_db()
+        self.assertEqual(medicine.quantity, 5)
+
     def test_one_bed_goes_to_exactly_one_of_many_admissions(self):
         user, doctor, [bed] = self.bed_setup(beds=1)
         admissions = [Admission.objects.create(patient=self.make_patient(i), hospital=self.hospital,

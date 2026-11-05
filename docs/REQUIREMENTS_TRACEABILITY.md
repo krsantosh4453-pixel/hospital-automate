@@ -168,9 +168,9 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | ID | Requirement | Source | Status | Implementation | Evidence |
 |---|---|---|---|---|---|
 | I1 | Suppliers, purchase orders, GRN, stock ledger | P2 5 | IMPLEMENTED | procurement app | procurement tests (36) |
-| I2 | Purchase requisition → approval | P2 5 | MISSING | — | — |
+| I2 | Purchase requisition → approval | P2 5 | DONE (2026-11-05) | `procurement/workflows.py`: raised by store/pharmacy/nursing; approved or rejected (with reason) by an admin or manager other than the requester; ordered directly or by accepting a quotation; row-locked; audited. Inventory > Requisitions tab | `procurement/test_workflows.py`, `requisitionsPanel.test.jsx`, Playwright `procurement` |
 | I3 | Opening stock / stock adjustment | P2 5 | VERIFIED | Ledger entries on create and correction | T |
-| I4 | Supplier return, department issue, consignment, quotation | P2 5 | MISSING | — | — |
+| I4 | Supplier return, department issue, consignment, quotation | P2 5 | DONE (2026-11-05) | Quotations per approved requisition (accepting one orders at its prices, rejects the rest; expired refused). Issue to a department (never below zero, never an expired batch, idempotency key). Return to supplier against a receipt line, never more than received, with credit amount. Consignment orders settled for what was used. Every stock change in the ledger. PO cancellation from the screen (admin/manager, only before goods arrive, reason, audited); PO status now changes only through receive/cancel. Receipts lock the order (two invoices at once can no longer over-receive) | `procurement/test_workflows.py` (13), 2 PostgreSQL race tests, Playwright `procurement` |
 | I5 | Expiry monitoring | P2 5 | IMPLEMENTED | Pharmacy alerts, KPIs | B (page renders) |
 | I6 | CSSD / laundry | P2 5, UI 3.9 | MISSING | — | — |
 
