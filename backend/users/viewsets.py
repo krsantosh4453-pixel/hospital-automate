@@ -7,7 +7,9 @@ from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 
+from audit.entered_in_error import is_entered_in_error_model, removal_reason, snapshot
 from audit.read_audit import SensitiveReadAuditMixin
+from users.module_access import ModuleAccessMixin
 from hospital.models import Hospital
 from users.care_scope import limit_to_patients_in_care, may_write_for_patients
 from users.permissions import (
@@ -85,7 +87,7 @@ def _with_scoped_hospital(view, context):
     return context
 
 
-class HospitalScopedViewSet(SensitiveReadAuditMixin, viewsets.ModelViewSet):
+class HospitalScopedViewSet(ModuleAccessMixin, SensitiveReadAuditMixin, viewsets.ModelViewSet):
     """
     Base ViewSet that scopes every query and write to the hospitals the user
     is an active member of. It fails closed: a model with no resolvable
@@ -126,11 +128,19 @@ class HospitalScopedViewSet(SensitiveReadAuditMixin, viewsets.ModelViewSet):
         role held there: a Doctor in A who is a Receptionist in B must not
         list B's clinical rows just by leaving out the hospital.
         """
+        # A view instance serves one request, so the answer is kept for its
+        # other callers (queryset, module access check, tenancy).
+        cached = getattr(self, "_acting_hospital_ids", None)
+        if cached is not None:
+            return list(cached)
         hospital_ids = get_user_hospital_ids(self.request.user)
         acting = get_request_hospital_id(self.request, self)
         if acting is not None:
-            return [acting] if acting in hospital_ids else []
-        return [h for h in hospital_ids if self._permitted_in_hospital(h)]
+            result = [acting] if acting in hospital_ids else []
+        else:
+            result = [h for h in hospital_ids if self._permitted_in_hospital(h)]
+        self._acting_hospital_ids = tuple(result)
+        return result
 
     def _permitted_in_hospital(self, hospital_id):
         # Permission classes read the acting hospital through
@@ -283,14 +293,22 @@ class HospitalScopedViewSet(SensitiveReadAuditMixin, viewsets.ModelViewSet):
         self._audit("update", instance, details={"changes": changes})
 
     def perform_destroy(self, instance):
-        self._audit("delete", instance)
+        # The audit log keeps the values as they were, whatever happens next.
+        before = snapshot(instance)
+        if is_entered_in_error_model(type(instance)):
+            # R-03: clinical records and patients are marked entered in error, never erased.
+            reason = removal_reason(self.request)
+            instance.mark_entered_in_error(self.request.user, reason)
+            self._audit("entered_in_error", instance, details={"reason": reason, "before": before})
+            return
+        self._audit("delete", instance, details={"before": before})
         instance.delete()
 
     def get_serializer_context(self):
         return _with_scoped_hospital(self, super().get_serializer_context())
 
 
-class ReadOnlyHospitalScopedViewSet(SensitiveReadAuditMixin, viewsets.ReadOnlyModelViewSet):
+class ReadOnlyHospitalScopedViewSet(ModuleAccessMixin, SensitiveReadAuditMixin, viewsets.ReadOnlyModelViewSet):
     """
     Read-only version of HospitalScopedViewSet, with the same fail-closed
     scoping rules.

@@ -80,6 +80,9 @@ def request_proxy_otp(phone):
         return "invalid", "A valid 10-digit mobile number is required.", None
 
     mode = getattr(settings, "PATIENT_OTP_DELIVERY", "sms")
+    if mode == "off":
+        # Answered before looking the number up, so it reveals nothing (RL-06).
+        return "unavailable", SMS_NOT_CONFIGURED, "sms"
     if not active_grants_for_phone(normalized):
         # Same answer as a real send, so numbers with access are not revealed.
         if mode == "sms" and not _sms_provider_configured():

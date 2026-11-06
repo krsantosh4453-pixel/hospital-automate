@@ -10,3 +10,4 @@ export { StatTile, SearchInput, Toolbar, TableWrap, Avatar, DescriptionList } fr
 export { useConfirm } from "./useConfirm.jsx"
 export { usePrompt } from "./usePrompt.jsx"
 export { PrintSheet, PrintedDocument, PrintedFacts } from "./PrintSheet.jsx"
+export { RemoveRecordDialog } from "./RemoveRecordDialog.jsx"

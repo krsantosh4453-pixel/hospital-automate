@@ -30,11 +30,8 @@ import {
 import { LabReportDocument } from "../components/documents/ClinicalDocuments.jsx"
 import SampleLabel from "../components/laboratory/SampleLabel.jsx"
 import SampleScanDialog from "../components/laboratory/SampleScanDialog.jsx"
+import PatientPicker from "../components/patients/PatientPicker.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
-
-// Staff who may not list patients (Lab Staff) find one by search instead.
-const LOOKUP_MIN_CHARS = 3
-const LOOKUP_DELAY_MS = 300
 
 function Laboratory() {
   const { t } = useLanguage()
@@ -48,9 +45,6 @@ function Laboratory() {
   const { selectedHospital } = usePatient()
 
   const [tests, setTests] = useState([])
-  const [patientOptions, setPatientOptions] = useState([])
-  const [canListPatients, setCanListPatients] = useState(true)
-  const [patientSearch, setPatientSearch] = useState("")
   const [doctorOptions, setDoctorOptions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -107,18 +101,12 @@ function Laboratory() {
     setLoading(true)
     setError(null)
     try {
-      const [testData, patientData, doctorData] = await Promise.all([
+      // The order form finds its patient by search (PatientPicker), not a preloaded list.
+      const [testData, doctorData] = await Promise.all([
         api.laboratory.tests.list(selectedHospital.id),
-        // Only the new-order form needs patients; Lab Staff may not list them,
-        // and that must not hide the lab's own worklist.
-        api.patients.list(selectedHospital.id).catch((err) => {
-          if (err?.status === 403) setCanListPatients(false)
-          return []
-        }),
         api.doctors.list(selectedHospital.id),
       ])
       setTests(rows(testData).map(toRow))
-      setPatientOptions(rows(patientData))
       setDoctorOptions(rows(doctorData))
     } catch (err) {
       setError(err.message)
@@ -131,27 +119,6 @@ function Laboratory() {
     loadTests()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedHospital?.id])
-
-  // Search-only patient picker: ask the server once typing pauses.
-  useEffect(() => {
-    if (canListPatients || !selectedHospital) return undefined
-    const term = patientSearch.trim()
-    if (term.length < LOOKUP_MIN_CHARS) {
-      setPatientOptions([])
-      return undefined
-    }
-    let current = true
-    const timer = setTimeout(() => {
-      api.patients.lookup(selectedHospital.id, term)
-        .then((found) => { if (current) setPatientOptions(rows(found)) })
-        .catch((err) => { if (current) toast.error(err.message || "Unable to search patients.") })
-    }, LOOKUP_DELAY_MS)
-    return () => {
-      current = false
-      clearTimeout(timer)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canListPatients, patientSearch, selectedHospital?.id])
 
   const testsData = tests
 
@@ -465,7 +432,6 @@ function Laboratory() {
     }
     setSelectedTest(null)
     setFormData({ patient: "", test: "", doctor: "", date: "", priority: "Normal" })
-    setPatientSearch("")
     setShowForm(true)
   }
 
@@ -632,28 +598,12 @@ function Laboratory() {
         }
       >
         <form id="lab-form" onSubmit={selectedTest ? handleUpdate : handleSubmit} className="space-y-4">
-          {!canListPatients && !selectedTest && (
-            <SearchInput
-              value={patientSearch}
-              onChange={setPatientSearch}
-              label="Find patient"
-              placeholder={t("Name, phone or UHID (3+ characters)")}
-            />
-          )}
           <Field label="Patient" required hint={selectedTest ? t("The patient of an existing order cannot be changed.") : undefined}>
-            <Select name="patient" disabled={Boolean(selectedTest)} value={formData.patient} onChange={handleChange}>
-              <option value="">
-                {!canListPatients && !selectedTest && patientSearch.trim().length >= LOOKUP_MIN_CHARS && patientOptions.length === 0
-                  ? "No matching patient"
-                  : "Select patient"}
-              </option>
-              {selectedTest && !patientOptions.some((patient) => String(patient.id) === String(formData.patient)) && (
-                <option value={formData.patient}>{selectedTest.patient}</option>
-              )}
-              {patientOptions.map((patient) => (
-                <option key={patient.id} value={patient.id}>{patient.name}{patient.phone ? ` · ${patient.phone}` : ""}</option>
-              ))}
-            </Select>
+            {/* Lookup: every ordering role may use it, including Lab Staff for walk-ins. */}
+            <PatientPicker hospitalId={selectedHospital.id} source="lookup" value={formData.patient}
+              disabled={Boolean(selectedTest)}
+              selected={selectedTest ? { id: formData.patient, name: selectedTest.patient } : null}
+              onChange={(id) => setFormData((current) => ({ ...current, patient: id }))} />
           </Field>
           <Field label="Test" required>
             <Select name="test" value={formData.test} onChange={handleChange}>

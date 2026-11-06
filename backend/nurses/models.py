@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.db import models
+
+from audit.entered_in_error import EnteredInError
 from django.utils import timezone
 
 # Duty shifts used by ward assignments. A Night shift runs past midnight.
@@ -77,7 +79,7 @@ class NurseWardAssignment(models.Model):
         indexes = [models.Index(fields=["hospital", "shift_date", "is_active"])]
 
 
-class NursingAssessment(models.Model):
+class NursingAssessment(EnteredInError):
     ASSESSMENT_TYPES = [
         ("Initial", "Initial Assessment"),
         ("Shift", "Shift Assessment"),
@@ -142,7 +144,7 @@ class NursingAssessment(models.Model):
         ]
 
 
-class NursingNote(models.Model):
+class NursingNote(EnteredInError):
     NOTE_TYPES = [
         ("Progress", "Progress Note"),
         ("Incident", "Incident Report"),
@@ -283,7 +285,7 @@ class CareTask(models.Model):
         ]
 
 
-class MAR(models.Model):
+class MAR(EnteredInError):
     """Medication Administration Record - links prescription to administration schedule."""
     patient = models.ForeignKey(
         "patients.Patient",
@@ -324,10 +326,20 @@ class MAR(models.Model):
     start_date = models.DateField(db_index=True)
     end_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
+    # The doctor whose order this is; nurses give doses only against it.
+    ordered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __str__(self):
         return f"MAR: {self.medicine_name} for {self.patient.name}"
+
+    def in_force(self, day):
+        """True while this doctor's order allows doses on ``day``."""
+        if not self.is_active or self.entered_in_error_at is not None:
+            return False
+        return self.start_date <= day and (self.end_date is None or day <= self.end_date)
 
     class Meta:
         ordering = ["-created_at"]

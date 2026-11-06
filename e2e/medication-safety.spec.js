@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test"
-import { signInAs } from "./helpers.js"
+import { pickPatient, signInAs } from "./helpers.js"
 
 async function startPrescription(page, ...medicines) {
   await signInAs(page, "demo.doctor1")
   await page.goto("/prescription")
-  await page.getByLabel(/^Patient/).selectOption({ label: "Demo Ravi (Cardiology OPD) (9000003011)" })
+  await pickPatient(page, "Demo Ravi (Cardiology OPD)")
   for (const [index, medicine] of medicines.entries()) {
     if (index > 0) await page.getByRole("button", { name: "Add medicine" }).click()
     await page.getByPlaceholder("Drug and strength").nth(index).fill(medicine)

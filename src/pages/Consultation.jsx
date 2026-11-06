@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from "react"
+import { Link, useSearchParams } from "react-router-dom"
+import { useRole } from "../assets/context/RoleContext.jsx"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
-import { CalendarClock, ClipboardList, FileText, HeartPulse, History, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Syringe, Trash2, UserRound } from "lucide-react"
+import Icd10Typeahead from "../components/clinical/Icd10Typeahead.jsx"
+import { CalendarClock, ClipboardList, FilePlus2, FileText, HeartPulse, History, Hospital, NotebookPen, Pencil, RefreshCw, Stethoscope, Syringe, Trash2, UserRound } from "lucide-react"
 import {
   Alert,
   Avatar,
   Button,
   Card,
   CardHeader,
-  ConfirmDialog,
+  RemoveRecordDialog,
   EmptyState,
   Field,
   Input,
@@ -138,6 +141,12 @@ const mapVitalFromApi = (record) => ({
   headCircumference: record.head_circumference,
   muac: record.muac,
   urineOutput: record.urine_output,
+  fluidIntake: record.fluid_intake,
+  oxygenDevice: record.oxygen_device || "",
+  oxygenFlow: record.oxygen_flow,
+  mobility: record.mobility || "",
+  injuries: record.injuries || "",
+  recordedBy: record.recorded_by_name || "",
   comments: record.comments || "",
   recordedAt: record.recorded_at || null,
 })
@@ -224,8 +233,25 @@ const emptyVitalForm = {
   headCircumference: "",
   muac: "",
   urineOutput: "",
+  fluidIntake: "",
+  oxygenDevice: "",
+  oxygenFlow: "",
+  mobility: "",
+  injuries: "",
   comments: "",
 }
+
+// D2: values match VitalSign.OxygenDevice and VitalSign.Mobility on the server.
+const OXYGEN_DEVICES = ["Room air", "Nasal cannula", "Face mask", "Non-rebreather mask", "High-flow nasal", "Ventilator"]
+const MOBILITY_OPTIONS = ["Independent", "With assistance", "Bedbound"]
+
+// One line of the less common readings for the vitals table.
+const extraVitals = (vital, t) => [
+  vital.fluidIntake != null || vital.urineOutput != null ? `${t("In/Out")} ${vital.fluidIntake ?? "—"}/${vital.urineOutput ?? "—"} mL` : "",
+  vital.oxygenDevice ? `${t(vital.oxygenDevice)}${vital.oxygenFlow != null ? ` ${Number(vital.oxygenFlow)} L/min` : ""}` : "",
+  vital.mobility ? t(vital.mobility) : "",
+  vital.injuries,
+].filter(Boolean).join(" · ")
 
 const AVPU_OPTIONS = [
   { value: "", label: "—" },
@@ -268,7 +294,11 @@ function Consultation() {
   const [visits, setVisits] = useState([])
   const [loadingVisits, setLoadingVisits] = useState(false)
   const [visitsError, setVisitsError] = useState("")
-  const [selectedVisitId, setSelectedVisitId] = useState("")
+  // ?visit=<id> (from the Prescription page's "Back to consultation") opens that visit.
+  const [searchParams] = useSearchParams()
+  const requestedVisitId = searchParams.get("visit") || ""
+  const [selectedVisitId, setSelectedVisitId] = useState(requestedVisitId)
+  const { canAdd } = useRole()
 
   // ---------------------------------------------------------
   // Clinical record state (for the selected visit)
@@ -517,6 +547,8 @@ function Consultation() {
       ["headCircumference", 20, 70, "Head circumference"],
       ["muac", 5, 60, "MUAC"],
       ["urineOutput", 0, 10000, "Urine output"],
+      ["fluidIntake", 0, 20000, "Fluid intake"],
+      ["oxygenFlow", 0, 80, "Oxygen flow"],
     ]
 
     for (const [field, min, max, label] of checks) {
@@ -544,7 +576,11 @@ function Consultation() {
         vitalForm[field] !== undefined
     )
 
-    if (!hasAnyValue && !vitalForm.avpu) {
+    if (vitalForm.oxygenFlow !== "" && ["", "Room air"].includes(vitalForm.oxygenDevice)) {
+      return "Choose the oxygen device for a flow rate."
+    }
+
+    if (!hasAnyValue && !vitalForm.avpu && !vitalForm.oxygenDevice && !vitalForm.mobility && !vitalForm.injuries.trim()) {
       return "Enter at least one vital sign value."
     }
 
@@ -585,6 +621,11 @@ function Consultation() {
       head_circumference: num(vitalForm.headCircumference),
       muac: num(vitalForm.muac),
       urine_output: num(vitalForm.urineOutput),
+      fluid_intake: num(vitalForm.fluidIntake),
+      oxygen_device: vitalForm.oxygenDevice,
+      oxygen_flow: num(vitalForm.oxygenFlow),
+      mobility: vitalForm.mobility,
+      injuries: vitalForm.injuries.trim(),
       comments: vitalForm.comments.trim(),
     }
 
@@ -642,16 +683,21 @@ function Consultation() {
       headCircumference: vital.headCircumference ?? "",
       muac: vital.muac ?? "",
       urineOutput: vital.urineOutput ?? "",
+      fluidIntake: vital.fluidIntake ?? "",
+      oxygenDevice: vital.oxygenDevice || "",
+      oxygenFlow: vital.oxygenFlow ?? "",
+      mobility: vital.mobility || "",
+      injuries: vital.injuries || "",
       comments: vital.comments || "",
     })
   }
 
   const handleDeleteVitals = (vital) =>
-    setPendingDelete({ title: "Delete these vital signs?", run: () => handleDeleteVitalsNow(vital) })
+    setPendingDelete({ title: "Remove these vital signs?", run: (reason) => handleDeleteVitalsNow(vital, reason) })
 
-  const handleDeleteVitalsNow = async (vital) => {
+  const handleDeleteVitalsNow = async (vital, reason) => {
     try {
-      await api.clinical.vitals.delete(vital.apiId)
+      await api.clinical.vitals.delete(vital.apiId, reason)
 
       setVitals((prev) =>
         prev.filter(
@@ -761,11 +807,11 @@ function Consultation() {
   }
 
   const handleDeleteDiagnosis = (diagnosis) =>
-    setPendingDelete({ title: "Delete this diagnosis?", run: () => handleDeleteDiagnosisNow(diagnosis) })
+    setPendingDelete({ title: "Remove this diagnosis?", run: (reason) => handleDeleteDiagnosisNow(diagnosis, reason) })
 
-  const handleDeleteDiagnosisNow = async (diagnosis) => {
+  const handleDeleteDiagnosisNow = async (diagnosis, reason) => {
     try {
-      await api.clinical.diagnoses.delete(diagnosis.apiId)
+      await api.clinical.diagnoses.delete(diagnosis.apiId, reason)
 
       setDiagnoses((prev) =>
         prev.filter(
@@ -854,11 +900,11 @@ function Consultation() {
   }
 
   const handleDeleteNote = (note) =>
-    setPendingDelete({ title: "Delete this clinical note?", run: () => handleDeleteNoteNow(note) })
+    setPendingDelete({ title: "Remove this clinical note?", run: (reason) => handleDeleteNoteNow(note, reason) })
 
-  const handleDeleteNoteNow = async (note) => {
+  const handleDeleteNoteNow = async (note, reason) => {
     try {
-      await api.clinical.notes.delete(note.apiId)
+      await api.clinical.notes.delete(note.apiId, reason)
 
       setNotes((prev) =>
         prev.filter(
@@ -961,11 +1007,11 @@ function Consultation() {
   }
 
   const handleDeleteOrder = (order) =>
-    setPendingDelete({ title: "Delete this service order?", run: () => handleDeleteOrderNow(order) })
+    setPendingDelete({ title: "Remove this service order?", run: (reason) => handleDeleteOrderNow(order, reason) })
 
-  const handleDeleteOrderNow = async (order) => {
+  const handleDeleteOrderNow = async (order, reason) => {
     try {
-      await api.clinical.serviceOrders.delete(order.apiId)
+      await api.clinical.serviceOrders.delete(order.apiId, reason)
 
       setOrders((prev) =>
         prev.filter(
@@ -1025,10 +1071,10 @@ function Consultation() {
   // RENDER
   // =========================================================
 
-  const confirmDelete = async () => {
+  const confirmDelete = async (reason) => {
     if (!pendingDelete) return
     setDeleting(true)
-    await pendingDelete.run()
+    await pendingDelete.run(reason)
     setDeleting(false)
     setPendingDelete(null)
   }
@@ -1142,6 +1188,17 @@ function Consultation() {
                     <p className="text-ink-500">{t("Doctor")}</p>
                     <p className="font-medium text-ink-900">{selectedVisit.doctorName}</p>
                   </div>
+                  {/* F4: the prescription opens for this visit and patient; the server signs it as the doctor. */}
+                  {canAdd("Prescriptions") && (
+                    <Link
+                      to={`/prescription?visit=${selectedVisit.apiId}`}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 text-sm font-medium text-ink-800 hover:bg-ink-50"
+                      aria-label={t("Write a prescription for {patient}, visit {visit}", { patient: selectedVisit.patientName, visit: selectedVisit.apiId })}
+                    >
+                      <FilePlus2 size={16} aria-hidden="true" />
+                      {t("Write prescription")}
+                    </Link>
+                  )}
                   <div className="ml-auto w-full sm:w-52">
                     <label htmlFor="visit-status" className="sr-only">{t("Visit status")}</label>
                     <Select
@@ -1194,7 +1251,7 @@ function Consultation() {
                       {bmiOf(vitalForm.weight, vitalForm.height) && (
                         <p className="text-sm text-ink-600">{t("BMI")}{" "}<span className="font-medium tabular-nums text-ink-900">{bmiOf(vitalForm.weight, vitalForm.height)}</span></p>
                       )}
-                      <details className="rounded-lg border border-ink-200 px-3 py-2" open={Boolean(editingVital && (vitalForm.painScore !== "" || vitalForm.gcs !== "" || vitalForm.avpu || vitalForm.headCircumference !== "" || vitalForm.muac !== "" || vitalForm.urineOutput !== ""))}>
+                      <details className="rounded-lg border border-ink-200 px-3 py-2" open={Boolean(editingVital && (vitalForm.painScore !== "" || vitalForm.gcs !== "" || vitalForm.avpu || vitalForm.headCircumference !== "" || vitalForm.muac !== "" || vitalForm.urineOutput !== "" || vitalForm.fluidIntake !== "" || vitalForm.oxygenDevice || vitalForm.mobility || vitalForm.injuries))}>
                         <summary className="cursor-pointer text-sm font-medium text-ink-700">{t("More vitals")}</summary>
                         <div className="mt-3 grid grid-cols-2 gap-3">
                           <Field label="Pain score (0–10)"><Input type="number" min="0" max="10" inputMode="numeric" value={vitalForm.painScore} onChange={setVital("painScore")} /></Field>
@@ -1207,6 +1264,21 @@ function Consultation() {
                           <Field label="Urine output (mL)"><Input type="number" inputMode="numeric" value={vitalForm.urineOutput} onChange={setVital("urineOutput")} /></Field>
                           <Field label="Head circ. (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.headCircumference} onChange={setVital("headCircumference")} /></Field>
                           <Field label="MUAC (cm)"><Input type="number" step="0.01" inputMode="decimal" value={vitalForm.muac} onChange={setVital("muac")} /></Field>
+                          <Field label="Fluid intake (mL)"><Input type="number" inputMode="numeric" value={vitalForm.fluidIntake} onChange={setVital("fluidIntake")} /></Field>
+                          <Field label="Mobility">
+                            <Select value={vitalForm.mobility} onChange={setVital("mobility")}>
+                              <option value="">—</option>
+                              {MOBILITY_OPTIONS.map((o) => <option key={o} value={o}>{t(o)}</option>)}
+                            </Select>
+                          </Field>
+                          <Field label="Oxygen">
+                            <Select value={vitalForm.oxygenDevice} onChange={setVital("oxygenDevice")}>
+                              <option value="">—</option>
+                              {OXYGEN_DEVICES.map((o) => <option key={o} value={o}>{t(o)}</option>)}
+                            </Select>
+                          </Field>
+                          <Field label="O₂ flow (L/min)"><Input type="number" step="0.5" min="0" max="80" inputMode="decimal" value={vitalForm.oxygenFlow} onChange={setVital("oxygenFlow")} /></Field>
+                          <Field label="Injuries / trauma" className="col-span-2"><Input value={vitalForm.injuries} onChange={setVital("injuries")} placeholder={t("e.g. Abrasion left forearm")} /></Field>
                         </div>
                       </details>
                       <Field label="Comments"><Textarea value={vitalForm.comments} onChange={setVital("comments")} /></Field>
@@ -1242,6 +1314,7 @@ function Consultation() {
                               <th scope="col" className="num">{t("BMI")}</th>
                               <th scope="col" className="num">{t("Pain")}</th>
                               <th scope="col">{t("GCS / AVPU")}</th>
+                              <th scope="col">{t("Other")}</th>
                               <th scope="col"><span className="sr-only">{t("Actions")}</span></th>
                             </tr>
                           </thead>
@@ -1260,6 +1333,10 @@ function Consultation() {
                                 <td className="num">{show(bmiOf(vital.weight, vital.height))}</td>
                                 <td className="num">{show(vital.painScore)}</td>
                                 <td className="whitespace-nowrap">{[vital.gcs, vital.avpu].filter((v) => v !== null && v !== undefined && v !== "").join(" · ") || "—"}</td>
+                                <td className="min-w-[10rem] text-xs text-ink-600">
+                                  {extraVitals(vital, t) || "—"}
+                                  {vital.recordedBy && <span className="block text-ink-400">{t("by {name}", { name: vital.recordedBy })}</span>}
+                                </td>
                                 <td><RowActions label="vital signs" onEdit={() => handleEditVitals(vital)} onDelete={() => handleDeleteVitals(vital)} /></td>
                               </tr>
                             ))}
@@ -1276,8 +1353,14 @@ function Consultation() {
                   <Card as="form" onSubmit={handleSaveDiagnosis}>
                     <CardHeader title={editingDiagnosis ? t("Edit diagnosis") : t("Add diagnosis")} />
                     <div className="space-y-4 px-5 py-4">
-                      <Field label="Diagnosis" required>
-                        <Input value={diagnosisForm.name} onChange={(e) => setDiagnosisForm({ ...diagnosisForm, name: e.target.value })} />
+                      <Field label="Diagnosis" required hint="Type a condition or ICD-10 code to see suggestions">
+                        <Icd10Typeahead
+                          value={diagnosisForm.name}
+                          onChange={(name) => setDiagnosisForm((prev) => ({ ...prev, name }))}
+                          onSelect={({ code, description }) =>
+                            setDiagnosisForm((prev) => ({ ...prev, name: description, icd10Code: code }))
+                          }
+                        />
                       </Field>
                       <div className="grid grid-cols-2 gap-3">
                         <Field label="ICD-10 code" hint="e.g. A09.9">
@@ -1469,15 +1552,13 @@ function Consultation() {
         </div>
       )}
 
-      <ConfirmDialog
+      <RemoveRecordDialog
         open={Boolean(pendingDelete)}
         onCancel={() => setPendingDelete(null)}
         onConfirm={confirmDelete}
         loading={deleting}
-        destructive
-        title={pendingDelete?.title || t("Delete record?")}
-        confirmLabel="Delete"
-        message="This removes the record from the patient's visit. It cannot be undone."
+        title={pendingDelete?.title || t("Remove record?")}
+        message="This removes the record from the patient's visit."
       />
     </div>
   )

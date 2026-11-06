@@ -64,6 +64,15 @@ class HomeStatsTests(TestCase):
         self.assertEqual(lab["completed"], 3)  # Verified, Released, urgent Released
         self.assertEqual(lab["urgent"], 1)
 
+    def test_active_doctors_are_the_available_ones(self):
+        # R-17: this counted status="Active", which a doctor never has, so it was always 0.
+        Doctor.objects.create(hospital=self.hospital, name="Dr Available", specialization="", phone="")
+        Doctor.objects.create(hospital=self.hospital, name="Dr Away", status="On Leave", specialization="", phone="")
+        response = self.client.get(f"/api/home/stats/detail/?hospital={self.hospital.id}")
+        doctors = response.data["statistics"]["doctors"]
+        self.assertEqual(doctors["total"], 2)
+        self.assertEqual(doctors["active"], 1)
+
     def test_other_hospital_is_refused(self):
         for url in ("/api/home/stats/", "/api/home/stats/detail/"):
             response = self.client.get(f"{url}?hospital={self.other.id}")

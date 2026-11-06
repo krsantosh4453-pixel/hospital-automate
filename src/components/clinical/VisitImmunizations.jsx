@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Pencil, Syringe } from "lucide-react"
 import api from "../../services/api.js"
+import { hospitalToday } from "../../utils/hospitalDate.js"
 import {
   Alert,
   Button,
@@ -23,7 +24,7 @@ import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const readResults = (data) => (Array.isArray(data) ? data : data?.results || [])
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => hospitalToday()
 
 const ROUTES = [
   ["", "—"],

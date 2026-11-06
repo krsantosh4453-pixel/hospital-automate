@@ -1,8 +1,11 @@
 from django.conf import settings
 from django.db import models
 
+from audit.entered_in_error import EnteredInError
+from django.db.models.functions import Lower
 
-class Patient(models.Model):
+
+class Patient(EnteredInError):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -100,9 +103,39 @@ class PatientHospital(models.Model):
             models.Index(fields=["hospital", "is_active"]),
             models.Index(fields=["patient", "is_active"]),
         ]
+        constraints = [
+            # R-08: a UHID is a login identifier, so it never repeats within a
+            # hospital, ignoring case. Blank UHIDs are left to the API.
+            models.UniqueConstraint(
+                Lower("uhid"),
+                "hospital",
+                condition=~models.Q(uhid=""),
+                name="unique_uhid_per_hospital",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.patient.name} - {self.hospital.name}"
+
+
+class UhidSequence(models.Model):
+    """
+    F1: the last UHID number issued by a hospital in a year. Only
+    patients/uhid.py changes it, through a row-locking UPDATE, so two desks
+    registering at the same moment never get the same number.
+    """
+
+    hospital = models.ForeignKey("hospital.Hospital", on_delete=models.CASCADE, related_name="uhid_sequences")
+    year = models.PositiveIntegerField()
+    last_value = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["hospital", "year"], name="one_uhid_sequence_per_hospital_year"),
+        ]
+
+    def __str__(self):
+        return f"UHID sequence {self.hospital_id}/{self.year}: {self.last_value}"
 
 
 class PatientDocument(models.Model):

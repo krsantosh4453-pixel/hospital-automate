@@ -203,6 +203,7 @@ class MARSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source="patient.name", read_only=True)
     hospital_name = serializers.CharField(source="hospital.name", read_only=True)
     administrations = MARAdministrationSerializer(many=True, read_only=True)
+    ordered_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = MAR
@@ -220,12 +221,31 @@ class MARSerializer(serializers.ModelSerializer):
             "start_date",
             "end_date",
             "is_active",
+            "ordered_by",
+            "ordered_by_name",
             "created_at",
             "patient_name",
             "hospital_name",
             "administrations",
         ]
-        read_only_fields = ["id", "created_at", "patient_name", "hospital_name", "administrations"]
+        read_only_fields = ["id", "ordered_by", "ordered_by_name", "created_at", "patient_name", "hospital_name",
+                            "administrations"]
+
+    def get_ordered_by_name(self, obj) -> str:
+        user = obj.ordered_by
+        return (user.get_full_name() or user.username) if user else ""
+
+    def validate(self, attrs):
+        # The order must come from that patient's own prescription.
+        get = lambda name: attrs.get(name, getattr(self.instance, name, None))  # noqa: E731
+        patient, prescription, item, admission = get("patient"), get("prescription"), get("prescription_item"), get("admission")
+        if prescription is not None and patient is not None and prescription.patient_id != patient.id:
+            raise serializers.ValidationError({"prescription": "This prescription is for another patient."})
+        if item is not None and prescription is not None and item.prescription_id != prescription.id:
+            raise serializers.ValidationError({"prescription_item": "This medicine is not on that prescription."})
+        if admission is not None and patient is not None and admission.patient_id != patient.id:
+            raise serializers.ValidationError({"admission": "This admission is for another patient."})
+        return attrs
 
 
 class PatientAssignmentSerializer(serializers.ModelSerializer):

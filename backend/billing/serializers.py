@@ -1,11 +1,16 @@
 from rest_framework import serializers
 from .models import (
+    AdvanceAccount,
+    AdvanceTransaction,
     Invoice,
     InvoiceItem,
     Payment,
     InsuranceClaim,
 )
 from django.db import transaction
+
+from hospital.models import Hospital
+from patients.models import Patient
 
 from .services import line_subtotal, money, new_reference, recalculate
 
@@ -15,9 +20,10 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = InvoiceItem
-        fields = ["id", "invoice", "description", "quantity", "unit_price", "subtotal", "tax_rate"]
+        fields = ["id", "invoice", "description", "quantity", "unit_price", "subtotal", "tax_rate", "pharmacy_sale"]
         extra_kwargs = {"invoice": {"required": False}}
-        read_only_fields = ["id", "subtotal"]
+        # pharmacy_sale is set only by billing/pharmacy_charges.py (F9).
+        read_only_fields = ["id", "subtotal", "pharmacy_sale"]
 
     def validate_quantity(self, value):
         if value < 1:
@@ -104,6 +110,8 @@ class InsuranceClaimSerializer(serializers.ModelSerializer):
 class InvoiceSerializer(serializers.ModelSerializer):
     # Read-only display helpers
     patient_name = serializers.CharField(source="patient.name", read_only=True)
+    # RL-16: the UHID this bill's hospital issued, shown instead of a made-up number.
+    patient_uhid = serializers.SerializerMethodField()
     hospital_name = serializers.CharField(source="hospital.name", read_only=True)
     items = InvoiceItemSerializer(many=True, read_only=True)
     payments = PaymentSerializer(many=True, read_only=True)
@@ -125,8 +133,10 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "id",
             "invoice_number",
             "admission",
+            "prescription",
             "patient",
             "patient_name",
+            "patient_uhid",
             "hospital",
             "hospital_name",
             "discount",
@@ -147,6 +157,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         # Money and status are derived from items and payments (billing.services).
         read_only_fields = [
             "id", "created_at", "total_paid", "balance_due", "is_paid", "hospital", "invoice_number", "admission",
+            "prescription",
             "subtotal", "tax_amount", "total_amount", "tax", "total", "status",
         ]
 
@@ -181,6 +192,14 @@ class InvoiceSerializer(serializers.ModelSerializer):
                     "This patient is not registered in this hospital."
                 )
         return value
+
+    def get_patient_uhid(self, obj) -> str:
+        if not obj.patient_id:
+            return ""
+        memberships = getattr(obj.patient, "_prefetched_objects_cache", {}).get("hospital_memberships")
+        if memberships is None:
+            memberships = obj.patient.hospital_memberships.all()
+        return next((m.uhid for m in memberships if m.hospital_id == obj.hospital_id and m.is_active), "")
 
     def get_total_paid(self, obj):
         # Exact decimal string, like the stored money fields.
@@ -228,6 +247,10 @@ class InvoiceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"items_data": "Items cannot be replaced after a payment; issue a refund or a new invoice."}
             )
+        if items_data is not None and instance.items.filter(pharmacy_sale__isnull=False).exists():
+            raise serializers.ValidationError(
+                {"items_data": "Medicine lines come from the pharmacy; return the medicine there to change them."}
+            )
         with transaction.atomic():
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
@@ -240,3 +263,53 @@ class InvoiceSerializer(serializers.ModelSerializer):
                     InvoiceItem.objects.create(invoice=instance, **item_data)
             recalculate(instance)
         return instance
+
+
+class AdvanceTransactionSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
+    invoice_number = serializers.CharField(source="invoice.invoice_number", read_only=True, default="")
+
+    class Meta:
+        model = AdvanceTransaction
+        fields = ["id", "kind", "amount", "balance_after", "payment_method", "receipt_number", "reference",
+                  "invoice", "invoice_number", "created_by", "created_by_name", "created_at"]
+        read_only_fields = fields
+
+    def get_created_by_name(self, obj) -> str:
+        user = obj.created_by
+        return (user.get_full_name() or user.username) if user else ""
+
+
+class AdvanceAccountSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source="patient.name", read_only=True)
+    transactions = serializers.SerializerMethodField()
+
+    # The latest movements; the full history is in the transactions list.
+    RECENT = 50
+
+    class Meta:
+        model = AdvanceAccount
+        fields = ["id", "hospital", "patient", "patient_name", "balance", "updated_at", "transactions"]
+        read_only_fields = fields
+
+    def get_transactions(self, obj) -> list:
+        return AdvanceTransactionSerializer(obj.transactions.select_related("invoice", "created_by")[: self.RECENT],
+                                            many=True).data
+
+
+class AdvanceDepositSerializer(serializers.Serializer):
+    hospital = serializers.PrimaryKeyRelatedField(queryset=Hospital.objects.all(), required=False)
+    patient = serializers.PrimaryKeyRelatedField(queryset=Patient.objects.all())
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = serializers.CharField(max_length=30, default="Cash")
+    reference = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
+    idempotency_key = serializers.CharField(max_length=80, required=False, allow_blank=True, default="")
+
+
+class AdvanceMoveSerializer(serializers.Serializer):
+    """Amount plus what the action needs: a reason for refunds, a key against double submits."""
+
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    reason = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
+    payment_method = serializers.CharField(max_length=30, required=False, default="Cash")
+    idempotency_key = serializers.CharField(max_length=80, required=False, allow_blank=True, default="")

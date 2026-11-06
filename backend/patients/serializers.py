@@ -3,10 +3,14 @@ from .models import Patient, PatientHospital
 
 
 class PatientSerializer(serializers.ModelSerializer):
+    # A19: the patient's UHID at the hospital being acted in (blank if none).
+    uhid = serializers.SerializerMethodField()
+
     class Meta:
         model = Patient
         fields = [
             "id",
+            "uhid",
             "name",
             "age",
             "gender",
@@ -35,7 +39,17 @@ class PatientSerializer(serializers.ModelSerializer):
             "phone_verified",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at", "email_verified", "phone_verified"]
+        read_only_fields = ["id", "uhid", "created_at", "email_verified", "phone_verified"]
+
+    def get_uhid(self, obj) -> str:
+        hospital = self.context.get("scoped_hospital")
+        if hospital is None or not obj.pk:
+            return ""
+        memberships = getattr(obj, "_prefetched_objects_cache", {}).get("hospital_memberships")
+        if memberships is not None:
+            return next((m.uhid for m in memberships if m.hospital_id == hospital.pk and m.is_active), "")
+        row = obj.hospital_memberships.filter(hospital=hospital, is_active=True).values_list("uhid", flat=True).first()
+        return row or ""
 
     def validate_name(self, value):
         if not value or not value.strip():
@@ -126,10 +140,17 @@ class PatientHospitalSerializer(serializers.ModelSerializer):
             "joined_at",
         ]
         read_only_fields = ["id", "joined_at"]
+        # F1: leave the UHID out to have the hospital's next one issued.
+        extra_kwargs = {"uhid": {"required": False, "allow_blank": True}}
+
+    def validate_uhid(self, value):
+        return (value or "").strip()
 
     def validate(self, attrs):
         # A UHID is also a patient login identifier, so it is unique per
         # hospital (ignoring case). Existing duplicates: report_duplicate_uhids.
+        if self.instance is not None and self.instance.uhid and attrs.get("uhid", None) == "":
+            raise serializers.ValidationError({"uhid": "A UHID cannot be removed once issued."})
         hospital = attrs.get("hospital", getattr(self.instance, "hospital", None))
         uhid = attrs.get("uhid", getattr(self.instance, "uhid", ""))
         clash = PatientHospital.objects.filter(hospital=hospital, uhid__iexact=uhid)

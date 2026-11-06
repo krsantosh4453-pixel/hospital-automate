@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { signInAs } from "./helpers.js"
+import { pickPatient, signInAs } from "./helpers.js"
 
 // seed_demo fills every bed, so the admin adds one, admits an OPD patient
 // and gives them that bed.
@@ -23,9 +23,8 @@ test("admin adds a bed, admits a patient and allocates the bed", async ({ page }
 
   await page.getByRole("button", { name: "New admission" }).first().click()
   const admit = page.getByRole("dialog", { name: "New admission" })
-  const [patientSelect, doctorSelect] = [admit.locator("select").nth(0), admit.locator("select").nth(1)]
-  await pickOption(patientSelect, PATIENT)
-  await pickOption(doctorSelect, "Dr Asha Mehta")
+  await pickPatient(admit, PATIENT)
+  await pickOption(admit.locator("select").first(), "Dr Asha Mehta")
   await admit.locator("textarea").fill("Chest pain, observation")
   await admit.getByRole("button", { name: "Admit patient" }).click()
   await expect(admit).toBeHidden()

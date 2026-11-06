@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Link, useSearchParams } from "react-router-dom"
 
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import MedicationSafetyDialog from "../components/prescription/MedicationSafetyDialog.jsx"
-import { FilePlus2, Hospital, PackageCheck, Pill, Plus, RefreshCw, Trash2, X } from "lucide-react"
+import PatientPicker from "../components/patients/PatientPicker.jsx"
+import { FilePlus2, Hospital, Pill, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import {
   Alert,
   Button,
   Card,
   CardHeader,
-  ConfirmDialog,
+  RemoveRecordDialog,
   EmptyState,
   Field,
   Input,
@@ -59,13 +61,6 @@ const formatDate = (value) => {
 
 // Build a dropdown option from a Django record. We always keep the real
 // integer id as `value` so writes use stable database ids, never names.
-const mapPatientOption = (record) => ({
-  value: String(record.id),
-  label: record.name
-    ? `${record.name}${record.phone ? ` (${record.phone})` : ""}`
-    : `Patient #${record.id}`,
-})
-
 const mapDoctorOption = (record) => ({
   value: String(record.id),
   label: record.name
@@ -80,12 +75,17 @@ const mapVisitOption = (record) => ({
     record.patient !== null && record.patient !== undefined
       ? String(record.patient)
       : "",
+  patientName: record.patient_name || "",
 })
 
+// Adds ``option`` to a dropdown list unless it is already there (lists hold one page only).
+const withOption = (options, option) =>
+  options.some((item) => item.value === option.value) ? options : [option, ...options]
+
+// "Dispensed" is not offered: only the pharmacy sets it, when it issues the medicine.
 const PRESCRIPTION_STATUSES = [
   "Confirmed",
   "Pending",
-  "Dispensed",
   "Cancelled",
 ]
 
@@ -115,7 +115,6 @@ function Prescription() {
 
   const {
     prescriptions,
-    dispensePrescription,
     getHospitalPrescriptions,
     loadPrescriptions,
     createPrescription,
@@ -126,9 +125,8 @@ function Prescription() {
   } = usePrescription()
 
   // ---------------------------------------------------------
-  // Dropdown option state (patients / doctors / visits)
+  // Dropdown option state (doctors / visits); the patient is found by search (PatientPicker)
   // ---------------------------------------------------------
-  const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [visits, setVisits] = useState([])
   const [loadingOptions, setLoadingOptions] = useState(false)
@@ -145,10 +143,41 @@ function Prescription() {
   const [actionError, setActionError] = useState("")
   const [search, setSearch] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
-  const [pending, setPending] = useState(null) // { kind: 'dispense' | 'delete', record }
+  const [pending, setPending] = useState(null) // { kind: 'delete', record }
   const [working, setWorking] = useState(false)
 
   const refresh = () => setReloadToken((token) => token + 1)
+
+  // F4: opened from a consultation as /prescription?visit=<id>: that visit and
+  // its patient are filled in; the server signs it as the requesting doctor.
+  const [searchParams] = useSearchParams()
+  const fromVisitId = searchParams.get("visit") || ""
+  const [fromVisit, setFromVisit] = useState(null)
+  // Read by the options loader, which may finish before or after this visit;
+  // set as soon as the visit arrives, not after the next render.
+  const fromVisitRef = useRef(null)
+
+  useEffect(() => {
+    if (!fromVisitId || !selectedHospital || !canWrite) {
+      fromVisitRef.current = null
+      setFromVisit(null)
+      return undefined
+    }
+    let cancelled = false
+    api.visits.get(fromVisitId)
+      .then((record) => {
+        if (cancelled || String(record.hospital) !== String(selectedHospital.id)) return
+        const option = mapVisitOption(record)
+        fromVisitRef.current = option
+        setFromVisit(option)
+        setVisits((prev) => withOption(prev, option))
+        setForm((prev) => ({ ...prev, visitId: option.value, patientId: option.patientId }))
+      })
+      .catch(() => !cancelled && setFormError("The consultation's visit could not be loaded; choose it below."))
+    return () => {
+      cancelled = true
+    }
+  }, [fromVisitId, selectedHospital, canWrite])
 
   // ---------------------------------------------------------
   // LOAD DROPDOWN OPTIONS for the selected hospital
@@ -158,7 +187,6 @@ function Prescription() {
 
     const loadOptions = async () => {
       if (!selectedHospital || !canWrite) {
-        setPatients([])
         setDoctors([])
         setVisits([])
         return
@@ -166,11 +194,10 @@ function Prescription() {
 
       setLoadingOptions(true)
 
-      // Load all three in parallel. If one fails we still keep the others
+      // Load both in parallel. If one fails we still keep the other
       // so the form degrades gracefully instead of going blank.
-      const [patientsResult, doctorsResult, visitsResult] =
+      const [doctorsResult, visitsResult] =
         await Promise.allSettled([
-          api.patients.list(selectedHospital.id),
           api.doctors.list(selectedHospital.id),
           api.visits.list(selectedHospital.id),
         ])
@@ -179,23 +206,18 @@ function Prescription() {
         return
       }
 
-      setPatients(
-        patientsResult.status === "fulfilled"
-          ? readResults(patientsResult.value).map(mapPatientOption)
-          : []
-      )
-
       setDoctors(
         doctorsResult.status === "fulfilled"
           ? readResults(doctorsResult.value).map(mapDoctorOption)
           : []
       )
 
-      setVisits(
-        visitsResult.status === "fulfilled"
+      setVisits(() => {
+        const loaded = visitsResult.status === "fulfilled"
           ? readResults(visitsResult.value).map(mapVisitOption)
           : []
-      )
+        return fromVisitRef.current ? withOption(loaded, fromVisitRef.current) : loaded
+      })
 
       setLoadingOptions(false)
     }
@@ -293,8 +315,14 @@ function Prescription() {
     }))
   }
 
+  // The chosen visit names its patient, so the picker can show who it is.
+  const selectedPatient = useMemo(() => {
+    const visit = visits.find((item) => item.patientId && item.patientId === form.patientId)
+    return visit ? { id: visit.patientId, name: visit.patientName || `Patient #${visit.patientId}` } : null
+  }, [visits, form.patientId])
+
   // Selecting a visit also selects the patient that visit belongs to so the
-  // two dropdowns never contradict each other.
+  // two fields never contradict each other.
   const handleVisitChange = (value) => {
     setForm((prev) => {
       const match = visits.find((visit) => visit.value === value)
@@ -402,7 +430,8 @@ function Prescription() {
       setSuccessMessage(
         t("Prescription {createdId} created successfully.", { createdId: created?.id || "" })
       )
-      setForm(emptyForm())
+      // From a consultation, the next prescription is for the same visit.
+      setForm(fromVisit ? { ...emptyForm(), visitId: fromVisit.value, patientId: fromVisit.patientId } : emptyForm())
       setSafetyCheck(null)
     } catch (err) {
       setSafetyCheck(null)
@@ -416,19 +445,9 @@ function Prescription() {
 
   // ---------------------------------------------------------
   // ACTIONS on an existing prescription
+  // (Dispensing happens on the Pharmacy page, which issues stock.)
   // ---------------------------------------------------------
-  const handleDispense = async (record) => {
-    setActionError("")
-
-    try {
-      await dispensePrescription(record.id, selectedHospital?.id)
-      setSuccessMessage(t("Prescription {recordId} marked as Dispensed.", { recordId: record.id }))
-    } catch (err) {
-      setActionError(err.message || "Could not dispense this prescription.")
-    }
-  }
-
-  const handleDelete = async (record) => {
+  const handleDelete = async (record, reason) => {
     setActionError("")
 
     if (!record.apiId) {
@@ -437,18 +456,17 @@ function Prescription() {
     }
 
     try {
-      await deletePrescription(record.apiId)
-      setSuccessMessage(`Prescription ${record.id} deleted.`)
+      await deletePrescription(record.apiId, reason)
+      setSuccessMessage(`Prescription ${record.id} removed.`)
     } catch (err) {
       setActionError(err?.message || "Unable to delete the prescription.")
     }
   }
 
-  const runPending = async () => {
+  const runPending = async (reason) => {
     if (!pending) return
     setWorking(true)
-    if (pending.kind === "dispense") await handleDispense(pending.record)
-    else await handleDelete(pending.record)
+    await handleDelete(pending.record, reason)
     setWorking(false)
     setPending(null)
   }
@@ -515,13 +533,17 @@ function Prescription() {
         <Card as="form" onSubmit={handleSubmit} className="self-start" noValidate>
           <CardHeader icon={FilePlus2} title={t("New prescription")} description="Patient, visit and doctor, then one row per medicine." />
           <div className="space-y-5 px-5 py-4">
+            {fromVisit && (
+              <Alert tone="info" action={<Link to={`/consultation?visit=${fromVisit.value}`} className="text-sm font-medium text-brand-700 underline">{t("Back to consultation")}</Link>}>
+                {t("For visit #{visit} · {patient}. Signed in your name when saved.", { visit: fromVisit.value, patient: fromVisit.patientName })}
+              </Alert>
+            )}
             {formError && <Alert tone="danger" title={t("Not saved")}>{formError}</Alert>}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Patient" required>
-                <Select value={form.patientId} onChange={(e) => setField("patientId", e.target.value)}>
-                  {optionList(patients, loadingOptions ? "Loading…" : "Select patient")}
-                </Select>
+                <PatientPicker hospitalId={selectedHospital.id} value={form.patientId} selected={selectedPatient}
+                  onChange={(id) => setField("patientId", id)} />
               </Field>
               <Field label="Visit" hint="Optional; selects its patient">
                 <Select value={form.visitId} onChange={(e) => handleVisitChange(e.target.value)}>
@@ -627,11 +649,6 @@ function Prescription() {
                       </p>
                     </div>
                     <div className="flex gap-1.5">
-                      {record.status !== "Dispensed" && (
-                        <Button size="sm" variant="subtle" icon={PackageCheck} onClick={() => setPending({ kind: "dispense", record })}>
-                          {t("Dispense")}
-                        </Button>
-                      )}
                       {record.apiId && (
                         <Button size="icon-sm" variant="danger-ghost" icon={Trash2} onClick={() => setPending({ kind: "delete", record })} aria-label={t("Delete prescription {recordId}", { recordId: record.id })} title={t("Delete")} />
                       )}
@@ -672,19 +689,13 @@ function Prescription() {
         </Card>
       </div>
 
-      <ConfirmDialog
-        open={Boolean(pending)}
+      <RemoveRecordDialog
+        open={pending?.kind === "delete"}
         onCancel={() => setPending(null)}
         onConfirm={runPending}
         loading={working}
-        destructive={pending?.kind === "delete"}
-        title={pending?.kind === "delete" ? t("Delete prescription?") : t("Mark as dispensed?")}
-        confirmLabel={pending?.kind === "delete" ? "Delete" : "Mark dispensed"}
-        message={
-          pending?.kind === "delete"
-            ? t("Prescription {recordId} for {patient} will be deleted. This cannot be undone.", { recordId: pending?.record.id, patient: pending?.record.patientName || "this patient" })
-            : t("Confirm that every medicine on prescription {recordId} has been handed to {patient}.", { recordId: pending?.record.id, patient: pending?.record.patientName || "the patient" })
-        }
+        title={t("Remove prescription?")}
+        message={t("Prescription {recordId} for {patient} will be removed from the list.", { recordId: pending?.record.id, patient: pending?.record.patientName || "this patient" })}
       />
     </div>
   )

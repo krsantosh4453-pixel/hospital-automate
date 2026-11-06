@@ -2,13 +2,28 @@ from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from audit.entered_in_error import EnteredInError
 
-class VitalSign(models.Model):
+
+class VitalSign(EnteredInError):
     class Avpu(models.TextChoices):
         ALERT = "A", "Alert"
         VOICE = "V", "Responds to voice"
         PAIN = "P", "Responds to pain"
         UNRESPONSIVE = "U", "Unresponsive"
+
+    class OxygenDevice(models.TextChoices):
+        ROOM_AIR = "Room air", "Room air"
+        NASAL = "Nasal cannula", "Nasal cannula"
+        MASK = "Face mask", "Face mask"
+        NON_REBREATHER = "Non-rebreather mask", "Non-rebreather mask"
+        HIGH_FLOW = "High-flow nasal", "High-flow nasal"
+        VENTILATOR = "Ventilator", "Ventilator"
+
+    class Mobility(models.TextChoices):
+        INDEPENDENT = "Independent", "Independent"
+        ASSISTED = "With assistance", "With assistance"
+        BEDBOUND = "Bedbound", "Bedbound"
 
     visit = models.ForeignKey(
         "encounters.Visit",
@@ -37,6 +52,15 @@ class VitalSign(models.Model):
     head_circumference = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="cm")
     muac = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Mid-upper arm circumference, cm")
     urine_output = models.PositiveIntegerField(null=True, blank=True, help_text="mL since the last reading")
+    # D2: intake/output, oxygen, mobility, injuries and who took the reading.
+    fluid_intake = models.PositiveIntegerField(null=True, blank=True, help_text="mL since the last reading")
+    oxygen_device = models.CharField(max_length=30, choices=OxygenDevice.choices, blank=True)
+    oxygen_flow = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True,
+                                      validators=[MinValueValidator(0), MaxValueValidator(80)], help_text="L/min")
+    mobility = models.CharField(max_length=20, choices=Mobility.choices, blank=True)
+    injuries = models.CharField(max_length=255, blank=True, help_text="Injuries or trauma seen, as written")
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name="+")
     comments = models.TextField(blank=True)
     recorded_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -46,7 +70,7 @@ class VitalSign(models.Model):
         ]
 
 
-class Allergy(models.Model):
+class Allergy(EnteredInError):
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
@@ -70,7 +94,7 @@ class Allergy(models.Model):
         return self.name
 
 
-class ClinicalNote(models.Model):
+class ClinicalNote(EnteredInError):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -121,7 +145,7 @@ class ClinicalNote(models.Model):
         )
 
 
-class Diagnosis(models.Model):
+class Diagnosis(EnteredInError):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -151,7 +175,7 @@ class Diagnosis(models.Model):
         ]
 
 
-class ServiceOrder(models.Model):
+class ServiceOrder(EnteredInError):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -170,7 +194,7 @@ class ServiceOrder(models.Model):
         ]
 
 
-class Procedure(models.Model):
+class Procedure(EnteredInError):
     visit = models.ForeignKey(
         "encounters.Visit",
         on_delete=models.CASCADE,
@@ -188,7 +212,7 @@ class Procedure(models.Model):
         ]
 
 
-class MedicalRecord(models.Model):
+class MedicalRecord(EnteredInError):
     patient = models.ForeignKey(
         "patients.Patient",
         on_delete=models.CASCADE,
@@ -221,7 +245,7 @@ class MedicalRecord(models.Model):
         ]
 
 
-class Prescription(models.Model):
+class Prescription(EnteredInError):
     hospital = models.ForeignKey(
         "hospital.Hospital",
         on_delete=models.CASCADE,
@@ -250,8 +274,29 @@ class Prescription(models.Model):
         related_name="prescriptions",
         db_index=True
     )
+    class Source(models.TextChoices):
+        ELECTRONIC = "Electronic", "Written in the system by a doctor"
+        PAPER = "Paper transcription", "Transcribed from a paper prescription"
+
+    # F13: a paper prescription copied in by the pharmacy waits here until a
+    # second person (another pharmacist or an Admin) checks it against the paper.
+    PENDING_VERIFICATION = "Pending Verification"
+
     status = models.CharField(max_length=30, default="Confirmed", db_index=True)
     dispensed_at = models.DateTimeField(null=True, blank=True)
+    source = models.CharField(max_length=30, choices=Source.choices, default=Source.ELECTRONIC)
+    # Who signed the paper: a doctor of this hospital (``doctor``) or, for an
+    # outside doctor, their name and registration number as written on it.
+    original_prescriber_name = models.CharField(max_length=150, blank=True, default="")
+    original_prescriber_registration = models.CharField(max_length=50, blank=True, default="")
+    original_prescription_date = models.DateField(null=True, blank=True)
+    transcribed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
     # Medication safety check at the time of writing (clinical/medication_safety.py):
     # the alerts shown and, for high-severity ones, the doctor's reason to go ahead.
     safety_alerts = models.JSONField(default=list, blank=True)
@@ -271,7 +316,7 @@ class Prescription(models.Model):
         return f"RX-{self.pk}"
 
 
-class PrescriptionItem(models.Model):
+class PrescriptionItem(EnteredInError):
     prescription = models.ForeignKey(
         Prescription,
         on_delete=models.CASCADE,

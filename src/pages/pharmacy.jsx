@@ -4,9 +4,25 @@ import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { usePharmacy } from "../assets/context/PharmacyContext.jsx"
 import { AlarmClockIcon, CheckIcon, HospitalIcon, PillIcon, ReceiptIcon, SearchIcon, TrendingDownIcon, TriangleAlertIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
-import { Alert, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, useConfirm } from "../components/ui"
+import { Alert, Button, Card, EmptyState, Field, Input, Modal, PageHeader, PrintSheet, Select, useConfirm } from "../components/ui"
 import { Plus as PlusIcon } from "lucide-react"
-import { defaultBatches, missingBatches, usableBatches } from "../utils/dispenseBatches.js"
+import { buildDispenseRequest, defaultLines } from "../utils/dispenseBatches.js"
+import DispenseLine from "../components/pharmacy/DispenseLine.jsx"
+import SaleReturns from "../components/pharmacy/SaleReturns.jsx"
+import PrescriptionQueue from "../components/pharmacy/PrescriptionQueue.jsx"
+import TranscribeDialog from "../components/pharmacy/TranscribeDialog.jsx"
+import DispensingSlip from "../components/pharmacy/DispensingSlip.jsx"
+import { useAuth } from "../assets/context/AuthContext.jsx"
+import api from "../services/api.js"
+import { PAPER_SOURCE, PENDING_VERIFICATION, mapPrescriptionFromApi } from "../utils/prescriptionRecord.js"
+import { useRole } from "../assets/context/RoleContext.jsx"
+
+// Taking back dispensed medicine is the pharmacist's call (the server enforces this).
+const RETURN_ROLES = ["Admin", "Hospital Manager", "Pharmacist"]
+// Paper prescriptions are transcribed and verified by these roles (F13; the server enforces it).
+const TRANSCRIBE_ROLES = ["Admin", "Pharmacist"]
+// Not dispensed until something changes: cancelled, or a transcription nobody has verified yet.
+const BLOCKED_STATUSES = ["Cancelled", PENDING_VERIFICATION]
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 // Convert "MM/YYYY" (UI) to "YYYY-MM-01" (API DateField). Returns null if invalid.
@@ -22,12 +38,15 @@ const toApiDate = (value) => {
   return `${String(yearNum).padStart(4, "0")}-${String(monthNum).padStart(2, "0")}-01`
 }
 
+// The moment a "MM/YYYY" expiry runs out: the start of the following month,
+// as the batch picker reads it (utils/dispenseBatches.js). Comparing with the
+// first of the expiry month flagged a batch as expired for its whole last month.
 const parseExpiry = (value) => {
   if (!value) return null
   const parts = String(value).split("/")
   if (parts.length < 2) return null
   const [month, year] = parts
-  return new Date(Number(year), Number(month) - 1, 1)
+  return new Date(Number(year), Number(month), 1)
 }
 
 function Pharmacy() {
@@ -46,6 +65,11 @@ function Pharmacy() {
   } = usePharmacy()
 
   const { selectedHospital } = usePatient()
+  const { activeRoleName } = useRole()
+  const { user: authUser } = useAuth()
+  // A staff session nests the account under ``user`` (as on the Nurses page).
+  const staffUser = authUser?.user || authUser || {}
+  const staffName = [staffUser.first_name, staffUser.last_name].filter(Boolean).join(" ") || staffUser.username
 
   const {
     fetchPrescription,
@@ -75,6 +99,7 @@ function Pharmacy() {
     stock: "",
     expiry: "",
     price: "",
+    taxRate: "",
   })
 
   const [issueData, setIssueData] = useState({
@@ -86,7 +111,13 @@ function Pharmacy() {
   const [prescriptionId, setPrescriptionId] = useState("")
   const [foundPrescription, setFoundPrescription] = useState(null)
   // Prescription item id -> stock batch (medicine id) to issue it from.
-  const [dispenseBatchIds, setDispenseBatchIds] = useState({})
+  // Item id -> { batch, quantity, reason } for the prescription being dispensed.
+  const [dispenseLines, setDispenseLines] = useState({})
+  // F6/F13: queue reloads, the transcription form, the printed slip.
+  const [queueKey, setQueueKey] = useState(0)
+  const [showTranscribe, setShowTranscribe] = useState(false)
+  const [printingSlip, setPrintingSlip] = useState(false)
+  const [verifying, setVerifying] = useState(false)
 
   // =========================
   // EXPIRY & LOW STOCK ALERTS
@@ -360,6 +391,9 @@ function Pharmacy() {
         price:
           Number(formData.price),
 
+        tax_rate:
+          Number(formData.taxRate || 0),
+
         expiry_date:
           toApiDate(formData.expiry),
 
@@ -425,6 +459,9 @@ function Pharmacy() {
           medicine.price
         ),
 
+      taxRate:
+        String(medicine.taxRate || 0),
+
     })
 
 
@@ -469,6 +506,9 @@ function Pharmacy() {
             Number(
               formData.price
             ),
+
+          tax_rate:
+            Number(formData.taxRate || 0),
 
           expiry_date:
             toApiDate(formData.expiry),
@@ -763,11 +803,42 @@ function Pharmacy() {
     setFoundPrescription(
       prescription
     )
-    setDispenseBatchIds(
-      defaultBatches(prescription.medicines || [], hospitalMedicines)
+    setDispenseLines(
+      defaultLines(prescription.medicines || [], hospitalMedicines)
     )
   }
 
+
+  // F6: open a prescription chosen in the queue, exactly as the server has it.
+  const openPrescription = (prescription) => {
+    setFoundPrescription(prescription)
+    setPrescriptionId(prescription.id)
+    setDispenseLines(defaultLines(prescription.medicines || [], hospitalMedicines))
+    requestAnimationFrame(() => document.getElementById("pharmacy-rx-details")?.scrollIntoView({ block: "start" }))
+  }
+
+  // F13: someone other than the transcriber checks the paper and releases it.
+  const verifyPrescription = async () => {
+    if (!foundPrescription) return
+    setVerifying(true)
+    try {
+      const verified = mapPrescriptionFromApi(await api.prescriptions.verify(foundPrescription.apiId))
+      openPrescription(verified)
+      setQueueKey((n) => n + 1)
+      toast.success(t("{rx} verified; it can now be dispensed.", { rx: verified.id }))
+    } catch (error) {
+      toast.error(error?.message || "Unable to verify the prescription.")
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const handleTranscribed = (prescription) => {
+    setShowTranscribe(false)
+    setQueueKey((n) => n + 1)
+    openPrescription(prescription)
+    toast.success(t("{rx} saved. Another pharmacist or an Admin must verify it before it is dispensed.", { rx: prescription.id }))
+  }
 
   // =========================
   // PRESCRIPTION DISPENSE
@@ -795,6 +866,13 @@ function Pharmacy() {
       return
     }
 
+    if (BLOCKED_STATUSES.includes(foundPrescription.status)) {
+      toast.warning(foundPrescription.status === "Cancelled"
+        ? "This prescription was cancelled; it cannot be dispensed."
+        : "This paper prescription must be verified by a second pharmacist or an Admin before it is dispensed.")
+      return
+    }
+
 
     const prescribedMedicines =
       foundPrescription.medicines || []
@@ -812,51 +890,50 @@ function Pharmacy() {
     }
 
 
-    const missing =
-      missingBatches(prescribedMedicines, dispenseBatchIds)
+    const request = buildDispenseRequest(
+      foundPrescription.apiId, prescribedMedicines, dispenseLines, hospitalMedicines
+    )
 
-    if (missing.length > 0) {
+    if (request.problems) {
 
-      toast.warning(
-        t("Choose a stock batch for: {medicines}.", { medicines: missing.join(", ") })
-      )
+      toast.warning(request.problems.join("; "))
 
       return
     }
 
 
-    // One server transaction: every medicine is issued, or none is.
+    // One server transaction: every line given now is issued, or none is.
     try {
 
-      await dispensePrescriptionSales({
-
-        prescription:
-          foundPrescription.apiId,
-
-        lines:
-          prescribedMedicines.map((item) => ({
-            item: item.id,
-            medicine: Number(dispenseBatchIds[item.id]),
-          })),
-
-      })
+      const result = await dispensePrescriptionSales(request.body)
 
 
       await reloadPharmacyData()
 
 
-      setFoundPrescription({
-
+      const given = Object.fromEntries(result.issued.map((sale) => [sale.prescription_item, sale.quantity]))
+      const updated = {
         ...foundPrescription,
+        status: result.status,
+        medicines: prescribedMedicines.map((item) => ({ ...item, dispensed: Number(item.dispensed || 0) + Number(given[item.id] || 0) })),
+      }
+      setFoundPrescription(updated)
+      setDispenseLines(defaultLines(updated.medicines, hospitalMedicines))
+      setQueueKey((n) => n + 1)
 
-        status:
-          "Dispensed",
+      // F9: charged on the patient's bill; payment is taken at billing, not here.
+      const billed = result.invoice
+        ? " " + t("Charged on bill {invoice} (₹{total}, {status}).", { invoice: result.invoice.invoice_number, total: result.invoice.total, status: t(result.invoice.status) })
+        : ""
 
-      })
 
+      if (result.status !== "Dispensed") {
+        toast.success(t("Part of prescription {rx} dispensed; the rest can be given later.", { rx: foundPrescription.id }) + billed)
+        return
+      }
 
       toast.success(
-        t("Prescription {rx} dispensed successfully.", { rx: foundPrescription.id })
+        t("Prescription {rx} dispensed successfully.", { rx: foundPrescription.id }) + billed
       )
 
     } catch (error) {
@@ -919,7 +996,7 @@ function Pharmacy() {
                 icon={PlusIcon}
                 onClick={() => {
                   setSelectedMedicine(null)
-                  setFormData({ name: "", genericName: "", category: "", batch: "", stock: "", expiry: "", price: "" })
+                  setFormData({ name: "", genericName: "", category: "", batch: "", stock: "", expiry: "", price: "", taxRate: "" })
                   setShowForm(true)
                 }}
               >
@@ -949,17 +1026,34 @@ function Pharmacy() {
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
 
-            <p className="text-blue-600 font-semibold text-sm">
-              {t("PRESCRIPTION DISPENSING")}
-            </p>
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-blue-600 font-semibold text-sm">
+                  {t("PRESCRIPTION DISPENSING")}
+                </p>
 
-            <h2 className="text-xl font-bold text-gray-800 mt-1">
-              {t("Search Doctor Prescription")}
-            </h2>
+                <h2 className="text-xl font-bold text-gray-800 mt-1">
+                  {t("Prescriptions to dispense")}
+                </h2>
 
-            <p className="text-sm text-gray-500 mt-1">
-              {t("Enter the confirmed prescription ID generated by the doctor.")}
-            </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {t("Choose a prescription from the queue, or type its number below.")}
+                </p>
+              </div>
+              {TRANSCRIBE_ROLES.includes(activeRoleName) && (
+                <Button variant="secondary" icon={PlusIcon} onClick={() => setShowTranscribe(true)}>
+                  {t("Transcribe paper prescription")}
+                </Button>
+              )}
+            </div>
+
+            <PrescriptionQueue
+              hospitalId={selectedHospital.id}
+              stock={hospitalMedicines}
+              refreshKey={queueKey}
+              selectedId={foundPrescription?.apiId}
+              onOpen={openPrescription}
+            />
 
 
             <div className="flex flex-col md:flex-row gap-3 mt-5">
@@ -978,7 +1072,9 @@ function Pharmacy() {
                   )
                 }
 
-                placeholder={t("RX-2026-001")}
+                placeholder={t("RX-0001")}
+
+                aria-label={t("Prescription number")}
 
                 className="hms-input flex-1"
 
@@ -1002,7 +1098,7 @@ function Pharmacy() {
 
             {foundPrescription && (
 
-              <div className="mt-6 border border-gray-200 rounded-2xl overflow-hidden">
+              <div id="pharmacy-rx-details" className="mt-6 border border-gray-200 rounded-2xl overflow-hidden scroll-mt-20">
 
 
                 <div className="bg-gray-50 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -1038,7 +1134,7 @@ function Pharmacy() {
 
                   {/* Patient */}
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
                     <div>
 
@@ -1050,6 +1146,19 @@ function Pharmacy() {
                         {
                           foundPrescription.patientName
                         }
+                      </p>
+
+                    </div>
+
+
+                    <div>
+
+                      <p className="text-xs text-gray-500">
+                        {t("UHID")}
+                      </p>
+
+                      <p className="font-semibold text-gray-800 tabular-nums">
+                        {foundPrescription.patientUhid || t("Not issued")}
                       </p>
 
                     </div>
@@ -1078,13 +1187,38 @@ function Pharmacy() {
 
                       <p className="font-semibold text-gray-800">
                         {
-                          foundPrescription.doctor
+                          foundPrescription.doctor || foundPrescription.originalPrescriberName || "—"
                         }
                       </p>
 
                     </div>
 
                   </div>
+
+                  {/* F13: where a paper prescription came from and who checked it */}
+                  {foundPrescription.source === PAPER_SOURCE && (
+                    <Alert tone={foundPrescription.status === PENDING_VERIFICATION ? "warning" : "info"} className="mt-4"
+                      action={foundPrescription.status === PENDING_VERIFICATION && TRANSCRIBE_ROLES.includes(activeRoleName) && (
+                        <Button size="sm" loading={verifying} onClick={verifyPrescription}
+                          disabled={String(foundPrescription.transcribedBy) === String(staffUser.id)}
+                          title={String(foundPrescription.transcribedBy) === String(staffUser.id) ? t("Someone other than the person who transcribed it must verify it.") : undefined}>
+                          {t("Verify against the paper")}
+                        </Button>
+                      )}>
+                      {t("Paper prescription signed by {doctor}{registration}, dated {date}. Transcribed by {by}.", {
+                        doctor: foundPrescription.originalPrescriberName || foundPrescription.doctor,
+                        registration: foundPrescription.originalPrescriberRegistration ? ` (${foundPrescription.originalPrescriberRegistration})` : "",
+                        date: foundPrescription.originalPrescriptionDate,
+                        by: foundPrescription.transcribedByName || "—",
+                      })}{" "}
+                      {foundPrescription.verifiedByName
+                        ? t("Verified by {name}.", { name: foundPrescription.verifiedByName })
+                        : t("Not verified yet: it cannot be dispensed until someone else checks it against the paper.")}
+                    </Alert>
+                  )}
+                  {foundPrescription.status === "Cancelled" && (
+                    <Alert tone="danger" className="mt-4">{t("This prescription was cancelled; it cannot be dispensed.")}</Alert>
+                  )}
 
 
                   {/* Medicines */}
@@ -1098,177 +1232,16 @@ function Pharmacy() {
 
                     <div className="space-y-3">
 
-                      {
-                        foundPrescription.medicines.map(
-                          (
-                            medicine,
-                            index
-                          ) => {
-
-                            const batches =
-                              usableBatches(
-                                hospitalMedicines,
-                                medicine.name
-                              )
-
-
-                            const stockMedicine =
-                              batches.find(
-                                (item) =>
-                                  String(item.id) ===
-                                  String(dispenseBatchIds[medicine.id])
-                              )
-
-
-                            const availableStock =
-                              stockMedicine
-                                ? stockMedicine.stock
-                                : 0
-
-
-                            const enoughStock =
-                              Number(
-                                availableStock
-                              ) >=
-                              Number(
-                                medicine.quantity
-                              )
-
-
-                            return (
-
-                              <div
-
-                                key={
-                                  medicine.id ?? index
-                                }
-
-                                className="border border-gray-200 rounded-xl p-4"
-
-                              >
-
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-
-
-                                  <div>
-
-                                    <p className="font-semibold text-gray-800">
-                                      {
-                                        medicine.name
-                                      }
-                                    </p>
-
-                                    <p className="text-sm text-gray-500">
-                                      {
-                                        medicine.dosage
-                                      }
-
-                                      {" • "}
-
-                                      {
-                                        medicine.frequency
-                                      }
-
-                                      {" • "}
-
-                                      {
-                                        medicine.duration
-                                      }
-                                    </p>
-
-                                  </div>
-
-
-                                  <div className="text-sm">
-
-                                    <p>
-
-                                      {t("Required:")}
-
-                                      {" "}
-
-                                      <span className="font-bold">
-                                        {
-                                          medicine.quantity
-                                        }
-                                      </span>
-
-                                    </p>
-
-
-                                    <p
-                                      className={
-                                        enoughStock
-                                          ? "text-green-600"
-                                          : "text-red-600"
-                                      }
-                                    >
-
-                                      {t("Stock:")}
-
-                                      {" "}
-
-                                      <span className="font-bold">
-                                        {
-                                          availableStock
-                                        }
-                                      </span>
-
-                                    </p>
-
-                                  </div>
-
-                                </div>
-
-
-                                {foundPrescription.status !==
-                                  "Dispensed" && (
-
-                                    <div className="mt-3">
-
-                                      <label
-                                        htmlFor={`dispense-batch-${medicine.id}`}
-                                        className="block text-xs text-gray-500 mb-1"
-                                      >
-                                        {t("Stock batch for")}{" "}{medicine.name}
-                                      </label>
-
-                                      <select
-                                        id={`dispense-batch-${medicine.id}`}
-                                        value={dispenseBatchIds[medicine.id] ?? ""}
-                                        onChange={(e) =>
-                                          setDispenseBatchIds({
-                                            ...dispenseBatchIds,
-                                            [medicine.id]: e.target.value,
-                                          })
-                                        }
-                                        className="hms-input w-full md:w-auto"
-                                      >
-                                        <option value="">
-                                          {batches.length > 0
-                                            ? "Choose a batch"
-                                            : "Not in stock"}
-                                        </option>
-                                        {batches.map((batch) => (
-                                          <option
-                                            key={batch.id}
-                                            value={batch.id}
-                                          >
-                                            {batch.batch || "No batch no."} · Exp {batch.expiry || "—"} · {batch.stock} in stock
-                                          </option>
-                                        ))}
-                                      </select>
-
-                                    </div>
-
-                                  )}
-
-                              </div>
-
-                            )
-                          }
-                        )
-                      }
+                      {foundPrescription.medicines.map((medicine) => (
+                        <DispenseLine
+                          key={medicine.id}
+                          medicine={medicine}
+                          stock={hospitalMedicines}
+                          done={foundPrescription.status === "Dispensed"}
+                          choice={dispenseLines[medicine.id] || {}}
+                          onChange={(choice) => setDispenseLines((prev) => ({ ...prev, [medicine.id]: choice }))}
+                        />
+                      ))}
 
                     </div>
 
@@ -1277,8 +1250,12 @@ function Pharmacy() {
 
                   {/* Dispense */}
 
+                  <Button variant="secondary" className="mt-6 mr-3" onClick={() => setPrintingSlip(true)}>
+                    {t("Print dispensing slip")}
+                  </Button>
+
                   {foundPrescription.status !==
-                    "Dispensed" && (
+                    "Dispensed" && !BLOCKED_STATUSES.includes(foundPrescription.status) && (
 
                       <button
 
@@ -1859,6 +1836,9 @@ function Pharmacy() {
               <Field label="Price" required>
                 <Input type="number" name="price" min="0" step="0.01" value={formData.price} onChange={handleChange} />
               </Field>
+              <Field label="GST %" hint="Added to the patient's bill; 0 if exempt.">
+                <Input type="number" name="taxRate" min="0" max="100" step="0.01" value={formData.taxRate} onChange={handleChange} />
+              </Field>
             </form>
           </Modal>
 
@@ -2249,6 +2229,28 @@ function Pharmacy() {
 
           )}
 
+
+          <SaleReturns
+            hospitalId={selectedHospital.id}
+            canReturn={RETURN_ROLES.includes(activeRoleName)}
+            onReturned={reloadPharmacyData}
+            sales={hospitalSales.map((sale) => sale.record).filter(Boolean)}
+          />
+
+          <TranscribeDialog
+            open={showTranscribe}
+            hospitalId={selectedHospital.id}
+            onClose={() => setShowTranscribe(false)}
+            onSaved={handleTranscribed}
+          />
+
+          <PrintSheet open={printingSlip && Boolean(foundPrescription)} onClose={() => setPrintingSlip(false)}
+            title={t("Dispensing slip")}>
+            {foundPrescription && (
+              <DispensingSlip prescription={foundPrescription} hospital={selectedHospital}
+                printedBy={staffName} />
+            )}
+          </PrintSheet>
 
           {/* =========================
               SALES HISTORY

@@ -12,7 +12,7 @@ import {
   Badge,
   Button,
   Card,
-  ConfirmDialog,
+  RemoveRecordDialog,
   DescriptionList,
   EmptyState,
   Field,
@@ -25,7 +25,9 @@ import {
   TableWrap,
   Toolbar,
 } from "../components/ui"
+import { displayPatientId } from "../utils/patientIdentity.js"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
+import { hospitalToday } from "../utils/hospitalDate.js"
 
 const EMPTY_FORM = {
   name: "", age: "", gender: "", phone: "", condition: "",
@@ -88,6 +90,8 @@ function Patients() {
   // Maps a Django Patient record into the shape this UI already uses.
   const mapFromApi = (record) => ({
     id: record.id,
+    // F1: issued by the server at registration, per hospital.
+    uhid: record.uhid || "",
     name: record.name || "",
     age: record.age ?? "",
     gender: record.gender || "",
@@ -114,12 +118,7 @@ function Patients() {
     source: "api",
   })
 
-  // Keeps IDs readable whether they are Django integers or local "PAT-..."
-  // strings, so "PAT-PAT-..." never happens.
-  const formatPatientId = (patient) => {
-    const value = String(patient?.id ?? "")
-    return value.toUpperCase().startsWith("PAT-") ? value : `PAT-${value}`
-  }
+  const formatPatientId = displayPatientId
 
   // Auto-hide the success banner after a few seconds.
   useEffect(() => {
@@ -347,7 +346,9 @@ function Patients() {
         const created = await api.patients.create(confirmNew ? { ...payload, confirm_new: true } : payload)
         setPatients((prev) => [mapFromApi(created), ...prev])
         setTotalRecords((n) => n + 1)
-        setSuccessMessage("Patient added successfully.")
+        setSuccessMessage(
+          created.uhid ? t("Patient registered. UHID {uhid}.", { uhid: created.uhid }) : t("Patient added successfully."),
+        )
       }
 
       closeForm()
@@ -371,19 +372,19 @@ function Patients() {
   // DELETE
   // =====================================================
 
-  const confirmDelete = async () => {
+  const confirmDelete = async (reason) => {
     const patient = pendingDelete
     if (!patient) return
     setDeleting(true)
     setLoadError("")
 
     try {
-      await api.patients.delete(patient.id)
-      setSuccessMessage("Patient deleted successfully.")
+      await api.patients.delete(patient.id, reason)
+      setSuccessMessage("Patient removed. The record is kept with your name and the reason.")
       setTotalRecords((n) => Math.max(n - 1, 0))
     } catch (error) {
       // Refused or unreachable: the patient still exists on the server.
-      setLoadError(t("Not deleted: {reason}", { reason: error.message }))
+      setLoadError(t("Not removed: {reason}", { reason: error.message }))
       setDeleting(false)
       setPendingDelete(null)
       if (error.isTimeout) setReloadToken((value) => value + 1)
@@ -509,7 +510,7 @@ function Patients() {
                           <div className="flex items-center justify-end gap-0.5">
                             <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => setViewPatient(patient)} aria-label={`View ${patient.name}`} title={t("View")} />
                             {canEdit("Patients") && <Button variant="ghost" size="icon-sm" icon={Pencil} onClick={() => openEditForm(patient)} aria-label={`Edit ${patient.name}`} title={t("Edit")} />}
-                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setPendingDelete(patient)} aria-label={`Delete ${patient.name}`} title={t("Delete")} />
+                            <Button variant="danger-ghost" size="icon-sm" icon={Trash2} onClick={() => setPendingDelete(patient)} aria-label={`Remove ${patient.name}`} title={t("Remove")} />
                           </div>
                         </td>
                       </tr>
@@ -638,7 +639,7 @@ function Patients() {
             <div className="mt-3 space-y-3 pb-2">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Date of birth">
-                  <Input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleFormChange} max={new Date().toISOString().slice(0, 10)} />
+                  <Input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleFormChange} max={hospitalToday()} />
                 </Field>
                 <Field label="Marital status">
                   <Select name="maritalStatus" value={formData.maritalStatus} onChange={handleFormChange}>
@@ -701,7 +702,7 @@ function Patients() {
           viewPatient && (
             <>
               <Button variant="danger-ghost" icon={Trash2} onClick={() => setPendingDelete(viewPatient)} className="mr-auto">
-                {t("Delete")}
+                {t("Remove")}
               </Button>
               {["Doctor", "Nurse", "Admin"].includes(activeRoleName) && (
                 <Button variant="secondary" icon={History} onClick={() => { setRecordPatient(viewPatient); setViewPatient(null) }}>{t("Medical record")}</Button>
@@ -724,6 +725,7 @@ function Patients() {
             </div>
             <DescriptionList
               items={[
+                { label: "UHID", value: viewPatient.uhid || t("Not issued") },
                 { label: "Age", value: viewPatient.age !== "" ? `${viewPatient.age} years` : "" },
                 { label: "Gender", value: viewPatient.gender },
                 { label: "Mobile", value: viewPatient.phone },
@@ -748,7 +750,7 @@ function Patients() {
         )}
       </Modal>
 
-      <ConfirmDialog
+      <RemoveRecordDialog
         open={Boolean(pendingDelete)}
         onCancel={() => {
           setPendingDelete(null)
@@ -756,9 +758,7 @@ function Patients() {
         }}
         onConfirm={confirmDelete}
         loading={deleting}
-        destructive
-        title={t("Permanently delete patient?")}
-        confirmLabel="Delete patient and records"
+        title={t("Remove patient?")}
         confirmDisabled={
           pendingDelete?.source === "api" &&
           deleteConfirmText.trim().toLowerCase() !== String(pendingDelete?.name || "").trim().toLowerCase()
@@ -766,7 +766,7 @@ function Patients() {
         message={
           <>
             {t("Deleting")}{" "}<strong className="font-semibold text-ink-900">{pendingDelete?.name}</strong> (
-            {pendingDelete && formatPatientId(pendingDelete)}{t(") also permanently deletes their visits, clinical notes, prescriptions, medication records, lab tests, admissions, invoices and consent records. This cannot be undone. Use it only for a registration made in error.")}
+            {pendingDelete && formatPatientId(pendingDelete)}{t(") removes them from patient lists and search. Use it only for a registration made in error.")}
           </>
         }
       >
@@ -784,7 +784,7 @@ function Patients() {
             />
           </div>
         )}
-      </ConfirmDialog>
+      </RemoveRecordDialog>
     </div>
   )
 }

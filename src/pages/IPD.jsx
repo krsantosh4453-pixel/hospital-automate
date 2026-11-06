@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from "react"
-import { BedDouble, BedSingle, ClipboardCheck, FileSignature, Hospital, LogOut, Plus, RefreshCw, UserRoundCheck } from "lucide-react"
+import { BedDouble, BedSingle, ClipboardCheck, FileSignature, Hospital, LogOut, Pill, Plus, RefreshCw, UserRoundCheck } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api"
 import { useToast } from "../components/Toast.jsx"
 import AddBedDialog from "../components/ipd/AddBedDialog.jsx"
 import BedsTable from "../components/ipd/BedsTable.jsx"
+import DischargeDraftAssist from "../components/ipd/DischargeDraftAssist.jsx"
 import DischargeReadiness from "../components/ipd/DischargeReadiness.jsx"
+import MedicationOrders from "../components/ipd/MedicationOrders.jsx"
+import PatientPicker from "../components/patients/PatientPicker.jsx"
 import {
   Alert,
   Badge,
@@ -52,13 +55,12 @@ function IPD() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState("admissions")
   const [availableBeds, setAvailableBeds] = useState([])
-  const [patients, setPatients] = useState([])
   const [doctors, setDoctors] = useState([])
   const [busy, setBusy] = useState("")
   // Bumped after IPD data reloads so the All beds tab reloads too.
   const [bedsVersion, setBedsVersion] = useState(0)
 
-  const [dialog, setDialog] = useState(null) // "admission" | "bed" | "add-bed" | "plan" | "summary"
+  const [dialog, setDialog] = useState(null) // "admission" | "bed" | "add-bed" | "plan" | "summary" | "orders"
   const [selectedAdmission, setSelectedAdmission] = useState(null)
   const [admissionForm, setAdmissionForm] = useState({ patient: "", reason: "", admitting_doctor: "" })
   const [bedId, setBedId] = useState("")
@@ -73,13 +75,11 @@ function IPD() {
     setLoading(true)
     setError(null)
     try {
-      const [admissionsRes, patientsRes, doctorsRes] = await Promise.all([
+      const [admissionsRes, doctorsRes] = await Promise.all([
         api.ipd.admissions.list(selectedHospital.id),
-        api.patients.list(selectedHospital.id),
         api.doctors.list(selectedHospital.id),
       ])
       setAdmissions(list(admissionsRes))
-      setPatients(list(patientsRes))
       setDoctors(list(doctorsRes))
 
       const [bedsRes, summariesRes] = await Promise.allSettled([
@@ -340,6 +340,9 @@ function IPD() {
                               {admission.current_bed && (
                                 <Button size="sm" variant="ghost" loading={busy === `release-${admission.id}`} onClick={() => handleReleaseBed(admission)}>{t("Release bed")}</Button>
                               )}
+                              {admission.status !== "Discharged" && (
+                                <Button size="sm" variant="subtle" icon={Pill} onClick={() => { setSelectedAdmission(admission); setDialog("orders") }}>{t("Medicines")}</Button>
+                              )}
                               {admission.status === "Admitted" && (
                                 <Button size="sm" variant="secondary" icon={LogOut} onClick={() => { setSelectedAdmission(admission); setDialog("plan") }}>{t("Start discharge")}</Button>
                               )}
@@ -462,6 +465,14 @@ function IPD() {
         </>
       )}
 
+      <MedicationOrders
+        open={dialog === "orders"}
+        onClose={closeDialog}
+        admission={selectedAdmission}
+        hospitalId={selectedHospital?.id}
+        canOrder={activeRoleName === "Doctor"}
+      />
+
       {/* New admission */}
       <AddBedDialog
         open={dialog === "add-bed"}
@@ -483,10 +494,8 @@ function IPD() {
       >
         <form id="ipd-admission" onSubmit={handleAdmissionSubmit} className="space-y-4">
           <Field label="Patient" required>
-            <Select value={admissionForm.patient} onChange={(e) => setAdmissionForm({ ...admissionForm, patient: e.target.value })}>
-              <option value="">{t("Select patient")}</option>
-              {patients.map((p) => <option key={p.id} value={p.id}>{p.name}{p.age ? ` (${p.age} y)` : ""}{p.phone ? ` · ${p.phone}` : ""}</option>)}
-            </Select>
+            <PatientPicker hospitalId={selectedHospital?.id} value={admissionForm.patient}
+              onChange={(id) => setAdmissionForm((form) => ({ ...form, patient: id }))} />
           </Field>
           <Field label="Admitting doctor">
             <Select value={admissionForm.admitting_doctor} onChange={(e) => setAdmissionForm({ ...admissionForm, admitting_doctor: e.target.value })}>
@@ -547,6 +556,7 @@ function IPD() {
         footer={<><Button variant="secondary" onClick={closeDialog}>{t("Cancel")}</Button><Button type="submit" form="ipd-summary" loading={busy === "summary"}>{t("Save draft")}</Button></>}
       >
         <form id="ipd-summary" onSubmit={handleSummarySubmit}>
+          <DischargeDraftAssist admission={selectedAdmission} text={summaryText} onText={setSummaryText} />
           <Field label="Clinical summary" required hint="Diagnosis, course in hospital, condition at discharge, medicines and follow-up.">
             <Textarea rows={10} value={summaryText} onChange={(e) => setSummaryText(e.target.value)} />
           </Field>

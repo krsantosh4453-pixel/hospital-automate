@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from .models import Medicine, Sale
+from .models import Medicine, Sale, SaleReturn
 
 
 class MedicineSerializer(serializers.ModelSerializer):
@@ -23,6 +23,7 @@ class MedicineSerializer(serializers.ModelSerializer):
             "batch",
             "quantity",
             "price",
+            "tax_rate",
             "expiry_date",
             "status",
             "generic_name",
@@ -46,6 +47,11 @@ class MedicineSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Quantity cannot be negative."
             )
+        return value
+
+    def validate_tax_rate(self, value):
+        if value is None or value < 0 or value > 100:
+            raise serializers.ValidationError("GST must be between 0 and 100 %.")
         return value
 
     def validate(self, attrs):
@@ -94,6 +100,9 @@ class SaleSerializer(serializers.ModelSerializer):
         source="hospital.name",
         read_only=True
     )
+    returned_quantity = serializers.SerializerMethodField()
+    # F9: the patient bill this sale is charged on ("" for walk-in sales).
+    invoice_number = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
@@ -108,14 +117,25 @@ class SaleSerializer(serializers.ModelSerializer):
             "unit_price",
             "total",
             "prescription",
+            "prescription_item",
+            "substituted_for",
+            "substitution_reason",
+            "dispensed_by",
+            "returned_quantity",
+            "invoice_number",
             "created_at",
         ]
         # Price comes from the medicine record, never from the client.
-        read_only_fields = ["id", "unit_price", "total", "created_at"]
+        read_only_fields = ["id", "unit_price", "total", "prescription_item", "substituted_for",
+                            "substitution_reason", "dispensed_by", "returned_quantity", "created_at"]
         extra_kwargs = {
             "hospital": {"required": False},
             "unit_price": {"required": False},
         }
+
+    def get_invoice_number(self, obj) -> str:
+        item = getattr(obj, "invoice_item", None) if obj.pk else None
+        return item.invoice.invoice_number if item is not None else ""
 
     def validate_patient_name(self, value):
         if not value or not value.strip():
@@ -196,6 +216,13 @@ class SaleSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def get_returned_quantity(self, obj) -> int:
+        # Views annotate this; fall back to a query for single objects.
+        annotated = getattr(obj, "returned_total", None)
+        if annotated is not None:
+            return annotated
+        return sum(r.quantity for r in obj.returns.all())
+
     def create(self, validated_data):
         medicine = validated_data["medicine"]
         unit_price = validated_data.get("unit_price")
@@ -207,9 +234,31 @@ class SaleSerializer(serializers.ModelSerializer):
         ).quantize(Decimal("0.01"))
         return super().create(validated_data)
 
+class SaleReturnSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source="sale.medicine.name", read_only=True)
+    patient_name = serializers.CharField(source="sale.patient_name", read_only=True)
+
+    class Meta:
+        model = SaleReturn
+        fields = ["id", "sale", "medicine_name", "patient_name", "quantity", "restocked", "reason", "refund_amount",
+                  "returned_by", "created_at"]
+        read_only_fields = fields
+
+
+class SaleReturnRequestSerializer(serializers.Serializer):
+    quantity = serializers.IntegerField(min_value=1)
+    reason = serializers.CharField(max_length=255)
+    # True only when the pharmacist confirms the medicine is sealed and fit to reissue.
+    restock = serializers.BooleanField(default=False)
+
+
 class DispenseLineSerializer(serializers.Serializer):
     item = serializers.IntegerField(min_value=1)
     medicine = serializers.IntegerField(min_value=1)
+    # Used only with partial=True; otherwise the whole remaining quantity is issued.
+    quantity = serializers.IntegerField(min_value=1, required=False)
+    # Required when ``medicine`` is a same-salt substitute for the prescribed brand.
+    substitute_reason = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
 
 
 class DispensePrescriptionSerializer(serializers.Serializer):
@@ -217,3 +266,5 @@ class DispensePrescriptionSerializer(serializers.Serializer):
 
     prescription = serializers.IntegerField(min_value=1)
     lines = DispenseLineSerializer(many=True)
+    # True to issue only some lines or smaller quantities now and the rest later.
+    partial = serializers.BooleanField(required=False, default=False)

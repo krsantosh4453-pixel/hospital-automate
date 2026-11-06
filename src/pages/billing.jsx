@@ -1,13 +1,21 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useSubmitGuard } from "../utils/submitGuard.js"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
 import { useLinkedPatient } from "../utils/linkedPatient.js"
 import { CreditCardIcon, HospitalIcon, PrinterIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
-import { Alert, Button, Card, EmptyState, PageHeader, useConfirm } from "../components/ui"
+import { Alert, Button, Card, EmptyState, Field, PageHeader, useConfirm } from "../components/ui"
+import PatientPicker from "../components/patients/PatientPicker.jsx"
+import { displayPatientId } from "../utils/patientIdentity.js"
+import AdvancePayments from "../components/billing/AdvancePayments.jsx"
 import DischargeBills from "../components/billing/DischargeBills.jsx"
 import { Plus as PlusIcon } from "lucide-react"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
+
+// Refunds of advance money are for billing staff and above (the server enforces this).
+const REFUND_ROLES = ["Admin", "Hospital Manager", "Billing Staff"]
 
 function Billing() {
   const { t } = useLanguage()
@@ -16,6 +24,7 @@ function Billing() {
 
 
   const { selectedHospital } = usePatient()
+  const { activeRoleName } = useRole()
   // Bumped when a discharge final bill is created, to reload the invoices.
   const [billsReloadToken, setBillsReloadToken] = useState(0)
 
@@ -33,10 +42,19 @@ function Billing() {
 
   const [selectedBill, setSelectedBill] = useState(null)
 
+  // One idempotency key per opened form (RL-04): a retry after a lost
+  // response re-sends the same key, so the server records the payment once.
+  const paymentKey = useRef("")
+  const paymentKeyFor = (invoiceId) => {
+    if (!paymentKey.current) paymentKey.current = `${invoiceId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+    return paymentKey.current
+  }
+
 
   const [formData, setFormData] = useState({
     patient: "",
     patientId: "",
+    patientRecord: "",
     consultation: "",
     laboratory: "",
     pharmacy: "",
@@ -79,7 +97,7 @@ function Billing() {
             id: inv.invoice_number,
             apiId: inv.id,
             patient: inv.patient_name || inv.patient?.name || "Unknown",
-            patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+            patientId: inv.patient ? displayPatientId({ id: inv.patient, uhid: inv.patient_uhid }) : "",
             hospitalId: inv.hospital,
             date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
             services: inv.items?.map((item) => ({
@@ -249,6 +267,7 @@ function Billing() {
     setFormData({
       patient: "",
       patientId: "",
+      patientRecord: "",
       consultation: "",
       laboratory: "",
       pharmacy: "",
@@ -260,6 +279,7 @@ function Billing() {
 
     setSelectedBill(null)
     setShowForm(false)
+    paymentKey.current = ""
   }
 
 
@@ -413,23 +433,16 @@ function Billing() {
     }
 
 
-    // Get patient from the system
-    const patientsRes = await api.patients.list(selectedHospital.id)
-    const patients = Array.isArray(patientsRes) ? patientsRes : patientsRes?.results || []
-    const patient = patients.find(p => 
-      p.name?.toLowerCase() === formData.patient?.toLowerCase() ||
-      `P${String(p.id).padStart(3, "0")}` === formData.patientId
-    )
-
-    if (!patient) {
-      toast.error("Patient not found in this hospital. Please check the name/ID.")
+    // The patient chosen in the picker, by id: never matched by name (RL-03).
+    if (!formData.patientRecord) {
+      toast.error("Choose the patient by searching their name, phone or UHID.")
       return
     }
 
     // Totals, tax and status are calculated by the server from these lines.
     const payload = {
       hospital: selectedHospital.id,
-      patient: patient.id,
+      patient: Number(formData.patientRecord),
       discount: discount,
       items_data: services.map((s) => ({
         description: s.name,
@@ -462,7 +475,7 @@ function Billing() {
           id: inv.invoice_number,
           apiId: inv.id,
           patient: inv.patient_name || inv.patient?.name || "Unknown",
-          patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+          patientId: inv.patient ? displayPatientId({ id: inv.patient, uhid: inv.patient_uhid }) : "",
           hospitalId: inv.hospital,
           date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
           services: inv.items?.map((item) => ({
@@ -672,7 +685,7 @@ function Billing() {
           invoice: selectedBill.apiInvoice.id,
           amount: additional.toFixed(2),
           payment_method: formData.payment,
-          idempotency_key: `${selectedBill.apiInvoice.id}-${Date.now()}`,
+          idempotency_key: paymentKeyFor(selectedBill.apiInvoice.id),
         })
       }
 
@@ -687,7 +700,7 @@ function Billing() {
           id: inv.invoice_number,
           apiId: inv.id,
           patient: inv.patient_name || inv.patient?.name || "Unknown",
-          patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+          patientId: inv.patient ? displayPatientId({ id: inv.patient, uhid: inv.patient_uhid }) : "",
           hospitalId: inv.hospital,
           date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
           services: inv.items?.map((item) => ({
@@ -708,6 +721,12 @@ function Billing() {
       toast.error(error.message || "Failed to update invoice")
     }
   }
+
+
+  // A second click while the bill is saving does nothing (RL-04).
+  const [submitBill, savingBill] = useSubmitGuard(selectedBill ? handleUpdate : handleSubmit, {
+    onError: (error) => toast.error(error.message || "Could not save the bill."),
+  })
 
 
   // =========================
@@ -748,7 +767,7 @@ function Billing() {
           id: inv.invoice_number,
           apiId: inv.id,
           patient: inv.patient_name || inv.patient?.name || "Unknown",
-          patientId: inv.patient ? `P${String(inv.patient).padStart(3, "0")}` : "",
+          patientId: inv.patient ? displayPatientId({ id: inv.patient, uhid: inv.patient_uhid }) : "",
           hospitalId: inv.hospital,
           date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
           services: inv.items?.map((item) => ({
@@ -908,7 +927,7 @@ function Billing() {
                 icon={PlusIcon}
                 onClick={() => {
                   setSelectedBill(null)
-                  setFormData({ patient: "", patientId: "", consultation: "", laboratory: "", pharmacy: "", other: "", discount: "", paid: "", payment: "Cash" })
+                  setFormData({ patient: "", patientId: "", patientRecord: "", consultation: "", laboratory: "", pharmacy: "", other: "", discount: "", paid: "", payment: "Cash" })
                   setShowForm(true)
                 }}
               >
@@ -929,6 +948,12 @@ function Billing() {
               hospitalId={selectedHospital.id}
               refreshKey={bills}
               onCreated={() => setBillsReloadToken((n) => n + 1)}
+            />
+
+            <AdvancePayments
+              hospitalId={selectedHospital.id}
+              canRefund={REFUND_ROLES.includes(activeRoleName)}
+              onChanged={() => setBillsReloadToken((n) => n + 1)}
             />
 
             {/* =========================
@@ -1386,84 +1411,36 @@ function Billing() {
 
             <form
 
-              onSubmit={
-                selectedBill
-                  ? handleUpdate
-                  : handleSubmit
-              }
+              onSubmit={submitBill}
 
               className="p-6 space-y-5"
 
             >
 
 
-              {/* Patient */}
+              {/* Patient: found by search and kept by id, never matched by name (RL-03) */}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-
+              {selectedBill ? (
                 <div>
-
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t("Patient Name")}
-                  </label>
-
-                  <input
-
-                    type="text"
-
-                    name="patient"
-
-                    value={
-                      formData.patient
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    placeholder={t("Rahul Kumar")}
-
-                    className="hms-input w-full"
-
-                  />
-
+                  <p className="hms-label">{t("Patient")}</p>
+                  <p className="text-sm text-ink-900">
+                    {formData.patient}{formData.patientId ? ` · ${formData.patientId}` : ""}
+                  </p>
                 </div>
-
-
-                <div>
-
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t("Patient ID")}
-                  </label>
-
-                  <input
-
-                    type="text"
-
-                    name="patientId"
-
-                    value={
-                      formData.patientId
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    required
-
-                    placeholder="P001"
-
-                    className="hms-input w-full"
-
+              ) : (
+                <Field label="Patient" required>
+                  <PatientPicker
+                    hospitalId={selectedHospital?.id}
+                    value={formData.patientRecord}
+                    onChange={(id, patient) => setFormData((prev) => ({
+                      ...prev,
+                      patientRecord: id,
+                      patient: patient?.name || "",
+                      patientId: patient ? displayPatientId(patient) : "",
+                    }))}
                   />
-
-                </div>
-
-              </div>
+                </Field>
+              )}
 
 
               {/* Services */}
@@ -1703,13 +1680,17 @@ function Billing() {
 
                   type="submit"
 
-                  className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+                  disabled={savingBill}
+
+                  className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-60"
 
                 >
 
-                  {selectedBill
-                    ? t("Save Changes")
-                    : t("Generate Bill")}
+                  {savingBill
+                    ? t("Saving…")
+                    : selectedBill
+                      ? t("Save Changes")
+                      : t("Generate Bill")}
 
                 </button>
 

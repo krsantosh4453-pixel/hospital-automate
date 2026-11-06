@@ -459,20 +459,31 @@ TWILIO_VERIFY_SERVICE_SID = os.environ.get('TWILIO_VERIFY_SERVICE_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
 
-# OTP Provider: must be 'twilio' in production for real SMS
-OTP_PROVIDER = os.environ.get('OTP_PROVIDER', 'twilio')
-if OTP_PROVIDER != 'twilio':
-    raise ImproperlyConfigured("OTP_PROVIDER must be 'twilio' in production")
-
 # Staff must complete SMS OTP after the password in production unless explicitly disabled.
 STAFF_LOGIN_REQUIRE_OTP = os.environ.get('STAFF_LOGIN_REQUIRE_OTP', 'True').lower() == 'true'
 
-# Validate Twilio Verify configuration in production
-if not (TWILIO_ACCOUNT_SID and TWILIO_API_KEY and TWILIO_API_SECRET and TWILIO_VERIFY_SERVICE_SID):
+# Patient phone OTP: 'sms' (Twilio Verify) or 'off' (patients use e-mail OTP or a password).
+# The development modes ('console', 'cache') would write codes to logs or memory.
+PATIENT_OTP_DELIVERY = os.environ.get('PATIENT_OTP_DELIVERY', 'sms')
+if PATIENT_OTP_DELIVERY not in ('sms', 'off'):
+    raise ImproperlyConfigured("PATIENT_OTP_DELIVERY must be 'sms' or 'off' in production")
+
+# Twilio Verify is required only when SMS OTP is used (RL-06): a hospital can run
+# without it, staff signing in with a password, until credentials are ready.
+TWILIO_VERIFY_READY = all((TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, TWILIO_VERIFY_SERVICE_SID))
+SMS_OTP_ENABLED = STAFF_LOGIN_REQUIRE_OTP or PATIENT_OTP_DELIVERY == 'sms'
+if SMS_OTP_ENABLED and not TWILIO_VERIFY_READY:
     raise ImproperlyConfigured(
-        'TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, and TWILIO_VERIFY_SERVICE_SID '
-        'are required in production for Twilio Verify OTP'
+        'TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET and TWILIO_VERIFY_SERVICE_SID are required '
+        'for SMS OTP. To run without Twilio, set STAFF_LOGIN_REQUIRE_OTP=False and PATIENT_OTP_DELIVERY=off.'
     )
+
+# 'disabled' makes the SMS OTP endpoints answer "unavailable" (users/views.py); never 'console' here.
+OTP_PROVIDER = os.environ.get('OTP_PROVIDER', 'twilio' if TWILIO_VERIFY_READY else 'disabled')
+if OTP_PROVIDER not in ('twilio', 'disabled'):
+    raise ImproperlyConfigured("OTP_PROVIDER must be 'twilio' or 'disabled' in production")
+if OTP_PROVIDER == 'twilio' and not TWILIO_VERIFY_READY:
+    raise ImproperlyConfigured("OTP_PROVIDER=twilio needs the Twilio Verify credentials")
 
 WHATSAPP_PROVIDER = os.environ.get('WHATSAPP_PROVIDER', 'twilio')
 WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID')

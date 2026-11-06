@@ -131,6 +131,29 @@ Generate the key once with `python -c "from cryptography.fernet import Fernet;pr
 
 **Rollback:** check out the previous tag and rebuild. If migrations changed, reverse them first with `manage.py migrate <app> <previous>`. Every migration added in this work reverses without data loss. Otherwise restore the backup. See `ROLLBACK_STRATEGY.md`.
 
+## 9. Upgrading to the 2026-11-05 release (PR 7)
+
+Read this before the first staging deploy of this release.
+
+1. **Back up first** (section 7). Several migrations add constraints that check existing rows.
+2. **Duplicate UHIDs:** run `docker compose -f docker-compose.prod.yml exec backend python manage.py report_duplicate_uhids` (read only). Settle every group it lists by hand. `patients/0011` refuses to run while duplicates exist.
+3. **Migrate:** `up -d backend` applies the new migrations:
+   - `patients` 0011–0012, `clinical` 0011–0012, `nurses` 0008–0009: entered-in-error fields, MAR doctor, extra vitals.
+   - `billing` 0008 (advance payments), `pharmacy` 0006 (returns, substitutes), `procurement` 0002 (requisitions, issues, returns), `hospital` 0007 (role restrictions).
+   - New apps: `terminology`, `hospital_services`; `notifications` 0007 (voice fallback).
+4. **ICD-10 codes:** the entrypoint runs `load_icd10 --if-empty`, loading about 190 common codes once. For the full code set, download the CMS ICD-10-CM "Code Descriptions in Tabular Order" file and run `manage.py load_icd10 <file>`.
+5. **New settings (all optional, safe defaults):**
+   - `VOICE_CALL_PROVIDER=noop` records voice fallbacks as skipped. Set `twilio` only with `TWILIO_VOICE_FROM_NUMBER` and Twilio Voice credentials.
+   - The AI discharge draft uses the existing AI scribe provider settings. Without one, drafts are assembled from the records.
+6. **After deploy, also check:**
+   - `/api/schema/` still loads for a platform admin.
+   - The Hospital services page opens.
+   - Permissions shows the "At this hospital" column for the hospital Admin.
+   - A test removal ("entered in error") asks for a reason.
+7. **Rollback:** every migration in this release reverses (`manage.py migrate <app> <previous>`). Reversing the entered-in-error migrations drops the reason columns, so take the backup first. Records hidden as entered in error become visible again after a rollback.
+
+Not done here, and needed before patients use the system: a real staging host with its own domain and certificate, provider credentials (Twilio Verify, SMS/WhatsApp, email, AI), the clinical and P&T sign-offs, a penetration test and the DPDP assessment.
+
 ## Operational cautions
 
 - `docker compose ... down -v` **deletes the database volume**. Never use `-v` on production.

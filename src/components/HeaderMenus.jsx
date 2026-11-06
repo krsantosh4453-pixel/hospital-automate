@@ -4,6 +4,7 @@ import { Bell, Check, ChevronDown, LogIn, LogOut, Settings, UserCog } from "luci
 import { useRole } from "../assets/context/RoleContext.jsx"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
+import { timeAgo } from "../utils/activityText.js"
 import { Avatar } from "./ui"
 import { SignInLink } from "./auth/SignInDialog.jsx"
 import api from "../services/api.js"
@@ -45,17 +46,6 @@ const LANGUAGES = [
 const NOTIFICATION_ROLES = new Set(["Admin", "Hospital Manager", "Receptionist", "Doctor", "Nurse"])
 
 const toList = (data) => (Array.isArray(data) ? data : data?.results || [])
-
-function timeAgo(value) {
-  const then = new Date(value).getTime()
-  if (!Number.isFinite(then)) return ""
-  const mins = Math.round((Date.now() - then) / 60000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return `${mins} min ago`
-  const hrs = Math.round(mins / 60)
-  if (hrs < 24) return `${hrs} h ago`
-  return new Date(value).toLocaleDateString()
-}
 
 /* ---------------- Notifications (real API) ---------------- */
 /** @param {{ hospitalId?: string|number, canRead?: boolean }} props */
@@ -140,7 +130,7 @@ export function NotificationsMenu({ hospitalId, canRead = true }) {
                     {n.message && <p className="mt-0.5 line-clamp-2 text-xs text-ink-600">{n.message}</p>}
                     <p className="mt-1 text-[11px] text-ink-400">
                       {n.notification_type ? `${n.notification_type} · ` : ""}
-                      {timeAgo(n.created_at)}
+                      {timeAgo(n.created_at, t)}
                     </p>
                   </div>
                   {!n.is_read && (

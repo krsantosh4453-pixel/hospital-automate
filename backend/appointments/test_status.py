@@ -62,6 +62,18 @@ class AppointmentStatusTests(TestCase):
         self._token_action(token, "complete")
         self.assertEqual(self._status(), "Completed")
 
+    def test_token_flow_moves_the_visit_along(self):
+        # The Consultation screen shows the visit's status, so it must follow the token too.
+        token = self._issue()
+        self.assertEqual(token.visit.status, "Waiting")
+        self._token_action(token, "call")
+        self._token_action(token, "start-consultation")
+        token.visit.refresh_from_db()
+        self.assertEqual(token.visit.status, "In Consultation")
+        self._token_action(token, "complete")
+        token.visit.refresh_from_db()
+        self.assertEqual(token.visit.status, "Completed")
+
     def test_no_show_token_marks_the_appointment(self):
         token = self._issue()
         self._token_action(token, "no-show")

@@ -4,7 +4,10 @@ OpenAPI/Swagger Schema Configuration for Hospital Management System API.
 Uses drf-spectacular for automatic schema generation.
 """
 
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+
+from config.auth_cookies import ACCESS_COOKIE
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -288,3 +291,17 @@ def custom_postprocessing_hook(result, generator, request, public):
     result['tags'] = SCHEMA_TAGS
 
     return result
+
+class CookieJWTScheme(OpenApiAuthenticationExtension):
+    """Documents config.auth_cookies.CookieJWTAuthentication: a Bearer token or the httpOnly access cookie."""
+
+    target_class = "config.auth_cookies.CookieJWTAuthentication"
+    name = ["bearerAuth", "cookieAuth"]
+
+    def get_security_definition(self, auto_schema):
+        return [
+            {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
+            {"type": "apiKey", "in": "cookie", "name": ACCESS_COOKIE,
+             "description": "Set by sign-in; state-changing requests also need the X-CSRFToken header."},
+        ]
+

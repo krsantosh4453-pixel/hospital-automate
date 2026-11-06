@@ -102,6 +102,9 @@ urlpatterns = [
     path("api/procurement/", include("procurement.urls")),
 
     # AI Medical Scribe
+    # AI discharge summary assist (before the scribe's catch-all /api/ai/ routes)
+    path("api/ai/discharge/", include("ai_advanced.urls")),
+
     path("api/ai/", include("ai_scribe.urls")),
 
     # Reports
@@ -119,6 +122,11 @@ urlpatterns = [
     # Consent
     path("api/consent/", include("consent.urls")),
 
+    # Clinical terminology (ICD-10 search)
+    path("api/terminology/", include("terminology.urls")),
+
+    # Support services: OT, ambulance, mortuary, CSSD, laundry, leave, feedback, templates
+    path("api/services/", include("hospital_services.urls")),
 ]
 
 # Serve media files in development

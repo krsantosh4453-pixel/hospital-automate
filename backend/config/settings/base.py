@@ -65,6 +65,10 @@ INSTALLED_APPS = [
 
     # AI Medical Scribe
     "ai_scribe",
+    # AI discharge summary drafts (K6), reviewed by the doctor before saving
+    "ai_advanced",
+    # Support services: OT, ambulance, mortuary, CSSD, laundry, leave, feedback, templates (J5, J6, I6)
+    "hospital_services",
 
     # Analytics & Reports
     "reports",
@@ -74,6 +78,9 @@ INSTALLED_APPS = [
 
     # ABDM / ABHA linking (Ayushman Bharat Digital Mission)
     "abdm",
+
+    # Clinical terminology (ICD-10 search)
+    "terminology",
 ]
 
 # ============================================================
@@ -209,7 +216,8 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # config.openapi_schema.HMSAutoSchema: plain APIViews are documented as JSON objects.
+    'DEFAULT_SCHEMA_CLASS': 'config.openapi_schema.HMSAutoSchema',
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.MultiPartParser',
@@ -549,6 +557,11 @@ CELERY_TASK_SOFT_TIME_LIMIT = 240  # 4 minutes
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Tasks without a route go here. Celery's own default ("celery") is not in the
+# workers' -Q lists, so unrouted tasks (voice fallback, OTP cleanup) never ran
+# (RL-08b; config/test_celery_routes.py checks every task against the compose files).
+CELERY_TASK_DEFAULT_QUEUE = 'default'
 
 # Celery task routes for priority queues
 CELERY_TASK_ROUTES = {

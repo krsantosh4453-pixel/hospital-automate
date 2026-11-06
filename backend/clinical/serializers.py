@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from config.hospital_time import hospital_today
 
 from django.db import transaction
@@ -47,6 +49,9 @@ def _patient_belongs_to_hospital(patient, hospital):
 
 
 class VitalSignSerializer(serializers.ModelSerializer):
+    bmi = serializers.SerializerMethodField()
+    recorded_by_name = serializers.SerializerMethodField()
+
     class Meta:
         model = VitalSign
         fields = [
@@ -67,10 +72,36 @@ class VitalSignSerializer(serializers.ModelSerializer):
             "head_circumference",
             "muac",
             "urine_output",
+            "fluid_intake",
+            "oxygen_device",
+            "oxygen_flow",
+            "mobility",
+            "injuries",
+            "bmi",
+            "recorded_by",
+            "recorded_by_name",
             "comments",
             "recorded_at",
         ]
-        read_only_fields = ["id", "recorded_at"]
+        read_only_fields = ["id", "bmi", "recorded_by", "recorded_by_name", "recorded_at"]
+
+    def get_bmi(self, obj):
+        """kg / m^2 to one decimal, from this reading's weight and height (cm)."""
+        if not obj.weight or not obj.height:
+            return None
+        metres = Decimal(obj.height) / 100
+        return float(round(Decimal(obj.weight) / (metres * metres), 1))
+
+    def get_recorded_by_name(self, obj) -> str:
+        user = obj.recorded_by
+        return (user.get_full_name() or user.username) if user else ""
+
+    def validate(self, attrs):
+        device = attrs.get("oxygen_device", getattr(self.instance, "oxygen_device", ""))
+        flow = attrs.get("oxygen_flow", getattr(self.instance, "oxygen_flow", None))
+        if flow and device in ("", VitalSign.OxygenDevice.ROOM_AIR):
+            raise serializers.ValidationError({"oxygen_flow": "Give the oxygen device for a flow rate."})
+        return attrs
 
 
 class AllergySerializer(serializers.ModelSerializer):
@@ -170,9 +201,17 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
 
 
 class PrescriptionItemSerializer(serializers.ModelSerializer):
+    # Issued so far by the pharmacy; the rest can still be dispensed.
+    dispensed_quantity = serializers.SerializerMethodField()
+
     class Meta:
         model = PrescriptionItem
-        fields = ["id", "name", "dosage", "frequency", "duration", "quantity", "instructions"]
+        fields = ["id", "name", "dosage", "frequency", "duration", "quantity", "instructions", "dispensed_quantity"]
+
+    def get_dispensed_quantity(self, obj) -> int:
+        if not obj.pk:
+            return 0
+        return sum(sale.quantity for sale in obj.pharmacy_sales.all())
 
     def validate_name(self, value):
         if not value or not value.strip():
@@ -186,9 +225,16 @@ class PrescriptionItemSerializer(serializers.ModelSerializer):
 
 
 MIN_OVERRIDE_REASON = 10
+# How far back a paper prescription may be dated when it is transcribed.
+MAX_PAPER_AGE_DAYS = 180
+# Set only by the pharmacy's dispense endpoint, when medicine is really issued.
+DISPENSE_STATUSES = ("Dispensed", "Partially Dispensed")
 
 
 class PrescriptionSerializer(serializers.ModelSerializer):
+    # Set on PrescriptionTranscriptionSerializer, the pharmacy's paper-transcription form (F13).
+    transcribing = False
+
     # Nested write/read items so the Prescription page can create a
     # prescription and its medicines in a single request.
     items = PrescriptionItemSerializer(many=True)
@@ -215,13 +261,52 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             "created_at",
             "items",
             "patient_name",
+            "patient_uhid",
             "doctor_name",
             "hospital_name",
             "visit_label",
             "safety_alerts",
             "safety_override_reason",
+            "source",
+            "original_prescriber_name",
+            "original_prescriber_registration",
+            "original_prescription_date",
+            "transcribed_by",
+            "transcribed_by_name",
+            "verified_by",
+            "verified_by_name",
+            "verified_at",
         ]
-        read_only_fields = ["id", "created_at", "dispensed_at", "safety_alerts"]
+        # F13: where a prescription came from is recorded only by the
+        # transcribe and verify actions (PrescriptionViewSet).
+        read_only_fields = [
+            "id", "created_at", "dispensed_at", "safety_alerts", "source", "original_prescriber_name",
+            "original_prescriber_registration", "original_prescription_date", "transcribed_by", "verified_by",
+            "verified_at",
+        ]
+
+    transcribed_by_name = serializers.SerializerMethodField()
+    verified_by_name = serializers.SerializerMethodField()
+    # F6: shown in the pharmacy queue; the UHID at the prescription's own hospital.
+    patient_uhid = serializers.SerializerMethodField()
+
+    def get_patient_uhid(self, obj) -> str:
+        if not obj.patient_id:
+            return ""
+        memberships = getattr(obj.patient, "_prefetched_objects_cache", {}).get("hospital_memberships")
+        if memberships is None:
+            memberships = obj.patient.hospital_memberships.all()
+        return next((m.uhid for m in memberships if m.hospital_id == obj.hospital_id and m.is_active), "")
+
+    @staticmethod
+    def _user_name(user):
+        return (user.get_full_name() or user.username) if user else ""
+
+    def get_transcribed_by_name(self, obj) -> str:
+        return self._user_name(obj.transcribed_by)
+
+    def get_verified_by_name(self, obj) -> str:
+        return self._user_name(obj.verified_by)
 
     def get_visit_label(self, obj):
         return f"Visit #{obj.visit_id}" if obj.visit_id else ""
@@ -255,6 +340,24 @@ class PrescriptionSerializer(serializers.ModelSerializer):
                 "doctor": "This doctor does not belong to this hospital."
             })
 
+        status = attrs.get("status")
+        current_status = getattr(instance, "status", None)
+        if status in DISPENSE_STATUSES and status != current_status:
+            raise serializers.ValidationError({
+                "status": "The pharmacy records dispensing when it issues the medicine."
+            })
+        if status and status != current_status and not self.transcribing:
+            if status == Prescription.PENDING_VERIFICATION:
+                raise serializers.ValidationError({
+                    "status": "Only a transcribed paper prescription waits for verification."
+                })
+            if current_status == Prescription.PENDING_VERIFICATION and status != "Cancelled":
+                raise serializers.ValidationError({
+                    "status": "A second pharmacist or an Admin verifies this transcription with Verify."
+                })
+
+        own_doctor = self._sign_as_requesting_doctor(attrs, instance, hospital) if hospital else None
+
         if visit:
             if hospital and visit.hospital_id != hospital.id:
                 raise serializers.ValidationError({
@@ -264,11 +367,41 @@ class PrescriptionSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "visit": "This visit does not belong to the selected patient."
                 })
+            # F4: a doctor prescribes on their own visit (or one with no doctor yet).
+            if own_doctor is not None and visit.doctor_id not in (None, own_doctor.pk):
+                raise serializers.ValidationError({
+                    "visit": "This visit is another doctor's; prescribe from your own consultation."
+                })
 
         if "items" in attrs and hospital:
             self._check_medication_safety(attrs, hospital, patient)
 
         return attrs
+
+    def _sign_as_requesting_doctor(self, attrs, instance, hospital):
+        """
+        A doctor prescribes in their own name; an Admin may record one for any
+        doctor here. Returns the requesting doctor's profile when the rule
+        applied to them, else None.
+        """
+        from doctors.models import Doctor
+        from users.models import StaffRole
+        from users.permissions import get_user_roles
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        roles = get_user_roles(user, hospital.id)
+        if StaffRole.DOCTOR not in roles or StaffRole.ADMIN in roles:
+            return None
+        own = Doctor.objects.filter(user=user, hospital=hospital).first()
+        if own is None:
+            return None
+        named = attrs.get("doctor")
+        if named is not None and named != own:
+            raise serializers.ValidationError({"doctor": "You can only prescribe in your own name."})
+        if instance is None and named is None:
+            attrs["doctor"] = own
+        return own
 
     def _check_medication_safety(self, attrs, hospital, patient):
         """High-severity alerts block the prescription unless the doctor records why."""
@@ -328,6 +461,11 @@ class PrescriptionSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         items_data = validated_data.pop("items", None)
+        if items_data is not None and instance.pharmacy_sales.exists():
+            # Replacing the lines would cut them off from what was issued and billed.
+            raise serializers.ValidationError({
+                "items": "Medicine has already been issued for this prescription; write a new one instead."
+            })
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -342,6 +480,51 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             self._audit_override(instance)
 
         return instance
+
+class PrescriptionTranscriptionSerializer(PrescriptionSerializer):
+    """
+    F13: a paper prescription copied in by the pharmacy. It names who signed
+    the paper (a doctor of this hospital, or an outside doctor by name and
+    registration number) and its date, and is saved Pending Verification
+    with the transcriber recorded; the view sets those.
+    """
+
+    transcribing = True
+
+    class Meta(PrescriptionSerializer.Meta):
+        read_only_fields = [
+            "id", "created_at", "dispensed_at", "safety_alerts", "source", "status", "transcribed_by",
+            "verified_by", "verified_at",
+        ]
+        extra_kwargs = {"original_prescription_date": {"required": True, "allow_null": False}}
+
+    def validate_original_prescription_date(self, value):
+        from datetime import timedelta
+
+        today = hospital_today()
+        if value > today:
+            raise serializers.ValidationError("The prescription date cannot be in the future.")
+        if value < today - timedelta(days=MAX_PAPER_AGE_DAYS):
+            raise serializers.ValidationError(
+                f"Paper prescriptions older than {MAX_PAPER_AGE_DAYS} days cannot be transcribed.")
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        name = (attrs.get("original_prescriber_name") or "").strip()
+        registration = (attrs.get("original_prescriber_registration") or "").strip()
+        if attrs.get("doctor") is None and not name:
+            raise serializers.ValidationError({
+                "original_prescriber_name": "Name the doctor who signed the paper prescription."
+            })
+        if attrs.get("doctor") is None and not registration:
+            raise serializers.ValidationError({
+                "original_prescriber_registration": "Give the outside doctor's registration number."
+            })
+        attrs["original_prescriber_name"] = name or attrs["doctor"].name
+        attrs["original_prescriber_registration"] = registration
+        return attrs
+
 
 class MedicalCertificateSerializer(serializers.ModelSerializer):
     # Display fields so the certificate prints without extra requests.

@@ -86,7 +86,7 @@ def _locked(invoice):
 
 
 @transaction.atomic
-def record_payment(invoice, amount, method="Cash", user=None, idempotency_key="", reference=""):
+def record_payment(invoice, amount, method="Cash", user=None, idempotency_key="", reference="", _from_advance=False):
     """
     Record money received. The invoice row is locked so two concurrent
     payments cannot both pass the balance check. Re-sending the same
@@ -94,6 +94,9 @@ def record_payment(invoice, amount, method="Cash", user=None, idempotency_key=""
     """
     from .models import Invoice, Payment
 
+    if (method or "").strip().lower() == "advance" and not _from_advance:
+        # Advance money moves only through billing.advances, which debits the deposit.
+        raise ValidationError({"payment_method": "Use 'Adjust advance' to pay from the patient's advance."})
     invoice = _locked(invoice)
     if idempotency_key:
         existing = invoice.payments.filter(idempotency_key=idempotency_key).first()
@@ -122,10 +125,22 @@ def record_payment(invoice, amount, method="Cash", user=None, idempotency_key=""
 
 
 @transaction.atomic
-def record_refund(invoice, amount, reason, method="Cash", user=None):
+def record_refund(invoice, amount, reason, method="Cash", user=None, idempotency_key="", _from_advance=False):
+    """
+    Pay money back on an invoice. Returns ``(refund, created)``: re-sending the
+    same idempotency key returns the original refund instead of paying twice.
+    """
     from .models import Payment
 
+    if (method or "").strip().lower() == "advance" and not _from_advance:
+        raise ValidationError({"payment_method": "Use 'Return to advance' to put money back into the advance."})
     invoice = _locked(invoice)
+    if idempotency_key:
+        existing = invoice.payments.filter(idempotency_key=idempotency_key).first()
+        if existing is not None:
+            if existing.kind != Payment.Kind.REFUND:
+                raise ValidationError({"idempotency_key": "This key was already used for a payment on this bill."})
+            return existing, False
     amount = money(amount)
     if amount <= ZERO:
         raise ValidationError({"amount": "Amount must be greater than zero."})
@@ -141,7 +156,8 @@ def record_refund(invoice, amount, reason, method="Cash", user=None):
         payment_method=method or "Cash",
         receipt_number=new_reference("RFND"),
         reference=reason.strip()[:200],
+        idempotency_key=idempotency_key or "",
         received_by=user if getattr(user, "is_authenticated", False) else None,
     )
     recalculate(invoice)
-    return refund
+    return refund, True

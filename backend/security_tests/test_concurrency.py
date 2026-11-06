@@ -143,6 +143,121 @@ class ConcurrentWriteTests(WardMixin, TransactionTestCase):
         self.assertEqual(sum(created for _, created in results), 1)
         self.assertEqual(Payment.objects.filter(invoice=invoice).count(), 1)
 
+    def test_parallel_refund_retries_with_one_key_refund_once(self):
+        from billing.services import record_refund
+
+        invoice = self.make_invoice("INV-RACE-REFUND")
+        record_payment(invoice, Decimal("100.00"))
+
+        results = run_together(lambda i: record_refund(invoice, Decimal("10.00"), "Double click",
+                                                       idempotency_key="refund-retry"))
+
+        self.assertTrue(all(isinstance(r, tuple) for r in results), results)
+        self.assertEqual(sum(created for _, created in results), 1)
+        self.assertEqual(Payment.objects.filter(invoice=invoice, kind=Payment.Kind.REFUND).count(), 1)
+
+    def test_parallel_adjustments_never_spend_more_advance_than_was_deposited(self):
+        # H4: 100 in advance, eight bills of 100 each, eight adjustments of 50 at once.
+        from billing import advances
+        from billing.models import AdvanceAccount
+
+        patient = self.make_patient(0)
+        advances.record_deposit(self.hospital.id, patient.id, Decimal("100.00"))
+        invoices = []
+        for i in range(THREADS):
+            invoice = Invoice.objects.create(patient=patient, hospital=self.hospital, invoice_number=f"INV-ADV-{i}",
+                                             total=Decimal("100.00"))
+            InvoiceItem.objects.create(invoice=invoice, description="Consult", quantity=1,
+                                       unit_price=Decimal("100.00"), subtotal=Decimal("100.00"))
+            invoices.append(invoice)
+
+        results = run_together(lambda i: advances.apply_to_invoice(invoices[i], Decimal("50.00")))
+
+        accepted = [r for r in results if isinstance(r, tuple)]
+        self.assertEqual(len(accepted), 2, results)
+        self.assertEqual(AdvanceAccount.objects.get(patient=patient).balance, Decimal("0.00"))
+        self.assertEqual(sum(p.amount for p in Payment.objects.filter(invoice__in=invoices)), Decimal("100.00"))
+
+    def test_parallel_deposit_retries_with_one_key_count_once(self):
+        from billing import advances
+        from billing.models import AdvanceAccount
+
+        patient = self.make_patient(0)
+        results = run_together(lambda i: advances.record_deposit(self.hospital.id, patient.id, Decimal("500.00"),
+                                                                 idempotency_key="adv-retry"))
+        self.assertTrue(all(isinstance(r, tuple) for r in results), results)
+        self.assertEqual(sum(created for _, created in results), 1)
+        self.assertEqual(AdvanceAccount.objects.get(patient=patient).balance, Decimal("500.00"))
+
+    def test_parallel_receipts_never_receive_more_than_ordered(self):
+        # 10 ordered; eight receipts with different invoice numbers try to receive 6 each.
+        from procurement.models import PurchaseOrder, Supplier
+        from procurement.services import receive_purchase
+
+        medicine = Medicine.objects.create(name="Gloves", hospital=self.hospital, quantity=0, price=Decimal("5"))
+        supplier = Supplier.objects.create(name="Race Supplier", hospital=self.hospital)
+        po = PurchaseOrder.objects.create(hospital=self.hospital, supplier=supplier, reference="PO-RACE",
+                                          purchase_date="2026-11-05")
+        line = po.items.create(medicine=medicine, quantity_ordered=10, unit_cost=Decimal("4"), line_total=Decimal("40"))
+
+        results = run_together(lambda i: receive_purchase(po, {"reference": f"INV-RACE-{i}", "items": [
+            {"purchase_item": line.id, "quantity_received": 6}]}))
+
+        self.assertEqual(len([r for r in results if not isinstance(r, Exception)]), 1, results)
+        medicine.refresh_from_db()
+        self.assertEqual(medicine.quantity, 6)
+
+    def test_parallel_issues_never_take_stock_below_zero(self):
+        from hospital.models import Department
+        from procurement.workflows import issue_stock
+
+        ward = Department.objects.create(hospital=self.hospital, name="Race Ward")
+        medicine = Medicine.objects.create(name="Saline", hospital=self.hospital, quantity=25, price=Decimal("30"))
+
+        results = run_together(lambda i: issue_stock(self.hospital, ward, medicine, 10))
+
+        self.assertEqual(len([r for r in results if isinstance(r, tuple)]), 2, results)
+        medicine.refresh_from_db()
+        self.assertEqual(medicine.quantity, 5)
+
+    def test_one_theatre_slot_goes_to_one_booking(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+        from hospital_services.models import OperatingTheatre, OTBooking
+        from hospital_services.serializers import OTBookingSerializer
+        from hospital_services.workflows import book_theatre
+
+        _, doctor, _ = self.bed_setup(beds=0)
+        theatre = OperatingTheatre.objects.create(hospital=self.hospital, name="Race OT")
+        patient = self.make_patient(0)
+        start = timezone.now() + timedelta(days=1)
+
+        def book(i):
+            serializer = OTBookingSerializer(data={
+                "theatre": theatre.id, "patient": patient.id, "surgeon": doctor.id, "procedure_name": f"Case {i}",
+                "scheduled_start": (start + timedelta(minutes=i)).isoformat(),
+                "scheduled_end": (start + timedelta(hours=2)).isoformat()})
+            serializer.is_valid(raise_exception=True)
+            return book_theatre(serializer, hospital=self.hospital)
+
+        results = run_together(book)
+
+        self.assertEqual(len([r for r in results if isinstance(r, OTBooking)]), 1, results)
+
+    def test_one_ambulance_goes_on_one_trip(self):
+        from hospital_services.models import Ambulance, AmbulanceTrip
+        from hospital_services.workflows import dispatch_trip
+
+        ambulance = Ambulance.objects.create(hospital=self.hospital, vehicle_number="RACE-1")
+        trips = [AmbulanceTrip.objects.create(hospital=self.hospital, caller_name="Caller", caller_phone="9000000000",
+                                              pickup="A", destination="B") for _ in range(THREADS)]
+
+        results = run_together(lambda i: dispatch_trip(trips[i], ambulance))
+
+        self.assertEqual(len([r for r in results if isinstance(r, AmbulanceTrip)]), 1, results)
+        self.assertEqual(AmbulanceTrip.objects.filter(status="Dispatched").count(), 1)
+
     def test_one_bed_goes_to_exactly_one_of_many_admissions(self):
         user, doctor, [bed] = self.bed_setup(beds=1)
         admissions = [Admission.objects.create(patient=self.make_patient(i), hospital=self.hospital,
@@ -206,6 +321,39 @@ class ConcurrentWriteTests(WardMixin, TransactionTestCase):
         medicine.refresh_from_db()
         self.assertEqual(medicine.quantity, 90)
         self.assertEqual(Sale.objects.filter(prescription=prescription).count(), 1)
+
+    def test_parallel_partial_dispenses_never_issue_more_than_prescribed(self):
+        # 10 prescribed; eight counters each try to issue 4 now.
+        user, medicine, [(prescription, item)] = self.dispense_setup(prescriptions=1, stock=100)
+
+        def partial(i):
+            client = APIClient()
+            client.force_authenticate(user)
+            client.credentials(HTTP_X_HOSPITAL_ID=str(self.hospital.id))
+            return client.post("/api/pharmacy-sales/dispense-prescription/", {
+                "prescription": prescription.id, "partial": True,
+                "lines": [{"item": item.id, "medicine": medicine.id, "quantity": 4}],
+            }, format="json").status_code
+
+        statuses = run_together(partial)
+
+        self.assertEqual((statuses.count(201), statuses.count(400)), (2, THREADS - 2), statuses)
+        medicine.refresh_from_db()
+        self.assertEqual(medicine.quantity, 92)
+
+    def test_parallel_returns_never_take_back_more_than_was_sold(self):
+        from pharmacy.dispensing import record_return
+        from pharmacy.models import SaleReturn
+
+        user, medicine, [(prescription, item)] = self.dispense_setup(prescriptions=1, stock=100)
+        self.assertEqual(self.dispense(user, prescription, item, medicine), 201)
+        sale = Sale.objects.get(prescription=prescription)
+
+        results = run_together(lambda i: record_return(sale, 3, "Course stopped", restock=True))
+
+        self.assertEqual(len([r for r in results if isinstance(r, SaleReturn)]), 3, results)
+        medicine.refresh_from_db()
+        self.assertEqual(medicine.quantity, 99)  # 100 - 10 + 9
 
     def test_parallel_dispenses_never_oversell_and_roll_back_cleanly(self):
         # Stock for two prescriptions of 10; eight pharmacists try at once.

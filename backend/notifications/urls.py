@@ -6,6 +6,7 @@ from .views import (
     ConsentViewSet,
     OTPVerificationViewSet,
     NotificationDeliveryViewSet,
+    VoiceCallFallbackViewSet,
 )
 
 router = DefaultRouter()
@@ -13,6 +14,7 @@ router = DefaultRouter()
 router.register(r"notifications", NotificationViewSet, basename="notification")
 router.register(r"consents", ConsentViewSet, basename="consent")
 router.register(r"deliveries", NotificationDeliveryViewSet, basename="notification-delivery")
+router.register(r"voice-calls", VoiceCallFallbackViewSet, basename="voice-call-fallback")
 router.register(r"otp-verifications", OTPVerificationViewSet, basename="otp-verification")
 
 urlpatterns = [

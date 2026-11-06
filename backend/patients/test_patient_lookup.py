@@ -63,8 +63,16 @@ class PatientLookupTests(TestCase):
     def test_only_minimal_fields_and_masked_phone(self):
         row = self._get("ravi").data[0]
 
-        self.assertEqual(set(row), {"id", "name", "age", "gender", "phone"})
+        self.assertEqual(set(row), {"id", "name", "age", "gender", "phone", "uhid"})
         self.assertEqual(row["phone"], "******2345")
+
+    def test_shows_the_uhid_of_the_acting_hospital(self):
+        """RL-03: same-name patients are told apart by UHID, not only a masked phone."""
+        PatientHospital.objects.filter(patient=self.ravi, hospital=self.hospital).update(uhid="HA-2026-000042")
+
+        row = self._get("ravi").data[0]
+
+        self.assertEqual(row["uhid"], "HA-2026-000042")
 
     def test_finds_by_phone(self):
         self.assertEqual([r["id"] for r in self._get("12345").data], [self.ravi.pk])
@@ -90,7 +98,26 @@ class PatientLookupTests(TestCase):
         log = AuditLog.objects.get(action="patients.patient.lookup")
         self.assertEqual(json.loads(log.details)["patient_ids"], [self.ravi.pk])
 
-    def test_pharmacist_may_not_look_up(self):
-        pharmacist = staff("rx", StaffRole.PHARMACIST, self.hospital)
+    def test_store_staff_may_not_look_up(self):
+        # Pharmacists may since F13 (paper transcription); see PharmacistLookupTests.
+        store = staff("store", StaffRole.INVENTORY_STAFF, self.hospital)
 
-        self.assertEqual(self._get("ravi", user=pharmacist).status_code, 403)
+        self.assertEqual(self._get("ravi", user=store).status_code, 403)
+
+
+class PharmacistLookupTests(PatientLookupTests.__base__):
+    """F13: a pharmacist finds the patient named on a paper prescription, but cannot browse patients."""
+
+    def test_pharmacist_uses_the_narrow_lookup_only(self):
+        hospital = Hospital.objects.create(name="Hospital P", is_active=True)
+        Patient.objects.create(name="Synthetic Paper Lookup", age=30, gender="Male", phone="9000011111",
+                               hospital=hospital)
+        pharmacist = staff("lookup-pharmacist", StaffRole.PHARMACIST, hospital)
+        client = APIClient()
+        client.force_authenticate(user=pharmacist)
+
+        found = client.get(URL, {"hospital": hospital.pk, "search": "paper lookup"})
+        self.assertEqual(found.status_code, 200, found.data)
+        self.assertEqual([row["name"] for row in found.data], ["Synthetic Paper Lookup"])
+        self.assertTrue(found.data[0]["phone"].startswith("*"))
+        self.assertEqual(client.get("/api/patients/", {"hospital": hospital.pk}).status_code, 403)

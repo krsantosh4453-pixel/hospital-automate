@@ -6,12 +6,13 @@ from rest_framework.response import Response
 
 from audit.services import record_audit
 from patients.models import Patient
-from .models import Consent, Notification, NotificationDelivery, OTPVerification
+from .models import Consent, Notification, NotificationDelivery, OTPVerification, VoiceCallFallback
 from .serializers import (
     ConsentSerializer,
     NotificationDeliverySerializer,
     NotificationSerializer,
     OTPVerificationSerializer,
+    VoiceCallFallbackSerializer,
 )
 from users.viewsets import HospitalScopedViewSet, ReadOnlyHospitalScopedViewSet
 from users.permissions import (
@@ -71,6 +72,23 @@ class NotificationDeliveryViewSet(ReadOnlyHospitalScopedViewSet):
             if value:
                 qs = qs.filter(**{f"{param}_id" if param == "patient" else param: value})
         return qs
+
+
+class VoiceCallFallbackViewSet(ReadOnlyHospitalScopedViewSet):
+    """Voice calls queued after SMS/WhatsApp delivery failed (queued / placed / failed / skipped)."""
+
+    queryset = VoiceCallFallback.objects.select_related("patient")
+    serializer_class = VoiceCallFallbackSerializer
+    permission_classes = [IsAdmin | IsHospitalManager | IsReceptionist | IsNurse]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        for param in ("status", "event"):
+            value = self.request.query_params.get(param)
+            if value:
+                qs = qs.filter(**{param: value})
+        patient_id = self.request.query_params.get("patient")
+        return qs.filter(patient_id=patient_id) if patient_id else qs
 
 
 class ConsentViewSet(HospitalScopedViewSet):

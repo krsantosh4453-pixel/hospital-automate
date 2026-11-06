@@ -4,6 +4,7 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import { useToast } from "../components/Toast.jsx"
+import PatientPicker from "../components/patients/PatientPicker.jsx"
 import {
   Alert,
   Button,
@@ -50,7 +51,6 @@ function Radiology() {
   const isTechnician = activeRoleName === "Lab Staff" || activeRoleName === "Admin"
 
   const [studies, setStudies] = useState([])
-  const [patients, setPatients] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [tab, setTab] = useState(isDoctor && !isTechnician ? "report" : "todo")
@@ -67,19 +67,14 @@ function Radiology() {
     setLoading(true)
     setError("")
     try {
-      const [studyData, patientData] = await Promise.all([
-        api.imaging.list({ hospital: selectedHospital.id }),
-        // Only the order form needs patients; not every role may list them.
-        isDoctor ? api.patients.list(selectedHospital.id).catch(() => []) : Promise.resolve([]),
-      ])
-      setStudies(list(studyData))
-      setPatients(list(patientData))
+      // The order form finds its patient by search (PatientPicker), not a preloaded list.
+      setStudies(list(await api.imaging.list({ hospital: selectedHospital.id })))
     } catch (err) {
       setError(err.message || "Imaging studies could not be loaded.")
     } finally {
       setLoading(false)
     }
-  }, [selectedHospital, isDoctor])
+  }, [selectedHospital])
 
   useEffect(() => {
     load()
@@ -212,10 +207,8 @@ function Radiology() {
       <Modal open={dialog?.kind === "order"} onClose={close} title={t("New imaging order")} footer={footer("Place order")}>
         <form id="radiology-form" className="space-y-3" onSubmit={(e) => submit(e, () => api.imaging.create({ ...form, patient: Number(form.patient) }), "Imaging ordered.")}>
           <Field label="Patient" required>
-            <Select value={form.patient || ""} onChange={set("patient")}>
-              <option value="">{t("Choose a patient")}</option>
-              {patients.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.phone}</option>)}
-            </Select>
+            <PatientPicker hospitalId={selectedHospital?.id} value={form.patient || ""}
+              onChange={(id) => setForm((current) => ({ ...current, patient: id }))} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Modality" required>

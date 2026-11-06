@@ -1,12 +1,15 @@
 import { useState } from "react"
 import { ClipboardList, PackageCheck, Plus, Trash2 } from "lucide-react"
 import api from "../../services/api.js"
+import { hospitalToday } from "../../utils/hospitalDate.js"
 import { useToast } from "../Toast.jsx"
-import { Button, EmptyState, Field, Input, Modal, Select, StatusBadge, TableWrap } from "../ui"
+import { Badge, Button, EmptyState, Field, Input, Modal, Select, StatusBadge, TableWrap, usePrompt } from "../ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const RECEIVABLE = ["Draft", "Ordered", "Partial"]
-const today = () => new Date().toISOString().slice(0, 10)
+// Nothing received yet: the server also refuses once any goods have arrived.
+const CANCELLABLE = ["Draft", "Ordered"]
+const today = () => hospitalToday()
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const orderTotal = (order) => (order.items || []).reduce((sum, line) => sum + Number(line.line_total || 0), 0)
 const emptyLine = () => ({ medicine: "", quantity_ordered: "", unit_cost: "" })
@@ -17,19 +20,20 @@ const emptyLine = () => ({ medicine: "", quantity_ordered: "", unit_cost: "" })
  *
  * @param {{ hospital: { id: number, name: string }, orders: object[], suppliers: object[], medicines: object[], canEdit: boolean, onChanged: () => void }} props
  */
-export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medicines, canEdit, onChanged }) {
+export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medicines, canEdit, canCancel, onChanged }) {
   const { t } = useLanguage()
   const toast = useToast()
+  const [promptText, promptDialog] = usePrompt()
   const [creating, setCreating] = useState(false)
   const [receiving, setReceiving] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [order, setOrder] = useState({ supplier: "", reference: "", purchase_date: today(), lines: [emptyLine()] })
+  const [order, setOrder] = useState({ supplier: "", reference: "", purchase_date: today(), is_consignment: false, lines: [emptyLine()] })
   const [receipt, setReceipt] = useState({ reference: "", received_by: "", lines: [] })
 
   const activeSuppliers = suppliers.filter((s) => s.is_active)
 
   const startOrder = () => {
-    setOrder({ supplier: activeSuppliers[0]?.id || "", reference: "", purchase_date: today(), lines: [emptyLine()] })
+    setOrder({ supplier: activeSuppliers[0]?.id || "", reference: "", purchase_date: today(), is_consignment: false, lines: [emptyLine()] })
     setCreating(true)
   }
   const setLine = (index, field, value) =>
@@ -54,6 +58,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
         reference: order.reference.trim(),
         purchase_date: order.purchase_date,
         status: "Ordered",
+        is_consignment: order.is_consignment,
         items: lines.map((line) => ({
           medicine: Number(line.medicine),
           quantity_ordered: Number(line.quantity_ordered),
@@ -67,6 +72,18 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
       toast.error(err.message || "Could not raise the purchase order.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const cancelOrder = async (purchase) => {
+    const reason = await promptText({ title: t("Cancel {reference}", { reference: purchase.reference }), label: t("Reason"), confirmLabel: "Cancel order" })
+    if (!reason?.trim()) return
+    try {
+      await api.procurement.purchases.cancel(purchase.id, { reason }, hospital.id)
+      toast.success(t("Purchase order {reference} cancelled.", { reference: purchase.reference }))
+      onChanged()
+    } catch (err) {
+      toast.error(err.message || "Could not cancel the purchase order.")
     }
   }
 
@@ -163,7 +180,11 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
             <tbody>
               {orders.map((purchase) => (
                 <tr key={purchase.id}>
-                  <td className="font-medium text-ink-900">{purchase.reference}</td>
+                  <td className="font-medium text-ink-900">
+                    {purchase.reference}
+                    {purchase.is_consignment && <Badge tone="info" className="ml-2">{t("Consignment")}</Badge>}
+                    {purchase.cancel_reason && <span className="block text-xs font-normal text-ink-500">{purchase.cancel_reason}</span>}
+                  </td>
                   <td className="text-ink-600">{purchase.supplier_name}</td>
                   <td className="whitespace-nowrap tabular-nums text-ink-600">{new Date(purchase.purchase_date).toLocaleDateString("en-IN")}</td>
                   <td className="text-ink-600">
@@ -176,6 +197,9 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
                       <div className="flex justify-end">
                         {RECEIVABLE.includes(purchase.status) && (purchase.items || []).length > 0 && (
                           <Button size="sm" variant="subtle" icon={PackageCheck} onClick={() => startReceipt(purchase)}>{t("Receive")}</Button>
+                        )}
+                        {canCancel && CANCELLABLE.includes(purchase.status) && (
+                          <Button size="sm" variant="ghost" className="ml-1.5" onClick={() => cancelOrder(purchase)}>{t("Cancel order")}</Button>
                         )}
                       </div>
                     </td>
@@ -213,6 +237,10 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
               <Input type="date" value={order.purchase_date} onChange={(e) => setOrder({ ...order, purchase_date: e.target.value })} />
             </Field>
           </div>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={order.is_consignment} onChange={(e) => setOrder({ ...order, is_consignment: e.target.checked })} />
+            {t("Consignment: the supplier is paid only for what is used")}
+          </label>
           <fieldset className="space-y-3">
             <legend className="hms-label">{t("Items")}</legend>
             {order.lines.map((line, index) => (
@@ -285,6 +313,7 @@ export default function PurchaseOrdersPanel({ hospital, orders, suppliers, medic
           ))}
         </form>
       </Modal>
+      {promptDialog}
     </>
   )
 }

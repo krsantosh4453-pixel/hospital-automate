@@ -2,10 +2,13 @@ import { useCallback, useEffect, useState } from "react"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import { useHospitals } from "../../assets/context/HospitalsContext.jsx"
 import api from "../../services/api.js"
+import { hospitalToday } from "../../utils/hospitalDate.js"
 import { CircleCheckIcon, ClipboardListIcon, PenLineIcon, XIcon } from "lucide-react"
 import { Alert, Card, SkeletonRows, useConfirm } from "../../components/ui"
 import FamilyAccessCard from "../../components/patient/FamilyAccessCard.jsx"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import { usePatient } from "../../assets/context/PatientContext.jsx"
+import NotificationPreferences from "../../components/notifications/NotificationPreferences.jsx"
 
 const SCOPE_LABELS = {
   visits: "Visit history",
@@ -21,7 +24,7 @@ const readResults = (data) => (Array.isArray(data) ? data : data?.results || dat
 const inDays = (days) => {
   const date = new Date()
   date.setDate(date.getDate() + days)
-  return date.toISOString().slice(0, 10)
+  return hospitalToday(date)
 }
 
 function PatientConsent() {
@@ -31,6 +34,7 @@ function PatientConsent() {
   // A family member (proxy) may read this page but not sign, share or manage access.
   const { patient, isProxy } = useAuth()
   const { hospitals } = useHospitals()
+  const { selectedHospital } = usePatient() || {}
   const [consentForms, setConsentForms] = useState([])
   const [consentRecords, setConsentRecords] = useState([])
   const [shares, setShares] = useState([])
@@ -175,6 +179,9 @@ function PatientConsent() {
 
       {error && <Alert tone="danger" onDismiss={() => setError(null)}>{error}</Alert>}
       {notice && !error && <Alert tone="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
+
+      {/* K7: a family member cannot change the patient's contact choices. */}
+      {selectedHospital && !isProxy && <NotificationPreferences hospitalId={selectedHospital.id} />}
 
       {loading ? (
         <Card><SkeletonRows rows={3} /></Card>

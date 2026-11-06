@@ -45,15 +45,15 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | A8 | Patient selects hospital after login | MH 2 | VERIFIED | Hospital directory + PatientLayout auto-select / picker | B |
 | A9 | Hospital switcher for staff | UI 1.1, 2 | VERIFIED | Navbar → selectedHospital → X-Hospital-ID | B, T (header tests) |
 | A10 | User management | UI 3.1 | VERIFIED | `/api/users/` + `pages/admin/Users.jsx` | T:test_staff_admin, B |
-| A11 | Roles and permissions matrix | UI 3.1 | VERIFIED | Server-side role classes per membership; read-only matrix page | T (role-per-hospital tests), B |
+| A11 | Roles and permissions matrix | UI 3.1 | VERIFIED (2026-11-05) | Server-side role classes per membership. A hospital Admin can narrow a non-admin role per module to view only or no access (`hospital.RoleModuleRestriction`), enforced for every hospital-scoped API (`users/module_access.py`); it never widens a role and Admin cannot be restricted; the screens follow it | `hospital/test_role_restrictions.py`, `roleRestrictions.test.jsx`, query-budget test |
 | A12 | Delegated / proxy access rules | UI 3.1, P1 10 | VERIFIED | `users/proxy_access.py`: grant-scoped, view-only tokens re-checked on every request (`config/auth_cookies.py`); writes refused; separate proxy identities (2026-11-03) | T:test_proxy_access, E2E `family-access.spec.js` |
 | A13 | Departments / clinics setup | UI 3.2 | VERIFIED | Department API (code, head) + page | T, B |
 | A14 | Security settings screen | UI 3.1 | VERIFIED | Admin → Security settings (`/admin/security`): effective OTP, dev sign-in, token lifetimes, cookie/HTTPS/HSTS, password rules and rate limits, each marked recommended or not for production. Read only by design (environment variables); no secrets returned | users.test_security_settings (4); browser 2026-10-28 |
 | A15 | Audit log viewer (admin only) | UI 3.1, 6 | VERIFIED | Admin → Audit log (`/admin/audit`): filters by action, record type, user and dates; newest first; read only | T:test_rbac_and_writes (AuditTrail), audit.tests.AuditLogFilterTests (5); browser 2026-10-28 |
 | A16 | Role-specific dashboards and navigation | UI 2, 3 | IMPLEMENTED | Sidebar uses `canView`; ProtectedRoute checks backend roles | B (Admin role only) |
 | A17 | Hindi / English toggle | UI 2, P1 | VERIFIED | Page text translated through the shared UI components (page headers, buttons, form labels/hints/placeholders, tabs, empty states, card/dialog titles, alerts, stat tiles, status badges, table headers, options with explicit values) and directly in page code, including dropdown options (each keeps its English value) and list-driven labels, using `src/assets/i18n/hiPages.js` (~1,900 strings), with `{placeholders}` for sentences with names or numbers and status values matched in any spelling. Patient data stays as entered; option values never change | hindiPages.test.jsx (6); Hindi probe over 30 routes 2026-11-03 (229 → 63 distinct English strings, mostly data) |
-| A18 | Breadcrumb bar | UI 2 | MISSING | — | — |
-| A19 | Patient context strip (sticky) | UI 2 | MISSING | — | — |
+| A18 | Breadcrumb bar | UI 2 | IMPLEMENTED (re-checked 2026-11-05) | One bar in the staff shell (Home > section > page) from `config/navigation.js` (`components/Breadcrumbs.jsx`, commit 32ae6b0); PageHeader keeps its own trail only on pages outside the menu | Existing page tests; seen in Playwright runs |
+| A19 | Patient context strip (sticky) | UI 2 | IMPLEMENTED (2026-11-05) | Sticky strip on Consultation (`PatientContextStrip.jsx`): UHID at this hospital (added 2026-11-05), age, sex, phone, ward/bed, allergies (a failed check says so) | `patients/test_uhid.py` (UHID of this hospital only) |
 | A20 | Global patient search (UHID / name / mobile) | UI 2, 6 | VERIFIED | `/api/patients/?search=` matches name, phone and the acting hospital's UHIDs (never another hospital's) | patients.tests (2 UHID tests); browser 2026-10-28 |
 | A21 | Notifications bell / notification center | UI 2, 6 | VERIFIED | Header bell (`HeaderMenus.jsx` NotificationsMenu) lists the hospital's notifications and marks them read | T:test_notifications; browser 2026-10-28 |
 
@@ -95,11 +95,11 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | ID | Requirement | Source | Status | Implementation | Evidence |
 |---|---|---|---|---|---|
 | D1 | Vitals (BP, temperature, pulse, RR, SpO2, height, weight, sugar) | P1 5.2, P4 1 | VERIFIED | VitalSign | T:test_e2e_workflows |
-| D2 | Extra vitals (BMI, urine output, AVPU, trauma, mobility, O2, intake/output), recorder | P4 1 | MISSING | — | — |
+| D2 | Extra vitals (BMI, urine output, AVPU, trauma, mobility, O2, intake/output), recorder | P4 1 | DONE (2026-11-05) | VitalSign: pain, GCS, AVPU, urine output (2026-10-28) plus fluid intake, oxygen device and flow (a flow needs a device), mobility, injuries (free text, no trauma score invented) and the recorder (server-set); BMI computed by the API | `clinical/test_vitals_immunizations.py`, Playwright `clinical-assist` |
 | D3 | Allergies | P1 5 | IMPLEMENTED | Allergy (now hospital-scoped) | T (isolation) |
 | D4 | Current medication / complaint / history and examination | P1 5 | VERIFIED | Clinical notes have structured sections: chief complaint, history of present illness, past history, current medications, examination, assessment, plan, plus free-text other notes (older notes keep working); at least one part required; sections shown in Consultation and the patient timeline | clinical.test_structured_notes (4); browser 2026-11-02 |
 | D5 | Diagnosis with ICD-10, type, responsible clinician | P1 6 | VERIFIED | Diagnosis.icd10_code, recorded_by | T:test_e2e_workflows |
-| D6 | ICD-10 search by name / code | P1 6 | MISSING | Code is free text; no terminology table | — |
+| D6 | ICD-10 search by name / code | P1 6 | DONE (2026-11-05) | `terminology` app: ICD-10 table, `load_icd10`, staff search `/api/terminology/icd10/?q=`; diagnosis typeahead in Consultation; ~190 common codes bundled | `terminology/tests.py`, `Icd10Typeahead.test.jsx`, Playwright `clinical-assist` |
 | D7 | Investigation / procedure orders | P1 5, P4 2 | IMPLEMENTED | ServiceOrder, Procedure, LabTest | T (lab flow) |
 | D8 | Prescription medicine | P1 5 | VERIFIED | Prescription + items; UI saves only on server success | T:test_e2e_workflows |
 | D9 | Advice | P1 5 | PARTIAL | Prescription item instructions only | R |
@@ -135,10 +135,10 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | F2 | Stock deduction with ledger | P2 7 | VERIFIED | StockTransaction OUT / IN / ADJUST | T:test_financial_integrity |
 | F3 | Batch and expiry tracking; expired batches blocked | P2 4 | VERIFIED | Expired sale refused | T |
 | F4 | OPD sale | P2 4 | VERIFIED | Server-side price | T |
-| F5 | OPD / IPD returns | P2 4 | MISSING | — | — |
+| F5 | OPD / IPD returns | P2 4 | DONE (2026-11-05) | `pharmacy/dispensing.record_return`: return against a sale (sale row locked, never more than sold), restocked only when the pharmacist confirms it is fit and the batch is unexpired (stock ledger entry), else recorded as discarded; refund amount recorded; pharmacist/manager/admin only; audited. Pharmacy page "Medicine returns" card | `pharmacy/test_returns_substitutes.py`, PostgreSQL race test, `saleReturns.test.jsx`, Playwright `pharmacy` |
 | F6 | Barcode scan | P2 4 | VERIFIED | Laboratory → Print sample label (Code 39 barcode of the sample number, patient, test, tube) and Scan sample: a USB/handheld scanner's code (or typed number) finds the order at this hospital and offers its next step. The lab worklist now loads for Lab Staff (patient list optional) | laboratory.test_sample_scan (4), code39.test.js (4); browser 2026-10-28. Not tried with a physical scanner |
 | F7 | Drug interaction / contraindication alerts | P2 4 | PARTIAL | Phase A (2026-11-03): allergy (incl. drug classes), duplicate salt and a starter list of 8 interactions at prescribing; high alerts need a recorded, audited reason (`clinical/medication_safety.py`). Starter list pending P&T approval; no licensed drug database, no dose checks. | T:clinical/test_medication_safety, E2E `medication-safety.spec.js` |
-| F8 | Generic / substitute | P2 4 | MISSING | — | — |
+| F8 | Generic / substitute | P2 4 | DONE (2026-11-05) | Same-salt brand only (salt from the prescribed brand's catalogue entry; refused if unknown or different), pharmacist only, reason required, recorded on the sale and audited. Partial dispensing (`partial: true`) issues part now and the rest later, never more than prescribed, prescription row locked | `pharmacy/test_returns_substitutes.py`, PostgreSQL race test, `dispenseBatches.test.js`, Playwright `pharmacy` |
 
 ## G. Laboratory and radiology
 
@@ -157,7 +157,7 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | H1 | Invoice line items, quantity, subtotal, discount, tax, total (server computed, Decimal) | P2 16, P4 8 | VERIFIED | `billing/services.py` | T:test_financial_integrity |
 | H2 | Payments, receipts, outstanding balance | P2 6 | VERIFIED | record_payment (row lock, idempotency) | T |
 | H3 | Refunds | P2 6 | VERIFIED | refund action | T |
-| H4 | Advance payments | P2 6 | MISSING | Payments cannot exceed the bill | — |
+| H4 | Advance payments | P2 6 | DONE (2026-11-05) | `billing/advances.py`: per-patient advance account and append-only ledger (deposit, applied to bill, returned from bill, refunded); account and invoice rows locked, idempotency keys, balance never below zero; adjusting records an ordinary "Advance" payment on the invoice; plain payment/refund APIs refuse the "Advance" method; every movement audited. Billing page "Advance payments" card | `billing/test_advances.py` (9), `test_concurrency` (2 PostgreSQL race tests), `advancePayments.test.jsx`, Playwright `advance-payment` |
 | H5 | Duplicate-payment prevention | Brief 4 | VERIFIED | Idempotency-Key | T |
 | H6 | Insurance / TPA claims | UI 3.8 | IMPLEMENTED | InsuranceClaim (amount ≤ invoice) | Existing tests |
 | H7 | Invoice PDF / export | P2 16 | IMPLEMENTED | Layout shared with the tested PrintSheet | Added 2026-10-28: patient Bills page prints the invoice with payments (browser "Save as PDF"); staff Billing already had Print Bill. Not clicked through in a browser |
@@ -168,11 +168,11 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | ID | Requirement | Source | Status | Implementation | Evidence |
 |---|---|---|---|---|---|
 | I1 | Suppliers, purchase orders, GRN, stock ledger | P2 5 | IMPLEMENTED | procurement app | procurement tests (36) |
-| I2 | Purchase requisition → approval | P2 5 | MISSING | — | — |
+| I2 | Purchase requisition → approval | P2 5 | DONE (2026-11-05) | `procurement/workflows.py`: raised by store/pharmacy/nursing; approved or rejected (with reason) by an admin or manager other than the requester; ordered directly or by accepting a quotation; row-locked; audited. Inventory > Requisitions tab | `procurement/test_workflows.py`, `requisitionsPanel.test.jsx`, Playwright `procurement` |
 | I3 | Opening stock / stock adjustment | P2 5 | VERIFIED | Ledger entries on create and correction | T |
-| I4 | Supplier return, department issue, consignment, quotation | P2 5 | MISSING | — | — |
+| I4 | Supplier return, department issue, consignment, quotation | P2 5 | DONE (2026-11-05) | Quotations per approved requisition (accepting one orders at its prices, rejects the rest; expired refused). Issue to a department (never below zero, never an expired batch, idempotency key). Return to supplier against a receipt line, never more than received, with credit amount. Consignment orders settled for what was used. Every stock change in the ledger. PO cancellation from the screen (admin/manager, only before goods arrive, reason, audited); PO status now changes only through receive/cancel. Receipts lock the order (two invoices at once can no longer over-receive) | `procurement/test_workflows.py` (13), 2 PostgreSQL race tests, Playwright `procurement` |
 | I5 | Expiry monitoring | P2 5 | IMPLEMENTED | Pharmacy alerts, KPIs | B (page renders) |
-| I6 | CSSD / laundry | P2 5, UI 3.9 | MISSING | — | — |
+| I6 | CSSD / laundry | P2 5, UI 3.9 | DONE (2026-11-05) | `hospital_services`: instrument sets and sterilization cycles (only sterile, unexpired sets with a passed indicator are issued; one live cycle per set; issue and return); laundry batches sent per department and received back (never more than sent, shortfall shown) | `hospital_services/tests.py`, `resourcePanel.test.jsx` |
 
 ## J. Emergency and other services
 
@@ -182,8 +182,8 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | J2 | ER → inpatient transfer, ER discharge | P4 13 | IMPLEMENTED | admit_to_ipd, discharge | R |
 | J3 | ER action menu (all 24 actions) | P4 13 | VERIFIED | Emergency → All actions on every ER row: all 24 spec actions. ER-owned ones run in place (doctor notes, allergy, investigation results, consent / emergency / generic forms, drug receive, transfer to IP, charge slip + bill preview, ER discharge summary, medical certificate); vitals, service order, drug request and discharge reuse the ER dialogs; sample collection/dispatch, blood request/receive, bed transfer, billing, update details and medical record open that module with the patient chosen (`?patient=&q=`). The ER board no longer fails for doctors (nurse list optional) | emergency.test_er_actions (5), erActions.test.js (24-action spec check); browser 2026-10-28 |
 | J4 | Blood bank | UI 3.12 | IMPLEMENTED | Inventory, requests, transactions | Existing tests |
-| J5 | Ambulance, mortuary, phlebotomy, OT / procedure room | UI 3.12, P1 | MISSING | — | — |
-| J6 | HR, feedback, custom templates | UI 3.2 | MISSING | — | — |
+| J5 | Ambulance, mortuary, phlebotomy, OT / procedure room | UI 3.12, P1 | DONE (2026-11-05) | OT: theatres and bookings, no overlapping bookings (theatre row locked), start, complete, cancel with reason. Ambulance: fleet and calls, one trip per ambulance (locked), dispatch, complete, cancel. Mortuary: receive, release only by a doctor/manager with the receiver's name, relation and ID last 4 (not written to the audit log) and, for police cases, the clearance reference. Phlebotomy is the existing sample collection in Laboratory (sample ID, barcode, collector) | `hospital_services/tests.py`, 2 PostgreSQL race tests, Playwright `hospital-services` |
+| J6 | HR, feedback, custom templates | UI 3.2 | PARTIAL (2026-11-05) | Staff leave (apply, overlap refused, decided by an admin or manager other than the applicant), patient feedback recorded by staff and answered or closed by a manager, text templates (doctors write, nurses read, per hospital). Not built: payroll, attendance, shift roster beyond nurse ward duty, feedback from the patient portal, inserting templates into notes | `hospital_services/tests.py`, Playwright `hospital-services` |
 | J7 | MIS dashboard and reports | UI 3.1 | VERIFIED | Reports page on server KPIs | T (dashboard API), B |
 
 ## K. AI, notifications and ML
@@ -195,9 +195,9 @@ Both documents were read in full. The PDF is 43 pages and contains no images (ve
 | K3 | "AI Draft — Pending Review" until approval; no auto-finalize | AI 7, UI 5 | VERIFIED | review_label; read-only status; linked doctor approves | T, B (label shown) |
 | K4 | Provider failure does not corrupt records | Brief 14 | VERIFIED | 503 response; no note is written | T |
 | K5 | Hindi / Hinglish speech | AI 2 | BLOCKED | Depends on the chosen STT provider; not validated | — |
-| K6 | Discharge-summary AI assist, patient-friendly explanation | UI 5 | MISSING | — | — |
-| K7 | Waiting-list notifications with consent and delivery log | CALL 1, 7 | PARTIAL | In-app sent and logged; SMS/WhatsApp need consent and credentials | T:test_notifications. Real channels: BLOCKED |
-| K8 | Voice-call fallback, acknowledgement, "no answer ≠ left" | CALL 3 | MISSING | VoiceProvider class only; no call workflow | — |
+| K6 | Discharge-summary AI assist, patient-friendly explanation | UI 5 | PARTIAL (2026-11-05) | Doctor-only draft from the admission's records (`/api/ai/discharge/`), required review checkbox, outcome audited; no patient-friendly version; real AI provider untested | `ai_advanced/tests.py`, `DischargeDraftAssist.test.jsx`, Playwright `clinical-assist` |
+| K7 | Waiting-list notifications with consent and delivery log | CALL 1, 7 | PARTIAL (2026-11-05) | In-app sent and logged; patients choose SMS/WhatsApp/voice/email contact in the portal (consent rows the engine honours); admin dashboard shows each delivery attempt with its result; Celery retries; voice fallback. Real SMS/WhatsApp/email sending needs provider credentials | `notifications/test_patient_preferences.py`, `notificationPreferences.test.jsx`, Playwright `family-access`. Real channels: BLOCKED (credentials) |
+| K8 | Voice-call fallback, acknowledgement, "no answer ≠ left" | CALL 3 | PARTIAL (2026-11-05) | Call queued after SMS/WhatsApp finally fail, once per patient and event, skipped if the patient was reached; 3 attempts; admin log. Provider `noop` by default; no real call tested; no answer/acknowledgement tracking | `notifications/test_voice_fallback.py` |
 | K9 | ML / DL use cases | P2 12 | N/A | Not implemented on purpose: no labelled data, validation or monitoring available, and the PDF itself says "only after validation". Queue estimates are rule-based. | — |
 | K10 | ABDM / ABHA | P1 3.5 | BLOCKED | Mounted at `/api/abdm/` behind `ABDM_ENABLED` (off in production); needs ABDM sandbox credentials and approval | — |
 | K11 | FHIR / HL7 interoperability | P1 2 | BLOCKED | FHIR R4 read API mounted at `/api/fhir/` behind `FHIR_ENABLED` (off in production, Admin only); needs a conformance and security review | — |

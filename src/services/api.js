@@ -231,6 +231,12 @@ async function request(url, options = {}) {
 // Requests that wait on an email or SMS provider before the server answers.
 const DELIVERY_TIMEOUT_MS = 30000
 
+// Clinical records and patients are never erased: removing one marks it
+// entered in error, and the server requires the reason (R-03).
+function removalRequest(reason) {
+  return { method: 'DELETE', ...jsonBody({ reason }) }
+}
+
 function jsonBody(data) {
   return {
     headers: { 'Content-Type': 'application/json' },
@@ -464,10 +470,8 @@ const api = {
       }),
 
     // DELETE /api/patients/{id}/
-    delete: async (id) => {
-      await request(`${API_BASE_URL}/patients/${id}/`, {
-        method: 'DELETE',
-      })
+    delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/patients/${id}/`, removalRequest(reason))
       return true
     },
   },
@@ -599,8 +603,8 @@ const api = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         }),
-      delete: async (id) => {
-        await request(`${API_BASE_URL}/nurses/assessments/${id}/`, { method: 'DELETE' });
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/nurses/assessments/${id}/`, removalRequest(reason));
         return true;
       },
     },
@@ -626,8 +630,8 @@ const api = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         }),
-      delete: async (id) => {
-        await request(`${API_BASE_URL}/nurses/notes/${id}/`, { method: 'DELETE' });
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/nurses/notes/${id}/`, removalRequest(reason));
         return true;
       },
     },
@@ -690,6 +694,9 @@ const api = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         }),
+      // Doctor only: stopping an order ends further doses under it.
+      stop: async (id) =>
+        request(`${API_BASE_URL}/nurses/mar/${id}/`, { method: 'PATCH', ...jsonBody({ is_active: false }) }),
       generateSchedule: async (id, startDate) =>
         request(`${API_BASE_URL}/nurses/mar/${id}/generate_schedule/`, {
           method: 'POST',
@@ -1101,10 +1108,8 @@ const api = {
         }),
 
       // DELETE /api/clinical/vitals/{id}/
-      delete: async (id) => {
-        await request(`${API_BASE_URL}/clinical/vitals/${id}/`, {
-          method: 'DELETE',
-        })
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/clinical/vitals/${id}/`, removalRequest(reason))
         return true
       },
     },
@@ -1142,13 +1147,8 @@ const api = {
         }),
 
       // DELETE /api/clinical/clinical-notes/{id}/
-      delete: async (id) => {
-        await request(
-          `${API_BASE_URL}/clinical/clinical-notes/${id}/`,
-          {
-            method: 'DELETE',
-          }
-        )
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/clinical/clinical-notes/${id}/`, removalRequest(reason))
         return true
       },
     },
@@ -1186,13 +1186,8 @@ const api = {
         }),
 
       // DELETE /api/clinical/diagnoses/{id}/
-      delete: async (id) => {
-        await request(
-          `${API_BASE_URL}/clinical/diagnoses/${id}/`,
-          {
-            method: 'DELETE',
-          }
-        )
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/clinical/diagnoses/${id}/`, removalRequest(reason))
         return true
       },
     },
@@ -1233,25 +1228,26 @@ const api = {
         ),
 
       // DELETE /api/clinical/service-orders/{id}/
-      delete: async (id) => {
-        await request(
-          `${API_BASE_URL}/clinical/service-orders/${id}/`,
-          {
-            method: 'DELETE',
-          }
-        )
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/clinical/service-orders/${id}/`, removalRequest(reason))
         return true
       },
     },
 
     prescriptions: {
       // GET /api/clinical/prescriptions/?hospital=<id>&patient=<id>&visit=<id>
-      list: async ({ hospitalId, patientId, visitId } = {}) => {
+      // The pharmacy queue (F6) also sends status (comma-separated), search
+      // (RX number, patient, UHID, doctor), order=oldest and page.
+      list: async ({ hospitalId, patientId, visitId, status, search, order, page } = {}) => {
         const params = new URLSearchParams()
 
         if (hospitalId) params.set('hospital', hospitalId)
         if (patientId) params.set('patient', patientId)
         if (visitId) params.set('visit', visitId)
+        if (status) params.set('status', status)
+        if (search) params.set('search', search)
+        if (order) params.set('order', order)
+        if (page) params.set('page', page)
 
         const query = params.toString() ? `?${params.toString()}` : ''
 
@@ -1272,6 +1268,15 @@ const api = {
           },
           body: JSON.stringify(data),
         }),
+
+      // POST /api/clinical/prescriptions/transcribe/ — the pharmacy copies in a
+      // paper prescription; it waits for a second person to verify it (F13).
+      transcribe: async (data) =>
+        request(`${API_BASE_URL}/clinical/prescriptions/transcribe/`, { method: 'POST', ...jsonBody(data) }),
+
+      // POST /api/clinical/prescriptions/{id}/verify/ — someone other than the transcriber.
+      verify: async (id) =>
+        request(`${API_BASE_URL}/clinical/prescriptions/${id}/verify/`, { method: 'POST', ...jsonBody({}) }),
 
       // POST /api/clinical/prescriptions/
       create: async (data) =>
@@ -1304,10 +1309,8 @@ const api = {
         }),
 
       // DELETE /api/clinical/prescriptions/{id}/
-      delete: async (id) => {
-        await request(`${API_BASE_URL}/clinical/prescriptions/${id}/`, {
-          method: 'DELETE',
-        })
+      delete: async (id, reason) => {
+        await request(`${API_BASE_URL}/clinical/prescriptions/${id}/`, removalRequest(reason))
         return true
       },
     },
@@ -1445,7 +1448,8 @@ const api = {
           }),
 
         // POST /api/pharmacy-sales/dispense-prescription/
-        // { prescription, lines: [{ item, medicine }] }: all medicines or none.
+        // { prescription, partial?, lines: [{ item, medicine, quantity?, substitute_reason? }] }:
+        // every line in the request or none; partial: true leaves the rest for later.
         dispensePrescription: async (data) =>
           request(`${API_BASE_URL}/pharmacy-sales/dispense-prescription/`, {
             method: 'POST',
@@ -1454,6 +1458,10 @@ const api = {
             },
             body: JSON.stringify(data),
           }),
+
+        // POST /api/pharmacy-sales/<id>/return/ { quantity, reason, restock } — pharmacist (F5)
+        returnSale: async (saleId, data) =>
+          request(`${API_BASE_URL}/pharmacy-sales/${saleId}/return/`, { method: 'POST', ...jsonBody(data) }),
       },
     },
   },
@@ -1709,6 +1717,15 @@ const api = {
       },
     },
 
+    // Voice-call fallbacks (queued when SMS/WhatsApp delivery failed)
+    voiceCalls: {
+      // GET /api/notifications/voice-calls/?hospital=<id>
+      list: async (hospitalId) => {
+        const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ''
+        return request(`${API_BASE_URL}/notifications/voice-calls/${query}`)
+      },
+    },
+
     // Consent
     consent: {
       // GET /api/notifications/consents/?hospital=<id>&patient=<id>
@@ -1875,6 +1892,18 @@ api.wardSetup = {
 }
 
 // Departments / clinics of a hospital (Admin or Manager write).
+// Admin narrowing of built-in roles per module at a hospital ("view" or "none").
+// Every staff member can read them; only an administrator changes them.
+api.roleRestrictions = {
+  list: async (hospitalId) => request(`${API_BASE_URL}/hospital/role-restrictions/${queryForHospital(hospitalId)}`),
+  create: async (data, hospitalId) =>
+    request(`${API_BASE_URL}/hospital/role-restrictions/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  update: async (id, data, hospitalId) =>
+    request(`${API_BASE_URL}/hospital/role-restrictions/${id}/${queryForHospital(hospitalId)}`, { method: "PATCH", ...jsonBody(data) }),
+  remove: async (id, hospitalId) =>
+    request(`${API_BASE_URL}/hospital/role-restrictions/${id}/${queryForHospital(hospitalId)}`, { method: "DELETE" }),
+}
+
 api.departments = {
   list: async (hospitalId) => {
     const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
@@ -2074,6 +2103,24 @@ api.billing = {
     patch: async (id, data) =>
       request(`${API_BASE_URL}/billing/payments/${id}/`, { method: "PATCH", ...jsonBody(data) }),
   },
+  // Advance payments (H4). The server keeps the balance; every call here is one ledger movement.
+  advances: {
+    list: async (hospitalId, patientId) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set("hospital", hospitalId)
+      if (patientId) params.set("patient", patientId)
+      return request(`${API_BASE_URL}/billing/advances/?${params.toString()}`)
+    },
+    // data: { hospital, patient, amount, payment_method, reference, idempotency_key }
+    deposit: async (data) =>
+      request(`${API_BASE_URL}/billing/advances/deposit/`, { method: "POST", ...jsonBody(data) }),
+    // data: { amount, reason, payment_method } — billing staff, manager or admin
+    refund: async (accountId, data) =>
+      request(`${API_BASE_URL}/billing/advances/${accountId}/refund/`, { method: "POST", ...jsonBody(data) }),
+    // data: { amount, idempotency_key }
+    applyToInvoice: async (invoiceId, data) =>
+      request(`${API_BASE_URL}/billing/invoices/${invoiceId}/apply-advance/`, { method: "POST", ...jsonBody(data) }),
+  },
 }
 
 api.emergency = {
@@ -2240,6 +2287,20 @@ api.aiScribe.reviews = {
   },
 }
 
+api.ai = {
+  dischargeDrafts: {
+    // POST /api/ai/discharge/admissions/<id>/draft/ — doctor only; returns a draft, saves nothing
+    generate: async (admissionId) =>
+      request(`${API_BASE_URL}/ai/discharge/admissions/${admissionId}/draft/`, { method: "POST", timeout: 60000 }),
+    // data: { draft_id, outcome: "accepted" | "edited" | "discarded" }
+    review: async (admissionId, data) =>
+      request(`${API_BASE_URL}/ai/discharge/admissions/${admissionId}/draft-review/`, {
+        method: "POST",
+        ...jsonBody(data),
+      }),
+  },
+}
+
 api.consent = {
   forms: {
     list: async () => request(`${API_BASE_URL}/consent/forms/`),
@@ -2270,6 +2331,50 @@ api.consent = {
 
 const queryForHospital = (hospitalId) => (hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : "")
 
+api.terminology = {
+  // GET /api/terminology/icd10/?q=<text>&limit=<n> — staff only
+  icd10Search: async (query, limit = 15) => {
+    const params = new URLSearchParams({ q: query, limit: String(limit) })
+    return request(`${API_BASE_URL}/terminology/icd10/?${params.toString()}`)
+  },
+}
+
+// Hospital services (J5, J6, I6). Each resource is listed so the backend
+// contract test (security_tests/test_frontend_contract.py) checks its route.
+const SERVICE_PATHS = {
+  theatres: `${API_BASE_URL}/services/theatres/`,
+  "ot-bookings": `${API_BASE_URL}/services/ot-bookings/`,
+  ambulances: `${API_BASE_URL}/services/ambulances/`,
+  "ambulance-trips": `${API_BASE_URL}/services/ambulance-trips/`,
+  mortuary: `${API_BASE_URL}/services/mortuary/`,
+  "sterile-sets": `${API_BASE_URL}/services/sterile-sets/`,
+  "sterilization-cycles": `${API_BASE_URL}/services/sterilization-cycles/`,
+  laundry: `${API_BASE_URL}/services/laundry/`,
+  leave: `${API_BASE_URL}/services/leave/`,
+  feedback: `${API_BASE_URL}/services/feedback/`,
+  templates: `${API_BASE_URL}/services/templates/`,
+}
+
+const servicePath = (resource) => {
+  const path = SERVICE_PATHS[resource]
+  if (!path) throw new Error(`Unknown hospital service: ${resource}`)
+  return path
+}
+
+api.services = {
+  list: async (resource, hospitalId, params = {}) => {
+    const query = new URLSearchParams({ ...(hospitalId ? { hospital: hospitalId } : {}), ...params })
+    return request(`${servicePath(resource)}?${query.toString()}`)
+  },
+  create: async (resource, data, hospitalId) =>
+    request(`${servicePath(resource)}${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  update: async (resource, id, data, hospitalId) =>
+    request(`${servicePath(resource)}${id}/${queryForHospital(hospitalId)}`, { method: "PATCH", ...jsonBody(data) }),
+  // POST <resource>/<id>/<verb>/, e.g. ot-bookings/4/start/
+  act: async (resource, id, verb, data, hospitalId) =>
+    request(`${servicePath(resource)}${id}/${verb}/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data || {}) }),
+}
+
 api.procurement = {
   suppliers: {
     list: async (hospitalId) => {
@@ -2299,6 +2404,51 @@ api.procurement = {
       request(`${API_BASE_URL}/procurement/purchases/${id}/${queryForHospital(hospitalId)}`, { method: "PUT", ...jsonBody(data) }),
     receive: async (id, data, hospitalId) =>
       request(`${API_BASE_URL}/procurement/purchases/${id}/receive/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+    // Admin or manager; only while nothing has been received. data: { reason }
+    cancel: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/purchases/${id}/cancel/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  },
+  // I2: department requests for stock, approved by an admin or manager other than the requester.
+  requisitions: {
+    list: async (hospitalId) => request(`${API_BASE_URL}/procurement/requisitions/${queryForHospital(hospitalId)}`),
+    // data: { department, reason, items: [{ medicine, quantity, note }] }
+    create: async (data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/requisitions/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+    approve: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/requisitions/${id}/approve/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+    reject: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/requisitions/${id}/reject/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+    // data: { supplier, unit_costs: [{ item, unit_cost }], reference? }
+    order: async (id, data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/requisitions/${id}/order/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  },
+  quotations: {
+    list: async (hospitalId, requisitionId) =>
+      request(`${API_BASE_URL}/procurement/quotations/?hospital=${encodeURIComponent(hospitalId)}&requisition=${encodeURIComponent(requisitionId)}`),
+    // data: { requisition, supplier, reference, valid_until, items: [{ requisition_item, unit_cost }] }
+    create: async (data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/quotations/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+    accept: async (id, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/quotations/${id}/accept/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody({}) }),
+  },
+  // I4: stock out of the store other than sales.
+  stockIssues: {
+    list: async (hospitalId) => request(`${API_BASE_URL}/procurement/stock-issues/${queryForHospital(hospitalId)}`),
+    // data: { department, medicine, quantity, received_by_name, note, idempotency_key }
+    create: async (data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/stock-issues/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  },
+  supplierReturns: {
+    list: async (hospitalId) => request(`${API_BASE_URL}/procurement/supplier-returns/${queryForHospital(hospitalId)}`),
+    // data: { receipt_item, quantity, reason }
+    create: async (data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/supplier-returns/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
+  },
+  consignmentSettlements: {
+    list: async (hospitalId) => request(`${API_BASE_URL}/procurement/consignment-settlements/${queryForHospital(hospitalId)}`),
+    // data: { receipt_item, quantity, reference }
+    create: async (data, hospitalId) =>
+      request(`${API_BASE_URL}/procurement/consignment-settlements/${queryForHospital(hospitalId)}`, { method: "POST", ...jsonBody(data) }),
   },
   purchaseItems: {
     list: async (hospitalId, purchaseId) => {

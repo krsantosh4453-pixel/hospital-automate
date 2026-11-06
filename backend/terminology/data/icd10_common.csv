@@ -1,0 +1,194 @@
+code,description,billable
+A01.00,"Typhoid fever, unspecified",1
+A08.4,"Viral intestinal infection, unspecified",1
+A09,"Infectious gastroenteritis and colitis, unspecified",1
+A15.0,Tuberculosis of lung,1
+A41.9,"Sepsis, unspecified organism",1
+A90,Dengue fever [classical dengue],1
+A91,Dengue hemorrhagic fever,1
+B01.9,Varicella without complication,1
+B18.1,Chronic viral hepatitis B without delta-agent,1
+B20,Human immunodeficiency virus [HIV] disease,1
+B34.9,"Viral infection, unspecified",1
+B35.4,Tinea corporis,1
+B37.0,Candidal stomatitis,1
+B50.9,"Plasmodium falciparum malaria, unspecified",1
+B54,Unspecified malaria,1
+C18.9,"Malignant neoplasm of colon, unspecified",1
+C22.0,Liver cell carcinoma,1
+C34.90,Malignant neoplasm of unspecified part of unspecified bronchus or lung,1
+C50.919,Malignant neoplasm of unspecified site of unspecified female breast,1
+C53.9,"Malignant neoplasm of cervix uteri, unspecified",1
+C61,Malignant neoplasm of prostate,1
+D25.9,"Leiomyoma of uterus, unspecified",1
+D50.9,"Iron deficiency anemia, unspecified",1
+D57.1,Sickle-cell disease without crisis,1
+D64.9,"Anemia, unspecified",1
+D69.6,"Thrombocytopenia, unspecified",1
+E03.9,"Hypothyroidism, unspecified",1
+E05.90,"Thyrotoxicosis, unspecified without thyrotoxic crisis or storm",1
+E10.9,Type 1 diabetes mellitus without complications,1
+E11.22,Type 2 diabetes mellitus with diabetic chronic kidney disease,1
+E11.319,Type 2 diabetes mellitus with unspecified diabetic retinopathy without macular edema,1
+E11.40,"Type 2 diabetes mellitus with diabetic neuropathy, unspecified",1
+E11.649,Type 2 diabetes mellitus with hypoglycemia without coma,1
+E11.65,Type 2 diabetes mellitus with hyperglycemia,1
+E11.9,Type 2 diabetes mellitus without complications,1
+E13.9,Other specified diabetes mellitus without complications,1
+E16.2,"Hypoglycemia, unspecified",1
+E28.2,Polycystic ovarian syndrome,1
+E55.9,"Vitamin D deficiency, unspecified",1
+E66.9,"Obesity, unspecified",1
+E78.00,"Pure hypercholesterolemia, unspecified",1
+E78.5,"Hyperlipidemia, unspecified",1
+E86.0,Dehydration,1
+E87.1,Hypo-osmolality and hyponatremia,1
+E87.6,Hypokalemia,1
+F10.20,"Alcohol dependence, uncomplicated",1
+F20.9,"Schizophrenia, unspecified",1
+F31.9,"Bipolar disorder, unspecified",1
+F32.9,"Major depressive disorder, single episode, unspecified",1
+F41.1,Generalized anxiety disorder,1
+F41.9,"Anxiety disorder, unspecified",1
+F43.10,"Post-traumatic stress disorder, unspecified",1
+F90.9,"Attention-deficit hyperactivity disorder, unspecified type",1
+G40.909,"Epilepsy, unspecified, not intractable, without status epilepticus",1
+G43.909,"Migraine, unspecified, not intractable, without status migrainosus",1
+G44.209,"Tension-type headache, unspecified, not intractable",1
+G45.9,"Transient cerebral ischemic attack, unspecified",1
+G47.00,"Insomnia, unspecified",1
+G51.0,Bell's palsy,1
+G56.00,"Carpal tunnel syndrome, unspecified upper limb",1
+G62.9,"Polyneuropathy, unspecified",1
+H10.9,Unspecified conjunctivitis,1
+H25.9,Unspecified age-related cataract,1
+H40.9,Unspecified glaucoma,1
+H52.4,Presbyopia,1
+H61.20,"Impacted cerumen, unspecified ear",1
+H66.90,"Otitis media, unspecified, unspecified ear",1
+H81.10,"Benign paroxysmal vertigo, unspecified ear",1
+I10,Essential (primary) hypertension,1
+I11.9,Hypertensive heart disease without heart failure,1
+I20.9,"Angina pectoris, unspecified",1
+I21.9,"Acute myocardial infarction, unspecified",1
+I25.10,Atherosclerotic heart disease of native coronary artery without angina pectoris,1
+I26.99,Other pulmonary embolism without acute cor pulmonale,1
+I48.91,Unspecified atrial fibrillation,1
+I50.9,"Heart failure, unspecified",1
+I61.9,"Nontraumatic intracerebral hemorrhage, unspecified",1
+I63.9,"Cerebral infarction, unspecified",1
+I73.9,"Peripheral vascular disease, unspecified",1
+I82.409,Acute embolism and thrombosis of unspecified deep veins of unspecified lower extremity,1
+I83.90,Asymptomatic varicose veins of unspecified lower extremity,1
+I95.9,"Hypotension, unspecified",1
+J00,Acute nasopharyngitis [common cold],1
+J01.90,"Acute sinusitis, unspecified",1
+J02.9,"Acute pharyngitis, unspecified",1
+J03.90,"Acute tonsillitis, unspecified",1
+J06.9,"Acute upper respiratory infection, unspecified",1
+J11.1,Influenza due to unidentified influenza virus with other respiratory manifestations,1
+J18.9,"Pneumonia, unspecified organism",1
+J20.9,"Acute bronchitis, unspecified",1
+J30.9,"Allergic rhinitis, unspecified",1
+J32.9,"Chronic sinusitis, unspecified",1
+J44.1,Chronic obstructive pulmonary disease with (acute) exacerbation,1
+J44.9,"Chronic obstructive pulmonary disease, unspecified",1
+J45.901,Unspecified asthma with (acute) exacerbation,1
+J45.909,"Unspecified asthma, uncomplicated",1
+J90,"Pleural effusion, not elsewhere classified",1
+J96.00,"Acute respiratory failure, unspecified whether with hypoxia or hypercapnia",1
+K21.9,Gastro-esophageal reflux disease without esophagitis,1
+K25.9,"Gastric ulcer, unspecified as acute or chronic, without hemorrhage or perforation",1
+K29.70,"Gastritis, unspecified, without bleeding",1
+K30,Functional dyspepsia,1
+K35.80,Unspecified acute appendicitis,1
+K40.90,"Unilateral inguinal hernia, without obstruction or gangrene, not specified as recurrent",1
+K52.9,"Noninfective gastroenteritis and colitis, unspecified",1
+K57.30,Diverticulosis of large intestine without perforation or abscess without bleeding,1
+K58.9,Irritable bowel syndrome without diarrhea,1
+K59.00,"Constipation, unspecified",1
+K64.9,Unspecified hemorrhoids,1
+K70.30,Alcoholic cirrhosis of liver without ascites,1
+K74.60,Unspecified cirrhosis of liver,1
+K76.0,"Fatty (change of) liver, not elsewhere classified",1
+K80.20,Calculus of gallbladder without cholecystitis without obstruction,1
+K81.0,Acute cholecystitis,1
+K85.90,"Acute pancreatitis without necrosis or infection, unspecified",1
+K92.2,"Gastrointestinal hemorrhage, unspecified",1
+L01.00,"Impetigo, unspecified",1
+L02.91,"Cutaneous abscess, unspecified",1
+L03.90,"Cellulitis, unspecified",1
+L20.9,"Atopic dermatitis, unspecified",1
+L23.9,"Allergic contact dermatitis, unspecified cause",1
+L30.9,"Dermatitis, unspecified",1
+L40.0,Psoriasis vulgaris,1
+L50.9,"Urticaria, unspecified",1
+L70.0,Acne vulgaris,1
+M06.9,"Rheumatoid arthritis, unspecified",1
+M10.9,"Gout, unspecified",1
+M17.9,"Osteoarthritis of knee, unspecified",1
+M19.90,"Unspecified osteoarthritis, unspecified site",1
+M25.50,Pain in unspecified joint,1
+M54.16,"Radiculopathy, lumbar region",1
+M54.2,Cervicalgia,1
+M54.50,"Low back pain, unspecified",1
+M62.830,Muscle spasm of back,1
+M79.10,"Myalgia, unspecified site",1
+M79.7,Fibromyalgia,1
+M81.0,Age-related osteoporosis without current pathological fracture,1
+N17.9,"Acute kidney failure, unspecified",1
+N18.6,End stage renal disease,1
+N18.9,"Chronic kidney disease, unspecified",1
+N20.0,Calculus of kidney,1
+N30.00,Acute cystitis without hematuria,1
+N39.0,"Urinary tract infection, site not specified",1
+N40.0,Benign prostatic hyperplasia without lower urinary tract symptoms,1
+N73.9,"Female pelvic inflammatory disease, unspecified",1
+N92.0,Excessive and frequent menstruation with regular cycle,1
+N94.6,"Dysmenorrhea, unspecified",1
+N95.1,Menopausal and female climacteric states,1
+O13.9,"Gestational [pregnancy-induced] hypertension without significant proteinuria, unspecified trimester",1
+O21.0,Mild hyperemesis gravidarum,1
+O24.419,"Gestational diabetes mellitus in pregnancy, unspecified control",1
+O80,Encounter for full-term uncomplicated delivery,1
+O99.019,"Anemia complicating pregnancy, unspecified trimester",1
+P07.30,"Preterm newborn, unspecified weeks of gestation",1
+P59.9,"Neonatal jaundice, unspecified",1
+R05.9,"Cough, unspecified",1
+R06.02,Shortness of breath,1
+R07.9,"Chest pain, unspecified",1
+R10.13,Epigastric pain,1
+R10.9,Unspecified abdominal pain,1
+R11.2,"Nausea with vomiting, unspecified",1
+R19.7,"Diarrhea, unspecified",1
+R31.9,"Hematuria, unspecified",1
+R42,Dizziness and giddiness,1
+R50.9,"Fever, unspecified",1
+R51.9,"Headache, unspecified",1
+R53.83,Other fatigue,1
+R55,Syncope and collapse,1
+R56.9,Unspecified convulsions,1
+R60.9,"Edema, unspecified",1
+R63.4,Abnormal weight loss,1
+R73.03,Prediabetes,1
+R73.9,"Hyperglycemia, unspecified",1
+S01.81XA,"Laceration without foreign body of other part of head, initial encounter",1
+S06.0X0A,"Concussion without loss of consciousness, initial encounter",1
+S52.509A,"Unspecified fracture of the lower end of unspecified radius, initial encounter for closed fracture",1
+S72.009A,"Fracture of unspecified part of neck of unspecified femur, initial encounter for closed fracture",1
+S93.409A,"Sprain of unspecified ligament of unspecified ankle, initial encounter",1
+T14.90XA,"Injury, unspecified, initial encounter",1
+T30.0,"Burn of unspecified body region, unspecified degree",1
+T60.0X1A,"Toxic effect of organophosphate and carbamate insecticides, accidental (unintentional), initial encounter",1
+T63.001A,"Toxic effect of unspecified snake venom, accidental (unintentional), initial encounter",1
+T78.40XA,"Allergy, unspecified, initial encounter",1
+U07.1,COVID-19,1
+W54.0XXA,"Bitten by dog, initial encounter",1
+Z00.00,Encounter for general adult medical examination without abnormal findings,1
+Z00.129,Encounter for routine child health examination without abnormal findings,1
+Z23,Encounter for immunization,1
+Z30.9,"Encounter for contraceptive management, unspecified",1
+Z34.90,"Encounter for supervision of normal pregnancy, unspecified, unspecified trimester",1
+Z51.11,Encounter for antineoplastic chemotherapy,1
+Z79.4,Long term (current) use of insulin,1
+Z95.1,Presence of aortocoronary bypass graft,1

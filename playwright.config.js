@@ -30,6 +30,7 @@ export default defineConfig({
         `rm -f ${DB_PATH} ${OTP_LOG}`,
         `${PYTHON} manage.py migrate -v0`,
         `${PYTHON} manage.py seed_demo --password ${E2E_PASSWORD}`,
+        `${PYTHON} manage.py load_icd10 --if-empty`,
         `${PYTHON} manage.py runserver 127.0.0.1:${BACKEND_PORT} --noreload`,
       ].join(" && "),
       cwd: "backend",

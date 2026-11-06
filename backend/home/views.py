@@ -81,7 +81,7 @@ def home_dashboard(request):
     
     # Doctor stats
     total_doctors = doctor_qs.count()
-    active_doctors = doctor_qs.filter(status="Active").count()
+    active_doctors = doctor_qs.filter(status="Available").count()
     
     # Appointment stats
     total_appointments = appointment_qs.count()

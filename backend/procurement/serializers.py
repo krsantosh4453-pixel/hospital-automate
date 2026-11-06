@@ -264,10 +264,13 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             "reference",
             "purchase_date",
             "status",
+            "is_consignment",
+            "cancelled_at",
+            "cancel_reason",
             "created_at",
             "items",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "cancelled_at", "cancel_reason", "created_at"]
         validators = []  # Remove auto-generated UniqueTogetherValidator; DB constraint handles it
 
     def validate_reference(self, value):
@@ -279,6 +282,16 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         hospital = _resolve_scoped_hospital(self, attrs)
+
+        # Status moves only through receive/ and cancel/, which check stock and permissions.
+        wanted = attrs.get("status")
+        if self.instance is not None and wanted is not None and wanted != self.instance.status:
+            raise serializers.ValidationError({"status": "Use Receive or Cancel to change an order's status."})
+        if self.instance is None and wanted not in (None, PurchaseOrder.STATUS_DRAFT, PurchaseOrder.STATUS_ORDERED):
+            raise serializers.ValidationError({"status": "A new order starts as Draft or Ordered."})
+        if self.instance is not None and "is_consignment" in attrs and attrs["is_consignment"] != self.instance.is_consignment \
+                and self.instance.items.filter(quantity_received__gt=0).exists():
+            raise serializers.ValidationError({"is_consignment": "Goods have been received; the order type is fixed."})
 
         supplier = attrs.get("supplier")
         if supplier is None and self.instance is not None:
@@ -339,20 +352,35 @@ class GoodsReceiptItemSerializer(serializers.ModelSerializer):
         source="medicine.name",
         read_only=True
     )
+    receipt_reference = serializers.CharField(source="goods_receipt.reference", read_only=True)
+    supplier_name = serializers.CharField(source="goods_receipt.supplier.name", read_only=True)
+    is_consignment = serializers.BooleanField(source="goods_receipt.purchase.is_consignment", read_only=True,
+                                              default=False)
+    # Received minus returned to the supplier and (consignment) settled.
+    open_quantity = serializers.SerializerMethodField()
 
     class Meta:
         model = GoodsReceiptItem
         fields = [
             "id",
             "goods_receipt",
+            "receipt_reference",
+            "supplier_name",
+            "is_consignment",
             "medicine",
             "medicine_name",
             "batch",
             "expiry_date",
             "quantity_received",
+            "open_quantity",
             "unit_cost",
         ]
         read_only_fields = ["id"]
+
+    def get_open_quantity(self, obj) -> int:
+        returned = sum(row.quantity for row in obj.returns.all())
+        settled = sum(row.quantity for row in obj.settlements.all())
+        return obj.quantity_received - returned - settled
 
 
 class GoodsReceiptSerializer(serializers.ModelSerializer):

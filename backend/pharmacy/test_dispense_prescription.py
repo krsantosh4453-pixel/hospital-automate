@@ -162,6 +162,31 @@ class DispensePrescriptionTests(TestCase):
         self.assertIn(response.status_code, (403, 404), response.data)
         self.assertFalse(Sale.objects.exists())
 
+    def test_pharmacist_role_in_one_hospital_does_not_dispense_in_another(self):
+        """RL-02: Pharmacist in A but only Receptionist in B, acting as A, must not issue B's medicine."""
+        profile = StaffProfile.objects.get(user__username="rx-pharmacist")
+        StaffHospitalMembership.objects.create(
+            staff=profile, hospital=self.other_hospital, role=StaffRole.RECEPTIONIST, is_active=True
+        )
+        patient = Patient.objects.create(
+            name="Other", age=30, gender="Male", phone="9876500003", hospital=self.other_hospital
+        )
+        foreign_rx = Prescription.objects.create(hospital=self.other_hospital, patient=patient)
+        item = PrescriptionItem.objects.create(prescription=foreign_rx, name="Paracetamol", quantity=1)
+        stock_b = Medicine.objects.create(
+            name="Paracetamol", hospital=self.other_hospital, batch="PB", quantity=10, price=Decimal("2.00")
+        )
+
+        response = self.client.post(
+            URL, {"prescription": foreign_rx.pk, "lines": [{"item": item.pk, "medicine": stock_b.pk}]},
+            format="json", HTTP_X_HOSPITAL_ID=str(self.hospital.id),
+        )
+
+        self.assertEqual(response.status_code, 404, response.data)
+        self.assertFalse(Sale.objects.exists())
+        stock_b.refresh_from_db()
+        self.assertEqual(stock_b.quantity, 10)
+
     def test_prescription_with_no_items_is_refused(self):
         empty = Prescription.objects.create(hospital=self.hospital, patient=self.prescription.patient)
 

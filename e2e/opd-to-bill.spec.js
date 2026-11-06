@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { hospitalToday, signInAs, uniqueName } from "./helpers.js"
+import { hospitalToday, pickPatient, signInAs, uniqueName } from "./helpers.js"
 
 // One OPD patient through the browser, each step by its own role:
 // front desk books and issues the token, the doctor sees the patient,
@@ -34,16 +34,14 @@ test("front desk issues the queue token", async ({ page }) => {
   await signInAs(page, "demo.desk.main")
   await page.goto("/queue")
 
-  // Issue token serves today's booked appointments earliest first; seed
-  // appointments may be ahead of ours. After each token the queue reloads from
-  // the server, so give the row a moment to appear before issuing the next one.
+  // The desk chooses which booked appointment checks in (IssueTokenDialog).
+  await page.getByRole("button", { name: /^Issue token/ }).click()
+  const dialog = page.getByRole("dialog", { name: "Check in a booked appointment" })
+  await dialog.getByLabel(new RegExp(patient)).check()
+  await dialog.getByRole("button", { name: `Issue token for ${patient}` }).click()
+  await expect(page.getByText(new RegExp(`Token #\\d+ generated for ${patient}`))).toBeVisible()
+
   const row = page.getByRole("row", { name: new RegExp(patient) })
-  const issue = page.getByRole("button", { name: /^Issue token/ })
-  for (let attempt = 0; attempt < 5 && !(await row.isVisible()); attempt += 1) {
-    await issue.click()
-    await expect(page.getByText(/Token #\d+ generated/)).toBeVisible()
-    await row.waitFor({ state: "visible", timeout: 3000 }).catch(() => {})
-  }
   await expect(row).toBeVisible()
   await expect(row.getByText("Waiting")).toBeVisible()
 })
@@ -65,8 +63,8 @@ async function billAndPayInFull(page, username) {
   await page.goto("/billing")
 
   await page.getByRole("button", { name: "Create invoice" }).click()
-  await page.getByPlaceholder("Rahul Kumar").fill(patient)
-  await page.getByPlaceholder("P001").fill("P000")
+  // Chosen by search and kept by id, never matched by typed name (RL-03).
+  await pickPatient(page, patient)
   await page.getByPlaceholder("Doctor Consultation ₹").fill("300")
   await page.getByPlaceholder("Pharmacy / Medicines ₹").fill("25")
   await page.locator("input[name=paid]").fill("325")

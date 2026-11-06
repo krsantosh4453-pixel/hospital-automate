@@ -55,6 +55,33 @@ class ExtendedVitalsTests(ClinicalTestBase):
         self.assertFalse(VitalSign.objects.exists())
 
 
+    def test_intake_oxygen_mobility_injuries_bmi_and_recorder(self):
+        # D2.
+        response = self.post(VITALS, {
+            "visit": self.visit.pk, "weight": "70.00", "height": "175.00", "fluid_intake": 1200,
+            "urine_output": 800, "oxygen_device": "Nasal cannula", "oxygen_flow": "2.0",
+            "mobility": "With assistance", "injuries": "Abrasion left forearm",
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data["bmi"], 22.9)
+        self.assertEqual(response.data["recorded_by"], self.doctor_user.pk)
+        vital = VitalSign.objects.get()
+        self.assertEqual((vital.fluid_intake, vital.mobility, vital.oxygen_device), (1200, "With assistance", "Nasal cannula"))
+
+    def test_oxygen_flow_needs_a_device_and_a_sane_rate(self):
+        for body in ({"oxygen_flow": "4.0"}, {"oxygen_flow": "4.0", "oxygen_device": "Room air"},
+                     {"oxygen_flow": "90", "oxygen_device": "Face mask"}, {"mobility": "Flying"}):
+            with self.subTest(body=body):
+                response = self.post(VITALS, {"visit": self.visit.pk, **body})
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(VitalSign.objects.exists())
+
+    def test_recorder_cannot_be_set_by_the_client(self):
+        other, _ = make_staff("doc_other", self.hospital, StaffRole.DOCTOR)
+        response = self.post(VITALS, {"visit": self.visit.pk, "heart_rate": 80, "recorded_by": other.pk})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(VitalSign.objects.get().recorded_by, self.doctor_user)
+
 class ImmunizationTests(ClinicalTestBase):
     def dose(self, **overrides):
         data = {

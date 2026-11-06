@@ -1,5 +1,6 @@
 """Role, write-path and audit checks across two synthetic hospitals."""
 
+import json
 import tempfile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -317,12 +318,21 @@ class PatientDeleteTests(TwoHospitalCase):
         self.assertEqual(resp.status_code, 409, resp.content)
         self.assertTrue(Visit.objects.filter(pk=self.visit_b.pk).exists())
 
-    def test_admin_can_delete_patient_known_only_to_own_hospital(self):
+    def test_receptionist_removal_of_a_local_patient_is_kept_with_who_and_why(self):
+        # R-03: the patient leaves every list, but the row, the remover and the
+        # values before removal stay for the record.
         local = Patient.objects.create(
             name="Synthetic Local", age=40, gender="Female", phone="9000000077", hospital=self.hospital_a,
         )
         PatientHospital.objects.create(patient=local, hospital=self.hospital_a, uhid="A-77")
-        resp = self.client_for(self.admin_a, self.hospital_a).delete(f"/api/patients/{local.id}/")
+        resp = self.client_for(self.receptionist_a, self.hospital_a).delete(
+            f"/api/patients/{local.id}/", {"reason": "Duplicate registration"}, format="json")
         self.assertEqual(resp.status_code, 204, resp.content)
         self.assertFalse(Patient.objects.filter(pk=local.pk).exists())
-        self.assertTrue(AuditLog.objects.filter(action="patients.patient.delete").exists())
+        kept = Patient.all_objects.get(pk=local.pk)
+        self.assertEqual(kept.entered_in_error_by, self.receptionist_a)
+        entry = AuditLog.objects.get(action="patients.patient.entered_in_error", object_id=str(local.pk))
+        self.assertEqual(entry.user, self.receptionist_a)
+        details = json.loads(entry.details)
+        self.assertEqual(details["reason"], "Duplicate registration")
+        self.assertEqual(details["before"]["name"], "Synthetic Local")

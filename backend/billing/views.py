@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from audit.services import record_audit
 from .models import (
+    AdvanceAccount,
     Invoice,
     InvoiceItem,
     Payment,
@@ -13,11 +14,16 @@ from .models import (
 )
 
 from .serializers import (
+    AdvanceAccountSerializer,
+    AdvanceDepositSerializer,
+    AdvanceMoveSerializer,
+    AdvanceTransactionSerializer,
     InvoiceSerializer,
     InvoiceItemSerializer,
     PaymentSerializer,
     InsuranceClaimSerializer,
 )
+from . import advances
 from .services import recalculate, record_payment, record_refund
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsHospitalManager, IsBillingStaff, IsReceptionist, IsPatientReadOnly
@@ -31,7 +37,7 @@ class InvoiceViewSet(HospitalScopedViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset().select_related("patient", "hospital").prefetch_related(
-            "items", "payments"
+            "items", "payments", "patient__hospital_memberships"
         )
         patient_id = self.request.query_params.get("patient")
         if patient_id:
@@ -44,6 +50,8 @@ class InvoiceViewSet(HospitalScopedViewSet):
     def perform_destroy(self, instance):
         if instance.payments.exists():
             raise ValidationError("An invoice with payments cannot be deleted; cancel or refund it instead.")
+        if instance.items.filter(pharmacy_sale__isnull=False).exists():
+            raise ValidationError("This bill holds dispensed medicine; cancel it instead of deleting it.")
         super().perform_destroy(instance)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdmin | IsHospitalManager | IsBillingStaff])
@@ -56,18 +64,44 @@ class InvoiceViewSet(HospitalScopedViewSet):
         record_audit(request, "billing.invoice.cancel", invoice, details={"reason": request.data.get("reason", "")})
         return Response(self.get_serializer(invoice).data)
 
+    @action(detail=True, methods=["post"], url_path="apply-advance", permission_classes=[BILLING_ROLES])
+    def apply_advance(self, request, pk=None):
+        """{amount, idempotency_key}: pay this invoice from the patient's advance (H4)."""
+        invoice = self.get_object()
+        body = AdvanceMoveSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        key = body.validated_data["idempotency_key"] or request.headers.get("Idempotency-Key", "")
+        move, created = advances.apply_to_invoice(invoice, body.validated_data["amount"], user=request.user,
+                                                  idempotency_key=key[:80])
+        if created:
+            record_audit(request, "billing.advance.applied", invoice,
+                         details={"amount": str(move.amount), "advance_receipt": move.receipt_number,
+                                  "balance_after": str(move.balance_after)})
+        invoice.refresh_from_db()
+        return Response({"advance": AdvanceTransactionSerializer(move).data, "invoice": self.get_serializer(invoice).data},
+                        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
     @action(detail=True, methods=["post"], permission_classes=[IsAdmin | IsHospitalManager | IsBillingStaff])
     def refund(self, request, pk=None):
         invoice = self.get_object()
-        refund = record_refund(
+        if str(request.data.get("payment_method", "")).strip().lower() == "advance":
+            refund, move = advances.return_to_advance(invoice, request.data.get("amount"),
+                                                      request.data.get("reason", ""), user=request.user)
+            record_audit(request, "billing.advance.returned", invoice,
+                         details={"amount": str(move.amount), "balance_after": str(move.balance_after)})
+            return Response(PaymentSerializer(refund).data, status=status.HTTP_201_CREATED)
+        key = str(request.data.get("idempotency_key") or request.headers.get("Idempotency-Key", ""))
+        refund, created = record_refund(
             invoice,
             request.data.get("amount"),
             request.data.get("reason", ""),
             method=request.data.get("payment_method", "Cash"),
             user=request.user,
+            idempotency_key=key[:80],
         )
-        record_audit(request, "billing.refund.create", refund, details={"amount": str(refund.amount)})
-        return Response(PaymentSerializer(refund).data, status=status.HTTP_201_CREATED)
+        if created:
+            record_audit(request, "billing.refund.create", refund, details={"amount": str(refund.amount)})
+        return Response(PaymentSerializer(refund).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
 class InvoiceItemViewSet(HospitalScopedViewSet):
@@ -93,14 +127,22 @@ class InvoiceItemViewSet(HospitalScopedViewSet):
             super().perform_create(serializer)
             recalculate(serializer.instance.invoice)
 
+    @staticmethod
+    def _not_pharmacy_line(item):
+        # F9: a medicine line mirrors a pharmacy sale; it changes only through a pharmacy return.
+        if item.pharmacy_sale_id:
+            raise ValidationError("Medicine lines come from the pharmacy; return the medicine there to change them.")
+
     def perform_update(self, serializer):
         self._editable(serializer.instance.invoice)
+        self._not_pharmacy_line(serializer.instance)
         with transaction.atomic():
             super().perform_update(serializer)
             recalculate(serializer.instance.invoice)
 
     def perform_destroy(self, instance):
         self._editable(instance.invoice)
+        self._not_pharmacy_line(instance)
         invoice = instance.invoice
         with transaction.atomic():
             super().perform_destroy(instance)
@@ -141,6 +183,69 @@ class PaymentViewSet(HospitalScopedViewSet):
             self.get_serializer(payment).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+class AdvanceAccountViewSet(HospitalScopedViewSet):
+    """
+    Patients' advance balances (H4), read-only; money moves only through the
+    deposit and refund actions here and the invoice apply-advance action.
+    """
+
+    queryset = AdvanceAccount.objects.select_related("patient", "hospital")
+    serializer_class = AdvanceAccountSerializer
+    permission_classes = [BILLING_ROLES]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        patient_id = self.request.query_params.get("patient")
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        return Response({"detail": "Use deposit/ to receive an advance."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @action(detail=False, methods=["post"])
+    def deposit(self, request):
+        """{patient, amount, payment_method, reference, idempotency_key} for the selected hospital."""
+        body = AdvanceDepositSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        data = body.validated_data
+        extra = self._check_tenancy(data)
+        hospital = data.get("hospital") or extra.get("hospital")
+        if hospital is None:
+            raise ValidationError({"hospital": "Select a hospital."})
+        key = data["idempotency_key"] or request.headers.get("Idempotency-Key", "")
+        move, created = advances.record_deposit(
+            hospital.pk, data["patient"].pk, data["amount"], method=data["payment_method"], user=request.user,
+            idempotency_key=key[:80], reference=data["reference"],
+        )
+        if created:
+            record_audit(request, "billing.advance.deposit", move.account, hospital=hospital.pk,
+                         details={"amount": str(move.amount), "receipt": move.receipt_number,
+                                  "balance_after": str(move.balance_after)})
+        return Response(AdvanceAccountSerializer(move.account).data,
+                        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAdmin | IsHospitalManager | IsBillingStaff])
+    def refund(self, request, pk=None):
+        """{amount, reason, payment_method}: pay unused advance back to the patient."""
+        account = self.get_object()
+        body = AdvanceMoveSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        key = body.validated_data["idempotency_key"] or request.headers.get("Idempotency-Key", "")
+        move, created = advances.refund_to_patient(account, body.validated_data["amount"],
+                                                   body.validated_data["reason"],
+                                                   method=body.validated_data["payment_method"], user=request.user,
+                                                   idempotency_key=key[:80])
+        if created:
+            record_audit(request, "billing.advance.refund", account,
+                         details={"amount": str(move.amount), "reason": move.reference,
+                                  "balance_after": str(move.balance_after)})
+        account.refresh_from_db()
+        return Response(self.get_serializer(account).data,
+                        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
 class InsuranceClaimViewSet(HospitalScopedViewSet):

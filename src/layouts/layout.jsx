@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar"
 import Sidebar from "../components/Sidebar"
 import Breadcrumbs, { ShellBreadcrumbsProvider } from "../components/Breadcrumbs.jsx"
 import { PageLoading } from "../components/LoadingSpinner.jsx"
+import ErrorBoundary from "../components/ErrorBoundary.jsx"
 import { useSidebar } from "../assets/context/SidebarContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { findNavItem } from "../config/navigation.js"
@@ -36,9 +37,11 @@ function Layout() {
           <div className="mx-auto w-full max-w-[1600px] min-w-0">
             <ShellBreadcrumbsProvider>
               <Breadcrumbs />
-              <Suspense fallback={<PageLoading />}>
-                <Outlet />
-              </Suspense>
+              <ErrorBoundary resetKey={location.pathname}>
+                <Suspense fallback={<PageLoading />}>
+                  <Outlet />
+                </Suspense>
+              </ErrorBoundary>
             </ShellBreadcrumbsProvider>
           </div>
         </main>

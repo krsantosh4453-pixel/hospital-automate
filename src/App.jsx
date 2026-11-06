@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react"
-import { LanguageProvider } from "./assets/context/LanguageContext.jsx"
+import { LanguageProvider } from "./assets/context/LanguageProvider.jsx"
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom"
 
 import Layout from "./layouts/layout.jsx"
@@ -12,15 +12,16 @@ import PatientLogin from "./pages/PatientLogin.jsx"
 import { SignInDialog } from "./components/auth/SignInDialog.jsx"
 import { ProtectedRoute } from "./components/ProtectedRoute.jsx"
 import AppBackground from "./components/AppBackground.jsx"
+import ErrorBoundary from "./components/ErrorBoundary.jsx"
 import { PageLoading } from "./components/LoadingSpinner.jsx"
 
-import { AuthProvider } from "./assets/context/AuthContext.jsx"
-import { PatientProvider } from "./assets/context/PatientContext.jsx"
-import { PrescriptionProvider } from "./assets/context/PrescriptionContext.jsx"
-import { PharmacyProvider } from "./assets/context/PharmacyContext.jsx"
+import { AuthProvider } from "./assets/context/AuthProvider.jsx"
+import { PatientProvider } from "./assets/context/PatientProvider.jsx"
+import { PrescriptionProvider } from "./assets/context/PrescriptionProvider.jsx"
+import { PharmacyProvider } from "./assets/context/PharmacyProvider.jsx"
 import { HospitalsProvider } from "./assets/context/HospitalsContext.jsx"
 import { SidebarProvider } from "./assets/context/SidebarContext.jsx"
-import { RoleProvider } from "./assets/context/RoleContext.jsx"
+import { RoleProvider } from "./assets/context/RoleProvider.jsx"
 import { RoleAuthBridge } from "./assets/context/RoleAuthBridge.jsx"
 
 // Pages load on first visit; sign-in pages and Home stay in the main bundle.
@@ -37,6 +38,7 @@ const Laboratory = lazy(() => import("./pages/laboratory.jsx"))
 const Radiology = lazy(() => import("./pages/Radiology.jsx"))
 const Billing = lazy(() => import("./pages/billing.jsx"))
 const Inventory = lazy(() => import("./pages/inventory.jsx"))
+const HospitalServices = lazy(() => import("./pages/HospitalServices.jsx"))
 const Reports = lazy(() => import("./pages/reports.jsx"))
 const Settings = lazy(() => import("./pages/settings.jsx"))
 const Register = lazy(() => import("./pages/Register.jsx"))
@@ -103,6 +105,8 @@ function App() {
                 <SidebarProvider>
                   <AppBackground />
                   <BrowserRouter>
+                    {/* Last line of defence; each layout also wraps its page (RL-08). */}
+                    <ErrorBoundary>
                     <Suspense fallback={<PageLoading />}>
                     <RoutesWithSignInDialog>
                       <Route path="/staff-login" element={<StaffLogin />} />
@@ -141,6 +145,7 @@ function App() {
                           <Route path="/radiology" element={<Radiology />} />
                           <Route path="/billing" element={<Billing />} />
                           <Route path="/inventory" element={<Inventory />} />
+                          <Route path="/services" element={<HospitalServices />} />
                           <Route path="/reports" element={<Reports />} />
                           <Route path="/emergency" element={<Emergency />} />
                           <Route path="/blood-bank" element={<BloodBank />} />
@@ -163,6 +168,7 @@ function App() {
                         </Route>
                     </RoutesWithSignInDialog>
                     </Suspense>
+                    </ErrorBoundary>
                   </BrowserRouter>
                 </SidebarProvider>
                 </RoleAuthBridge>

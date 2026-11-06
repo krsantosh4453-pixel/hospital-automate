@@ -38,6 +38,7 @@ fi
 if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     echo "Running migrations..."
     python manage.py migrate --noinput
+    python manage.py load_icd10 --if-empty
     echo "Collecting static files..."
     python manage.py collectstatic --noinput
 fi

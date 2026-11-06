@@ -1,7 +1,11 @@
+from django.db import transaction
+from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+from audit.services import record_audit
 from doctors.models import Doctor
 from .models import (
     Immunization,
@@ -29,6 +33,7 @@ from .serializers import (
     MedicalRecordSerializer,
     PrescriptionSerializer,
     PrescriptionItemSerializer,
+    PrescriptionTranscriptionSerializer,
     MedicalCertificateSerializer,
     ReferralSerializer,
 )
@@ -41,15 +46,23 @@ from users.permissions import (
     IsNurse,
     IsNurseReadOnly,
     IsPharmacist,
+    IsPharmacistReadOnly,
     IsPatientReadOnly,
     IsReceptionistReadOnly,
 )
 
 
 class VitalSignViewSet(HospitalScopedViewSet):
-    queryset = VitalSign.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-recorded_at", "-id")
+    queryset = VitalSign.objects.select_related(
+        "visit", "visit__patient", "visit__doctor", "visit__hospital", "recorded_by").order_by("-recorded_at", "-id")
     serializer_class = VitalSignSerializer
     permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
+
+    def perform_create(self, serializer):
+        # D2: the login that took the reading, never sent by the client.
+        extra = self._check_tenancy(serializer.validated_data)
+        instance = serializer.save(recorded_by=self.request.user, **extra)
+        self._audit("create", instance)
 
 
 class AllergyViewSet(HospitalScopedViewSet):
@@ -105,17 +118,85 @@ class MedicalRecordViewSet(HospitalScopedViewSet):
 MAX_SAFETY_CHECK_ITEMS = 50
 
 
+def _prescription_search(text, model):
+    """RX number (RX-0001 or 1), patient name, the patient's UHID at that hospital, or doctor name."""
+    from django.db.models import F, Q
+
+    match = Q(patient__name__icontains=text) | Q(doctor__name__icontains=text) | Q(
+        original_prescriber_name__icontains=text)
+    number = text.upper().removeprefix("RX-").lstrip("0")
+    if number.isdigit():
+        match |= Q(pk=int(number))
+    uhid = model.objects.filter(
+        patient__hospital_memberships__hospital_id=F("hospital_id"),
+        patient__hospital_memberships__uhid__icontains=text,
+    ).values("pk")
+    return match | Q(pk__in=uhid)
+
+
 class PrescriptionViewSet(HospitalScopedViewSet):
+    # Restrictable on the Permissions page as "Prescriptions" (users/module_access.py).
+    access_module = "Prescriptions"
     queryset = Prescription.objects.select_related(
-        "patient", "doctor", "hospital", "visit"
-    ).prefetch_related("items")
+        "patient", "doctor", "hospital", "visit", "transcribed_by", "verified_by"
+    ).prefetch_related("items", "items__pharmacy_sales", "patient__hospital_memberships")
     serializer_class = PrescriptionSerializer
     # Clinical records: not for the Hospital Manager. Nurses (MAR), the
     # compounder (dispensing) and the front desk (reports) only read them.
+    # F13: pharmacists do not prescribe; they transcribe paper prescriptions
+    # (transcribe) and check one another's transcriptions (verify).
     permission_classes = [
-        IsAdmin | IsDoctor | IsPharmacist | IsPatientReadOnly
+        IsAdmin | IsDoctor | IsPharmacistReadOnly | IsPatientReadOnly
         | IsReceptionistReadOnly | IsNurseReadOnly | IsCompounderReadOnly
     ]
+
+    def get_permissions(self):
+        if getattr(self, "action", None) in ("transcribe", "verify"):
+            return [(IsAdmin | IsPharmacist)()]
+        return super().get_permissions()
+
+    @action(detail=False, methods=["post"])
+    @transaction.atomic
+    def transcribe(self, request):
+        """
+        A paper prescription copied in by the pharmacy (F13). Same body as a
+        prescription plus original_prescription_date and either ``doctor`` (a
+        doctor of this hospital) or original_prescriber_name and
+        original_prescriber_registration (an outside doctor). Saved Pending
+        Verification; it cannot be dispensed until someone else verifies it.
+        """
+        serializer = PrescriptionTranscriptionSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        extra = self._check_tenancy(serializer.validated_data)
+        prescription = serializer.save(
+            source=Prescription.Source.PAPER, status=Prescription.PENDING_VERIFICATION,
+            transcribed_by=request.user, **extra,
+        )
+        record_audit(request, "clinical.prescription.transcribed", prescription, hospital=prescription.hospital_id,
+                     details={"doctor": prescription.doctor_id,
+                              "prescriber": prescription.original_prescriber_name,
+                              "registration": prescription.original_prescriber_registration,
+                              "paper_date": str(prescription.original_prescription_date)})
+        return Response(PrescriptionSerializer(prescription, context=self.get_serializer_context()).data,
+                        status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def verify(self, request, pk=None):
+        """A second pharmacist or an Admin confirms a transcription matches the paper."""
+        prescription = self.get_object()
+        prescription = Prescription.objects.select_for_update().get(pk=prescription.pk)
+        if prescription.status != Prescription.PENDING_VERIFICATION:
+            raise ValidationError({"status": "Only a transcription waiting for verification can be verified."})
+        if prescription.transcribed_by_id == request.user.pk:
+            raise PermissionDenied("Someone other than the person who transcribed it must verify it.")
+        prescription.status = "Confirmed"
+        prescription.verified_by = request.user
+        prescription.verified_at = timezone.now()
+        prescription.save(update_fields=["status", "verified_by", "verified_at"])
+        record_audit(request, "clinical.prescription.verified", prescription, hospital=prescription.hospital_id,
+                     details={"transcribed_by": prescription.transcribed_by_id})
+        return Response(self.get_serializer(prescription).data)
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -132,9 +213,18 @@ class PrescriptionViewSet(HospitalScopedViewSet):
         if visit_id:
             queryset = queryset.filter(visit_id=visit_id)
 
+        # F6: the pharmacy queue asks for several statuses at once ("Confirmed,Partially Dispensed").
         status_filter = self.request.query_params.get("status")
         if status_filter:
-            queryset = queryset.filter(status=status_filter)
+            statuses = [value.strip() for value in status_filter.split(",") if value.strip()]
+            queryset = queryset.filter(status__in=statuses)
+
+        search = (self.request.query_params.get("search") or "").strip()
+        if search:
+            queryset = queryset.filter(_prescription_search(search, queryset.model))
+
+        if self.request.query_params.get("order") == "oldest":
+            queryset = queryset.order_by("created_at", "id")
 
         return queryset
 
@@ -178,9 +268,16 @@ class PrescriptionViewSet(HospitalScopedViewSet):
 
 
 class PrescriptionItemViewSet(HospitalScopedViewSet):
+    """
+    Read-only. Medicines change only through the prescription itself
+    (PrescriptionSerializer), which re-runs the medication safety check;
+    writing a line here would skip it (RL-01).
+    """
+
     queryset = PrescriptionItem.objects.select_related("prescription")
     serializer_class = PrescriptionItemSerializer
-    permission_classes = [IsAdmin | IsDoctor | IsPharmacist | IsNurseReadOnly | IsCompounderReadOnly]
+    permission_classes = [IsAdmin | IsDoctor | IsPharmacistReadOnly | IsNurseReadOnly | IsCompounderReadOnly]
+    http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
         queryset = super().get_queryset()

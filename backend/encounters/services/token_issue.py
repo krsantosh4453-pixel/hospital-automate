@@ -56,7 +56,10 @@ def issue_queue_token_for_appointment(
             "appointment": "Assign a doctor to the appointment before issuing a token."
         })
 
-    # Idempotency: one queue token per appointment.
+    # Idempotency: one queue token per appointment. The appointment row is
+    # locked first, so a second desk issuing the same appointment at the same
+    # moment waits here and then gets the token the first one made.
+    type(appointment).objects.select_for_update().filter(pk=appointment.pk).first()
     existing = QueueToken.objects.filter(appointment=appointment).first()
     if existing is not None:
         return existing, False

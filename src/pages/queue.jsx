@@ -20,6 +20,7 @@ import {
   Toolbar,
 } from "../components/ui"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
+import IssueTokenDialog from "../components/queue/IssueTokenDialog.jsx"
 
 // Every status a QueueToken can have on the server (encounters.QueueToken.Status).
 const QUEUE_STATUSES = ["Waiting", "Called", "Acknowledged", "Ready", "In Consultation", "Completed", "Skipped", "No Show", "Cancelled"]
@@ -71,6 +72,7 @@ function Queue() {
   const [successMessage, setSuccessMessage] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
   const [busy, setBusy] = useState("")
+  const [choosingAppointment, setChoosingAppointment] = useState(false)
 
   // =====================================
   // DJANGO QUEUETOKEN → QUEUE ROW
@@ -118,6 +120,11 @@ function Queue() {
             hospitalId: appointment.hospital,
             status: appointment.status,
             patient: appointment.patient_name,
+            // Shown before check-in so the desk issues the right patient's token.
+            time: appointment.appointment_time,
+            doctor: appointment.doctor_name,
+            contact: appointment.contact,
+            reason: appointment.reason,
           })),
         )
       } catch (error) {
@@ -151,7 +158,7 @@ function Queue() {
       !queue.some((item) => String(item.appointmentApiId) === String(appointment.apiId)),
   )
 
-  const generateToken = async () => {
+  const generateToken = () => {
     setActionError("")
     setSuccessMessage("")
 
@@ -159,14 +166,19 @@ function Queue() {
       setActionError("No booked appointment is waiting for a token.")
       return
     }
+    setChoosingAppointment(true)
+  }
 
-    const nextAppointment = issueableAppointments[0]
+  // The appointment the desk chose in IssueTokenDialog.
+  const issueToken = async (nextAppointment) => {
+    if (!nextAppointment) return
     setBusy("generate")
     try {
       // One server-side call: Appointment → (reused/created) Visit →
       // QueueToken with a token_number allocated by Django.
       const token = await api.queue.issue(nextAppointment.apiId)
       setSuccessMessage(t("Token #{tokenNumber} generated for {patient}.", { tokenNumber: token.token_number, patient: nextAppointment.patient || "patient" }))
+      setChoosingAppointment(false)
       setReloadToken((value) => value + 1)
     } catch (error) {
       setActionError(error.message || "Failed to generate a token.")
@@ -438,31 +450,31 @@ function Queue() {
                       <div className="flex items-center justify-end gap-1.5">
                         {item.status === "Waiting" && (
                           <>
-                            <Button size="sm" variant="subtle" icon={PhoneCall} loading={busy === `call-${item.token}`} onClick={() => rowAction(item.token, "call")}>
+                            <Button size="sm" variant="subtle" icon={PhoneCall} loading={busy === `call-${item.token}`} onClick={() => rowAction(item.token, "call")} aria-label={t("Call token #{token}, {patient}", { token: item.token, patient: item.patient })}>
                               {t("Call")}
                             </Button>
-                            <Button size="sm" variant="ghost" icon={SkipForward} loading={busy === `skip-${item.token}`} onClick={() => rowAction(item.token, "skip")}>
+                            <Button size="sm" variant="ghost" icon={SkipForward} loading={busy === `skip-${item.token}`} onClick={() => rowAction(item.token, "skip")} aria-label={t("Skip token #{token}, {patient}", { token: item.token, patient: item.patient })}>
                               {t("Skip")}
                             </Button>
                           </>
                         )}
                         {isCalled(item.status) && (
                           <>
-                            <Button size="sm" variant="subtle" icon={Stethoscope} loading={busy === `start-${item.token}`} onClick={() => rowAction(item.token, "start")}>
+                            <Button size="sm" variant="subtle" icon={Stethoscope} loading={busy === `start-${item.token}`} onClick={() => rowAction(item.token, "start")} aria-label={t("Start consultation for token #{token}, {patient}", { token: item.token, patient: item.patient })}>
                               {t("Start consultation")}
                             </Button>
-                            <Button size="sm" variant="ghost" icon={UserX} loading={busy === `noShow-${item.token}`} onClick={() => rowAction(item.token, "noShow")}>
+                            <Button size="sm" variant="ghost" icon={UserX} loading={busy === `noShow-${item.token}`} onClick={() => rowAction(item.token, "noShow")} aria-label={t("Mark token #{token}, {patient}, as no-show", { token: item.token, patient: item.patient })}>
                               {t("No show")}
                             </Button>
                           </>
                         )}
                         {item.status === "In Consultation" && (
-                          <Button size="sm" variant="subtle" icon={CircleCheck} loading={busy === `complete-${item.token}`} onClick={() => rowAction(item.token, "complete")}>
+                          <Button size="sm" variant="subtle" icon={CircleCheck} loading={busy === `complete-${item.token}`} onClick={() => rowAction(item.token, "complete")} aria-label={t("Complete token #{token}, {patient}", { token: item.token, patient: item.patient })}>
                             {t("Complete")}
                           </Button>
                         )}
                         {(item.status === "Skipped" || item.status === "No Show") && (
-                          <Button size="sm" variant="ghost" icon={RotateCcw} loading={busy === `requeue-${item.token}`} onClick={() => rowAction(item.token, "requeue")}>
+                          <Button size="sm" variant="ghost" icon={RotateCcw} loading={busy === `requeue-${item.token}`} onClick={() => rowAction(item.token, "requeue")} aria-label={t("Put token #{token}, {patient}, back in the queue", { token: item.token, patient: item.patient })}>
                             {t("Back to queue")}
                           </Button>
                         )}
@@ -475,6 +487,14 @@ function Queue() {
           </TableWrap>
         )}
       </Card>
+
+      <IssueTokenDialog
+        open={choosingAppointment}
+        appointments={issueableAppointments}
+        busy={busy === "generate"}
+        onClose={() => setChoosingAppointment(false)}
+        onIssue={issueToken}
+      />
     </div>
   )
 }

@@ -259,3 +259,32 @@ class Stage1AuthTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+@override_settings(PATIENT_OTP_DELIVERY="off")
+class PatientSmsOtpOffTests(TestCase):
+    """RL-06: with no SMS provider, phone OTP says so for every number, registered or not."""
+
+    def setUp(self):
+        self.client = APIClient()
+        hospital = Hospital.objects.create(name="Synthetic OTP-off Hospital", is_active=True)
+        user = User.objects.create_user(username="otp_off_patient", password="patientpass123")
+        Patient.objects.create(user=user, name="Synthetic Registered", age=30, gender="Female",
+                               phone="9876500077", hospital=hospital)
+
+    def request(self, path, phone):
+        return self.client.post(path, {"phone": phone}, format="json")
+
+    def test_patient_otp_is_unavailable_and_reveals_nothing(self):
+        registered = self.request("/api/auth/patient/otp/request/", "9876500077")
+        unknown = self.request("/api/auth/patient/otp/request/", "9876500078")
+
+        self.assertEqual(registered.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual((unknown.status_code, unknown.data), (registered.status_code, registered.data))
+
+    def test_family_access_otp_is_unavailable_and_reveals_nothing(self):
+        known = self.request("/api/auth/proxy/otp/request/", "9876500077")
+        unknown = self.request("/api/auth/proxy/otp/request/", "9876500078")
+
+        self.assertEqual(known.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual((unknown.status_code, unknown.data), (known.status_code, known.data))
