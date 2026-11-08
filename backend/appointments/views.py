@@ -7,7 +7,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from .models import Appointment
-from .serializers import AppointmentSerializer
+from .serializers import AppointmentSerializer, refuse_double_booking
 from audit.services import record_audit
 from config.hospital_time import hospital_now
 from doctors.models import Doctor
@@ -223,5 +223,8 @@ class AppointmentViewSet(HospitalScopedViewSet):
             appointment.appointment_date = appointment_date
         if appointment_time:
             appointment.appointment_time = appointment_time
+        if appointment.status in Appointment.ACTIVE_STATUSES:
+            refuse_double_booking(appointment.patient, appointment.doctor, appointment.appointment_date,
+                                  appointment.appointment_time, exclude_pk=appointment.pk)
         appointment.save()
         return Response(self.get_serializer(appointment).data)

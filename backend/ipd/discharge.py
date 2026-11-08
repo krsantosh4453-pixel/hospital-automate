@@ -101,7 +101,8 @@ def create_final_bill(admission, daily_rate, extra_items=()):
     extra lines. A cancelled final bill may be replaced; a live one may not.
     """
     from billing.models import Invoice, InvoiceItem
-    from billing.services import line_subtotal, new_reference, recalculate
+    from billing.numbering import next_invoice_number
+    from billing.services import line_subtotal, recalculate
 
     if admission.status not in ("Discharge Initiated", "Discharged"):
         raise ValidationError("Start the discharge before creating the final bill.")
@@ -130,7 +131,7 @@ def create_final_bill(admission, daily_rate, extra_items=()):
             patient=admission.patient,
             hospital=admission.hospital,
             admission=admission,
-            invoice_number=new_reference("INV"),
+            invoice_number=next_invoice_number(admission.hospital_id),
         )
         for description, quantity, unit_price in lines:
             InvoiceItem.objects.create(

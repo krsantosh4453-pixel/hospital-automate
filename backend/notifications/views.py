@@ -1,8 +1,9 @@
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from audit.services import record_audit
 from patients.models import Patient
@@ -57,6 +58,42 @@ class NotificationViewSet(HospitalScopedViewSet):
         notification.is_read = True
         notification.save(update_fields=["is_read"])
         return Response(self.get_serializer(notification).data)
+
+
+class TwilioStatusView(APIView):
+    """
+    POST /api/notifications/twilio/status/: Twilio's message status callback
+    (P1-09). Only requests signed with this account's auth token are accepted;
+    it never needs a login and is not throttled, as Twilio sends one per message.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = []
+
+    FINAL = {"delivered": NotificationDelivery.Status.DELIVERED,
+             "failed": NotificationDelivery.Status.FAILED,
+             "undelivered": NotificationDelivery.Status.FAILED}
+
+    def post(self, request):
+        from django.conf import settings
+        from twilio.request_validator import RequestValidator
+
+        token = getattr(settings, "TWILIO_AUTH_TOKEN", "") or ""
+        url = getattr(settings, "TWILIO_STATUS_CALLBACK_URL", "") or request.build_absolute_uri()
+        params = request.POST.dict()
+        signature = request.headers.get("X-Twilio-Signature", "")
+        if not token or not RequestValidator(token).validate(url, params, signature):
+            return Response({"error": "Signature not valid."}, status=status.HTTP_403_FORBIDDEN)
+
+        outcome = self.FINAL.get(params.get("MessageStatus", ""))
+        sid = params.get("MessageSid", "")
+        if outcome and sid:
+            changes = {"status": outcome}
+            if outcome == NotificationDelivery.Status.FAILED:
+                changes["error"] = f"Twilio error {params.get('ErrorCode') or 'unknown'}"[:255]
+            NotificationDelivery.objects.filter(provider_message_id=sid).update(**changes)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class NotificationDeliveryViewSet(ReadOnlyHospitalScopedViewSet):

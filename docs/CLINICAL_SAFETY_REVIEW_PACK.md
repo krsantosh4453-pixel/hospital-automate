@@ -178,3 +178,18 @@ Test names point to `backend/security_tests/`.
 | Break-glass access | | | |
 | Family / caregiver access | | | |
 | Medication safety rules (section 9) | | | |
+
+## Changes since 2026-11-03 for the clinical safety officer (added 2026-11-08)
+
+Please review and sign off each item; the code and tests are in commit history under P0/P1.
+
+1. **Medicine lines are changed only through the whole prescription** (RL-01). The item endpoint is read-only. Every change re-runs the allergy, duplicate and interaction check, and an override still needs a written reason.
+2. **Allergies follow the patient across hospitals** (P1-07, owner's decision). An allergy recorded at another hospital blocks prescribing and names that hospital. Confirm this is the intended clinical behaviour.
+3. **Scheduled drugs are prescription-only** (P1-10). Schedule H, H1, X and NDPS medicines cannot be sold over the counter. Sales of H1/X/NDPS drugs appear in the Schedule H1 register with prescriber, registration number, patient, batch and quantity.
+4. **Patients are chosen by search with UHID** (RL-03). Pickers in IPD, lab, prescription, radiology, blood bank, emergency and billing no longer list only 50 patients. Same-name patients show different UHIDs and masked phones.
+5. **Cross-role dispensing closed** (RL-02). A user dispenses only where they hold the Pharmacist role.
+6. **Double bookings refused** (P1-04). One active booking per patient, doctor and slot, and one queue token per appointment.
+
+Open for the reviewer:
+- the starter interaction list (8 rules) still needs Pharmacy & Therapeutics approval
+- there is no dose-range checking

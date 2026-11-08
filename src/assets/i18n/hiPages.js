@@ -1911,6 +1911,51 @@ const HI_PAGES = {
     "दूसरे पेजों पर आपका काम सुरक्षित है। फिर से कोशिश करें, या बार-बार हो तो पेज दोबारा लोड करें।",
   "Try again": "फिर से कोशिश करें",
   "Reload page": "पेज दोबारा लोड करें",
+  // P1-03 (DPDP Act): data rights requests and the privacy notice
+  "Your data rights": "आपके डेटा अधिकार",
+  "Ask for a summary of your data, a correction or erasure, or raise a complaint.":
+    "अपने डेटा का सारांश, सुधार या मिटाने का अनुरोध करें, या शिकायत दर्ज करें।",
+  "Grievance officer: {name}": "शिकायत अधिकारी: {name}",
+  "This hospital has not named a grievance officer yet; ask at the front desk.":
+    "इस अस्पताल ने अभी शिकायत अधिकारी नियुक्त नहीं किया है; रिसेप्शन पर पूछें।",
+  "Answers within {days} days.": "{days} दिनों के भीतर जवाब मिलेगा।",
+  "What you are asking for": "आप क्या माँग रहे हैं",
+  "What should change, or what the complaint is about.": "क्या बदलना चाहिए, या शिकायत किस बारे में है।",
+  "Send request": "अनुरोध भेजें",
+  "Request sent. The hospital will answer by {date}.": "अनुरोध भेजा गया। अस्पताल {date} तक जवाब देगा।",
+  "Patients' data requests": "मरीज़ों के डेटा अनुरोध",
+  "Requests and complaints under the DPDP Act, answered by their due date.":
+    "DPDP अधिनियम के तहत अनुरोध और शिकायतें, तय तारीख तक जवाब के साथ।",
+  "No open data requests": "कोई खुला डेटा अनुरोध नहीं",
+  Answer: "जवाब दें",
+  "Answer the request": "अनुरोध का जवाब दें",
+  "Answer to the patient": "मरीज़ को जवाब",
+  "What was done, or why not (for example a record that must be kept by law).":
+    "क्या किया गया, या क्यों नहीं (जैसे कोई रिकॉर्ड जिसे कानूनन रखना ज़रूरी है)।",
+  "Answer recorded.": "जवाब दर्ज किया गया।",
+  "Grievance officer (data protection)": "शिकायत अधिकारी (डेटा सुरक्षा)",
+  "Grievance officer name": "शिकायत अधिकारी का नाम",
+  "Grievance officer email": "शिकायत अधिकारी का ईमेल",
+  "Grievance officer phone": "शिकायत अधिकारी का फ़ोन",
+  // P1-10: drug schedules, MRP, HSN and the Schedule H1 register
+  "Schedule H1 register": "शेड्यूल H1 रजिस्टर",
+  "Schedule H1, X and NDPS sales with prescriber, patient, batch and quantity. Keep for three years.":
+    "शेड्यूल H1, X और NDPS दवाओं की बिक्री: लिखने वाले डॉक्टर, मरीज़, बैच और मात्रा सहित। तीन साल तक रखें।",
+  MRP: "MRP",
+  "The selling price cannot be above it.": "बिक्री मूल्य इससे अधिक नहीं हो सकता।",
+  "H, H1, X and NDPS are sold only against a prescription.": "H, H1, X और NDPS दवाएँ केवल पर्चे पर ही बेची जाती हैं।",
+  "HSN code": "HSN कोड",
+  "4, 6 or 8 digits; printed on the GST bill.": "4, 6 या 8 अंक; GST बिल पर छपता है।",
+  "Medical council registration; printed in the Schedule H1 register":
+    "मेडिकल काउंसिल पंजीकरण; शेड्यूल H1 रजिस्टर में छपता है",
+  "No scheduled sales in these dates": "इन तारीखों में शेड्यूल दवाओं की कोई बिक्री नहीं",
+  "Not scheduled": "शेड्यूल नहीं",
+  "Schedule H": "शेड्यूल H",
+  "Schedule H1": "शेड्यूल H1",
+  "Schedule X": "शेड्यूल X",
+  NDPS: "NDPS",
+  "Shown when booking; the department is used if left empty":
+    "अपॉइंटमेंट बुक करते समय दिखती है; खाली छोड़ने पर विभाग का नाम लिया जाता है",
   "Could not save the bill.": "बिल सहेजा नहीं जा सका।",
   "Select a hospital from the header to see its appointments.": "अपॉइंटमेंट देखने के लिए हेडर से अस्पताल चुनें।",
   "Select a hospital from the header to see its patients.": "मरीज़ देखने के लिए हेडर से अस्पताल चुनें।",

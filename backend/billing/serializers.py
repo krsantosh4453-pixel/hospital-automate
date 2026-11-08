@@ -12,7 +12,8 @@ from django.db import transaction
 from hospital.models import Hospital
 from patients.models import Patient
 
-from .services import line_subtotal, money, new_reference, recalculate
+from .numbering import next_invoice_number
+from .services import line_subtotal, money, recalculate
 
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
@@ -230,9 +231,10 @@ class InvoiceSerializer(serializers.ModelSerializer):
             scoped_hospital = self.context.get("scoped_hospital")
             if scoped_hospital:
                 validated_data["hospital"] = scoped_hospital
-        validated_data["invoice_number"] = new_reference("INV")
         items_data = validated_data.pop("items_data", [])
         with transaction.atomic():
+            # P1-05: the hospital's consecutive GST series, locked until this bill is saved.
+            validated_data["invoice_number"] = next_invoice_number(validated_data["hospital"])
             invoice = Invoice.objects.create(**validated_data)
             for item_data in items_data:
                 item_data.pop("invoice", None)

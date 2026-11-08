@@ -37,6 +37,9 @@ function Hospitals() {
     email: "",
     type: "Private",
     status: "Active",
+    grievance_officer_name: "",
+    grievance_officer_email: "",
+    grievance_officer_phone: "",
   })
 
   const resetForm = () => {
@@ -49,6 +52,9 @@ function Hospitals() {
       email: "",
       type: "Private",
       status: "Active",
+      grievance_officer_name: "",
+      grievance_officer_email: "",
+      grievance_officer_phone: "",
     })
 
     setEditingHospital(null)
@@ -66,6 +72,9 @@ function Hospitals() {
       name: hospital.name || "",
       code: hospital.code || "",
       uhid_prefix: hospital.uhid_prefix || "",
+      grievance_officer_name: hospital.grievance_officer_name || "",
+      grievance_officer_email: hospital.grievance_officer_email || "",
+      grievance_officer_phone: hospital.grievance_officer_phone || "",
       address: hospital.address || "",
       phone: hospital.phone || "",
       email: hospital.email || "",
@@ -618,6 +627,17 @@ function Hospitals() {
                 </p>
 
               </div>
+
+              {/* P1-03 (DPDP Act): named in the patient portal's privacy notice */}
+              <fieldset className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <legend className="mb-1 text-sm font-medium">{t("Grievance officer (data protection)")}</legend>
+                <input aria-label={t("Grievance officer name")} name="grievance_officer_name" value={formData.grievance_officer_name}
+                  onChange={handleChange} placeholder={t("Name")} className="hms-input w-full" />
+                <input aria-label={t("Grievance officer email")} type="email" name="grievance_officer_email"
+                  value={formData.grievance_officer_email} onChange={handleChange} placeholder={t("Email")} className="hms-input w-full" />
+                <input aria-label={t("Grievance officer phone")} type="tel" name="grievance_officer_phone"
+                  value={formData.grievance_officer_phone} onChange={handleChange} placeholder={t("Phone")} className="hms-input w-full" />
+              </fieldset>
 
               {/* Address */}
               <div>

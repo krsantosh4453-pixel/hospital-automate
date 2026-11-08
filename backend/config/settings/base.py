@@ -524,6 +524,14 @@ TWILIO_VERIFY_SERVICE_SID = None
 # Legacy Twilio SMS (fallback)
 TWILIO_AUTH_TOKEN = None
 TWILIO_PHONE_NUMBER = None
+# P1-09: SMS and WhatsApp messages (notifications/services/providers.py). A Messaging
+# Service holds the DLT-registered sender Indian operators require; WhatsApp messages
+# the hospital starts need an approved template (Content SID). The callback URL
+# must be the public HTTPS address of /api/notifications/twilio/status/.
+TWILIO_MESSAGING_SERVICE_SID = os.environ.get("TWILIO_MESSAGING_SERVICE_SID", "")
+TWILIO_WHATSAPP_FROM = os.environ.get("TWILIO_WHATSAPP_FROM", "")
+TWILIO_WHATSAPP_CONTENT_SID = os.environ.get("TWILIO_WHATSAPP_CONTENT_SID", "")
+TWILIO_STATUS_CALLBACK_URL = os.environ.get("TWILIO_STATUS_CALLBACK_URL", "")
 
 # OTP Provider selection: 'twilio' (Verify v2) or 'console' (dev) or 'cache' (test)
 OTP_PROVIDER = 'twilio'

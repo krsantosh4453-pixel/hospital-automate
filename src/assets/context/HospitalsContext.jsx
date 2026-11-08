@@ -61,6 +61,10 @@ export function HospitalsProvider({ children }) {
     state: data.state || "",
     phone: data.phone || "",
     email: data.email || "",
+    // P1-03 (DPDP Act): shown to patients in the privacy notice.
+    grievance_officer_name: (data.grievance_officer_name || "").trim(),
+    grievance_officer_email: (data.grievance_officer_email || "").trim(),
+    grievance_officer_phone: (data.grievance_officer_phone || "").trim(),
     is_active: (data.status || "Active") === "Active",
   })
 

@@ -185,62 +185,133 @@ class ConsoleProvider(NotificationProvider):
         )
 
 
-class SMSProvider(NotificationProvider):
-    """
-    SMS provider abstraction.
+def _setting(name):
+    from django.conf import settings
 
-    In production, implement with Twilio, Plivo, or similar.
-    Configuration via environment variables.
+    return getattr(settings, name, "") or ""
+
+
+def _twilio_client():
+    """A Twilio REST client from the TWILIO_* settings (API key preferred), or None."""
+    account = _setting("TWILIO_ACCOUNT_SID")
+    key, secret, token = _setting("TWILIO_API_KEY"), _setting("TWILIO_API_SECRET"), _setting("TWILIO_AUTH_TOKEN")
+    if not account or not ((key and secret) or token):
+        return None
+    from twilio.rest import Client
+
+    return Client(key, secret, account) if key and secret else Client(account, token)
+
+
+def _twilio_credentials_set():
+    return bool(_setting("TWILIO_ACCOUNT_SID") and (
+        (_setting("TWILIO_API_KEY") and _setting("TWILIO_API_SECRET")) or _setting("TWILIO_AUTH_TOKEN")))
+
+
+# Twilio errors that a later attempt can fix: rate limits and its own outages.
+def _retryable(status):
+    return status == 429 or (status or 0) >= 500
+
+
+class _TwilioMessagingProvider(NotificationProvider):
+    """
+    P1-09: one message to the patient's mobile through Twilio Messaging. The
+    subclass says how to address it and what to send. Errors carry codes only,
+    never message text, which may hold clinical details.
+    """
+
+    def _sender_ready(self) -> bool:  # pragma: no cover - subclasses decide
+        raise NotImplementedError
+
+    def _message(self, to: str, payload: NotificationPayload) -> dict:  # pragma: no cover
+        raise NotImplementedError
+
+    def is_configured(self) -> bool:
+        return _twilio_credentials_set() and self._sender_ready()
+
+    def send(self, payload: NotificationPayload) -> NotificationResult:
+        if not self.is_configured():
+            logger.warning("%s sending is not configured; skipping", self.channel.value)
+            return NotificationResult(channel=self.channel, success=False, error="Provider not configured")
+        from patients.models import Patient
+        from twilio.base.exceptions import TwilioRestException
+
+        from .voice import to_e164
+
+        phone = Patient.objects.filter(pk=payload.patient_id).values_list("phone", flat=True).first()
+        to = to_e164(phone or "")
+        if not to:
+            return NotificationResult(channel=self.channel, success=False, error="Patient has no mobile number")
+        message = self._message(to, payload)
+        callback = _setting("TWILIO_STATUS_CALLBACK_URL")
+        if callback:
+            message["status_callback"] = callback
+        try:
+            sent = _twilio_client().messages.create(**message)
+        except TwilioRestException as exc:
+            logger.error("Twilio %s failed for patient %s: HTTP %s, code %s",
+                         self.channel.value, payload.patient_id, exc.status, exc.code)
+            return NotificationResult(channel=self.channel, success=False,
+                                      error=f"Twilio error {exc.code or exc.status}", retryable=_retryable(exc.status))
+        except Exception as exc:
+            # Network trouble before Twilio answered.
+            logger.error("Twilio %s failed for patient %s: %s", self.channel.value, payload.patient_id,
+                         type(exc).__name__)
+            return NotificationResult(channel=self.channel, success=False, error="Twilio could not be reached",
+                                      retryable=True)
+        return NotificationResult(channel=self.channel, success=True, provider_message_id=sent.sid,
+                                  sent_at=datetime.now())
+
+
+class SMSProvider(_TwilioMessagingProvider):
+    """
+    SMS through Twilio Messaging. TWILIO_MESSAGING_SERVICE_SID is preferred (it
+    holds the DLT-registered sender Indian operators require); TWILIO_PHONE_NUMBER otherwise.
     """
 
     @property
     def channel(self) -> NotificationChannel:
         return NotificationChannel.SMS
 
-    def is_configured(self) -> bool:
-        import os
-        return bool(os.getenv("SMS_PROVIDER_ACCOUNT_SID") and os.getenv("SMS_PROVIDER_AUTH_TOKEN"))
+    def _sender_ready(self) -> bool:
+        return bool(_setting("TWILIO_MESSAGING_SERVICE_SID") or _setting("TWILIO_PHONE_NUMBER"))
 
-    def send(self, payload: NotificationPayload) -> NotificationResult:
-        if not self.is_configured():
-            logger.warning("SMSProvider not configured, skipping")
-            return NotificationResult(
-                channel=self.channel,
-                success=False,
-                error="Provider not configured",
-            )
-
-        # Not implemented yet (Twilio Messaging, Plivo, ...): report the
-        # failure instead of recording a delivery that never happened.
-        return _not_implemented(self.channel, payload)
+    def _message(self, to, payload):
+        message = {"to": to, "body": f"{payload.title}: {payload.message}" if payload.title else payload.message}
+        if _setting("TWILIO_MESSAGING_SERVICE_SID"):
+            message["messaging_service_sid"] = _setting("TWILIO_MESSAGING_SERVICE_SID")
+        else:
+            message["from_"] = _setting("TWILIO_PHONE_NUMBER")
+        return message
 
 
-class WhatsAppProvider(NotificationProvider):
+class WhatsAppProvider(_TwilioMessagingProvider):
     """
-    WhatsApp provider abstraction.
-
-    In production, implement with Twilio WhatsApp Business API or similar.
+    WhatsApp through Twilio from TWILIO_WHATSAPP_FROM. WhatsApp accepts free text
+    only within 24 hours of the patient's last message; messages the hospital
+    starts need an approved template, TWILIO_WHATSAPP_CONTENT_SID, filled with
+    {"1": title, "2": message}.
     """
 
     @property
     def channel(self) -> NotificationChannel:
         return NotificationChannel.WHATSAPP
 
-    def is_configured(self) -> bool:
-        import os
-        return bool(os.getenv("WHATSAPP_PROVIDER_ACCOUNT_SID") and os.getenv("WHATSAPP_PROVIDER_AUTH_TOKEN"))
+    def _sender_ready(self) -> bool:
+        return bool(_setting("TWILIO_WHATSAPP_FROM"))
 
-    def send(self, payload: NotificationPayload) -> NotificationResult:
-        if not self.is_configured():
-            logger.warning("WhatsAppProvider not configured, skipping")
-            return NotificationResult(
-                channel=self.channel,
-                success=False,
-                error="Provider not configured",
-            )
+    def _message(self, to, payload):
+        sender = _setting("TWILIO_WHATSAPP_FROM")
+        message = {"to": f"whatsapp:{to}",
+                   "from_": sender if sender.startswith("whatsapp:") else f"whatsapp:{sender}"}
+        template = _setting("TWILIO_WHATSAPP_CONTENT_SID")
+        if template:
+            import json
 
-        # Not implemented yet: see _not_implemented.
-        return _not_implemented(self.channel, payload)
+            message["content_sid"] = template
+            message["content_variables"] = json.dumps({"1": payload.title, "2": payload.message})
+        else:
+            message["body"] = f"{payload.title}: {payload.message}" if payload.title else payload.message
+        return message
 
 
 class VoiceProvider(NotificationProvider):

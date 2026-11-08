@@ -23,6 +23,9 @@ class Doctor(models.Model):
 
     name = models.CharField(max_length=100, db_index=True)
     specialization = models.CharField(max_length=100, db_index=True)
+    # Medical council registration number: printed on prescriptions and the
+    # Schedule H1 register (P1-10).
+    registration_number = models.CharField(max_length=50, blank=True, default="")
     email = models.EmailField(blank=True, default="")
     phone = models.CharField(max_length=15)
     department = models.ForeignKey(

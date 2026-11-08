@@ -142,6 +142,52 @@ class AppointmentAPITests(TestCase):
         self.assertEqual(str(self.appointment.appointment_time), "14:00:00")
 
 
+    # --- P1-04 / RL-10: one active booking per patient, doctor and slot ---------
+
+    def book(self, patient=None, at="10:00"):
+        return self.client.post(self._get_list_url(), {
+            "patient": (patient or self.patient).id, "doctor": self.doctor.id, "hospital": self.hospital_a.id,
+            "appointment_date": str(self.appointment.appointment_date), "appointment_time": at,
+        }, format="json")
+
+    def test_same_patient_doctor_and_slot_is_refused_and_named(self):
+        response = self.book()
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.data)
+        self.assertIn(f"A{self.appointment.id:03d}", str(response.data))
+        self.assertEqual(Appointment.objects.count(), 1)
+
+    def test_another_patient_may_share_the_slot(self):
+        other = Patient.objects.create(name="Other Patient", age=40, gender="Female", phone="9876500011",
+                                       hospital=self.hospital_a)
+        PatientHospital.objects.create(patient=other, hospital=self.hospital_a, is_active=True)
+
+        self.assertEqual(self.book(patient=other).status_code, status.HTTP_201_CREATED)
+
+    def test_a_cancelled_slot_can_be_booked_again(self):
+        Appointment.objects.filter(pk=self.appointment.pk).update(status="Cancelled")
+
+        self.assertEqual(self.book().status_code, status.HTTP_201_CREATED)
+
+    def test_reschedule_onto_an_existing_booking_is_refused(self):
+        later = self.book(at="12:00")
+        self.assertEqual(later.status_code, status.HTTP_201_CREATED, later.data)
+
+        response = self.client.post(self._get_action_url(later.data["id"], "reschedule"),
+                                    {"appointment_time": "10:00"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.data)
+        self.assertEqual(str(Appointment.objects.get(pk=later.data["id"]).appointment_time), "12:00:00")
+
+    def test_the_database_refuses_a_duplicate_too(self):
+        from django.db import IntegrityError, transaction
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Appointment.objects.create(patient=self.patient, doctor=self.doctor, hospital=self.hospital_a,
+                                       appointment_date=self.appointment.appointment_date,
+                                       appointment_time=self.appointment.appointment_time)
+
+
 class AppointmentModelTests(TestCase):
     """Tests for appointment model methods and constraints."""
 

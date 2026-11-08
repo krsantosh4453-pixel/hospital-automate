@@ -11,6 +11,7 @@ class DoctorSerializer(serializers.ModelSerializer):
             "user",
             "name",
             "specialization",
+            "registration_number",
             "email",
             "phone",
             "department",

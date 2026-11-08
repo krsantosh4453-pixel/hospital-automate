@@ -80,6 +80,18 @@ def substitution_for(item, medicine, reason, may_substitute):
     return item.name.strip()[:200]
 
 
+def _return_value(sale, quantity):
+    """
+    P1-05 / RL-11: what the returned medicine is worth with GST, the figure the
+    bill takes off. The bill line's rate wins; an unbilled sale uses the medicine's.
+    """
+    item = getattr(sale, "invoice_item", None)
+    rate = item.tax_rate if item is not None else (sale.medicine.tax_rate or 0)
+    value = Decimal(quantity) * sale.unit_price
+    cent = Decimal("0.01")
+    return (value.quantize(cent) + (value * Decimal(rate) / 100).quantize(cent)).quantize(cent)
+
+
 @transaction.atomic
 def record_return(sale, quantity, reason, restock, user=None):
     """Take back ``quantity`` of a sale; restock it only if fit and not expired."""
@@ -99,7 +111,7 @@ def record_return(sale, quantity, reason, restock, user=None):
             {"restock": f"This batch expired on {medicine.expiry_date}; record the return as discarded."})
     returned = SaleReturn.objects.create(
         sale=sale, hospital_id=sale.hospital_id, quantity=quantity, restocked=bool(restock),
-        reason=reason.strip()[:255], refund_amount=(Decimal(quantity) * sale.unit_price).quantize(Decimal("0.01")),
+        reason=reason.strip()[:255], refund_amount=_return_value(sale, quantity),
         returned_by=user if getattr(user, "is_authenticated", False) else None,
     )
     if restock:

@@ -136,6 +136,16 @@ class PharmacyBillingTests(TestCase):
         self.assertFalse(invoice.payments.exists())
         self.assertIsNone(resp.json()["invoice_refund"])
 
+    def test_return_figure_includes_gst_like_the_bill(self):
+        """P1-05 / RL-11: the pharmacy shows the same tax-inclusive value the bill takes off."""
+        self.dispense()
+
+        resp = self.return_sale(self.ctz, 2)
+
+        self.assertEqual(resp.status_code, 201, resp.content)
+        # 2 x 3.00 + 12% GST
+        self.assertEqual(Decimal(resp.json()["refund_amount"]), Decimal("6.72"))
+
     def test_return_on_a_paid_bill_refunds_the_difference(self):
         self.dispense()
         invoice = self.bill()

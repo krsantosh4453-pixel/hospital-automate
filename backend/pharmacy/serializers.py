@@ -31,9 +31,24 @@ class MedicineSerializer(serializers.ModelSerializer):
             "reorder_level",
             "supplier",
             "supplier_name",
+            "drug_schedule",
+            "hsn_code",
+            "mrp",
+            "manufacturer",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def validate_hsn_code(self, value):
+        value = (value or "").strip()
+        if value and not (value.isdigit() and len(value) in (4, 6, 8)):
+            raise serializers.ValidationError("HSN code is 4, 6 or 8 digits.")
+        return value
+
+    def validate_mrp(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("MRP cannot be negative.")
+        return value
 
     def validate_name(self, value):
         if not value or not value.strip():
@@ -87,6 +102,12 @@ class MedicineSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"supplier": "Supplier does not belong to the selected hospital."}
             )
+
+        # P1-10: a medicine is never sold above its printed MRP.
+        price = attrs.get("price", getattr(instance, "price", None))
+        mrp = attrs.get("mrp", getattr(instance, "mrp", None))
+        if price is not None and mrp is not None and price > mrp:
+            raise serializers.ValidationError({"price": f"Selling price cannot be above the MRP ({mrp})."})
 
         return attrs
 

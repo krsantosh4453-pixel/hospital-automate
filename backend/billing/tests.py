@@ -176,6 +176,25 @@ class BillingAPITests(TestCase):
         data = response.data.get("results", response.data)
         self.assertEqual(len(data), 1)
 
+    def test_discount_is_taken_off_before_gst(self):
+        """P1-05 (owner's decision 2026-11-06): tax is charged on the discounted amount."""
+        response = self.client.post(self._get_invoices_url(), {
+            "patient": self.patient.id, "hospital": self.hospital_a.id, "discount": "100.00",
+            "items_data": [{"description": "Medicines", "quantity": 1, "unit_price": "1000.00", "tax_rate": "18"}],
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        invoice = Invoice.objects.get(pk=response.data["id"])
+        self.assertEqual((invoice.tax, invoice.total), (Decimal("162.00"), Decimal("1062.00")))
+
+    def test_discount_above_the_pre_tax_amount_is_refused(self):
+        response = self.client.post(self._get_invoices_url(), {
+            "patient": self.patient.id, "hospital": self.hospital_a.id, "discount": "1050.00",
+            "items_data": [{"description": "Medicines", "quantity": 1, "unit_price": "1000.00", "tax_rate": "18"}],
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.data)
+
     def test_invoice_shows_the_uhid_its_own_hospital_issued(self):
         """RL-16: bills identify the patient by UHID, not a number made from the database id."""
         PatientHospital.objects.filter(patient=self.patient, hospital=self.hospital_a).update(uhid="HA-2026-000007")

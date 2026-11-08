@@ -149,3 +149,19 @@ class EncountersAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data.get("results", response.data)
         self.assertEqual(len(data), 1)
+    def test_an_appointment_gets_only_one_queue_token(self):
+        """P1-04: the database refuses a second token for the same appointment."""
+        from django.db import IntegrityError, transaction
+
+        from appointments.models import Appointment
+
+        appointment = Appointment.objects.create(patient=self.patient, doctor=self.doctor, hospital=self.hospital_a,
+                                                 appointment_date=date.today(), appointment_time=time(9, 0))
+        visit = Visit.objects.create(patient=self.patient, doctor=self.doctor, hospital=self.hospital_a,
+                                     visit_type="OPD", status="Waiting")
+        common = dict(hospital=self.hospital_a, patient=self.patient, doctor=self.doctor, appointment=appointment,
+                      visit=visit)
+        QueueToken.objects.create(token_number=1, **common)
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            QueueToken.objects.create(token_number=2, **common)

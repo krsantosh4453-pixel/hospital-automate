@@ -12,6 +12,10 @@ class Hospital(models.Model):
     code = models.CharField(max_length=30, unique=True, null=True, blank=True)
     # F1: start of every UHID issued here (DCH -> DCH-2026-000001). Blank
     # falls back to the code, then to "H<id>" (patients/uhid.py).
+    # P1-03 (DPDP Act): who answers patients' data requests and complaints; shown in the privacy notice.
+    grievance_officer_name = models.CharField(max_length=150, blank=True, default="")
+    grievance_officer_email = models.EmailField(blank=True, default="")
+    grievance_officer_phone = models.CharField(max_length=20, blank=True, default="")
     uhid_prefix = models.CharField(max_length=10, blank=True, default="")
     hospital_type = models.CharField(max_length=20, choices=Type.choices, default=Type.PRIVATE)
     address = models.TextField(blank=True)

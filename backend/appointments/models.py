@@ -67,3 +67,26 @@ class Appointment(models.Model):
             models.Index(fields=["patient", "appointment_date"]),
             models.Index(fields=["hospital", "doctor", "appointment_date"]),
         ]
+        constraints = [
+            # P1-04: one active booking per patient, doctor and slot; other
+            # patients may share the slot, and a cancelled one can be rebooked.
+            models.UniqueConstraint(
+                fields=["patient", "doctor", "appointment_date", "appointment_time"],
+                condition=models.Q(status__in=["Scheduled", "Checked In", "In Consultation"]),
+                name="appointment_unique_active_slot",
+            ),
+        ]
+
+    # Statuses that hold a slot (kept equal to the constraint above).
+    ACTIVE_STATUSES = ("Scheduled", "Checked In", "In Consultation")
+
+
+def clashing_booking(patient, doctor, appointment_date, appointment_time, exclude_pk=None):
+    """The patient's active booking with this doctor in this slot, if any."""
+    clash = Appointment.objects.filter(
+        patient=patient, doctor=doctor, appointment_date=appointment_date, appointment_time=appointment_time,
+        status__in=Appointment.ACTIVE_STATUSES,
+    )
+    if exclude_pk is not None:
+        clash = clash.exclude(pk=exclude_pk)
+    return clash.first()

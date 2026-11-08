@@ -15,12 +15,12 @@ invoice, in the same transaction as the dispensing.
 Callers hold the transaction; the invoice row is locked while it changes.
 """
 
-from decimal import Decimal
 
 from django.db import transaction
 
 from .models import Invoice, InvoiceItem
-from .services import ZERO, line_subtotal, money, net_paid, new_reference, recalculate, record_refund
+from .numbering import next_invoice_number
+from .services import ZERO, line_subtotal, money, net_paid, recalculate, record_refund
 
 MAX_DESCRIPTION = 200
 
@@ -59,7 +59,7 @@ def post_sales(prescription, sales):
             patient=prescription.patient,
             hospital=prescription.hospital,
             prescription=prescription,
-            invoice_number=new_reference("INV"),
+            invoice_number=next_invoice_number(prescription.hospital_id),
         )
     for sale in sales:
         InvoiceItem.objects.create(
@@ -69,17 +69,15 @@ def post_sales(prescription, sales):
             unit_price=sale.unit_price,
             subtotal=line_subtotal(sale.quantity, sale.unit_price),
             tax_rate=sale.medicine.tax_rate,
+            hsn_code=sale.medicine.hsn_code,
             pharmacy_sale=sale,
         )
     return recalculate(invoice)
 
 
 def _gross(invoice):
-    total = ZERO
-    for item in invoice.items.all():
-        subtotal = line_subtotal(item.quantity, item.unit_price)
-        total += subtotal + money(subtotal * Decimal(item.tax_rate or 0) / 100)
-    return money(total)
+    """The bill before tax: the most a discount may take off (P1-05: discounts come off before GST)."""
+    return money(sum((line_subtotal(item.quantity, item.unit_price) for item in invoice.items.all()), ZERO))
 
 
 def apply_return(sale_return, user=None):

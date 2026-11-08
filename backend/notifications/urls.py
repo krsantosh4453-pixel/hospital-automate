@@ -7,6 +7,7 @@ from .views import (
     OTPVerificationViewSet,
     NotificationDeliveryViewSet,
     VoiceCallFallbackViewSet,
+    TwilioStatusView,
 )
 
 router = DefaultRouter()
@@ -18,5 +19,7 @@ router.register(r"voice-calls", VoiceCallFallbackViewSet, basename="voice-call-f
 router.register(r"otp-verifications", OTPVerificationViewSet, basename="otp-verification")
 
 urlpatterns = [
+    # P1-09: Twilio message status callback (signed, no login).
+    path("twilio/status/", TwilioStatusView.as_view(), name="twilio-status"),
     path("", include(router.urls)),
 ]

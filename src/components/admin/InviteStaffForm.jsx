@@ -5,7 +5,7 @@ import { STAFF_ROLES } from "../../config/staffRoles.js"
 import { Alert, Button, Field, Input, Select } from "../ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
-const EMPTY = { name: "", phone: "", email: "", role: "Doctor", department: "" }
+const EMPTY = { name: "", phone: "", email: "", role: "Doctor", department: "", specialization: "" }
 
 /** The invitation link for someone who still has to set a password, with a copy button. */
 export function InviteLink({ result }) {
@@ -110,6 +110,12 @@ export default function InviteStaffForm({ departments = [], onInvited }) {
             ))}
           </Select>
         </Field>
+        {form.role === "Doctor" && (
+          // P1-06: the invite also creates the doctor's bookable profile.
+          <Field label="Speciality" hint="Shown when booking; the department is used if left empty">
+            <Input value={form.specialization} onChange={set("specialization")} />
+          </Field>
+        )}
         {departments.length > 0 && (
           <Field label="Department" hint="Leave empty to work across all departments">
             <Select value={form.department} onChange={set("department")}>

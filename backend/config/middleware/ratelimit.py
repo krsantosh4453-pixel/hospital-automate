@@ -38,11 +38,23 @@ class RateLimitMiddleware(MiddlewareMixin):
         '/api/auth/token/refresh/': {'limit': 20, 'window': 60, 'scope': 'user'},
         '/api/auth/token/verify/': {'limit': 30, 'window': 60, 'scope': 'user'},
         '/api/auth/google/': {'limit': 5, 'window': 60, 'scope': 'ip'},
-        '/api/auth/patient/otp/': {'limit': 5, 'window': 60, 'scope': 'ip'},
-        '/api/auth/patient/email-otp/': {'limit': 5, 'window': 60, 'scope': 'ip'},
+        # Patient codes: 5/min per phone or email, so patients sharing a mobile
+        # carrier's address (carrier-grade NAT) are not blocked by each other
+        # (P1-08); the per-IP ceiling still stops one address spraying numbers.
+        '/api/auth/patient/otp/': [
+            {'limit': 5, 'window': 60, 'scope': 'phone'},
+            {'limit': 60, 'window': 60, 'scope': 'ip'},
+        ],
+        '/api/auth/patient/email-otp/': [
+            {'limit': 5, 'window': 60, 'scope': 'email'},
+            {'limit': 60, 'window': 60, 'scope': 'ip'},
+        ],
         '/api/auth/patient/login/': {'limit': 5, 'window': 60, 'scope': 'ip'},
         '/api/auth/patient/token/': {'limit': 5, 'window': 60, 'scope': 'ip'},
-        '/api/auth/proxy/': {'limit': 5, 'window': 60, 'scope': 'ip'},
+        '/api/auth/proxy/': [
+            {'limit': 5, 'window': 60, 'scope': 'phone'},
+            {'limit': 60, 'window': 60, 'scope': 'ip'},
+        ],
         '/api/auth/register/': {'limit': 5, 'window': 300, 'scope': 'ip'},
         '/api/auth/staff/logout/': {'limit': 30, 'window': 60, 'scope': 'user'},
 

@@ -44,6 +44,7 @@ const mapDoctorFromApi = (record) => ({
   id: `D${String(record.id).padStart(3, "0")}`,
   name: record.name || "",
   specialization: record.specialization || "",
+  registrationNumber: record.registration_number || "",
   phone: record.phone || "",
   email: record.email || "",
   loginLinked: Boolean(record.user),
@@ -53,7 +54,7 @@ const mapDoctorFromApi = (record) => ({
   hospitalId: record.hospital,
 })
 
-const EMPTY_FORM = { name: "", specialization: "", phone: "", email: "", experience: "", status: "Available", availability: "" }
+const EMPTY_FORM = { name: "", specialization: "", registrationNumber: "", phone: "", email: "", experience: "", status: "Available", availability: "" }
 
 function Doctors() {
   const { t } = useLanguage()
@@ -171,6 +172,7 @@ function Doctors() {
     const payload = {
       name: formData.name,
       specialization: formData.specialization,
+      registration_number: (formData.registrationNumber || "").trim(),
       phone: formData.phone,
       email: formData.email,
       experience: formData.experience,
@@ -200,6 +202,7 @@ function Doctors() {
     setFormData({
       name: doctor.name,
       specialization: doctor.specialization,
+      registrationNumber: doctor.registrationNumber,
       phone: doctor.phone,
       email: doctor.email,
       experience: doctor.experience,
@@ -217,6 +220,7 @@ function Doctors() {
     const payload = {
       name: formData.name,
       specialization: formData.specialization,
+      registration_number: (formData.registrationNumber || "").trim(),
       phone: formData.phone,
       email: formData.email,
       experience: formData.experience,
@@ -379,6 +383,9 @@ function Doctors() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Speciality" required>
               <Input name="specialization" value={formData.specialization} onChange={handleChange} />
+            </Field>
+            <Field label="Registration number" hint="Medical council registration; printed in the Schedule H1 register">
+              <Input name="registrationNumber" value={formData.registrationNumber} onChange={handleChange} />
             </Field>
             <Field label="Phone" required>
               <Input type="tel" name="phone" value={formData.phone} onChange={handleChange} />

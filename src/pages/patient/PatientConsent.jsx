@@ -9,6 +9,7 @@ import FamilyAccessCard from "../../components/patient/FamilyAccessCard.jsx"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 import { usePatient } from "../../assets/context/PatientContext.jsx"
 import NotificationPreferences from "../../components/notifications/NotificationPreferences.jsx"
+import DataRightsCard from "../../components/consent/DataRightsCard.jsx"
 
 const SCOPE_LABELS = {
   visits: "Visit history",
@@ -182,6 +183,7 @@ function PatientConsent() {
 
       {/* K7: a family member cannot change the patient's contact choices. */}
       {selectedHospital && !isProxy && <NotificationPreferences hospitalId={selectedHospital.id} />}
+      {selectedHospital && !isProxy && <DataRightsCard hospitalId={selectedHospital.id} />}
 
       {loading ? (
         <Card><SkeletonRows rows={3} /></Card>

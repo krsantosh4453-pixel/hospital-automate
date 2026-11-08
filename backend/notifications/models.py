@@ -32,6 +32,8 @@ class NotificationDelivery(models.Model):
         FAILED = "failed", "Failed"
         SKIPPED = "skipped", "Skipped"
         ACKNOWLEDGED = "acknowledged", "Acknowledged"
+        # P1-09: the provider confirmed the phone received it (signed status callback).
+        DELIVERED = "delivered", "Delivered"
 
     hospital = models.ForeignKey(
         "hospital.Hospital", on_delete=models.CASCADE, null=True, blank=True,

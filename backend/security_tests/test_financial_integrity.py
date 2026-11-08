@@ -49,9 +49,10 @@ class FinancialIntegrityTests(TestCase):
 
     def test_invoice_totals_are_server_computed(self):
         invoice = self.make_invoice(self.client_for(self.biller))
-        # 500 + 99.99 = 599.99; tax 18% of 99.99 = 18.00; minus 10 discount
-        self.assertEqual(invoice.total, Decimal("607.99"))
-        self.assertEqual(invoice.tax, Decimal("18.00"))
+        # 500 + 99.99 = 599.99; the 10 discount is shared by value before GST (P1-05):
+        # the lab line's share is 1.67, so tax is 18% of 98.32 = 17.70; total 599.99 - 10 + 17.70
+        self.assertEqual(invoice.total, Decimal("607.69"))
+        self.assertEqual(invoice.tax, Decimal("17.70"))
         self.assertEqual(invoice.status, Invoice.Status.UNPAID)
         self.assertEqual(sorted(invoice.items.values_list("subtotal", flat=True)),
                          [Decimal("99.99"), Decimal("500.00")])
@@ -82,10 +83,10 @@ class FinancialIntegrityTests(TestCase):
         self.assertEqual(Payment.objects.count(), 1)
 
         detail = client.get(f"/api/billing/invoices/{invoice.id}/").json()
-        self.assertEqual(Decimal(str(detail["balance_due"])), Decimal("307.99"))
+        self.assertEqual(Decimal(str(detail["balance_due"])), Decimal("307.69"))
         self.assertEqual(detail["status"], "Partially Paid")
 
-        rest = client.post("/api/billing/payments/", {"invoice": invoice.id, "amount": "307.99"}, format="json")
+        rest = client.post("/api/billing/payments/", {"invoice": invoice.id, "amount": "307.69"}, format="json")
         self.assertEqual(rest.status_code, 201)
         invoice.refresh_from_db()
         self.assertEqual(invoice.status, Invoice.Status.PAID)
@@ -100,7 +101,7 @@ class FinancialIntegrityTests(TestCase):
         self.assertEqual(refund.status_code, 201, refund.content)
         invoice.refresh_from_db()
         self.assertEqual(invoice.status, Invoice.Status.PARTIALLY_PAID)
-        self.assertEqual(invoice.total_paid, Decimal("507.99"))
+        self.assertEqual(invoice.total_paid, Decimal("507.69"))
 
         # Paid lines cannot be rewritten afterwards.
         resp = client.patch(f"/api/billing/invoices/{invoice.id}/", {"items_data": []}, format="json")

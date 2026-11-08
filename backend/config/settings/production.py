@@ -548,7 +548,10 @@ REST_FRAMEWORK['NUM_PROXIES'] = TRUSTED_PROXY_COUNT
 # DRF Throttle rates (override base)
 REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
     'anon': '100/hour',
-    'user': '1000/hour',
+    # P1-08: one page load makes 5-13 API calls, so a busy pharmacy or front
+    # desk can pass 1000 an hour in normal work. 3000 leaves room for a peak
+    # shift and still caps a runaway client (see docs/LOAD_TEST.md).
+    'user': '3000/hour',
     'login': '5/minute',
     'otp': '3/minute',
     'password_reset': '2/hour',

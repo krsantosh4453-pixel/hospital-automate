@@ -80,15 +80,20 @@ def check_items(hospital, patient, names):
             ))
 
     all_salts = set().union(*salts_by_item.values()) if salts_by_item else set()
-    allergies = Allergy.objects.filter(patient=patient, hospital=hospital) if patient and hospital else []
+    # P1-07 (owner's decision 2026-11-06): an allergy follows the patient to every
+    # hospital in this system; one recorded elsewhere says where.
+    allergies = Allergy.objects.filter(patient=patient).select_related("hospital") if patient else []
     for allergy in allergies:
         covered = _allergy_covers(allergy.name, all_salts)
         hits = [name for name, salts in salts_by_item.items() if salts & covered]
         if hits:
             reaction = f" ({allergy.reaction})" if allergy.reaction else ""
+            elsewhere = ""
+            if hospital is not None and allergy.hospital_id not in (None, hospital.pk):
+                elsewhere = f" (recorded at {allergy.hospital.name})"
             alerts.append(_alert(
                 "allergy", rules.HIGH,
-                f"Recorded allergy: {allergy.name}{reaction}.",
+                f"Recorded allergy: {allergy.name}{reaction}{elsewhere}.",
                 hits, rule=f"allergy:{allergy.name.lower()}",
             ))
 

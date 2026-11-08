@@ -1,5 +1,14 @@
 from rest_framework import serializers
-from .models import Appointment
+from .models import Appointment, clashing_booking
+
+
+def refuse_double_booking(patient, doctor, appointment_date, appointment_time, exclude_pk=None):
+    """P1-04: the same patient cannot hold two active bookings with one doctor in one slot."""
+    clash = clashing_booking(patient, doctor, appointment_date, appointment_time, exclude_pk)
+    if clash is not None:
+        raise serializers.ValidationError({
+            "appointment_time": f"This patient already has appointment A{clash.pk:03d} with this doctor at this time."
+        })
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -43,6 +52,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "hospital_name",
         ]
         read_only_fields = ["id", "created_at"]
+        # The slot rule is checked in validate() with a message naming the
+        # existing booking; DRF's generic validator for the constraint would win first.
+        validators = []
 
     def validate_hospital(self, value):
         """Ensure user has access to the hospital."""
@@ -109,5 +121,15 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "doctor": "This doctor does not belong to this hospital."
                 })
+
+        instance = getattr(self, "instance", None)
+
+        def current(field):
+            return attrs.get(field, getattr(instance, field, None))
+
+        status_after = current("status") or Appointment.Status.SCHEDULED
+        if status_after in Appointment.ACTIVE_STATUSES and current("patient") and current("doctor"):
+            refuse_double_booking(current("patient"), current("doctor"), current("appointment_date"),
+                                  current("appointment_time"), exclude_pk=getattr(instance, "pk", None))
 
         return attrs
