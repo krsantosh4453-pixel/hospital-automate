@@ -17,7 +17,6 @@ from django.core import signing
 from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import SAFE_METHODS
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from config.api_paths import unversioned_path
 
@@ -164,13 +163,11 @@ def proxy_user_for(phone):
     return user
 
 
-def issue_proxy_tokens(user, grant):
-    # Claims on the refresh token are copied into every access token minted from it.
-    refresh = RefreshToken.for_user(user)
-    refresh[PROXY_CLAIM] = grant.id
-    refresh["role"] = "Patient"
-    refresh["patient_id"] = grant.patient_id
-    return {"access": str(refresh.access_token), "refresh": str(refresh)}
+def issue_proxy_tokens(user, grant, request=None):
+    from .tokens import issue_session_tokens
+
+    # The grant id travels in every token; apply_proxy_scope checks it per request.
+    return issue_session_tokens(user, request, account_type="proxy", claims={PROXY_CLAIM: grant.id})
 
 
 # ---------------------------------------------------------------------------

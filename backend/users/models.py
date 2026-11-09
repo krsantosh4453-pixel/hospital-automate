@@ -1,6 +1,9 @@
+import uuid
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
+from django.utils import timezone
 
 
 class StaffRole(models.TextChoices):
@@ -121,3 +124,39 @@ class GoogleAccount(models.Model):
 
     def __str__(self):
         return self.email
+
+class DeviceSession(models.Model):
+    """
+    One signed-in device (Phase 3). Every token pair carries this row's id in
+    its ``sid`` claim; revoking the row signs that device out at once
+    (users/tokens.py). Stores no IP address, only its /24 (IPv4) or /48 (IPv6)
+    network, enough to tell devices apart.
+    """
+
+    class Platform(models.TextChoices):
+        WEB = "web", "Web"
+        ANDROID = "android", "Android"
+        IOS = "ios", "iOS"
+        OTHER = "other", "Other"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="device_sessions")
+    account_type = models.CharField(max_length=20)
+    device_id = models.CharField(max_length=64, blank=True, default="")
+    platform = models.CharField(max_length=10, choices=Platform.choices, default=Platform.OTHER)
+    app_version = models.CharField(max_length=32, blank=True, default="")
+    user_agent = models.CharField(max_length=200, blank=True, default="")
+    ip_prefix = models.CharField(max_length=50, blank=True, default="")
+    # jti of the newest refresh token; the refresh endpoint keeps it current.
+    current_jti = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(default=timezone.now)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_reason = models.CharField(max_length=100, blank=True, default="")
+
+    class Meta:
+        ordering = ["-last_used_at"]
+        indexes = [models.Index(fields=["user", "revoked_at"])]
+
+    def __str__(self):
+        return f"{self.user_id} {self.platform} {self.id}"

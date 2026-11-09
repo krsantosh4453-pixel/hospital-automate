@@ -10,7 +10,7 @@ API clients that send ``Authorization: Bearer`` work as before.
 
 from django.conf import settings
 from rest_framework.authentication import CSRFCheck
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 
@@ -72,9 +72,16 @@ class CookieJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
         result = self._authenticate(request)
         if result is not None:
-            # Family-member (proxy) tokens: grant still active, read-only.
+            # Imported here: this module loads with DRF's settings, before the apps.
             from users.proxy_access import apply_proxy_scope
+            from users.tokens import SESSION_CLAIM, SIGNED_OUT, is_session_revoked
 
+            # A signed-out device (logout, revoke, logout-all) is refused at once,
+            # not when its access token expires. Tokens without a sid predate sessions.
+            session_id = result[1].get(SESSION_CLAIM)
+            if session_id is not None and is_session_revoked(session_id):
+                raise AuthenticationFailed(SIGNED_OUT, code="session_revoked")
+            # Family-member (proxy) tokens: grant still active, read-only.
             apply_proxy_scope(request, *result)
         return result
 

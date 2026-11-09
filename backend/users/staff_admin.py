@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from audit.services import record_audit
 from hospital.models import Department
 
+from .tokens import revoke_all_sessions
 from .models import StaffHospitalMembership, StaffRole
 from .permissions import (
     get_request_hospital_id,
@@ -133,6 +134,11 @@ class StaffMembershipView(APIView):
         if not changes:
             raise ValidationError("Nothing to change.")
         membership.save()
+        if changes.get("is_active") is False and not StaffHospitalMembership.objects.filter(
+            staff=membership.staff, is_active=True
+        ).exists():
+            # No hospital left: sign the person out everywhere now, not when tokens expire.
+            revoke_all_sessions(membership.staff.user, "last hospital membership removed")
         record_audit(request, "users.staff.membership_changed", membership.staff, hospital=hospital_id,
                      details={"user": user_id, **changes})
         return Response(_row(membership.staff, membership))

@@ -21,7 +21,7 @@ from config.auth_cookies import REFRESH_COOKIE, clear_auth_cookies
 
 logger = logging.getLogger(__name__)
 
-from .models import GoogleAccount, StaffProfile, StaffHospitalMembership, StaffRole
+from .models import DeviceSession, GoogleAccount, StaffProfile, StaffHospitalMembership, StaffRole
 from patients.models import Patient
 from .patient_auth import (
     authenticate_patient_email,
@@ -38,22 +38,16 @@ from .patient_auth import (
 )
 from .sms import SMSService
 from .twilio_verify import get_twilio_verify_service
+from .tokens import issue_session_tokens, revoke_all_sessions, revoke_sessions, session_id_of
 from . import security
 from audit.services import record_audit
 
 
-def _auth_response(user, patient=None, extra=None):
+def _auth_response(user, patient=None, extra=None, request=None):
     staff_data = _get_staff_data(user)
     if staff_data and patient is None:
-        refresh = RefreshToken.for_user(user)
-        access = refresh.access_token
-        access["staff_id"] = user.id
-        access["staff_role"] = staff_data["staff_role"]
-        access["roles"] = staff_data["roles"]
-        access["hospitals"] = [h["id"] for h in staff_data["hospitals"]]
         payload = {
-            "access": str(access),
-            "refresh": str(refresh),
+            **issue_session_tokens(user, request, account_type="staff"),
             "account_type": "staff",
             "user": staff_data,
             "roles": staff_data["roles"],
@@ -70,7 +64,7 @@ def _auth_response(user, patient=None, extra=None):
                 "name": patient.name if patient else user.get_full_name(),
             },
             "patient": patient_payload(patient) if patient else None,
-            **issue_login_tokens(user, patient),
+            **issue_login_tokens(user, patient, request),
         }
     if extra:
         payload.update(extra)
@@ -149,7 +143,7 @@ def google_login(request):
         return Response({
             "status": "success",
             "message": "Google login successful.",
-            **_auth_response(user, patient, extra={
+            **_auth_response(user, patient, request=request, extra={
                 "user": {
                     "id": user.id,
                     "email": user.email,
@@ -267,18 +261,10 @@ def staff_login(request):
     record_audit(request, "auth.staff_login.success", user=user)
 
     # Generate JWT tokens
-    refresh = RefreshToken.for_user(user)
-    access = refresh.access_token
-
-    # Add custom claims to access token
-    access["staff_id"] = user.id
-    access["staff_role"] = staff_data["staff_role"]
-    access["roles"] = staff_data["roles"]
-    access["hospitals"] = [h["id"] for h in staff_data["hospitals"]]
+    tokens = issue_session_tokens(user, request, account_type="staff")
 
     return Response({
-        "access": str(access),
-        "refresh": str(refresh),
+        **tokens,
         "user": staff_data,
         "roles": staff_data["roles"],
         "hospitals": staff_data["hospitals"],
@@ -386,10 +372,12 @@ def staff_otp_verify(request):
     """
     Staff login step 2: Verify OTP and issue JWT tokens.
     """
-    user_id = security.read_otp_challenge(request.data.get("challenge"))
+    challenge = request.data.get("challenge")
+    user_id = security.read_otp_challenge(challenge)
     otp = request.data.get("otp")
 
-    if not user_id or not otp:
+    # A challenge signs in once (Phase 3); a wrong code leaves it usable.
+    if not user_id or not otp or security.otp_challenge_used(challenge):
         return Response(
             {"error": "Sign-in session expired or invalid. Enter your password again."},
             status=status.HTTP_400_BAD_REQUEST
@@ -442,17 +430,16 @@ def staff_otp_verify(request):
             status=code
         )
 
+    if not security.consume_otp_challenge(challenge):
+        return Response(
+            {"error": "Sign-in session expired or invalid. Enter your password again."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     record_audit(request, "auth.staff_login.success", user=user, details={"method": "otp"})
-    refresh = RefreshToken.for_user(user)
-    access = refresh.access_token
-    access["staff_id"] = user.id
-    access["staff_role"] = staff_data["staff_role"]
-    access["roles"] = staff_data["roles"]
-    access["hospitals"] = [h["id"] for h in staff_data["hospitals"]]
+    tokens = issue_session_tokens(user, request, account_type="staff")
 
     return Response({
-        "access": str(access),
-        "refresh": str(refresh),
+        **tokens,
         "user": staff_data,
         "roles": staff_data["roles"],
         "hospitals": staff_data["hospitals"],
@@ -560,7 +547,10 @@ def staff_logout(request):
         return response
 
     try:
+        session_id = session_id_of(refresh_token)
         RefreshToken(refresh_token).blacklist()
+        if session_id is not None:
+            revoke_sessions(DeviceSession.objects.filter(pk=session_id), "signed out")
         response = Response({"message": "Successfully logged out."})
     except TokenError:
         response = Response(
@@ -919,7 +909,7 @@ def patient_otp_verify(request):
         return refused
     return Response({
         "status": "success",
-        **_auth_response(patient.user, patient),
+        **_auth_response(patient.user, patient, request=request),
     })
 
 
@@ -967,7 +957,7 @@ def patient_email_login(request):
         return refused
     return Response({
         "status": "success",
-        **_auth_response(patient.user, patient),
+        **_auth_response(patient.user, patient, request=request),
     })
 
 
@@ -988,7 +978,7 @@ def patient_token_login(request):
         return refused
     return Response({
         "status": "success",
-        **_auth_response(patient.user, patient),
+        **_auth_response(patient.user, patient, request=request),
     })
 
 
@@ -1064,7 +1054,6 @@ def staff_password_reset_request(request):
 def staff_password_reset_confirm(request):
     """Check the code, set the new password and sign the account out everywhere."""
     from django.contrib.auth.password_validation import validate_password
-    from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 
     identifier = request.data.get("username") or request.data.get("email")
     code = "".join(ch for ch in str(request.data.get("code") or request.data.get("otp") or "") if ch.isdigit())
@@ -1090,8 +1079,7 @@ def staff_password_reset_confirm(request):
 
     user.set_password(new_password)
     user.save(update_fields=["password"])
-    for token in OutstandingToken.objects.filter(user=user):
-        BlacklistedToken.objects.get_or_create(token=token)
+    revoke_all_sessions(user, "password reset")
     security.clear_failures(identifier)
     security.clear_failures(f"reset:{identifier}")
     record_audit(request, "auth.password_reset.completed", user=user)

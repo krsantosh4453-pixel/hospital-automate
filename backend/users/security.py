@@ -1,5 +1,7 @@
 """Staff sign-in safeguards: failed-attempt lockout and signed OTP challenges."""
 
+import hashlib
+
 from django.conf import settings
 from django.core import signing
 from django.core.cache import cache
@@ -43,6 +45,20 @@ def read_otp_challenge(token):
     except signing.BadSignature:
         return None
     return data.get("uid") if isinstance(data, dict) else None
+
+
+def _used_key(token):
+    return "staff-otp-challenge-used:" + hashlib.sha256(str(token).encode()).hexdigest()
+
+
+def otp_challenge_used(token):
+    """Whether this challenge already signed someone in."""
+    return cache.get(_used_key(token)) is not None
+
+
+def consume_otp_challenge(token):
+    """Mark the challenge used; False if another request used it first (single use)."""
+    return cache.add(_used_key(token), 1, CHALLENGE_MAX_AGE)
 
 
 def otp_required_for_staff():
