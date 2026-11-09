@@ -19,6 +19,14 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from config.auth_cookies import REFRESH_COOKIE, clear_auth_cookies, wants_cookies
 
 
+SESSION_ENDED_CODES = {"session_revoked", "account_disabled"}
+
+
+def _session_ended(exc):
+    codes = exc.get_codes()
+    return (codes if isinstance(codes, str) else str(codes)) in SESSION_ENDED_CODES
+
+
 class CookieTokenRefreshView(TokenRefreshView):
     """Refresh from the body (API clients) or from the httpOnly refresh cookie."""
 
@@ -26,11 +34,12 @@ class CookieTokenRefreshView(TokenRefreshView):
         try:
             return self._post(request, *args, **kwargs)
         except AuthenticationFailed as exc:
-            # A signed-out session, disabled account or dead token: the browser
-            # should stop retrying with its cookie, so clear it with the refusal.
             # The project's exception handler still shapes the error body.
             response = self.handle_exception(exc)
-            if wants_cookies(request):
+            # Clear the cookies only when the session itself has ended. A stale or
+            # already rotated token usually means another tab refreshed a moment
+            # ago and set new cookies; clearing here would sign that tab out.
+            if wants_cookies(request) and _session_ended(exc):
                 clear_auth_cookies(response)
             return response
 

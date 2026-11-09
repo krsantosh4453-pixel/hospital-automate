@@ -14,7 +14,7 @@ def copy_superusers(apps, schema_editor):
 
 
 def remove_copied_rows(apps, schema_editor):
-    # Reversing drops the table next; the superuser flags themselves were never touched.
+    # Reversing removes every row (the table is dropped next); the superuser flags were never touched.
     apps.get_model("users", "PlatformStaff").objects.all().delete()
 
 

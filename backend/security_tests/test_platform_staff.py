@@ -82,6 +82,21 @@ class PlatformStaffTests(TestCase):
         self.assertEqual(self.client_for(self.root).get("/api/v1/notifications/otp-verifications/").status_code, 403)
         self.assertFalse(has_platform_permission(self.root, "platform.hospitals.delete"))
 
+    def test_removing_the_superuser_flag_ends_platform_admin_access(self):
+        self.root.is_superuser = False
+        self.root.save()
+
+        self.assertFalse(has_platform_permission(self.root, "platform.hospitals.delete"))
+
+        self.root.is_superuser = True
+        self.root.save()
+        self.assertTrue(has_platform_permission(self.root, "platform.hospitals.delete"))
+
+    def test_support_staff_keep_their_row_when_not_superusers(self):
+        self.support.save()
+
+        self.assertTrue(has_platform_permission(self.support, "platform.hospitals.view"))
+
     def test_platform_permissions_are_not_hospital_permissions(self):
         from users.platform import PLATFORM_PERMISSIONS
 

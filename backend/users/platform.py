@@ -53,11 +53,16 @@ def platform_permission(permission):
 
 
 def _superusers_are_platform_admins(sender, instance, **kwargs):
-    # Keeps `createsuperuser` and the Django admin working as before: a
-    # superuser gets a platform-admin row. Taking the flag away later does not
-    # remove the row; deactivate it in the admin to end platform access.
+    # Keeps `createsuperuser` and the Django admin working as before: the
+    # superuser flag and an active platform-admin row go together. Clearing the
+    # flag (or deactivating the user) ends platform-admin access; a
+    # platform-support row is left as it is.
     if instance.is_superuser and instance.is_active:
-        PlatformStaff.objects.get_or_create(user=instance, defaults={"role": PlatformStaff.Role.ADMIN})
+        staff, created = PlatformStaff.objects.get_or_create(user=instance, defaults={"role": PlatformStaff.Role.ADMIN})
+        if not created and staff.role == PlatformStaff.Role.ADMIN and not staff.is_active:
+            PlatformStaff.objects.filter(pk=staff.pk).update(is_active=True)
+    else:
+        PlatformStaff.objects.filter(user=instance, role=PlatformStaff.Role.ADMIN, is_active=True).update(is_active=False)
 
 
 def connect_signals():

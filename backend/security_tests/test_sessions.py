@@ -197,6 +197,17 @@ class SessionLifecycleTests(TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.cookies["hms_refresh"].value, "")
 
+    def test_a_slower_tab_refreshing_does_not_clear_the_cookies_another_tab_just_set(self):
+        tokens = self.sign_in()
+        self.refresh(tokens["refresh"])  # the faster tab rotated the token
+        client = APIClient(raise_request_exception=False)
+        client.cookies["hms_refresh"] = tokens["refresh"]
+
+        response = client.post("/api/v1/auth/token/refresh/", {}, format="json", HTTP_X_AUTH_MODE="cookie")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn("hms_refresh", response.cookies)
+
     def test_a_revoked_family_access_grant_cannot_refresh(self):
         from patients.models import Patient, ProxyAccess
         from users.proxy_access import issue_proxy_tokens, proxy_user_for
