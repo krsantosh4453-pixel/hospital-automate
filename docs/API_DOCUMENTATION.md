@@ -13,7 +13,14 @@ cd backend && python scripts/generate_api_docs.py
 ### Authentication
 
 - Staff sign in with `POST /api/auth/staff/login/` (username or email plus password). This is refused when `STAFF_LOGIN_REQUIRE_OTP` is on, which is the production default.
-- With OTP: `POST /api/auth/staff/login/otp/start/` returns `challenge`. Then call `POST .../otp/verify/` with `{challenge, otp}` (or `.../otp/resend/` with `{challenge}`). The challenge is signed and lasts 10 minutes.
+- With OTP: `POST /api/auth/staff/login/otp/start/` returns `challenge`. Then call `POST .../otp/verify/` with `{challenge, otp}` (or `.../otp/resend/` with `{challenge}`). The challenge is signed, lasts 10 minutes and signs in **once** (Phase 3); five wrong codes lock OTP sign-in for that account for 15 minutes.
+- **Sessions (Phase 3).** Every sign-in creates a device session; tokens carry its id (`sid`) and no roles or hospitals (authorisation always reads the database). Sign-in bodies may add `device_id`, `platform` (`web`, `android`, `ios`, `other`) and `app_version`.
+  - `POST /api/auth/token/refresh/` rotates the refresh token. It is refused (401) for a signed-out session, an inactive account, inactive staff or a revoked family-access grant. Only the session's newest refresh token works; presenting an already rotated one more than 30 seconds later signs that session out (treated as a stolen token). A refused cookie-mode refresh clears the cookies.
+  - `GET /api/auth/sessions/` lists the caller's signed-in devices (`current` marks this one); `POST /api/auth/sessions/{id}/revoke/` signs one out; `POST /api/auth/logout-all/` signs out everywhere. A signed-out device's access token is refused on its next request.
+  - Logout, password reset and removing a person's last hospital membership also sign sessions out.
+  - Tokens issued before 2026-11-09 carry no `sid` and keep working until they expire (at most one refresh lifetime).
+- **`GET /api/auth/me/contexts/`** returns `account_type`, `platform_role` and `contexts`: for staff one entry per active membership in an active hospital with `role`, `department`, `permissions` (`<Module>.<Action>`, after the hospital's restrictions) and `restricted_modules`; for patients and family access the hospitals they are registered at. Send the chosen hospital as `X-Hospital-ID`.
+- **Platform staff** (`PlatformStaff`: `platform_admin`, `platform_support`) hold platform permissions only (hospital list, delete, OTP log, report templates); they see no patient data without a hospital membership. Every active superuser has a `platform_admin` row.
 - Patients sign in with `/api/auth/patient/otp/*`, `/api/auth/patient/email-otp/*`, `/api/auth/patient/login/` (verified email plus password) or Google.
 - Responses carry JWT `access` (15 minutes) and `refresh` (7 days, rotated, blacklisted on logout). Send `Authorization: Bearer <access>`.
 - Five failed passwords lock the account for 15 minutes (HTTP 429).

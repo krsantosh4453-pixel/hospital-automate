@@ -1,7 +1,7 @@
-# Phase 3 plan: authentication and tenant context (proposal, awaiting approval)
+# Phase 3 plan: authentication and tenant context (approved 2026-11-09, implemented)
 
 Date: 2026-11-09. Builds on Phase 2 (`907df28`, `720a466`, pushed to `origin/ui/redesign-2026-10-25`).
-Nothing in this document is implemented yet. [V] = verified in the code today; [A] = assumption.
+Status: approved with the code-defined permission catalogue (P3-A) and implemented in commits `f235ed0`, `156baf2`, `4fa5ba9`, `0bb8fe7`, `b4a099d`. Differences from the plan are listed in section 9. [V] = verified in the code; [A] = assumption.
 Related: [implementation-roadmap.md](implementation-roadmap.md) · [target-system.md](target-system.md) · [risks-and-dependencies.md](risks-and-dependencies.md)
 
 ## 1. Audit of what exists
@@ -185,3 +185,21 @@ OpenAPI schemas are added for all sign-in, OTP, refresh, logout, session and con
 - **Web E2E** needs the local dev stack. If it can't run on this machine, the report will say so instead of claiming a pass.
 - **RLS** (Decision D) stays out of this phase.
 - **Decision P3-A** (a code-defined permission catalogue instead of editable permission tables) needs your answer.
+
+## 9. Outcome (2026-11-09)
+
+| Item | Result |
+|---|---|
+| Sessions, revocation, refresh reuse, single-use OTP challenge | Done (`f235ed0`); security review found 3 medium issues, fixed with tests (`156baf2`) |
+| OTP lockout | Added after the review: 5 wrong staff codes lock OTP sign-in for 15 minutes |
+| PlatformStaff and platform permissions | Done (`4fa5ba9`); migration `users/0006` reversible, superuser flags untouched |
+| Permission catalogue and `me/contexts` | Done (`0bb8fe7`); catalogue mirrors the web app and a test fails on drift |
+| Tenancy guard and cross-hospital tests | Done (`b4a099d`); 83 non-scoped views classified; **no leak found** |
+| OpenAPI schemas for sign-in/OTP endpoints | **Not done** in this phase |
+| DeviceSession retention clean-up (90 days) | **Not done**: revoked rows are kept; add to the Celery beat later |
+| Manager may not grant clinical roles | **Not changed**, needs a decision: an existing workflow (a Manager inviting a Nurse) depends on it |
+| Admin writes prescriptions/clinical notes; Manager writes diagnoses/medical records | **Not changed**, needs a clinical-safety decision |
+| Real Twilio Verify credentials | **Untested** (mocked only) |
+| Second security review (`156baf2`..`b4a099d`) | Cookie-mode refresh race and superuser demotion fixed (`2318f82`); Security settings stay readable by any hospital Admin (server configuration only) |
+| Backend tests | 1018 pass on PostgreSQL 16 with row-lock tests required; migrations `users/0005` and `users/0006` applied, reversed and re-applied on PostgreSQL |
+| Web tests | Vitest 125/125; Playwright E2E 32/32 (run on ports 8021/5186 in a scratch copy because another process held 5185); sign-in, family-access and OPD-to-bill specs re-run on the final code, 10/10 |
