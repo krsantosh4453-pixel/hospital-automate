@@ -628,7 +628,10 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
-    'SCHEMA_PATH_PREFIX': '/api/',
+    # The API is mounted at /api/v1/ and /api/ (config/urls.py); the schema shows
+    # /api/v1/ only, and the prefix regex keeps tags per module, not "v1".
+    'SCHEMA_PATH_PREFIX': r'/api/(v1/)?',
+    'PREPROCESSING_HOOKS': ['config.api_paths.versioned_paths_only'],
     # Schema warnings are documentation gaps; keep them out of `manage.py check --deploy`.
     'ENABLE_DJANGO_DEPLOY_CHECK': False,
     'TAGS': [

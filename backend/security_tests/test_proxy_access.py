@@ -131,6 +131,13 @@ class ProxyAccessTests(TestCase):
         self.assertEqual(regrant.status_code, 403)
         self.assertEqual(ProxyAccess.objects.count(), 1)
 
+    def test_proxy_is_read_only_under_the_versioned_prefix_too(self):
+        self.grant()
+        session, _ = self.proxy_sign_in()
+        upload = session.post(f"/api/v1/patients/{self.patient.id}/documents/", {"title": "x"}, format="json")
+        self.assertEqual(upload.status_code, 403)
+        self.assertEqual(session.get("/api/v1/auth/patient/me/").status_code, 200)
+
     def test_revoked_access_stops_working_immediately(self):
         grant = self.grant()
         session, _ = self.proxy_sign_in()

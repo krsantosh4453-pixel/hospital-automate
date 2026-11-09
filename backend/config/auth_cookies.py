@@ -14,6 +14,8 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 
+from config.api_paths import unversioned_path
+
 # DRF imports this module while loading its settings, so nothing here may
 # import DRF views; the refresh and CSRF views live in auth_cookie_views.py.
 
@@ -101,7 +103,7 @@ class AuthCookieMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        if not (wants_cookies(request) and request.path.startswith("/api/auth/")):
+        if not (wants_cookies(request) and unversioned_path(request.path).startswith("/api/auth/")):
             return response
         data = getattr(response, "data", None)
         if not (isinstance(data, dict) and isinstance(data.get("access"), str)):

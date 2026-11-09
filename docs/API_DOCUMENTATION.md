@@ -1,6 +1,6 @@
 # API Documentation
 
-Base path: `/api/`. Interactive schema: `/api/schema/` (OpenAPI 3), `/api/docs/` (Swagger), `/api/redoc/`.
+Base path: `/api/v1/` (since 2026-11-09). The same endpoints are still served at `/api/` for the web app until it moves; both prefixes run the same views, rate limits and access rules. Interactive schema: `/api/schema/` (OpenAPI 3, documents `/api/v1/` only), `/api/docs/` (Swagger), `/api/redoc/`. Paths below are written with the `/api/` prefix; add `v1/` for new clients. Cookie-mode (browser) clients must stay on `/api/` for now: the refresh cookie's path is `/api/auth/`, so a browser does not send it to `/api/v1/auth/token/refresh/`. Bearer-token clients (mobile) are unaffected.
 
 The route table at the end is generated from the live URL configuration:
 
@@ -59,6 +59,8 @@ Amounts are decimal strings with two places (`"607.99"`). The server computes ev
 ### Idempotency
 
 `POST /api/billing/payments/` accepts an `Idempotency-Key` header or an `idempotency_key` field. Repeating a key returns the original payment with status 200 and does not charge again.
+
+`POST /api/appointments/book/` (patient self-booking) accepts an `Idempotency-Key` header (up to 80 characters, unique per patient). Repeating the request with the same key returns the first booking with status 200 instead of booking again, even after the slot time or the upcoming-booking limit would now refuse it. The same key sent for a different doctor, date or time is refused with 409. Two patients asking for one free slot at the same moment get one 201 and one 409 (the doctor row is locked during booking). A key longer than 80 characters is refused with 400. A key stays bound to its booking after cancellation: replaying it returns the cancelled booking, so a new booking needs a new key.
 
 ### Audit
 

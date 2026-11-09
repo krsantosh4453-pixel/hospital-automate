@@ -19,6 +19,8 @@ from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import SAFE_METHODS
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from config.api_paths import unversioned_path
+
 PROXY_CLAIM = "proxy_grant"
 PROXY_USERNAME_PREFIX = "proxy-"
 MAX_ACTIVE_GRANTS = 5
@@ -193,7 +195,7 @@ def apply_proxy_scope(request, user, token):
     )
     if grant is None:
         raise AuthenticationFailed("This family access has ended. Ask the patient to grant it again.")
-    if request.method not in SAFE_METHODS and not request.path.startswith(WRITE_ALLOWED_PREFIX):
+    if request.method not in SAFE_METHODS and not unversioned_path(request.path).startswith(WRITE_ALLOWED_PREFIX):
         raise PermissionDenied("Family members have view-only access.")
     user.proxy_patient = grant.patient
     user.proxy_grant = grant

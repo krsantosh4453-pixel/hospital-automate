@@ -54,6 +54,8 @@ class Appointment(models.Model):
     contact = models.CharField(max_length=15, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    # Idempotency-Key of the patient's own booking request (blank for staff bookings).
+    idempotency_key = models.CharField(max_length=80, blank=True, default="")
 
     def __str__(self):
         return f"{self.patient.name} - {self.doctor.name}"
@@ -74,6 +76,12 @@ class Appointment(models.Model):
                 fields=["patient", "doctor", "appointment_date", "appointment_time"],
                 condition=models.Q(status__in=["Scheduled", "Checked In", "In Consultation"]),
                 name="appointment_unique_active_slot",
+            ),
+            # A retried booking request returns its first booking instead of making another.
+            models.UniqueConstraint(
+                fields=["patient", "idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="appointment_unique_idempotency_key",
             ),
         ]
 

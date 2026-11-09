@@ -12,6 +12,7 @@ from django.http import JsonResponse
 from django.core.cache import cache
 from django.conf import settings
 
+from config.api_paths import unversioned_path
 from config.client_ip import client_ip
 
 logger = logging.getLogger(__name__)
@@ -96,8 +97,10 @@ class RateLimitMiddleware(MiddlewareMixin):
         if request.path.startswith('/static/') or request.path.startswith('/media/'):
             return None
 
-        # The longest matching prefix wins, so a specific rule beats a broad one
-        matches = [pattern for pattern in self.RATE_LIMITS if request.path.startswith(pattern)]
+        # The longest matching prefix wins, so a specific rule beats a broad one.
+        # /api/v1/ paths match the same rules (and budgets) as /api/ ones.
+        path = unversioned_path(request.path)
+        matches = [pattern for pattern in self.RATE_LIMITS if path.startswith(pattern)]
         if not matches:
             return None
         matched_pattern = max(matches, key=len)

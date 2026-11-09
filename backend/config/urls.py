@@ -54,6 +54,70 @@ router.register("laboratory", LabTestViewSet, basename="laboratory")
 # URL PATTERNS
 # =========================
 
+# Every API route, mounted twice below: at /api/v1/ (the versioned contract the
+# mobile app uses and the schema documents) and at /api/ (the web app's
+# original prefix, kept until it moves). Both run the same views.
+api_patterns = [
+    # Authentication
+    path("auth/", include("users.urls")),
+
+    # Hospital staff administration
+    path("users/", include("users.staff_urls")),
+
+    # Laboratory sub-resources (must precede the root router; see laboratory/urls.py)
+    path("laboratory/", include("laboratory.urls")),
+
+    # Core APIs
+    path("", include(router.urls)),
+
+    # Home Dashboard API
+    path("home/", include("home.urls")),
+
+    # Nursing APIs (includes all nurse-related endpoints: nurses, assessments, notes, care-tasks, mar, etc.)
+    path("nurses/", include("nurses.urls")),
+
+    # Hospital Management APIs
+    path("hospital/", include("hospital.urls")),
+    path("encounters/", include("encounters.urls")),
+    path("clinical/", include("clinical.urls")),
+    path("ipd/", include("ipd.urls")),
+    path("emergency/", include("emergency.urls")),
+    path("billing/", include("billing.urls")),
+    path("bloodbank/", include("bloodbank.urls")),
+    path("notifications/", include("notifications.urls")),
+    path("audit/", include("audit.urls")),
+
+    # Pharmacy Procurement
+    path("procurement/", include("procurement.urls")),
+
+    # AI Medical Scribe
+    # AI discharge summary assist (before the scribe's catch-all ai/ routes)
+    path("ai/discharge/", include("ai_advanced.urls")),
+
+    path("ai/", include("ai_scribe.urls")),
+
+    # Reports
+    path("reports/", include("reports.urls")),
+
+    # FHIR R4 read API (Admin only, off unless FHIR_ENABLED)
+    path("fhir/", include("fhir.urls")),
+
+    # ABDM/ABHA: verify and link an existing ABHA (off unless ABDM_ENABLED)
+    path("abdm/", include("abdm.urls")),
+
+    # Documents
+    path("documents/", include("documents.urls")),
+
+    # Consent
+    path("consent/", include("consent.urls")),
+
+    # Clinical terminology (ICD-10 search)
+    path("terminology/", include("terminology.urls")),
+
+    # Support services: OT, ambulance, mortuary, CSSD, laundry, leave, feedback, templates
+    path("services/", include("hospital_services.urls")),
+]
+
 urlpatterns = [
     # Health Checks (no auth required)
     path("health/", HealthCheckView.as_view(), name="health-check"),
@@ -65,68 +129,14 @@ urlpatterns = [
     path("api/docs/", SwaggerUIView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/redoc/", RedocView.as_view(url_name="schema"), name="redoc"),
 
-    # Authentication
-    path("api/auth/", include("users.urls")),
-
-    # Hospital staff administration
-    path("api/users/", include("users.staff_urls")),
-
     # Django Admin
     path(settings.ADMIN_URL, admin.site.urls),
 
-    # Laboratory sub-resources (must precede the root router; see laboratory/urls.py)
-    path("api/laboratory/", include("laboratory.urls")),
-
-    # Core APIs
-    path("api/", include(router.urls)),
-
-    # Home Dashboard API
-    path("api/home/", include("home.urls")),
-
-    # Nursing APIs (includes all nurse-related endpoints: nurses, assessments, notes, care-tasks, mar, etc.)
-    path("api/nurses/", include("nurses.urls")),
-
-
-    # Hospital Management APIs
-    path("api/hospital/", include("hospital.urls")),
-    path("api/encounters/", include("encounters.urls")),
-    path("api/clinical/", include("clinical.urls")),
-    path("api/ipd/", include("ipd.urls")),
-    path("api/emergency/", include("emergency.urls")),
-    path("api/billing/", include("billing.urls")),
-    path("api/bloodbank/", include("bloodbank.urls")),
-    path("api/notifications/", include("notifications.urls")),
-    path("api/audit/", include("audit.urls")),
-
-    # Pharmacy Procurement
-    path("api/procurement/", include("procurement.urls")),
-
-    # AI Medical Scribe
-    # AI discharge summary assist (before the scribe's catch-all /api/ai/ routes)
-    path("api/ai/discharge/", include("ai_advanced.urls")),
-
-    path("api/ai/", include("ai_scribe.urls")),
-
-    # Reports
-    path("api/reports/", include("reports.urls")),
-
-    # FHIR R4 read API (Admin only, off unless FHIR_ENABLED)
-    path("api/fhir/", include("fhir.urls")),
-
-    # ABDM/ABHA: verify and link an existing ABHA (off unless ABDM_ENABLED)
-    path("api/abdm/", include("abdm.urls")),
-
-    # Documents
-    path("api/documents/", include("documents.urls")),
-
-    # Consent
-    path("api/consent/", include("consent.urls")),
-
-    # Clinical terminology (ICD-10 search)
-    path("api/terminology/", include("terminology.urls")),
-
-    # Support services: OT, ambulance, mortuary, CSSD, laundry, leave, feedback, templates
-    path("api/services/", include("hospital_services.urls")),
+    # Versioned first: no /api/ route starts with "v1/", but keep the order explicit.
+    # The "v1" namespace keeps app namespaces (abdm, consent, ...) unique; plain
+    # reverse() names keep resolving to /api/, and "v1:<name>" to /api/v1/.
+    path("api/v1/", include((api_patterns, "v1"))),
+    path("api/", include(api_patterns)),
 ]
 
 # Serve media files in development
