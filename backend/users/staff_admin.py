@@ -53,6 +53,10 @@ def _role(value, granter_roles):
         raise ValidationError({"role": f"Role must be one of: {', '.join(StaffRole.values)}."})
     if value == StaffRole.ADMIN and StaffRole.ADMIN not in granter_roles:
         raise PermissionDenied("Only an Admin can grant the Admin role.")
+    # Decision 1 / Q1 (2026-11-09): a Manager hands out clinical and
+    # operational roles, never Admin or another Hospital Manager.
+    if value == StaffRole.HOSPITAL_MANAGER and StaffRole.ADMIN not in granter_roles:
+        raise PermissionDenied("Only an Admin can grant the Hospital Manager role.")
     return value
 
 
@@ -116,6 +120,8 @@ class StaffMembershipView(APIView):
             raise ValidationError("You cannot change your own access.")
         if membership.role == StaffRole.ADMIN and StaffRole.ADMIN not in granter_roles:
             raise PermissionDenied("Only an Admin can change another Admin.")
+        if membership.role == StaffRole.HOSPITAL_MANAGER and StaffRole.ADMIN not in granter_roles:
+            raise PermissionDenied("Only an Admin can change a Hospital Manager.")
         changes = {}
         if "role" in request.data:
             membership.role = _role(request.data["role"], granter_roles)

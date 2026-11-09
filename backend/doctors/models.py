@@ -32,6 +32,13 @@ class Doctor(models.Model):
     # Medical council registration number: printed on prescriptions and the
     # Schedule H1 register (P1-10).
     registration_number = models.CharField(max_length=50, blank=True, default="")
+    # Decision 1 / Q2 (2026-11-09): the hospital Admin records who checked the
+    # registration and when. Changing the number clears the check.
+    registration_council = models.CharField(max_length=100, blank=True, default="", db_default="")
+    registration_verified_at = models.DateTimeField(null=True, blank=True)
+    registration_verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
     email = models.EmailField(blank=True, default="")
     phone = models.CharField(max_length=15)
     department = models.ForeignKey(
@@ -67,6 +74,10 @@ class Doctor(models.Model):
 
     def __str__(self):
         return self.name
+
+    def may_sign(self):
+        """Whether this doctor may sign prescriptions and notes (Q2: the hospital may require verification)."""
+        return self.registration_verified_at is not None or not self.hospital.require_verified_doctors
 
     class Meta:
         ordering = ["-created_at"]

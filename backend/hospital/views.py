@@ -89,6 +89,10 @@ class HospitalViewSet(viewsets.ModelViewSet):
             StaffRole.ADMIN in roles or StaffRole.HOSPITAL_MANAGER in roles
         ):
             raise PermissionDenied("Only this hospital's Admin or Manager can change it.")
+        if ("require_verified_doctors" in serializer.validated_data
+                and StaffRole.ADMIN not in roles
+                and not has_platform_permission(self.request.user, "platform.hospitals.edit")):
+            raise PermissionDenied("Only this hospital's Admin can change the doctor verification rule.")
         serializer.save()
         record_audit(self.request, "hospital.update", hospital, hospital=hospital)
 

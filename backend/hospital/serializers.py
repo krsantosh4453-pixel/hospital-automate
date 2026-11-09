@@ -46,6 +46,7 @@ class HospitalSerializer(serializers.ModelSerializer):
             "name",
             "code",
             "uhid_prefix",
+            "require_verified_doctors",
             "grievance_officer_name",
             "grievance_officer_email",
             "grievance_officer_phone",

@@ -200,6 +200,7 @@ OpenAPI schemas are added for all sign-in, OTP, refresh, logout, session and con
 | Manager may not grant clinical roles | **Not changed**, needs a decision: an existing workflow (a Manager inviting a Nurse) depends on it |
 | Admin writes prescriptions/clinical notes; Manager writes diagnoses/medical records | **Not changed**, needs a clinical-safety decision |
 | Real Twilio Verify credentials | **Untested** (mocked only) |
+| RBAC decisions (Manager roles, clinical writes, security settings) | Owner decided 2026-11-09; plan and open questions in [phase-3-rbac-decisions-plan.md](phase-3-rbac-decisions-plan.md) |
 | Second security review (`156baf2`..`b4a099d`) | Cookie-mode refresh race and superuser demotion fixed (`2318f82`); Security settings stay readable by any hospital Admin (server configuration only) |
 | Backend tests | 1018 pass on PostgreSQL 16 with row-lock tests required; migrations `users/0005` and `users/0006` applied, reversed and re-applied on PostgreSQL |
 | Web tests | Vitest 125/125; Playwright E2E 32/32 (run on ports 8021/5186 in a scratch copy because another process held 5185); sign-in, family-access and OPD-to-bill specs re-run on the final code, 10/10 |
