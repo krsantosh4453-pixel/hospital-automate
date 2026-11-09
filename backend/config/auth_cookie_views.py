@@ -10,18 +10,31 @@ from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from config.auth_cookies import REFRESH_COOKIE, wants_cookies
+from config.auth_cookies import REFRESH_COOKIE, clear_auth_cookies, wants_cookies
 
 
 class CookieTokenRefreshView(TokenRefreshView):
     """Refresh from the body (API clients) or from the httpOnly refresh cookie."""
 
     def post(self, request, *args, **kwargs):
+        try:
+            return self._post(request, *args, **kwargs)
+        except AuthenticationFailed as exc:
+            # A signed-out session, disabled account or dead token: the browser
+            # should stop retrying with its cookie, so clear it with the refusal.
+            # The project's exception handler still shapes the error body.
+            response = self.handle_exception(exc)
+            if wants_cookies(request):
+                clear_auth_cookies(response)
+            return response
+
+    def _post(self, request, *args, **kwargs):
         if "refresh" in request.data or not wants_cookies(request):
             return super().post(request, *args, **kwargs)
         raw = request.COOKIES.get(REFRESH_COOKIE)

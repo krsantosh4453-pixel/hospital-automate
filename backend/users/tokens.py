@@ -19,6 +19,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.exceptions import TokenError
@@ -94,7 +95,13 @@ def revoke_sessions(sessions, reason):
     if not ids:
         return 0
     DeviceSession.objects.filter(pk__in=ids).update(revoked_at=timezone.now(), revoked_reason=reason[:100])
-    cache.set_many({_CACHE_KEY.format(pk): _REVOKED for pk in ids}, _cache_seconds())
+    keys = [_CACHE_KEY.format(pk) for pk in ids]
+    # Now: forget the cached state, so the next check reads the database (this
+    # transaction sees the revoke; a rollback leaves the sessions active).
+    cache.delete_many(keys)
+    # After the commit: pin "revoked", overwriting any "active" another request
+    # cached from the row before the commit (is_session_revoked only adds).
+    transaction.on_commit(lambda: cache.set_many(dict.fromkeys(keys, _REVOKED), _cache_seconds()))
     return len(ids)
 
 
@@ -125,7 +132,7 @@ def is_session_revoked(session_id):
     if state is None:
         active = DeviceSession.objects.filter(pk=session_id, revoked_at__isnull=True).exists()
         state = _ACTIVE if active else _REVOKED
-        cache.set(key, state, _cache_seconds())
+        cache.add(key, state, _cache_seconds())
     return state == _REVOKED
 
 
@@ -156,19 +163,57 @@ class SessionTokenRefreshSerializer(TokenRefreshSerializer):
             _revoke_if_reused(raw)
             raise
         session_id = token.get(SESSION_CLAIM)
-        if session_id is not None and is_session_revoked(session_id):
-            raise AuthenticationFailed(SIGNED_OUT, code="session_revoked")
+        if session_id is None:
+            return self._refresh(attrs, token, session_id=None)
+        with transaction.atomic():
+            # One refresh per session at a time: parallel requests with the same
+            # token wait here, and only the newest token of the session counts.
+            session = DeviceSession.objects.select_for_update().filter(pk=session_id).first()
+            if session is None or session.revoked_at is not None:
+                raise AuthenticationFailed(SIGNED_OUT, code="session_revoked")
+            if session.current_jti and session.current_jti != token["jti"]:
+                # Rotated by a parallel request a moment ago; the client uses that one.
+                raise AuthenticationFailed("This sign-in was refreshed elsewhere. Use the newest token.",
+                                           code="stale_refresh")
+            try:
+                return self._refresh(attrs, token, session_id=session_id)
+            except _AccountDisabled:
+                pass
+        # Outside the block above, which the refusal rolls back.
+        revoke_sessions(DeviceSession.objects.filter(pk=session_id), "account disabled")
+        raise AuthenticationFailed(_ACCOUNT_DISABLED, code="account_disabled")
+
+    def _refresh(self, attrs, token, session_id):
         user = get_user_model().objects.filter(pk=token.get(settings.SIMPLE_JWT["USER_ID_CLAIM"])).first()
-        if not account_may_continue(user):
+        if not account_may_continue(user) or not _proxy_grant_active(token):
             if session_id is not None:
-                revoke_sessions(DeviceSession.objects.filter(pk=session_id), "account disabled")
-            raise AuthenticationFailed("This account can no longer sign in.", code="account_disabled")
+                raise _AccountDisabled()
+            raise AuthenticationFailed(_ACCOUNT_DISABLED, code="account_disabled")
 
         data = super().validate(attrs)
         if session_id is not None:
             newest = RefreshToken(data["refresh"])["jti"] if "refresh" in data else token["jti"]
             DeviceSession.objects.filter(pk=session_id).update(current_jti=newest, last_used_at=timezone.now())
         return data
+
+
+class _AccountDisabled(Exception):
+    """The session's account or family-access grant has ended (internal signal)."""
+
+
+_ACCOUNT_DISABLED = "This account can no longer sign in."
+
+
+def _proxy_grant_active(token):
+    """Family-access tokens refresh only while their grant is active."""
+    from .proxy_access import PROXY_CLAIM
+
+    grant_id = token.get(PROXY_CLAIM)
+    if grant_id is None:
+        return True
+    from patients.models import ProxyAccess
+
+    return ProxyAccess.objects.filter(pk=grant_id, revoked_at__isnull=True).exists()
 
 
 def _revoke_if_reused(raw):

@@ -376,7 +376,8 @@ def staff_otp_verify(request):
     user_id = security.read_otp_challenge(challenge)
     otp = request.data.get("otp")
 
-    # A challenge signs in once (Phase 3); a wrong code leaves it usable.
+    # A challenge signs in once (Phase 3); a wrong code leaves it usable, up to
+    # the lockout below.
     if not user_id or not otp or security.otp_challenge_used(challenge):
         return Response(
             {"error": "Sign-in session expired or invalid. Enter your password again."},
@@ -419,8 +420,15 @@ def staff_otp_verify(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
 
+    otp_key = f"staff-otp:{user.pk}"
+    if security.is_locked_out(otp_key):
+        return Response(
+            {"error": "Too many wrong codes. Sign in again in 15 minutes."},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
     result = verify_service.check_verification(normalized_phone, otp)
     if not result.ok:
+        security.record_failure(otp_key)
         code = status.HTTP_401_UNAUTHORIZED
         if "too many" in result.message.lower() or "rate limit" in result.message.lower():
             code = status.HTTP_429_TOO_MANY_REQUESTS
@@ -430,6 +438,7 @@ def staff_otp_verify(request):
             status=code
         )
 
+    security.clear_failures(otp_key)
     if not security.consume_otp_challenge(challenge):
         return Response(
             {"error": "Sign-in session expired or invalid. Enter your password again."},
@@ -546,11 +555,13 @@ def staff_logout(request):
         clear_auth_cookies(response)
         return response
 
+    # Sign the device out first: a stale (already rotated) token still names
+    # its session, even though it can no longer be blacklisted.
+    session_id = session_id_of(refresh_token)
+    if session_id is not None:
+        revoke_sessions(DeviceSession.objects.filter(pk=session_id), "signed out")
     try:
-        session_id = session_id_of(refresh_token)
         RefreshToken(refresh_token).blacklist()
-        if session_id is not None:
-            revoke_sessions(DeviceSession.objects.filter(pk=session_id), "signed out")
         response = Response({"message": "Successfully logged out."})
     except TokenError:
         response = Response(

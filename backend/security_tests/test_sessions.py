@@ -164,6 +164,54 @@ class SessionLifecycleTests(TestCase):
 
         self.assertEqual(self.refresh(newer["refresh"]).status_code, 200)
 
+    def test_a_second_refresh_chain_from_one_token_is_refused_without_signing_out(self):
+        # Two refreshes with the same token that both slipped past the blacklist
+        # (parallel requests): the session follows the first one only.
+        tokens = self.sign_in()
+        newer = self.refresh(tokens["refresh"]).json()
+        BlacklistedToken.objects.all().delete()
+
+        self.assertEqual(self.refresh(tokens["refresh"]).status_code, 401)
+
+        self.assertEqual(self.refresh(newer["refresh"]).status_code, 200)
+
+    def test_logout_with_an_already_rotated_token_still_signs_the_device_out(self):
+        tokens = self.sign_in()
+        newer = self.refresh(tokens["refresh"]).json()
+
+        APIClient().post("/api/v1/auth/staff/logout/", {"refresh": tokens["refresh"]}, format="json")
+
+        self.assertEqual(self.client_with(newer["access"]).get(ME).status_code, 401)
+        self.assertEqual(self.refresh(newer["refresh"]).status_code, 401)
+
+    def test_refreshing_a_signed_out_browser_session_clears_its_cookies(self):
+        tokens = self.sign_in()
+        sid = AccessToken(tokens["access"])["sid"]
+        DeviceSession.objects.filter(pk=sid).update(revoked_at=timezone.now())
+        cache.clear()
+        client = APIClient(raise_request_exception=False)
+        client.cookies["hms_refresh"] = tokens["refresh"]
+
+        response = client.post("/api/v1/auth/token/refresh/", {}, format="json", HTTP_X_AUTH_MODE="cookie")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.cookies["hms_refresh"].value, "")
+
+    def test_a_revoked_family_access_grant_cannot_refresh(self):
+        from patients.models import Patient, ProxyAccess
+        from users.proxy_access import issue_proxy_tokens, proxy_user_for
+
+        patient = Patient.objects.create(name="Synthetic Grant Patient", age=60, gender="Male", phone="9000000050",
+                                         hospital=self.hospital)
+        proxy_user = proxy_user_for("9000000051")
+        grant = ProxyAccess.objects.create(patient=patient, name="Synthetic Son", relationship="Son",
+                                           phone="9000000051", proxy_user=proxy_user)
+        tokens = issue_proxy_tokens(proxy_user, grant)
+        ProxyAccess.objects.filter(pk=grant.pk).update(revoked_at=timezone.now())
+
+        self.assertEqual(self.refresh(tokens["refresh"]).status_code, 401)
+        self.assertIsNotNone(DeviceSession.objects.get(pk=AccessToken(tokens["access"])["sid"]).revoked_at)
+
     # Before this deploy ----------------------------------------------------
 
     def test_tokens_issued_before_sessions_existed_keep_working(self):
@@ -209,6 +257,13 @@ class OTPChallengeTests(TestCase):
         self.assertEqual(self.verify(challenge).status_code, 200)
 
         self.assertEqual(self.verify(challenge).status_code, 400)
+
+    def test_too_many_wrong_codes_lock_the_challenge(self):
+        challenge = self.challenge()
+        for _ in range(5):
+            self.assertEqual(self.verify(challenge, code="000000").status_code, 401)
+
+        self.assertEqual(self.verify(challenge).status_code, 429)
 
     def test_a_wrong_code_leaves_the_challenge_usable(self):
         challenge = self.challenge()
