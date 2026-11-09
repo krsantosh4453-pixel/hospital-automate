@@ -1,5 +1,7 @@
 from django.db import models
 
+from doctors.models import MAX_SLOT_CAPACITY
+
 
 class Appointment(models.Model):
     class Status(models.TextChoices):
@@ -56,6 +58,9 @@ class Appointment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     # Idempotency-Key of the patient's own booking request (blank for staff bookings).
     idempotency_key = models.CharField(max_length=80, blank=True, default="")
+    # Place this booking holds in its doctor's slot, 1..doctor.slot_capacity
+    # (assigned by appointments/slots.py); only active bookings hold a place.
+    slot_seat = models.PositiveSmallIntegerField(default=1)
 
     def __str__(self):
         return f"{self.patient.name} - {self.doctor.name}"
@@ -70,12 +75,25 @@ class Appointment(models.Model):
             models.Index(fields=["hospital", "doctor", "appointment_date"]),
         ]
         constraints = [
-            # P1-04: one active booking per patient, doctor and slot; other
-            # patients may share the slot, and a cancelled one can be rebooked.
+            # P1-04: one active booking per patient, doctor and slot; a cancelled
+            # one can be rebooked. Other patients share the slot only up to the
+            # doctor's slot_capacity (constraint below).
             models.UniqueConstraint(
                 fields=["patient", "doctor", "appointment_date", "appointment_time"],
                 condition=models.Q(status__in=["Scheduled", "Checked In", "In Consultation"]),
                 name="appointment_unique_active_slot",
+            ),
+            # Decision G: no two active bookings share a place in one doctor slot. With the
+            # default capacity of 1 every booking takes place 1, so the database alone
+            # keeps a slot to one patient whatever code writes the row.
+            models.UniqueConstraint(
+                fields=["doctor", "appointment_date", "appointment_time", "slot_seat"],
+                condition=models.Q(status__in=["Scheduled", "Checked In", "In Consultation"]),
+                name="appointment_unique_active_slot_seat",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(slot_seat__gte=1, slot_seat__lte=MAX_SLOT_CAPACITY),
+                name="appointment_slot_seat_in_range",
             ),
             # A retried booking request returns its first booking instead of making another.
             models.UniqueConstraint(

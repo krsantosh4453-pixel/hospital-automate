@@ -10,7 +10,7 @@ Sizes are rough engineering effort for one developer with AI help, not calendar 
 | # | Phase | Objective | Main files | Depends on | Exit criteria | Size |
 |---|---|---|---|---|---|---|
 | 1 | Audit & architecture | Map what exists; agree the target | `docs/architecture/*` | None | Owner approves decisions A–E | Done (this) |
-| 2 | API & backend readiness (**in progress**, see below) | `/api/v1/` alias; fix the empty-day booking race; booking idempotency; remove dead URL modules; clean the OpenAPI schema for mobile endpoints | `config/urls.py`, `appointments/views.py`, `appointments/models.py` + migration, `doctors/urls.py` etc., `config/openapi_schema.py` | 1 | Concurrency test proves two patients cannot take one slot (PostgreSQL); web E2E green on `/api/v1/`; schema has no warnings for mobile endpoints | M |
+| 2 | API & backend readiness (**done 2026-11-09**, see below) | `/api/v1/` alias; fix the empty-day booking race; booking idempotency; remove dead URL modules; clean the OpenAPI schema for mobile endpoints | `config/urls.py`, `appointments/views.py`, `appointments/models.py` + migration, `doctors/urls.py` etc., `config/openapi_schema.py` | 1 | Concurrency test proves two patients cannot take one slot (PostgreSQL); web E2E green on `/api/v1/`; schema has no warnings for mobile endpoints | M |
 | 3 | Auth & tenant context | `me/contexts`, `DeviceSession`, session list/revoke/logout-all, `PlatformStaff` replacing `is_superuser`, cross-hospital tests per endpoint | `users/` (models, views, urls, permissions), `hospital/views.py`, `notifications/views.py`, `reports/views.py`, `security_tests/` | 2 | Tenancy test matrix: every mobile endpoint × (own hospital, other hospital, no membership, wrong role) | M |
 | 4 | Flutter foundation | Project skeleton, flavours, Dio + interceptors, secure storage, OTP sign-in, context picker, GoRouter role guards, theme, error/empty/offline widgets, CI (analyze, test, Android build; iOS build on macOS runner) | `mobile/**`, `.github/workflows/mobile.yml` | 3; Flutter SDK installed | Sign in by OTP on a staging backend, pick a hospital, see the role home; Android and iOS debug builds in CI | M |
 | 5 | Patient app + booking | Discovery, slots, booking, history, prescriptions, reports, bills (view only) | `mobile/lib/features/{patient,appointments,prescriptions,medical_records,billing}`, `appointments/` slots endpoint, `encounters/models.py` (slot fields) | 4 | Booking E2E with integration tests; double-booking test from two devices; offline shows cached data with "may be out of date" | L |
@@ -24,7 +24,7 @@ Sizes are rough engineering effort for one developer with AI help, not calendar 
 
 ## Phase 2 in detail
 
-Status 2026-11-09: items 1–6 below are done and tested; they are not committed yet. Remaining Phase 2 work: reduce OpenAPI schema warnings for the endpoints mobile uses (item 7), and Decision G.
+Status 2026-11-09: all items below are done and tested, and Decision G is applied (item 8). Remaining schema warnings (49, none in mobile v1 endpoints) are listed under item 7.
 
 
 
@@ -35,7 +35,8 @@ Status 2026-11-09: items 1–6 below are done and tested; they are not committed
 5. **Dead code:** deleted `appointments/`, `pharmacy/`, `compounder/`, `patients/` and `doctors/urls.py`; the full list of 2,263 resolved routes was byte-identical before and after.
 6. **Docs:** update `docs/API_DOCUMENTATION.md` and this roadmap.
 Review notes (2026-11-09): moving the web app to `/api/v1/` first needs the refresh cookie path widened from `/api/auth/` (and logout clearing both paths). Migration `appointments/0008` builds a small partial unique index non-concurrently, a brief write lock on `appointments_appointment`; fine at current size.
-7. **Schema clean-up (open):** add serializer type hints / `extend_schema` to the mobile endpoints (auth, patient me, booking options and book, appointments, prescriptions, invoices) until they generate without warnings.
+7. **Schema clean-up (done for mobile v1):** return types on the computed fields of Invoice, Prescription, QueueToken, Hospital and Department; full request/response, `Idempotency-Key` header and 200/201/400/409 descriptions for `appointments/booking-options/` and `appointments/book/` (`appointments/openapi.py`). Warnings fell from 88 to 49; those left are in modules mobile v1 does not use (AI drafts, break-glass, MAR, lab, blood bank, reports, consent/document operation ids, enum names). Patient and staff sign-in endpoints are hand-written function views still documented as generic objects; they get proper schemas in Phase 3, where the auth endpoints change anyway.
+8. **Decision G — slot capacity:** `Doctor.slot_capacity` (default 1, 1–20, database check) and `Appointment.slot_seat` with a unique constraint on (doctor, date, time, place) for active bookings. `appointments/slots.py` locks the doctor row and hands out the lowest free place; patient booking, staff create/edit, reschedule and reactivation all use it. Migration `appointments/0009` numbers the places of slots that were already shared and keeps every booking; `manage.py report_duplicate_bookings` lists slots now over capacity.
 
 ## Not in scope until asked
 

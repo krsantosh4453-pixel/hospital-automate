@@ -123,16 +123,18 @@ class PatientBookingTests(TestCase):
         self.assertEqual(resp.status_code, 400, resp.content)
         self.assertFalse(Appointment.objects.filter(patient=self.patient).exists())
 
-    def test_staff_booking_winning_the_slot_meanwhile_gives_409_not_500(self):
-        # A receptionist's booking does not take the doctor lock; simulate it
-        # landing between the patient's slot check and insert.
-        Appointment.objects.create(hospital=self.hospital_a, patient=self.patient, doctor=self.doctor_a,
+    def test_a_place_filled_by_a_writer_without_the_lock_gives_409_not_500(self):
+        # Simulate a writer that skips the doctor lock filling the only place
+        # between the patient's place check and insert.
+        other = Patient.objects.create(name="Synthetic Other", age=40, gender="Male", phone="9000000605",
+                                       hospital=self.hospital_a)
+        Appointment.objects.create(hospital=self.hospital_a, patient=other, doctor=self.doctor_a,
                                    appointment_date=self.tomorrow, appointment_time="10:00", status="Scheduled")
-        with patch("appointments.views._taken_slots", return_value=set()):
+        with patch("appointments.views.take_place", return_value=1):
             resp = self.book()
 
         self.assertEqual(resp.status_code, 409, resp.content)
-        self.assertEqual(Appointment.objects.filter(patient=self.patient).count(), 1)
+        self.assertFalse(Appointment.objects.filter(patient=self.patient).exists())
 
     def test_idempotency_keys_belong_to_one_patient(self):
         other_login = User.objects.create_user(username="booking_patient_two", password="Synthetic-Pass-123")

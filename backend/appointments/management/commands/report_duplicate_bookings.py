@@ -1,6 +1,8 @@
 """
-List active bookings that repeat a patient, doctor and slot, and appointments
-with more than one queue token (P1-04). Read only: run it before the
+List active bookings that repeat a patient, doctor and slot, appointments
+with more than one queue token (P1-04), and slots holding more active
+bookings than their doctor's capacity (Decision G: shared slots made before
+2026-11-09 are kept, with numbered places). Read only: run it before the
 migrations that add those unique constraints, and settle each group by hand.
 Prints ids only, never patient names.
 
@@ -8,14 +10,14 @@ Prints ids only, never patient names.
 """
 
 from django.core.management.base import BaseCommand
-from django.db.models import Count
+from django.db.models import Count, F
 
 from appointments.models import Appointment
 from encounters.models import QueueToken
 
 
 class Command(BaseCommand):
-    help = "Report duplicate active bookings and duplicate queue tokens (read only)."
+    help = "Report duplicate active bookings, duplicate queue tokens and over-capacity slots (read only)."
 
     def handle(self, *args, **options):
         slots = (
@@ -41,5 +43,16 @@ class Command(BaseCommand):
                        .order_by("id").values_list("id", flat=True))
             self.stdout.write(f"appointment {group['appointment_id']}: queue tokens {ids}")
 
-        self.stdout.write(f"{len(slots)} duplicate booking group(s), {len(tokens)} duplicate token group(s). "
-                          "Nothing was changed.")
+        crowded = (
+            Appointment.objects.filter(status__in=Appointment.ACTIVE_STATUSES)
+            .values("doctor_id", "doctor__slot_capacity", "appointment_date", "appointment_time")
+            .annotate(rows=Count("id"))
+            .filter(rows__gt=F("doctor__slot_capacity"))
+            .order_by("appointment_date", "appointment_time")
+        )
+        for slot in crowded:
+            self.stdout.write(f"doctor {slot['doctor_id']}, {slot['appointment_date']} {slot['appointment_time']}: "
+                              f"{slot['rows']} active booking(s), capacity {slot['doctor__slot_capacity']}")
+
+        self.stdout.write(f"{len(slots)} duplicate booking group(s), {len(tokens)} duplicate token group(s), "
+                          f"{len(crowded)} slot(s) over capacity. Nothing was changed.")

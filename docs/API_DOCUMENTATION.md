@@ -62,6 +62,10 @@ Amounts are decimal strings with two places (`"607.99"`). The server computes ev
 
 `POST /api/appointments/book/` (patient self-booking) accepts an `Idempotency-Key` header (up to 80 characters, unique per patient). Repeating the request with the same key returns the first booking with status 200 instead of booking again, even after the slot time or the upcoming-booking limit would now refuse it. The same key sent for a different doctor, date or time is refused with 409. Two patients asking for one free slot at the same moment get one 201 and one 409 (the doctor row is locked during booking). A key longer than 80 characters is refused with 400. A key stays bound to its booking after cancellation: replaying it returns the cancelled booking, so a new booking needs a new key.
 
+### Appointment slots (Decision G, 2026-11-09)
+
+A doctor's 15-minute slot takes **one patient** unless an Admin or Hospital Manager raises the doctor's `slot_capacity` (1–20, `PATCH /api/doctors/{id}/`) for group or shared consultations. Every active booking (Scheduled, Checked In, In Consultation) holds a numbered place, `slot_seat` (read only). A full slot is refused with 400 on staff create, edit, reschedule or reactivation, and 409 on patient self-booking. Cancelling frees the place. `GET /api/appointments/booking-options/` returns `capacity` and `remaining` for each slot. Slots shared before this change keep all their bookings; `python manage.py report_duplicate_bookings` lists them. Lowering a capacity keeps existing bookings and refuses new ones until the slot is below it. A No Show booking whose queue token is put back takes a free place again, or stays No Show if the slot has filled.
+
 ### Audit
 
 Every create, update and delete through the scoped viewsets writes an `AuditLog` row with the user, hospital, action, object and, for updates, old → new values. Sign-ins, password resets, document downloads, consent changes, payments and refunds, and AI approvals are also audited.

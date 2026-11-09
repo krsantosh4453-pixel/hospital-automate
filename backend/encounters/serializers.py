@@ -237,7 +237,7 @@ class QueueTokenSerializer(serializers.ModelSerializer):
         # by the DB constraint plus the retry loop in create() instead.
         validators = []
 
-    def get_waiting_minutes(self, obj):
+    def get_waiting_minutes(self, obj) -> int:
         if obj.status and obj.status != QueueToken.Status.WAITING:
             return 0
 

@@ -157,11 +157,14 @@ class AppointmentAPITests(TestCase):
         self.assertIn(f"A{self.appointment.id:03d}", str(response.data))
         self.assertEqual(Appointment.objects.count(), 1)
 
-    def test_another_patient_may_share_the_slot(self):
+    def test_another_patient_shares_the_slot_only_when_the_doctor_takes_more_than_one(self):
+        # Decision G (2026-11-09) replaced shared slots: one patient per slot unless capacity is raised.
         other = Patient.objects.create(name="Other Patient", age=40, gender="Female", phone="9876500011",
                                        hospital=self.hospital_a)
         PatientHospital.objects.create(patient=other, hospital=self.hospital_a, is_active=True)
 
+        self.assertEqual(self.book(patient=other).status_code, status.HTTP_400_BAD_REQUEST)
+        Doctor.objects.filter(pk=self.doctor.pk).update(slot_capacity=2)
         self.assertEqual(self.book(patient=other).status_code, status.HTTP_201_CREATED)
 
     def test_a_cancelled_slot_can_be_booked_again(self):

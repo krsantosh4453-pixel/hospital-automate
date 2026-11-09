@@ -46,12 +46,15 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "reason",
             "village",
             "contact",
+            "slot_seat",
             "created_at",
             "patient_name",
             "doctor_name",
             "hospital_name",
         ]
-        read_only_fields = ["id", "created_at"]
+        # slot_seat: the place this booking holds in the doctor's slot (Decision G);
+        # assigned by the server (appointments/slots.py), never by the client.
+        read_only_fields = ["id", "created_at", "slot_seat"]
         # The slot rule is checked in validate() with a message naming the
         # existing booking; DRF's generic validator for the constraint would win first.
         validators = []

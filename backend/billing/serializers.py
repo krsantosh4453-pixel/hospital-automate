@@ -202,23 +202,23 @@ class InvoiceSerializer(serializers.ModelSerializer):
             memberships = obj.patient.hospital_memberships.all()
         return next((m.uhid for m in memberships if m.hospital_id == obj.hospital_id and m.is_active), "")
 
-    def get_total_paid(self, obj):
+    def get_total_paid(self, obj) -> str:
         # Exact decimal string, like the stored money fields.
         return str(money(obj.total_paid))
 
-    def get_balance_due(self, obj):
+    def get_balance_due(self, obj) -> str:
         return str(money(obj.balance_due))
 
-    def get_is_paid(self, obj):
+    def get_is_paid(self, obj) -> bool:
         return obj.is_paid
 
-    def get_subtotal(self, obj):
+    def get_subtotal(self, obj) -> str:
         return str(money(obj.subtotal))
 
-    def get_tax_amount(self, obj):
+    def get_tax_amount(self, obj) -> str:
         return str(money(obj.tax_amount))
 
-    def get_total_amount(self, obj):
+    def get_total_amount(self, obj) -> str:
         return str(money(obj.total_amount))
 
     def validate_discount(self, value):

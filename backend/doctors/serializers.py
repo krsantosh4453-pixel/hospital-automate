@@ -18,6 +18,7 @@ class DoctorSerializer(serializers.ModelSerializer):
             "experience",
             "availability",
             "status",
+            "slot_capacity",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]

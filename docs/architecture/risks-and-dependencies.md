@@ -12,7 +12,7 @@ Related: [implementation-roadmap.md](implementation-roadmap.md) · [target-syste
 | D | PostgreSQL RLS | Pilot on two tables in Phase 11, then decide | Phase 11 |
 | E | Where the Flutter app lives | `mobile/` in this repository | Phase 4 |
 | F | Payment gateway | Choose a provider (for example Razorpay, Cashfree or PayU in India); needs a merchant account | Phase 8 |
-| G | Same-slot policy | Can two patients share one doctor slot (OPD token style) or is a slot exclusive? Today the database allows sharing for staff bookings; patient self-booking tries to block it | Phase 2 |
+| G | Same-slot policy | **Decided 2026-11-09:** one patient per doctor slot by default; a hospital admin may raise `Doctor.slot_capacity` (1–20) for group consultations. Enforced by a database constraint on numbered places plus the doctor-row lock | Done (Phase 2) |
 
 ## 2. External dependencies
 
@@ -46,7 +46,9 @@ Related: [implementation-roadmap.md](implementation-roadmap.md) · [target-syste
 **Patient self-booking race on an empty day** (`backend/appointments/views.py`, self-booking action). The transaction locks `Appointment` rows for the doctor and day with `select_for_update`. When the day has no rows yet nothing is locked, and the unique constraint `appointment_unique_active_slot` includes `patient`, so it does not stop two different patients. Two simultaneous bookings for the first slot of an empty day can therefore both succeed.
 - **Reproduced** on PostgreSQL 16: 8 parallel patients, 3 got the slot (`security_tests/test_concurrency.py::test_one_slot_on_an_empty_day_goes_to_one_patient`).
 - **Fixed** in Phase 2: `book` locks the `Doctor` row before checking taken slots; the same test now gets one 201 and seven 409s. Retries with one `Idempotency-Key` book once (`test_parallel_booking_retries_with_one_idempotency_key_book_once`).
-- Staff bookings (`POST /api/appointments/`) still allow two patients in one slot, by design until Decision G is answered; no database constraint was added for that reason.
+- Decision G (2026-11-09) closed the remaining gap: staff bookings, edits and reschedules take a place under the same doctor lock, and a database constraint refuses two active bookings on one place. Concurrency tests: 8 parallel patients against capacity 3 → exactly 3 booked; 8 parallel receptionist bookings against capacity 1 → exactly 1.
+- Every application write path takes its place through `appointments/slots.py`, including a queue token put back in the queue: a No Show or Completed booking becomes active again only if its slot still has a free place, otherwise it keeps its status and the token is served from the queue. Lowering a doctor's capacity never closes existing bookings; new bookings are refused until the slot is below the new capacity.
+- Residual risk: a direct database edit or a Django admin save that skips `appointments/slots.py` is still stopped by the database constraint, but fails with an error page instead of a clear message.
 
 ## 5. Scalability risks
 

@@ -308,7 +308,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
     def get_verified_by_name(self, obj) -> str:
         return self._user_name(obj.verified_by)
 
-    def get_visit_label(self, obj):
+    def get_visit_label(self, obj) -> str:
         return f"Visit #{obj.visit_id}" if obj.visit_id else ""
 
     def validate_items(self, value):

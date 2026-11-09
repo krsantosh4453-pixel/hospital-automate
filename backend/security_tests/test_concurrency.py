@@ -425,3 +425,58 @@ class ConcurrentWriteTests(WardMixin, TransactionTestCase):
         booked_id = Appointment.objects.get(patient=patient).id
         self.assertEqual(sorted(code for code, _ in results), [200] * (THREADS - 1) + [201], results)
         self.assertEqual({appointment_id for _, appointment_id in results}, {booked_id})
+
+    def test_parallel_bookings_never_exceed_a_slots_capacity(self):
+        from datetime import timedelta
+
+        from django.contrib.auth import get_user_model
+        from appointments.models import Appointment
+        from appointments.views import _hospital_now
+
+        doctor = Doctor.objects.create(hospital=self.hospital, name="Dr Group", specialization="General",
+                                       phone="9000088890", slot_capacity=3)
+        day = (_hospital_now().date() + timedelta(days=1)).isoformat()
+        logins = []
+        for index in range(THREADS):
+            patient = self.make_patient(index)
+            patient.user = get_user_model().objects.create_user(username=f"group_booker_{index}")
+            patient.save(update_fields=["user"])
+            logins.append(patient.user)
+
+        def book(i):
+            client = APIClient()
+            client.force_authenticate(logins[i])
+            return client.post("/api/appointments/book/", {
+                "doctor": doctor.id, "appointment_date": day, "appointment_time": "10:00"}, format="json").status_code
+
+        results = run_together(book)
+
+        self.assertEqual(sorted(results), [201] * 3 + [409] * (THREADS - 3), results)
+        seats = Appointment.objects.filter(doctor=doctor).values_list("slot_seat", flat=True)
+        self.assertEqual(sorted(seats), [1, 2, 3])
+
+    def test_parallel_reception_bookings_put_one_patient_in_a_slot(self):
+        from datetime import timedelta
+
+        from appointments.models import Appointment
+        from appointments.views import _hospital_now
+
+        receptionist, _ = make_staff("race_reception", self.hospital, role=StaffRole.RECEPTIONIST)
+        doctor = Doctor.objects.create(hospital=self.hospital, name="Dr Desk", specialization="General",
+                                       phone="9000088891")
+        day = (_hospital_now().date() + timedelta(days=1)).isoformat()
+        patients = [self.make_patient(index) for index in range(THREADS)]
+
+        def book(i):
+            client = APIClient()
+            client.force_authenticate(receptionist)
+            client.credentials(HTTP_X_HOSPITAL_ID=str(self.hospital.id))
+            return client.post("/api/appointments/", {
+                "hospital": self.hospital.id, "patient": patients[i].id, "doctor": doctor.id,
+                "appointment_date": day, "appointment_time": "10:00", "status": "Scheduled"},
+                format="json").status_code
+
+        results = run_together(book)
+
+        self.assertEqual(sorted(results), [201] + [400] * (THREADS - 1), results)
+        self.assertEqual(Appointment.objects.filter(doctor=doctor).count(), 1)
