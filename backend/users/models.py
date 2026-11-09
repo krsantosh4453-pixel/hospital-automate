@@ -160,3 +160,24 @@ class DeviceSession(models.Model):
 
     def __str__(self):
         return f"{self.user_id} {self.platform} {self.id}"
+
+
+class PlatformStaff(models.Model):
+    """
+    Platform (SaaS operator) staff, apart from any hospital (Phase 3). What
+    each role may do is in users/platform.py; it never includes patient data,
+    which needs a hospital membership like anyone else.
+    """
+
+    class Role(models.TextChoices):
+        ADMIN = "platform_admin", "Platform admin"
+        SUPPORT = "platform_support", "Platform support"
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="platform_staff")
+    role = models.CharField(max_length=20, choices=Role.choices)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user_id} {self.role}"

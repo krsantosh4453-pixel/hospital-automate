@@ -12,6 +12,7 @@ from users.permissions import (
     is_active_staff,
     parse_hospital_id,
 )
+from users.platform import has_platform_permission
 from reports.services import KPIService
 from reports.forecasting import ForecastingService
 from reports.models import ReportTemplate, SavedReport, ScheduledReport, KPISnapshot
@@ -661,7 +662,7 @@ class IsTemplateEditor(BasePermission):
     """
 
     def has_permission(self, request, view):
-        if request.user.is_superuser:
+        if has_platform_permission(request.user, "platform.report_templates.edit"):
             return True
         return request.method in SAFE_METHODS and is_active_staff(request.user)
 

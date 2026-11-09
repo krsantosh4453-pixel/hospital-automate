@@ -20,6 +20,7 @@ from users.permissions import (
 )
 from users.viewsets import HospitalScopedViewSet, hospital_id_of, resolve_hospital_lookup
 from users.models import StaffHospitalMembership, StaffRole
+from users.platform import has_platform_permission, platform_permission
 from .models import Hospital, Department, Ward, Room, Bed
 from .serializers import (
     HospitalSerializer,
@@ -38,7 +39,7 @@ def can_add_hospital(user):
     A platform administrator, an Admin of any hospital, or an Admin account
     that has no hospital yet (registered with the admin invitation code).
     """
-    if user.is_superuser:
+    if has_platform_permission(user, "platform.hospitals.create"):
         return True
     profile = get_user_staff_profile(user)
     if profile is None or not profile.is_active_staff:
@@ -56,15 +57,16 @@ class HospitalViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = HospitalSerializer
-    permission_classes = [IsAuthenticated, IsStaffUser]
+    # Platform staff list hospitals without a staff profile; writes keep their own checks below.
+    permission_classes = [IsAuthenticated, IsStaffUser | platform_permission("platform.hospitals.view")]
 
     def get_queryset(self):
-        if self.request.user.is_superuser:
+        if has_platform_permission(self.request.user, "platform.hospitals.view"):
             return Hospital.objects.all().order_by("name")
         return Hospital.objects.filter(id__in=get_user_hospital_ids(self.request.user)).order_by("name")
 
     def _require_platform_admin(self):
-        if not self.request.user.is_superuser:
+        if not has_platform_permission(self.request.user, "platform.hospitals.delete"):
             raise PermissionDenied("Only a platform administrator can do this.")
 
     @transaction.atomic
@@ -83,7 +85,7 @@ class HospitalViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         hospital = serializer.instance
         roles = get_user_roles(self.request.user, hospital.id)
-        if not self.request.user.is_superuser and not (
+        if not has_platform_permission(self.request.user, "platform.hospitals.edit") and not (
             StaffRole.ADMIN in roles or StaffRole.HOSPITAL_MANAGER in roles
         ):
             raise PermissionDenied("Only this hospital's Admin or Manager can change it.")
@@ -118,7 +120,7 @@ class _OrgStructureViewSet(HospitalScopedViewSet):
     def _require_manager_of(self, hospital_id):
         # The permission class checks the role at the hospital named in the
         # request; the row may belong to another hospital the user is in.
-        if self.request.user.is_superuser or hospital_id is None:
+        if has_platform_permission(self.request.user, "platform.hospitals.edit") or hospital_id is None:
             return
         roles = get_user_roles(self.request.user, hospital_id)
         if StaffRole.ADMIN not in roles and StaffRole.HOSPITAL_MANAGER not in roles:

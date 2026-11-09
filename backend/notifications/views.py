@@ -28,6 +28,7 @@ from users.permissions import (
     get_request_hospital_id,
     is_active_staff,
 )
+from users.platform import has_platform_permission
 
 STAFF = IsAdmin | IsHospitalManager | IsReceptionist | IsDoctor | IsNurse
 
@@ -205,7 +206,7 @@ class ConsentViewSet(HospitalScopedViewSet):
 
 class IsPlatformAdmin(BasePermission):
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
+        return has_platform_permission(request.user, "platform.otp_log.view")
 
 
 class OTPVerificationViewSet(viewsets.ReadOnlyModelViewSet):
