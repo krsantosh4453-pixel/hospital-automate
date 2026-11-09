@@ -4,6 +4,7 @@ from config.hospital_time import hospital_today
 
 from django.db import transaction
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from .medication_safety import blocking
 from .models import (
@@ -126,9 +127,13 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             "visit",
             "doctor",
             *[field for field, _ in ClinicalNote.SECTIONS],
+            "amends",
+            "signed_at",
+            "signed_by",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        # doctor: the signed-in doctor (ClinicalNoteViewSet); signed_*: the sign action only.
+        read_only_fields = ["id", "created_at", "doctor", "signed_at", "signed_by"]
 
     def validate(self, attrs):
         # On a partial update the stored value stands in for a field not sent.
@@ -153,9 +158,12 @@ class DiagnosisSerializer(serializers.ModelSerializer):
             "icd10_code",
             "diagnosis_type",
             "remarks",
+            "amends",
+            "signed_at",
+            "signed_by",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at", "recorded_by"]
+        read_only_fields = ["id", "created_at", "recorded_by", "signed_at", "signed_by"]
 
 
 class ServiceOrderSerializer(serializers.ModelSerializer):
@@ -401,6 +409,10 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"doctor": "You can only prescribe in your own name."})
         if instance is None and named is None:
             attrs["doctor"] = own
+        if instance is None and not own.may_sign():
+            # Q2: a prescription is signed when it is written.
+            raise PermissionDenied("This hospital requires a verified registration before you can prescribe. "
+                                   "Ask the hospital Admin to verify it.")
         return own
 
     def _check_medication_safety(self, attrs, hospital, patient):

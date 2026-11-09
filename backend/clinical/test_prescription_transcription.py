@@ -151,14 +151,15 @@ class TranscriptionTests(TestCase):
         self.assertTrue(AuditLog.objects.filter(action="clinical.prescription.verified").exists())
         self.assertEqual(self.dispense(rx_id).status_code, 201)
 
-    def test_admin_may_verify(self):
+    def test_admin_cannot_verify(self):
+        # Q5 (2026-11-09): verifying a transcription is pharmacy work only.
         rx_id = self.transcribe().json()["id"]
-        self.assertEqual(self.api(self.admin).post(f"{URL}{rx_id}/verify/").status_code, 200)
+        self.assertEqual(self.api(self.admin).post(f"{URL}{rx_id}/verify/").status_code, 403)
 
     def test_verify_only_once_and_only_transcriptions(self):
         rx_id = self.transcribe().json()["id"]
         self.api(self.second).post(f"{URL}{rx_id}/verify/")
-        self.assertEqual(self.api(self.admin).post(f"{URL}{rx_id}/verify/").status_code, 400)
+        self.assertEqual(self.api(self.second).post(f"{URL}{rx_id}/verify/").status_code, 400)
         normal = Prescription.objects.create(hospital=self.hospital, patient=self.patient, doctor=self.doctor)
         self.assertEqual(self.api(self.second).post(f"{URL}{normal.pk}/verify/").status_code, 400)
 
@@ -169,12 +170,16 @@ class TranscriptionTests(TestCase):
 
     def test_status_cannot_skip_verification(self):
         rx_id = self.transcribe().json()["id"]
-        admin = self.api(self.admin)
-        self.assertEqual(admin.patch(f"{URL}{rx_id}/", {"status": "Confirmed"}, format="json").status_code, 400)
-        self.assertEqual(admin.patch(f"{URL}{rx_id}/", {"status": "Cancelled"}, format="json").status_code, 200)
+        # Q5 (2026-11-09): the pharmacy manages its transcriptions; the Admin only reads.
+        pharmacy = self.api(self.pharmacist)
+        self.assertEqual(pharmacy.patch(f"{URL}{rx_id}/", {"status": "Confirmed"}, format="json").status_code, 400)
+        self.assertEqual(pharmacy.patch(f"{URL}{rx_id}/", {"status": "Cancelled"}, format="json").status_code, 200)
+        self.assertEqual(self.api(self.admin).patch(f"{URL}{rx_id}/", {"status": "Pending Verification"},
+                                                    format="json").status_code, 403)
         normal = Prescription.objects.create(hospital=self.hospital, patient=self.patient, doctor=self.doctor)
-        self.assertEqual(admin.patch(f"{URL}{normal.pk}/", {"status": "Pending Verification"},
-                                     format="json").status_code, 400)
+        # A doctor's prescription is not the pharmacy's to change.
+        self.assertEqual(pharmacy.patch(f"{URL}{normal.pk}/", {"status": "Pending Verification"},
+                                        format="json").status_code, 403)
 
 
 class DispensingGuardTests(TestCase):

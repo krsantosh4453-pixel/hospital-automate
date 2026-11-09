@@ -55,13 +55,13 @@ class TenantContextTests(TestCase):
         self.assertFalse(user_has_role(self.user, StaffRole.HOSPITAL_MANAGER))
 
     def test_a_role_counts_only_in_its_own_hospital(self):
-        self.assertIn("Prescriptions.Add", permissions_for(self.user, self.hospital_a.id))
-        self.assertNotIn("Prescriptions.Add", permissions_for(self.user, self.hospital_b.id))
+        self.assertIn("Billing.Delete", permissions_for(self.user, self.hospital_a.id))
+        self.assertNotIn("Billing.Delete", permissions_for(self.user, self.hospital_b.id))
         self.assertEqual(permissions_for(self.user, self.suspended.id), frozenset())
 
         request = Request(APIRequestFactory().get("/", HTTP_X_HOSPITAL_ID=str(self.hospital_b.id)))
         request.user = self.user
-        self.assertFalse(HasHospitalPermission("Prescriptions.Add")().has_permission(request, None))
+        self.assertFalse(HasHospitalPermission("Billing.Delete")().has_permission(request, None))
         self.assertTrue(HasHospitalPermission("Patients.Add")().has_permission(request, None))
 
     def test_a_restriction_removes_permissions_and_never_adds_any(self):

@@ -34,7 +34,8 @@ def _actions(*names):
 V, VE, VA, VAE = _actions("View"), _actions("View", "Edit"), _actions("View", "Add"), _actions("View", "Add", "Edit")
 
 ROLE_MODULE_ACTIONS = {
-    StaffRole.ADMIN: {module: ALL_ACTIONS for module in ALL_MODULES},
+    # Decision 2 (2026-11-09): the Admin reads prescriptions, never writes them.
+    StaffRole.ADMIN: {**{module: ALL_ACTIONS for module in ALL_MODULES}, "Prescriptions": V},
     StaffRole.DOCTOR: {
         "Dashboard": V, "Patients": VE, "Appointments": VE, "Queue": V, "Doctors": V, "Prescriptions": VAE,
         "Laboratory": VA, "Reports": V, "IPD": VAE, "Emergency": VAE, "BloodBank": VA, "AIScribe": VAE,

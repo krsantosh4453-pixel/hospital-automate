@@ -147,3 +147,173 @@ class DoctorVerificationTests(TestCase):
             url, {"require_verified_doctors": True}, format="json").status_code, 200)
         self.hospital.refresh_from_db()
         self.assertTrue(self.hospital.require_verified_doctors)
+
+
+class ClinicalWriteRulesTests(TestCase):
+    """Decision 2 with Q4-Q6: who writes which clinical record; signed records stay as signed."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from encounters.models import Visit
+        from patients.models import Patient, PatientHospital
+
+        cls.hospital = Hospital.objects.create(name="Synthetic Clinical", is_active=True)
+        cls.admin, _ = make_staff("clin_admin", cls.hospital, role=StaffRole.ADMIN)
+        cls.manager, _ = make_staff("clin_manager", cls.hospital, role=StaffRole.HOSPITAL_MANAGER)
+        cls.nurse, _ = make_staff("clin_nurse", cls.hospital, role=StaffRole.NURSE)
+        cls.pharmacist, _ = make_staff("clin_pharmacist", cls.hospital, role=StaffRole.PHARMACIST)
+        cls.doctor_user, _ = make_staff("clin_doctor", cls.hospital, role=StaffRole.DOCTOR)
+        cls.other_doctor_user, _ = make_staff("clin_doctor_two", cls.hospital, role=StaffRole.DOCTOR)
+        cls.doctor = Doctor.objects.create(hospital=cls.hospital, user=cls.doctor_user, name="Dr Author",
+                                           specialization="Medicine", phone="9000000090", registration_number="R-1")
+        cls.other_doctor = Doctor.objects.create(hospital=cls.hospital, user=cls.other_doctor_user, name="Dr Other",
+                                                 specialization="Medicine", phone="9000000091")
+        cls.patient = Patient.objects.create(name="Synthetic Clinical Patient", age=50, gender="Female",
+                                             phone="9000000092", hospital=cls.hospital)
+        PatientHospital.objects.create(patient=cls.patient, hospital=cls.hospital, uhid="CLIN-1")
+        cls.visit = Visit.objects.create(hospital=cls.hospital, patient=cls.patient, doctor=cls.doctor)
+        Visit.objects.create(hospital=cls.hospital, patient=cls.patient, doctor=cls.other_doctor)
+
+    def api(self, user):
+        return client_for(user, self.hospital)
+
+    def note(self, user=None, **extra):
+        return self.api(user or self.doctor_user).post("/api/v1/clinical/clinical-notes/", {
+            "visit": self.visit.id, "assessment": "Synthetic assessment", **extra}, format="json")
+
+    def prescribe(self, user=None):
+        return self.api(user or self.doctor_user).post("/api/v1/clinical/prescriptions/", {
+            "hospital": self.hospital.id, "patient": self.patient.id, "visit": self.visit.id,
+            "items": [{"name": "Synthetic Paracetamol 500", "dosage": "1 tab", "frequency": "TDS",
+                       "duration": "3 days", "quantity": 9}]}, format="json")
+
+    # Admin and Manager: read, never write --------------------------------
+
+    def test_admin_and_manager_cannot_write_clinical_records(self):
+        for path in ("vitals", "allergies", "clinical-notes", "diagnoses", "procedures", "medical-records",
+                     "prescriptions", "prescription-items", "immunizations", "service-orders"):
+            for user in (self.admin, self.manager):
+                response = self.api(user).post(f"/api/v1/clinical/{path}/", {"visit": self.visit.id}, format="json")
+                self.assertEqual(response.status_code, 403, f"{user.username} POST {path}")
+
+    def test_admin_reads_clinical_records(self):
+        self.assertEqual(self.note().status_code, 201)
+        for path in ("clinical-notes", "diagnoses", "medical-records", "prescriptions"):
+            self.assertEqual(self.api(self.admin).get(f"/api/v1/clinical/{path}/").status_code, 200, path)
+
+    def test_admin_cannot_change_a_doctors_note_or_prescription(self):
+        note = self.note().json()["id"]
+        rx = self.prescribe().json()["id"]
+
+        self.assertEqual(self.api(self.admin).patch(f"/api/v1/clinical/clinical-notes/{note}/", {"plan": "x"},
+                                                    format="json").status_code, 403)
+        self.assertEqual(self.api(self.admin).patch(f"/api/v1/clinical/prescriptions/{rx}/", {"notes": "x"},
+                                                    format="json").status_code, 403)
+
+    # Authorship ----------------------------------------------------------
+
+    def test_a_note_is_always_written_in_the_signed_in_doctors_name(self):
+        response = self.note(doctor=self.other_doctor.id)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.json()["doctor"], self.doctor.id)
+
+    def test_another_doctor_cannot_edit_or_sign_my_note(self):
+        note = self.note().json()["id"]
+        other = self.api(self.other_doctor_user)
+
+        self.assertEqual(other.patch(f"/api/v1/clinical/clinical-notes/{note}/", {"plan": "x"},
+                                     format="json").status_code, 403)
+        self.assertEqual(other.post(f"/api/v1/clinical/clinical-notes/{note}/sign/").status_code, 403)
+
+    def test_another_doctor_cannot_change_my_prescription(self):
+        rx = self.prescribe().json()["id"]
+
+        response = self.api(self.other_doctor_user).patch(f"/api/v1/clinical/prescriptions/{rx}/",
+                                                          {"notes": "x"}, format="json")
+
+        self.assertEqual(response.status_code, 403)
+
+    # Signing --------------------------------------------------------------
+
+    def test_a_signed_note_is_locked_and_a_correction_keeps_both(self):
+        from clinical.models import ClinicalNote
+
+        doctor = self.api(self.doctor_user)
+        note = self.note().json()["id"]
+        self.assertEqual(doctor.patch(f"/api/v1/clinical/clinical-notes/{note}/", {"plan": "Draft edit"},
+                                      format="json").status_code, 200)
+
+        signed = doctor.post(f"/api/v1/clinical/clinical-notes/{note}/sign/")
+        self.assertEqual(signed.status_code, 200, signed.content)
+        self.assertEqual(doctor.patch(f"/api/v1/clinical/clinical-notes/{note}/", {"plan": "Late edit"},
+                                      format="json").status_code, 409)
+        self.assertEqual(doctor.post(f"/api/v1/clinical/clinical-notes/{note}/sign/").status_code, 409)
+
+        amendment = self.note(amends=note, plan="Corrected plan")
+        self.assertEqual(amendment.status_code, 201, amendment.content)
+        original = ClinicalNote.objects.get(pk=note)
+        self.assertEqual((original.plan, original.signed_by), ("Draft edit", self.doctor_user))
+        self.assertEqual(ClinicalNote.objects.get(pk=amendment.json()["id"]).amends_id, note)
+        self.assertTrue(AuditLog.objects.filter(action="clinical.clinicalnote.signed").exists())
+
+    def test_a_signed_diagnosis_is_locked(self):
+        doctor = self.api(self.doctor_user)
+        diagnosis = doctor.post("/api/v1/clinical/diagnoses/", {"visit": self.visit.id, "name": "Viral fever"},
+                                format="json").json()["id"]
+
+        self.assertEqual(doctor.post(f"/api/v1/clinical/diagnoses/{diagnosis}/sign/").status_code, 200)
+
+        self.assertEqual(doctor.patch(f"/api/v1/clinical/diagnoses/{diagnosis}/", {"name": "x"},
+                                      format="json").status_code, 409)
+
+    def test_an_unverified_doctor_cannot_sign_or_prescribe_where_verification_is_required(self):
+        Hospital.objects.filter(pk=self.hospital.pk).update(require_verified_doctors=True)
+        note = self.note().json()["id"]
+
+        self.assertEqual(self.api(self.doctor_user).post(f"/api/v1/clinical/clinical-notes/{note}/sign/")
+                         .status_code, 403)
+        self.assertEqual(self.prescribe().status_code, 403)
+
+        self.api(self.admin).post(f"/api/v1/doctors/{self.doctor.id}/verify-registration/", {}, format="json")
+        self.assertEqual(self.api(self.doctor_user).post(f"/api/v1/clinical/clinical-notes/{note}/sign/")
+                         .status_code, 200)
+        self.assertEqual(self.prescribe().status_code, 201)
+
+    # Prescriptions --------------------------------------------------------
+
+    def test_changing_a_prescription_keeps_every_earlier_version(self):
+        doctor = self.api(self.doctor_user)
+        rx = self.prescribe().json()["id"]
+
+        changed = doctor.patch(f"/api/v1/clinical/prescriptions/{rx}/", {"items": [
+            {"name": "Synthetic Paracetamol 650", "dosage": "1 tab", "frequency": "BD", "duration": "3 days",
+             "quantity": 6}]}, format="json")
+
+        self.assertEqual(changed.status_code, 200, changed.content)
+        revisions = doctor.get(f"/api/v1/clinical/prescriptions/{rx}/revisions/").json()["revisions"]
+        self.assertEqual(len(revisions), 1)
+        self.assertEqual(revisions[0]["changed_by"], self.doctor_user.id)
+        self.assertEqual([item["name"] for item in revisions[0]["content"]["items"]], ["Synthetic Paracetamol 500"])
+
+    def test_a_pharmacist_reads_but_cannot_change_a_prescription(self):
+        rx = self.prescribe().json()["id"]
+        pharmacist = self.api(self.pharmacist)
+
+        self.assertEqual(pharmacist.get(f"/api/v1/clinical/prescriptions/{rx}/").status_code, 200)
+        self.assertEqual(pharmacist.patch(f"/api/v1/clinical/prescriptions/{rx}/", {"notes": "x"},
+                                          format="json").status_code, 403)
+
+    def test_only_a_pharmacist_transcribes_paper_prescriptions(self):
+        response = self.api(self.admin).post("/api/v1/clinical/prescriptions/transcribe/", {}, format="json")
+        self.assertEqual(response.status_code, 403)
+        self.assertNotEqual(self.api(self.pharmacist).post("/api/v1/clinical/prescriptions/transcribe/", {},
+                                                           format="json").status_code, 403)
+
+    # Nurses ----------------------------------------------------------------
+
+    def test_a_nurse_writes_nursing_entries_but_not_doctors_notes(self):
+        nurse = self.api(self.nurse)
+        self.assertEqual(self.note(user=self.nurse).status_code, 403)
+        self.assertNotEqual(nurse.post("/api/v1/nurses/notes/", {}, format="json").status_code, 403)
+        self.assertNotEqual(nurse.post("/api/v1/clinical/medical-records/", {}, format="json").status_code, 403)

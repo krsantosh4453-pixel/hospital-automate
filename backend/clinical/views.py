@@ -19,6 +19,7 @@ from .models import (
     Prescription,
     PrescriptionItem,
     MedicalCertificate,
+    PrescriptionRevision,
     Referral,
 )
 
@@ -37,15 +38,19 @@ from .serializers import (
     MedicalCertificateSerializer,
     ReferralSerializer,
 )
+from users.models import StaffRole
 from users.viewsets import HospitalScopedViewSet
+
+from .signing import SignedRecordMixin, check_amends
 from users.permissions import (
-    IsAdmin,
+    get_user_roles,
+    IsAdminReadOnly,
+    IsHospitalManagerReadOnly,
     IsCompounderReadOnly,
-    IsHospitalManager,
-    IsDoctor,
-    IsNurse,
     IsNurseReadOnly,
-    IsPharmacist,
+    IsDoctorOnly,
+    IsNurseOnly,
+    IsPharmacistOnly,
     IsPharmacistReadOnly,
     IsPatientReadOnly,
     IsReceptionistReadOnly,
@@ -56,7 +61,7 @@ class VitalSignViewSet(HospitalScopedViewSet):
     queryset = VitalSign.objects.select_related(
         "visit", "visit__patient", "visit__doctor", "visit__hospital", "recorded_by").order_by("-recorded_at", "-id")
     serializer_class = VitalSignSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
+    permission_classes = [IsDoctorOnly | IsNurseOnly | IsAdminReadOnly | IsHospitalManagerReadOnly]
 
     def perform_create(self, serializer):
         # D2: the login that took the reading, never sent by the client.
@@ -68,7 +73,7 @@ class VitalSignViewSet(HospitalScopedViewSet):
 class AllergyViewSet(HospitalScopedViewSet):
     queryset = Allergy.objects.select_related("patient").order_by("-created_at", "-id")
     serializer_class = AllergySerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
+    permission_classes = [IsDoctorOnly | IsNurseOnly | IsAdminReadOnly | IsHospitalManagerReadOnly]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -78,21 +83,39 @@ class AllergyViewSet(HospitalScopedViewSet):
         return queryset
 
 
-class ClinicalNoteViewSet(HospitalScopedViewSet):
+class ClinicalNoteViewSet(SignedRecordMixin, HospitalScopedViewSet):
     queryset = ClinicalNote.objects.select_related(
         "visit", "visit__patient", "visit__doctor", "visit__hospital", "doctor"
     ).order_by("-created_at", "-id")
     serializer_class = ClinicalNoteSerializer
-    permission_classes = [IsAdmin | IsDoctor]
+    permission_classes = [IsDoctorOnly | IsAdminReadOnly]
+
+    def author_id(self, record):
+        return record.doctor.user_id if record.doctor_id else None
+
+    def perform_create(self, serializer):
+        # Always in the signed-in doctor's name (decision 2), never a name sent by the client.
+        extra = self._check_tenancy(serializer.validated_data)
+        check_amends(serializer.validated_data)
+        visit = serializer.validated_data["visit"]
+        doctor = Doctor.objects.filter(user=self.request.user, hospital_id=visit.hospital_id).first()
+        if doctor is None:
+            raise PermissionDenied("Only a doctor of this hospital can write a clinical note.")
+        instance = serializer.save(doctor=doctor, **extra)
+        self._audit("create", instance)
 
 
-class DiagnosisViewSet(HospitalScopedViewSet):
+class DiagnosisViewSet(SignedRecordMixin, HospitalScopedViewSet):
     queryset = Diagnosis.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-created_at", "-id")
     serializer_class = DiagnosisSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
+    permission_classes = [IsDoctorOnly | IsAdminReadOnly | IsHospitalManagerReadOnly]
+
+    def author_id(self, record):
+        return record.recorded_by_id
 
     def perform_create(self, serializer):
         extra = self._check_tenancy(serializer.validated_data)
+        check_amends(serializer.validated_data)
         instance = serializer.save(recorded_by=self.request.user, **extra)
         self._audit("create", instance)
 
@@ -100,19 +123,19 @@ class DiagnosisViewSet(HospitalScopedViewSet):
 class ServiceOrderViewSet(HospitalScopedViewSet):
     queryset = ServiceOrder.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-created_at", "-id")
     serializer_class = ServiceOrderSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
+    permission_classes = [IsDoctorOnly | IsNurseOnly | IsAdminReadOnly | IsHospitalManagerReadOnly]
 
 
 class ProcedureViewSet(HospitalScopedViewSet):
     queryset = Procedure.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-created_at", "-id")
     serializer_class = ProcedureSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor]
+    permission_classes = [IsDoctorOnly | IsAdminReadOnly | IsHospitalManagerReadOnly]
 
 
 class MedicalRecordViewSet(HospitalScopedViewSet):
     queryset = MedicalRecord.objects.select_related("patient", "visit", "visit__hospital").order_by("-created_at", "-id")
     serializer_class = MedicalRecordSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsDoctor | IsNurse]
+    permission_classes = [IsDoctorOnly | IsNurseOnly | IsAdminReadOnly | IsHospitalManagerReadOnly]
 
 
 MAX_SAFETY_CHECK_ITEMS = 50
@@ -145,15 +168,65 @@ class PrescriptionViewSet(HospitalScopedViewSet):
     # compounder (dispensing) and the front desk (reports) only read them.
     # F13: pharmacists do not prescribe; they transcribe paper prescriptions
     # (transcribe) and check one another's transcriptions (verify).
+    # The pharmacist's write access covers their own paper transcriptions only
+    # (perform_create/perform_update below).
     permission_classes = [
-        IsAdmin | IsDoctor | IsPharmacistReadOnly | IsPatientReadOnly
+        IsDoctorOnly | IsPharmacistOnly | IsAdminReadOnly | IsPatientReadOnly
         | IsReceptionistReadOnly | IsNurseReadOnly | IsCompounderReadOnly
     ]
 
     def get_permissions(self):
+        # Q5 (2026-11-09): transcribing and verifying paper prescriptions is pharmacy work only.
         if getattr(self, "action", None) in ("transcribe", "verify"):
-            return [(IsAdmin | IsPharmacist)()]
+            return [IsPharmacistOnly()]
         return super().get_permissions()
+
+    def _require_writer(self, prescription):
+        # The prescriber corrects their prescription; the pharmacy handles its own
+        # paper transcriptions (status, cancellation); nobody else changes either.
+        user = self.request.user
+        if prescription.doctor is not None and prescription.doctor.user_id == user.id:
+            return
+        if (prescription.source == Prescription.Source.PAPER
+                and StaffRole.PHARMACIST in get_user_roles(user, prescription.hospital_id)):
+            return
+        raise PermissionDenied("Only the prescribing doctor can change this prescription.")
+
+    def perform_create(self, serializer):
+        extra = self._check_tenancy(serializer.validated_data)
+        hospital = extra.get("hospital", serializer.validated_data.get("hospital"))
+        if StaffRole.DOCTOR not in get_user_roles(self.request.user, getattr(hospital, "pk", hospital)):
+            raise PermissionDenied("Only a doctor writes prescriptions; the pharmacy uses transcribe for paper ones.")
+        instance = serializer.save(**extra)
+        self._audit("create", instance)
+
+    def perform_destroy(self, instance):
+        self._require_writer(instance)
+        super().perform_destroy(instance)
+
+    def update(self, request, *args, **kwargs):
+        # Who may write is settled before the body is validated (403, not a field error).
+        self._require_writer(self.get_object())
+        return super().update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        prescription = serializer.instance
+        # Every earlier version is kept (PrescriptionRevision).
+        self._require_writer(prescription)
+        previous = self.get_serializer(prescription).data
+        number = prescription.revisions.count() + 1
+        super().perform_update(serializer)
+        PrescriptionRevision.objects.create(prescription=prescription, number=number, content=previous,
+                                            changed_by=self.request.user)
+
+    @action(detail=True, methods=["get"])
+    def revisions(self, request, pk=None):
+        """Earlier versions of this prescription, oldest first."""
+        prescription = self.get_object()
+        return Response({"revisions": [
+            {"number": r.number, "changed_by": r.changed_by_id, "changed_at": r.changed_at, "content": r.content}
+            for r in prescription.revisions.all()
+        ]})
 
     @action(detail=False, methods=["post"])
     @transaction.atomic
@@ -183,7 +256,7 @@ class PrescriptionViewSet(HospitalScopedViewSet):
     @action(detail=True, methods=["post"])
     @transaction.atomic
     def verify(self, request, pk=None):
-        """A second pharmacist or an Admin confirms a transcription matches the paper."""
+        """A second pharmacist confirms a transcription matches the paper."""
         prescription = self.get_object()
         prescription = Prescription.objects.select_for_update().get(pk=prescription.pk)
         if prescription.status != Prescription.PENDING_VERIFICATION:
@@ -276,7 +349,7 @@ class PrescriptionItemViewSet(HospitalScopedViewSet):
 
     queryset = PrescriptionItem.objects.select_related("prescription")
     serializer_class = PrescriptionItemSerializer
-    permission_classes = [IsAdmin | IsDoctor | IsPharmacistReadOnly | IsNurseReadOnly | IsCompounderReadOnly]
+    permission_classes = [IsDoctorOnly | IsAdminReadOnly | IsPharmacistReadOnly | IsNurseReadOnly | IsCompounderReadOnly]
     http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
@@ -324,7 +397,7 @@ class MedicalCertificateViewSet(_SignedByDoctorViewSet):
 
     queryset = MedicalCertificate.objects.select_related("patient", "doctor", "hospital")
     serializer_class = MedicalCertificateSerializer
-    permission_classes = [IsDoctor | IsPatientReadOnly]
+    permission_classes = [IsDoctorOnly | IsPatientReadOnly]
     http_method_names = ["get", "post", "head", "options"]
 
 
@@ -333,7 +406,7 @@ class ReferralViewSet(_SignedByDoctorViewSet):
         "patient", "referring_doctor", "referred_to_doctor", "hospital"
     )
     serializer_class = ReferralSerializer
-    permission_classes = [IsDoctor | IsPatientReadOnly]
+    permission_classes = [IsDoctorOnly | IsPatientReadOnly]
     http_method_names = ["get", "post", "patch", "head", "options"]
     signer_field = "referring_doctor"
 
@@ -350,7 +423,7 @@ class ImmunizationViewSet(HospitalScopedViewSet):
 
     queryset = Immunization.objects.select_related("patient", "hospital", "recorded_by")
     serializer_class = ImmunizationSerializer
-    permission_classes = [IsAdmin | IsDoctor | IsNurse | IsPatientReadOnly]
+    permission_classes = [IsDoctorOnly | IsNurseOnly | IsPatientReadOnly | IsAdminReadOnly]
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_queryset(self):

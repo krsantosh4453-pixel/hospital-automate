@@ -64,6 +64,7 @@ class ConsultationPrescriptionTests(TestCase):
         self.assertIn(resp.status_code, (400, 404))
         self.assertFalse(Prescription.objects.exists())
 
-    def test_admin_may_record_on_any_visit_of_the_hospital(self):
+    def test_admin_cannot_record_clinical_entries(self):
+        # Decision 2 (2026-11-09): the hospital Admin reads clinical records only.
         resp = self.post(self.admin, self.their_visit)
-        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.status_code, 403, resp.content)

@@ -339,6 +339,20 @@ class IsClinicalStaff(RoleBasedPermission):
     required_roles = [StaffRole.DOCTOR, StaffRole.NURSE, StaffRole.ADMIN]
 
 
+# The role classes above also admit the Admin. Decision 2 (2026-11-09): for
+# clinical records the Admin only reads, so these admit the role alone.
+class IsDoctorOnly(RoleBasedPermission):
+    required_roles = [StaffRole.DOCTOR]
+
+
+class IsNurseOnly(RoleBasedPermission):
+    required_roles = [StaffRole.NURSE]
+
+
+class IsPharmacistOnly(RoleBasedPermission):
+    required_roles = [StaffRole.PHARMACIST]
+
+
 class IsAdminOrManager(RoleBasedPermission):
     """Admin or Hospital Manager."""
     required_roles = [StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER]
@@ -358,6 +372,8 @@ def read_only(permission_class):
     return ReadOnly
 
 
+# Decision 2 (2026-11-09): a hospital Admin reads clinical records, never writes them.
+IsAdminReadOnly = read_only(IsAdmin)
 IsNurseReadOnly = read_only(IsNurse)
 IsReceptionistReadOnly = read_only(IsReceptionist)
 IsCompounderReadOnly = read_only(IsCompounder)
