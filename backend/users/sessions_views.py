@@ -1,4 +1,4 @@
-"""The signed-in user's own devices: list them, sign one out, or sign out everywhere (Phase 3)."""
+"""The signed-in account (Phase 3): what it may act as, and its devices (list, sign out one or all)."""
 
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
@@ -8,7 +8,12 @@ from rest_framework.response import Response
 from audit.services import record_audit
 from config.auth_cookies import clear_auth_cookies
 
+from hospital.models import Hospital
+
 from .models import DeviceSession
+from .permissions import get_linked_patient, get_user_active_hospital_memberships, is_active_staff
+from .platform import platform_role
+from .role_permissions import permissions_for, restricted_modules
 from .tokens import SESSION_CLAIM, revoke_all_sessions, revoke_sessions
 
 _FIELDS = ("device_id", "platform", "app_version", "user_agent", "created_at", "last_used_at")
@@ -17,6 +22,42 @@ _FIELDS = ("device_id", "platform", "app_version", "user_agent", "created_at", "
 def _current_session_id(request):
     token = getattr(request, "auth", None)
     return str(token.get(SESSION_CLAIM)) if token is not None and token.get(SESSION_CLAIM) else None
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me_contexts(request):
+    """
+    GET: what this account may act as. Staff get one entry per active
+    membership in an active hospital, with its role and permissions after the
+    hospital's restrictions; patients get the hospitals they are registered at.
+    Send the chosen hospital as X-Hospital-ID; the server checks it every time.
+    """
+    user = request.user
+    if is_active_staff(user):
+        account_type = "staff"
+        contexts = [
+            {
+                "hospital": {"id": m.hospital_id, "name": m.hospital.name},
+                "role": m.role,
+                "department": m.department.name if m.department else None,
+                "permissions": sorted(permissions_for(user, m.hospital_id)),
+                "restricted_modules": restricted_modules(user, m.hospital_id),
+            }
+            for m in get_user_active_hospital_memberships(user).filter(hospital__is_active=True)
+            .order_by("hospital__name")
+        ]
+    elif get_linked_patient(user) is not None:
+        patient = get_linked_patient(user)
+        account_type = "proxy" if getattr(user, "proxy_patient", None) is not None else "patient"
+        hospital_ids = set(patient.hospital_memberships.filter(is_active=True).values_list("hospital_id", flat=True))
+        if patient.hospital_id:
+            hospital_ids.add(patient.hospital_id)
+        contexts = [{"hospital": {"id": h.id, "name": h.name}, "role": "Patient"}
+                    for h in Hospital.objects.filter(id__in=hospital_ids, is_active=True).order_by("name")]
+    else:
+        account_type, contexts = ("platform" if platform_role(user) else "none"), []
+    return Response({"account_type": account_type, "platform_role": platform_role(user), "contexts": contexts})
 
 
 @api_view(["GET"])

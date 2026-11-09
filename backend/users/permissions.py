@@ -129,9 +129,10 @@ def get_user_roles(user, hospital_id=None):
     if not staff_profile or not staff_profile.is_active_staff:
         return []
 
-    memberships = get_user_active_hospital_memberships(user)
+    # A suspended hospital's roles count nowhere, with or without a hospital asked for.
+    memberships = get_user_active_hospital_memberships(user).filter(hospital__is_active=True)
     if hospital_id is not None:
-        memberships = memberships.filter(hospital_id=hospital_id, hospital__is_active=True)
+        memberships = memberships.filter(hospital_id=hospital_id)
     roles = []
     for membership in memberships:
         if membership.role not in roles:
