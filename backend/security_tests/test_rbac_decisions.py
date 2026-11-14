@@ -317,3 +317,63 @@ class ClinicalWriteRulesTests(TestCase):
         self.assertEqual(self.note(user=self.nurse).status_code, 403)
         self.assertNotEqual(nurse.post("/api/v1/nurses/notes/", {}, format="json").status_code, 403)
         self.assertNotEqual(nurse.post("/api/v1/clinical/medical-records/", {}, format="json").status_code, 403)
+
+
+class SecurityOverviewTests(TestCase):
+    """Decision 3 with Q3: a read-only security overview of the Admin's own hospital."""
+
+    URL = "/api/v1/hospital/security-overview/"
+
+    @classmethod
+    def setUpTestData(cls):
+        from users.models import DeviceSession
+
+        cls.hospital_a = Hospital.objects.create(name="Synthetic Security A", is_active=True)
+        cls.hospital_b = Hospital.objects.create(name="Synthetic Security B", is_active=True)
+        cls.admin_a, _ = make_staff("sec_admin_a", cls.hospital_a, role=StaffRole.ADMIN)
+        cls.manager_a, _ = make_staff("sec_manager_a", cls.hospital_a, role=StaffRole.HOSPITAL_MANAGER)
+        cls.nurse_a, _ = make_staff("sec_nurse_a", cls.hospital_a, role=StaffRole.NURSE)
+        cls.nurse_b, _ = make_staff("sec_nurse_b", cls.hospital_b, role=StaffRole.NURSE)
+        for user in (cls.nurse_a, cls.nurse_b):
+            DeviceSession.objects.create(user=user, account_type="staff", platform="android", device_id=user.username,
+                                         ip_prefix="10.0.0.0/24", current_jti="secret-jti")
+            AuditLog.objects.create(user=user, action="auth.staff_login.success", ip_address="10.0.0.5")
+        AuditLog.objects.create(user=cls.nurse_a, action="auth.refresh_reuse", ip_address="10.0.0.6")
+
+    def test_the_admin_sees_only_their_hospitals_staff_sessions_history_and_alerts(self):
+        response = client_for(self.admin_a, self.hospital_a).get(self.URL)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        body = response.json()
+        self.assertEqual(body["hospital"]["id"], self.hospital_a.id)
+        staff_ids = {row["user_id"] for row in body["staff"]}
+        self.assertIn(self.nurse_a.id, staff_ids)
+        self.assertNotIn(self.nurse_b.id, staff_ids)
+        self.assertEqual({row["user_id"] for row in body["sessions"]}, {self.nurse_a.id})
+        self.assertEqual({row["user_id"] for row in body["sign_in_history"]}, {self.nurse_a.id})
+        self.assertIn("refresh_reuse", {alert["kind"] for alert in body["alerts"]})
+        nurse = next(row for row in body["staff"] if row["user_id"] == self.nurse_a.id)
+        self.assertIn("Nurses.Edit", nurse["permissions"])
+
+    def test_no_ip_address_or_token_value_is_returned(self):
+        text = client_for(self.admin_a, self.hospital_a).get(self.URL).content.decode()
+
+        for secret in ("10.0.0", "secret-jti", "ip_prefix", "current_jti", "ip_address"):
+            self.assertNotIn(secret, text)
+
+    def test_forged_hospital_and_non_admins_are_refused(self):
+        self.assertEqual(client_for(self.admin_a, self.hospital_b).get(self.URL).status_code, 403)
+        for user in (self.manager_a, self.nurse_a):
+            self.assertEqual(client_for(user, self.hospital_a).get(self.URL).status_code, 403, user.username)
+
+    def test_the_overview_is_read_only(self):
+        for method in ("post", "put", "patch", "delete"):
+            self.assertEqual(getattr(client_for(self.admin_a, self.hospital_a), method)(self.URL).status_code, 405)
+
+    def test_server_configuration_is_for_platform_staff_only(self):
+        self.assertEqual(client_for(self.admin_a, self.hospital_a).get("/api/v1/auth/security-settings/")
+                         .status_code, 403)
+        root = User.objects.create_superuser("sec_root", password="x-Synthetic-1")
+        client = APIClient(raise_request_exception=False)
+        client.force_authenticate(root)
+        self.assertEqual(client.get("/api/v1/auth/security-settings/").status_code, 200)

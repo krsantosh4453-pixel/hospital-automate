@@ -1,7 +1,7 @@
-# Phase 3 RBAC decisions: verification and plan (awaiting approval)
+# Phase 3 RBAC decisions: verification and plan (approved 2026-11-09, implemented)
 
 Date: 2026-11-09. Applies the owner's three RBAC decisions to the code at `28be9d2`.
-Nothing here is implemented yet. [V] = verified in the code today.
+Approved with the recommended answers to Q1–Q6 and implemented in `cc07990` (A), `cf06720` (B) and the Step C commits; outcome in section 7. [V] = verified in the code.
 Related: [phase-3-plan.md](phase-3-plan.md) · [implementation-roadmap.md](implementation-roadmap.md)
 
 ## 1. What the code does today, against the decisions
@@ -105,3 +105,14 @@ No column is removed or rewritten. Existing records stay unsigned (editable by t
 ## 6. Not touched
 
 Billing, pharmacy stock, the laboratory workflow, IPD and emergency permissions (already clinical-only), the AI scribe, platform staff, the Phase 3 sessions and tokens, and any module not named above.
+
+## 7. Outcome (2026-11-09)
+
+| Step | Result |
+|---|---|
+| A | Manager assigns clinical and operational roles, never Admin or Hospital Manager, and cannot change another Manager. Doctor registration verification by the hospital Admin, audited; changing the number clears it. `Hospital.require_verified_doctors` (Admin only, default off). Migrations `doctors/0010`, `hospital/0010` (additive, database defaults for rolling deploys) |
+| B | Clinical app: Admin and Manager read only. **Found:** every role class (`IsDoctor`, `IsNurse`, `IsPharmacist`, …) also admits the Admin; the clinical app now uses `IsDoctorOnly`/`IsNurseOnly`/`IsPharmacistOnly`. Notes in the signed-in doctor's name; sign → locked (409), corrections by amendment (same patient); drafts with no recorded author stay editable by the hospital's doctors. Prescriptions: prescriber-only changes, every earlier version kept (`PrescriptionRevision`), transcription pharmacist-only. Migration `clinical/0014` (additive) |
+| C | `GET hospital/security-overview/` (hospital Admin, read only): staff, roles and permissions, sessions, 30-day sign-in history, restrictions, alerts; no IPs, token ids or patient details. Server configuration needs `platform.security.view`. Web Security settings page shows the overview; server configuration only for platform staff |
+| Deviation | Prescriptions keep a full revision history instead of "new version + superseded status" (section 2, step B3), so MAR, dispensing and billing links to the prescription stay intact |
+| Open | Outside the clinical app, Admin still passes doctor/nurse/pharmacist/lab checks (IPD, emergency, AI scribe, laboratory, MAR, queue, hospital services, …) — needs a per-module decision |
+| Tests | Backend 1049 on PostgreSQL 16 (row-lock tests required); Vitest 125/125 on the final web code; Playwright: see the Step C commit |

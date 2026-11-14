@@ -29,8 +29,9 @@ class SecuritySettingsTests(TestCase):
         return self.client.get(URL, HTTP_X_HOSPITAL_ID=str(self.hospital.pk))
 
     @override_settings(STAFF_LOGIN_REQUIRE_OTP=True, DEV_LOGIN_ENABLED=False)
-    def test_admin_sees_effective_values_read_only(self):
-        response = self.get(staff("admin", self.hospital, StaffRole.ADMIN))
+    def test_platform_staff_see_effective_values_read_only(self):
+        # Decision 3 (2026-11-09): server-wide settings are for platform staff only.
+        response = self.get(User.objects.create_superuser("root_settings", password="x-Synthetic-1"))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(response.data["editable"])
@@ -39,19 +40,19 @@ class SecuritySettingsTests(TestCase):
         self.assertEqual(rows["DEV_LOGIN_ENABLED"]["secure"], True)
 
     def test_no_secret_is_returned(self):
-        response = self.get(staff("admin", self.hospital, StaffRole.ADMIN))
+        response = self.get(User.objects.create_superuser("root_secret", password="x-Synthetic-1"))
 
         text = str(response.data).upper()
         for secret_word in ("SECRET", "PASSWORD\":", "SIGNING_KEY", "API_KEY", "TOKEN\":"):
             self.assertNotIn(secret_word, text)
 
     def test_other_roles_are_refused(self):
-        for role in (StaffRole.DOCTOR, StaffRole.HOSPITAL_MANAGER, StaffRole.RECEPTIONIST):
+        for role in (StaffRole.ADMIN, StaffRole.DOCTOR, StaffRole.HOSPITAL_MANAGER, StaffRole.RECEPTIONIST):
             response = self.get(staff(f"u_{role}".lower().replace(" ", "_"), self.hospital, role))
             self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, role)
 
     def test_cannot_be_changed_over_the_api(self):
-        self.client.force_authenticate(user=staff("admin", self.hospital, StaffRole.ADMIN))
+        self.client.force_authenticate(user=User.objects.create_superuser("root_post", password="x-Synthetic-1"))
 
         response = self.client.post(URL, {"DEBUG": True}, format="json", HTTP_X_HOSPITAL_ID=str(self.hospital.pk))
 

@@ -64,8 +64,8 @@ TENANCY_EXEMPTIONS = {
     "hospital.views.HospitalViewSet": (PLATFORM, "Members see their hospitals; platform staff see all"),
     "notifications.views.OTPVerificationViewSet": (PLATFORM, "platform.otp_log.view only"),
     "reports.views.ReportTemplateViewSet": (PLATFORM, "Shared templates; platform.report_templates.edit to change"),
-    "users.security_settings.security_settings": (PLATFORM, "Server configuration, no secrets and no tenant data; "
-                                                          "readable by any hospital Admin (Security settings page)"),
+    "users.security_settings.security_settings": (PLATFORM, "Server configuration, no secrets; platform.security.view"),
+    "hospital.security_overview.security_overview": (OWN_CHECKS, "Admin of the acting hospital; that hospital's staff only"),
     # Tenant data with their own checks (tested in test_handwritten_views_isolation.py)
     "abdm.views.StatusView": (OWN_CHECKS, "Requires X-Hospital-ID and membership"),
     "abdm.views.RequestOTPView": (OWN_CHECKS, "Requires X-Hospital-ID and membership"),

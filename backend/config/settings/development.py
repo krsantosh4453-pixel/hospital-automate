@@ -31,7 +31,13 @@ PATIENT_OTP_DELIVERY = os.environ.get('PATIENT_OTP_DELIVERY', 'console')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '[::1]', 'testserver']  # nosec B104
+# 10.0.2.2 is how the Android emulator reaches this machine's loopback.
+# A phone on the LAN needs this machine's address, e.g. DEV_EXTRA_ALLOWED_HOSTS=192.168.1.20,
+# with runserver bound to 0.0.0.0:8000.
+ALLOWED_HOSTS = [
+    'localhost', '127.0.0.1', '0.0.0.0', '[::1]', 'testserver', '10.0.2.2',  # nosec B104
+    *[h.strip() for h in os.environ.get('DEV_EXTRA_ALLOWED_HOSTS', '').split(',') if h.strip()],
+]
 
 
 # ============================================================

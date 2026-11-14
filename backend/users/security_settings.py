@@ -11,7 +11,7 @@ from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .permissions import IsAdmin
+from .platform import platform_permission
 
 ONE_YEAR_SECONDS = 31536000
 MIN_PASSWORD_VALIDATORS = 4
@@ -62,7 +62,9 @@ def collect_security_settings():
 
 
 @api_view(["GET"])
-@permission_classes([IsAdmin])
+# Decision 3 (2026-11-09): server-wide settings are for platform staff; a hospital
+# Admin sees their hospital's overview instead (hospital/security_overview.py).
+@permission_classes([platform_permission("platform.security.view")])
 def security_settings(request):
     return Response({
         "editable": False,

@@ -2562,10 +2562,15 @@ api.ipd.admissions.finalBill = async (id, data) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-// Read-only security configuration (A14), Admin only.
+// Server-wide security configuration (A14), platform staff only since 2026-11-09.
 // GET /api/auth/security-settings/
 api.securitySettings = {
   get: async () => request(`${API_BASE_URL}/auth/security-settings/`),
+}
+// The acting hospital's read-only security overview, its Admin only (decision 3).
+// GET /api/hospital/security-overview/
+api.securityOverview = {
+  get: async () => request(`${API_BASE_URL}/hospital/security-overview/`),
 }
 // PATCH /api/ipd/discharge-plans/{id}/  e.g. { medications_reconciled: true }
 api.ipd.dischargePlans.patch = async (id, data) =>

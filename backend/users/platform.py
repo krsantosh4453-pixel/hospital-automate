@@ -21,6 +21,7 @@ PLATFORM_PERMISSIONS = {
         "platform.hospitals.delete",
         "platform.otp_log.view",
         "platform.report_templates.edit",
+        "platform.security.view",
     }),
     PlatformStaff.Role.SUPPORT: frozenset({
         "platform.hospitals.view",
