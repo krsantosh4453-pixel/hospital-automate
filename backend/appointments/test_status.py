@@ -79,10 +79,11 @@ class AppointmentStatusTests(TestCase):
         self._token_action(token, "no-show")
         self.assertEqual(self._status(), "No Show")
 
-    def test_call_next_completes_the_appointment_being_served(self):
+    def test_call_next_leaves_the_appointment_being_served_open(self):
+        # Decision 2026-11-14: Call Next never completes a consultation.
         token = self._issue()
         self._token_action(token, "call")
         self._token_action(token, "start-consultation")
         resp = self.client.post(f"/api/encounters/queue-tokens/call-next/{self.scope}")
-        self.assertIn(resp.status_code, (status.HTTP_200_OK, status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST))
-        self.assertEqual(self._status(), "Completed")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND, resp.data)
+        self.assertEqual(self._status(), "In Consultation")

@@ -316,6 +316,9 @@ class Prescription(EnteredInError):
     # the alerts shown and, for high-severity ones, the doctor's reason to go ahead.
     safety_alerts = models.JSONField(default=list, blank=True)
     safety_override_reason = models.TextField(blank=True, default="")
+    # Idempotency-Key of the request that wrote it (blank when none was sent):
+    # a retried POST returns this prescription instead of writing a second one.
+    idempotency_key = models.CharField(max_length=80, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
@@ -325,6 +328,13 @@ class Prescription(EnteredInError):
             models.Index(fields=["patient", "created_at"]),
             models.Index(fields=["doctor", "created_at"]),
             models.Index(fields=["hospital", "status"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["hospital", "idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="prescription_unique_idempotency_key",
+            ),
         ]
 
     def __str__(self):

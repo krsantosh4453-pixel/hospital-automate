@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
@@ -43,6 +43,8 @@ from users.viewsets import HospitalScopedViewSet
 
 from .signing import SignedRecordMixin, check_amends
 from users.permissions import (
+    get_request_hospital_id,
+    get_user_hospital_ids,
     get_user_roles,
     IsAdminReadOnly,
     IsHospitalManagerReadOnly,
@@ -57,7 +59,25 @@ from users.permissions import (
 )
 
 
-class VitalSignViewSet(HospitalScopedViewSet):
+class VisitFilterMixin:
+    """
+    ``?visit=<id>`` narrows a per-visit clinical list to that visit. The
+    hospital and care scope of the base queryset still apply first, so the
+    filter can only ever remove rows. Without the parameter nothing changes.
+    """
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        visit_id = self.request.query_params.get("visit")
+        if visit_id in (None, ""):
+            return queryset
+        # isdigit() also accepts "²", which int() then rejects with a 500.
+        if not (str(visit_id).isascii() and str(visit_id).isdecimal()):
+            raise ValidationError({"visit": "Use a visit id (a number)."})
+        return queryset.filter(visit_id=int(visit_id))
+
+
+class VitalSignViewSet(VisitFilterMixin, HospitalScopedViewSet):
     queryset = VitalSign.objects.select_related(
         "visit", "visit__patient", "visit__doctor", "visit__hospital", "recorded_by").order_by("-recorded_at", "-id")
     serializer_class = VitalSignSerializer
@@ -83,7 +103,7 @@ class AllergyViewSet(HospitalScopedViewSet):
         return queryset
 
 
-class ClinicalNoteViewSet(SignedRecordMixin, HospitalScopedViewSet):
+class ClinicalNoteViewSet(VisitFilterMixin, SignedRecordMixin, HospitalScopedViewSet):
     queryset = ClinicalNote.objects.select_related(
         "visit", "visit__patient", "visit__doctor", "visit__hospital", "doctor"
     ).order_by("-created_at", "-id")
@@ -105,7 +125,7 @@ class ClinicalNoteViewSet(SignedRecordMixin, HospitalScopedViewSet):
         self._audit("create", instance)
 
 
-class DiagnosisViewSet(SignedRecordMixin, HospitalScopedViewSet):
+class DiagnosisViewSet(VisitFilterMixin, SignedRecordMixin, HospitalScopedViewSet):
     queryset = Diagnosis.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-created_at", "-id")
     serializer_class = DiagnosisSerializer
     permission_classes = [IsDoctorOnly | IsAdminReadOnly | IsHospitalManagerReadOnly]
@@ -120,7 +140,7 @@ class DiagnosisViewSet(SignedRecordMixin, HospitalScopedViewSet):
         self._audit("create", instance)
 
 
-class ServiceOrderViewSet(HospitalScopedViewSet):
+class ServiceOrderViewSet(VisitFilterMixin, HospitalScopedViewSet):
     queryset = ServiceOrder.objects.select_related("visit", "visit__patient", "visit__doctor", "visit__hospital").order_by("-created_at", "-id")
     serializer_class = ServiceOrderSerializer
     permission_classes = [IsDoctorOnly | IsNurseOnly | IsAdminReadOnly | IsHospitalManagerReadOnly]
@@ -155,6 +175,51 @@ def _prescription_search(text, model):
         patient__hospital_memberships__uhid__icontains=text,
     ).values("pk")
     return match | Q(pk__in=uhid)
+
+
+IDEMPOTENCY_KEY_LENGTH = Prescription._meta.get_field("idempotency_key").max_length
+KEY_USED_ELSEWHERE = "This Idempotency-Key was already used for a different prescription."
+
+
+def _text(value):
+    return "" if value is None else str(value).strip()
+
+
+def _quantity(value):
+    try:
+        return int(value) if value not in (None, "") else 1
+    except (TypeError, ValueError):
+        return value
+
+
+def _line(item):
+    """One medicine line in the form it is stored (the serializer trims text; quantity defaults to 1)."""
+    if not isinstance(item, dict):
+        return item
+    return (
+        _text(item.get("name")), _text(item.get("dosage")), _text(item.get("frequency")),
+        _text(item.get("duration")), _quantity(item.get("quantity")), _text(item.get("instructions")),
+    )
+
+
+def _same_prescription(earlier, data):
+    """Whether a retried request body asks for what ``earlier`` already holds."""
+    if not hasattr(data, "get"):
+        return False
+    items = data.get("items")
+    if not isinstance(items, list):
+        return False
+    stored = [
+        (i.name, i.dosage, i.frequency, i.duration, i.quantity, i.instructions) for i in earlier.items.all()
+    ]
+    # The doctor is usually left out (the server signs as the requester); when named it must match.
+    named_doctor = data.get("doctor")
+    return (
+        _text(data.get("patient")) == _text(earlier.patient_id)
+        and _text(data.get("visit")) == _text(earlier.visit_id)
+        and (named_doctor in (None, "") or _text(named_doctor) == _text(earlier.doctor_id))
+        and [_line(item) for item in items] == stored
+    )
 
 
 class PrescriptionViewSet(HospitalScopedViewSet):
@@ -192,12 +257,63 @@ class PrescriptionViewSet(HospitalScopedViewSet):
             return
         raise PermissionDenied("Only the prescribing doctor can change this prescription.")
 
+    def create(self, request, *args, **kwargs):
+        """
+        An optional ``Idempotency-Key`` header makes retries safe: repeating the
+        request with the same key returns the prescription it already wrote
+        (200) instead of a second one; the same key for different contents,
+        or another person's key, is refused (409).
+        """
+        key = request.headers.get("Idempotency-Key", "").strip()
+        if len(key) > IDEMPOTENCY_KEY_LENGTH:
+            # Refused, not truncated: two long keys sharing a prefix would collide.
+            raise ValidationError({"idempotency_key": f"Use at most {IDEMPOTENCY_KEY_LENGTH} characters."})
+        self._idempotency_key = key
+        replay = self._replay_prescription(key)
+        if replay is not None:
+            # Checked before validation so a late retry still gets its prescription
+            # back even if, say, a new allergy now raises a safety alert.
+            return replay
+        try:
+            with transaction.atomic():
+                return super().create(request, *args, **kwargs)
+        except IntegrityError:
+            # The same key arrived twice at once: the unique constraint let one
+            # through; answer the other with that one instead of a 500.
+            replay = self._replay_prescription(key)
+            if replay is None:
+                raise
+            return replay
+
+    def _replay_prescription(self, key):
+        """The response for a retried request whose key already wrote a prescription, else None."""
+        if not key:
+            return None
+        candidates = Prescription.objects.filter(
+            idempotency_key=key, hospital_id__in=get_user_hospital_ids(self.request.user)
+        )
+        # The key is unique per hospital: look in the hospital this request writes to
+        # (body, else ?hospital= / X-Hospital-ID), as _check_tenancy resolves it.
+        data = self.request.data if hasattr(self.request.data, "get") else {}
+        target = _text(data.get("hospital")) or _text(get_request_hospital_id(self.request, self))
+        if target.isascii() and target.isdecimal():
+            candidates = candidates.filter(hospital_id=int(target))
+        earlier = candidates.select_related("doctor").order_by("pk").first()
+        if earlier is None:
+            return None
+        mine = earlier.doctor is not None and earlier.doctor.user_id == self.request.user.id
+        # Hospital and care scope only, not this view's list filters (?status=, ?visit=).
+        earlier = HospitalScopedViewSet.get_queryset(self).filter(pk=earlier.pk).first() if mine else None
+        if earlier is None or not _same_prescription(earlier, self.request.data):
+            return Response({"error": KEY_USED_ELSEWHERE}, status=status.HTTP_409_CONFLICT)
+        return Response(self.get_serializer(earlier).data, status=status.HTTP_200_OK)
+
     def perform_create(self, serializer):
         extra = self._check_tenancy(serializer.validated_data)
         hospital = extra.get("hospital", serializer.validated_data.get("hospital"))
         if StaffRole.DOCTOR not in get_user_roles(self.request.user, getattr(hospital, "pk", hospital)):
             raise PermissionDenied("Only a doctor writes prescriptions; the pharmacy uses transcribe for paper ones.")
-        instance = serializer.save(**extra)
+        instance = serializer.save(**extra, idempotency_key=getattr(self, "_idempotency_key", ""))
         self._audit("create", instance)
 
     def perform_destroy(self, instance):
