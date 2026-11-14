@@ -1,0 +1,929 @@
+{
+  "@@locale": "en",
+  "appName": "HMS",
+  "appSubtitle": "Hospital Management",
+  "navMain": "Main",
+  "navigation": "Navigation",
+  "openNavigation": "Open navigation",
+  "closeNavigation": "Close navigation",
+  "collapseSidebar": "Collapse sidebar",
+  "expandSidebar": "Expand sidebar",
+  "jumpTo": "Jump to…",
+  "jumpToPage": "Jump to a page",
+  "typeModuleName": "Type a module name…",
+  "searchPages": "Search pages",
+  "noPageMatches": "No page matches “{query}”.",
+  "@noPageMatches": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "hospital": "Hospital",
+  "selectHospitalTitle": "Select Hospital",
+  "selectHospital": "Select hospital",
+  "searchByNameOrCity": "Search by name or city",
+  "searchHospitals": "Search hospitals",
+  "notMemberOfAnyHospital": "You are not a member of any hospital yet.",
+  "noHospitalMatches": "No hospital matches your search.",
+  "switchingHospitalNote": "Switching hospital changes every list you see to that hospital's records.",
+  "interfaceLanguage": "Interface language",
+  "notifications": "Notifications",
+  "patientSignIn": "Patient sign in",
+  "staffSignIn": "Staff sign in",
+  "signIn": "Sign in",
+  "notSignedInSignIn": "Not signed in · Sign in",
+  "signedInAs": "Signed in as {name}",
+  "@signedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileMenuFor": "Profile menu for {name}",
+  "@profileMenuFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settings": "Settings",
+  "logout": "Logout",
+  "groupOverview": "Overview",
+  "groupFrontDesk": "Front desk",
+  "groupClinical": "Clinical care",
+  "groupDiagnostics": "Diagnostics & pharmacy",
+  "groupOperations": "Finance & operations",
+  "groupStaff": "Staff",
+  "groupAdministration": "Administration",
+  "groupSystem": "System",
+  "navHome": "Home",
+  "navPatients": "Patients",
+  "navAppointments": "Appointments",
+  "navQueue": "Queue",
+  "navConsultation": "Consultation",
+  "navPrescription": "Prescription",
+  "navNurses": "Nurses / Vitals",
+  "navIpd": "IPD / Ward / Beds",
+  "navEmergency": "Emergency",
+  "navAiScribe": "AI Scribe",
+  "navLaboratory": "Laboratory",
+  "navRadiology": "Radiology",
+  "navPharmacy": "Pharmacy",
+  "navCompounder": "Compounder",
+  "navBloodBank": "Blood Bank",
+  "navBilling": "Billing",
+  "navInventory": "Inventory",
+  "navHospitalServices": "Hospital services",
+  "navReports": "Reports",
+  "navDoctors": "Doctors",
+  "navAdminDashboard": "Admin Dashboard",
+  "navUsers": "Users",
+  "navRoles": "Roles",
+  "navHospitals": "Hospitals",
+  "navDepartments": "Departments",
+  "navNurseDuty": "Nurse duty",
+  "navPermissions": "Permissions",
+  "navAuditLog": "Audit log",
+  "navEmergencyAccess": "Emergency access",
+  "navSecuritySettings": "Security settings",
+  "guestEyebrow": "Hospital services",
+  "guestTitle": "Your care, organised in one place",
+  "guestBody": "Book an appointment, then sign in to follow your visits, prescriptions, reports and bills.",
+  "bookAppointment": "Book appointment",
+  "todayAtAGlance": "Today at a glance",
+  "tilePatientsToday": "Patients registered today",
+  "tileAppointmentsToday": "Appointments today",
+  "tileWaitingInQueue": "Waiting in queue",
+  "tileBedsAvailable": "Beds available",
+  "tileCurrentAdmissions": "Current admissions",
+  "tileLabPending": "Lab tests pending",
+  "tileLabUrgent": "Urgent lab tests",
+  "tileLabCompleted": "Lab tests completed",
+  "tileBillingPending": "Invoices awaiting payment",
+  "tileCollectedToday": "Collected today",
+  "signInToSee": "Sign in to see",
+  "departments": "Departments",
+  "departmentsIntro": "Work in each department opens after the right staff member signs in.",
+  "deptPatientsText": "Registration and patient records.",
+  "deptAppointmentsText": "Bookings and the daily schedule.",
+  "deptQueue": "OPD queue",
+  "deptQueueText": "Tokens and consultation flow.",
+  "deptConsultationText": "Doctors' clinical work.",
+  "deptNursing": "Nursing",
+  "deptNursingText": "Vitals, nursing notes and medication rounds.",
+  "deptWards": "Wards and beds",
+  "deptWardsText": "Admissions, beds and discharge.",
+  "deptEmergencyText": "Triage and emergency care.",
+  "deptLaboratoryText": "Samples, results and reports.",
+  "deptPharmacyText": "Dispensing and medicine stock.",
+  "deptBloodBank": "Blood bank",
+  "deptBloodBankText": "Blood stock and requests.",
+  "deptBillingText": "Invoices and payments.",
+  "deptInventoryText": "Store, suppliers and purchase orders.",
+  "deptReportsText": "Hospital statistics.",
+  "howBookingWorks": "How booking works",
+  "howBookingWorksIntro": "You can see the steps before signing in.",
+  "stepSelectHospitalText": "Pick where you want to be seen.",
+  "stepSelectDoctor": "Select doctor",
+  "stepSelectDoctorText": "Choose a department and doctor.",
+  "stepChooseSlot": "Choose a slot",
+  "stepChooseSlotText": "Pick a date and an available time.",
+  "stepConfirm": "Confirm",
+  "stepConfirmText": "Sign in to confirm the booking.",
+  "notEligibleTitle": "You are not eligible for this work",
+  "notEligibleBody": "{department} work is only for {roles}. Please sign in with an account that has one of these roles.",
+  "@notEligibleBody": {
+    "placeholders": {
+      "department": {
+        "type": "String"
+      },
+      "roles": {
+        "type": "String"
+      }
+    }
+  },
+  "close": "Close",
+  "cancel": "Cancel",
+  "signInRequired": "Sign-in required",
+  "goodMorning": "Good morning",
+  "goodAfternoon": "Good afternoon",
+  "goodEvening": "Good evening",
+  "greetingWithName": "{greeting}, {name}",
+  "@greetingWithName": {
+    "placeholders": {
+      "greeting": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardLoadFailed": "Dashboard figures could not be loaded",
+  "retry": "Retry",
+  "todaysPatientFlow": "Today's patient flow",
+  "liveCounts": "Live counts for the selected hospital.",
+  "open": "Open",
+  "queueStatus": "Queue status",
+  "statusWaiting": "Waiting",
+  "statusInConsultation": "In consultation",
+  "statusCompleted": "Completed",
+  "appointmentStatus": "Appointment status",
+  "statusPending": "Pending",
+  "labTestStatus": "Lab test status",
+  "statusUrgent": "Urgent",
+  "recentlyRegistered": "Recently registered patients",
+  "viewAll": "View all",
+  "loading": "Loading…",
+  "noPatientsYet": "No patients registered yet",
+  "needsAttention": "Needs attention",
+  "checking": "Checking…",
+  "nothingNeedsAttention": "Nothing needs attention",
+  "nothingNeedsAttentionText": "No waiting patients, urgent tests or active emergencies right now.",
+  "quickActions": "Quick actions",
+  "actionRegisterPatient": "Register patient",
+  "actionNewAppointment": "New appointment",
+  "actionOpenQueue": "Open queue",
+  "actionStartConsultation": "Start consultation",
+  "actionDispenseMedicines": "Dispense medicines",
+  "actionLabWorklist": "Lab worklist",
+  "actionCreateInvoice": "Create invoice",
+  "actionFindPatient": "Find a patient",
+  "actionPrescriptions": "Prescriptions",
+  "actionAiScribe": "AI scribe",
+  "actionLabResults": "Lab results",
+  "actionVitalsNursing": "Vitals and nursing",
+  "actionWardBeds": "Ward and beds",
+  "actionCompounding": "Compounding",
+  "actionMedicineStock": "Medicine stock",
+  "actionBloodStock": "Blood stock and requests",
+  "operations": "Operations",
+  "emergencyVisitsToday": "Emergency visits today",
+  "invoicesPaidTotal": "Invoices paid / total",
+  "registeredInTotal": "{count} registered in total",
+  "@registeredInTotal": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "countPending": "{count} pending",
+  "@countPending": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "nowServingToken": "Now serving token {token}",
+  "@nowServingToken": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "noTokenServed": "No token being served",
+  "bedsOccupiedOf": "{occupied} occupied of {total}",
+  "@bedsOccupiedOf": {
+    "placeholders": {
+      "occupied": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "noBedsAvailable": "No beds available",
+  "attentionEmergency": "{count, plural, =1{1 active emergency case} other{{count} active emergency cases}}",
+  "@attentionEmergency": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionUrgentLab": "{count, plural, =1{1 urgent lab test} other{{count} urgent lab tests}}",
+  "@attentionUrgentLab": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionQueue": "{count, plural, =1{1 patient waiting in the queue} other{{count} patients waiting in the queue}}",
+  "@attentionQueue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionLabPending": "{count, plural, =1{1 lab test pending} other{{count} lab tests pending}}",
+  "@attentionLabPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attentionBilling": "{count, plural, =1{1 invoice awaiting payment} other{{count} invoices awaiting payment}}",
+  "@attentionBilling": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ageYears": "{age} y",
+  "@ageYears": {
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "welcome": "Welcome",
+  "selectHospitalForDashboard": "Select a hospital from the header to see its dashboard.",
+  "roleHomeDoctor": "Your clinic today",
+  "roleHomeNurse": "Your ward today",
+  "roleHomeReceptionist": "Front desk today",
+  "roleHomePharmacy": "Pharmacy today",
+  "roleHomeLaboratory": "Laboratory today",
+  "roleHomeBilling": "Billing today",
+  "roleHomeBloodBank": "Blood bank today",
+  "roleHomeStore": "Store today",
+  "roleAdmin": "Admin",
+  "roleDoctor": "Doctor",
+  "roleNurse": "Nurse",
+  "roleCompounder": "Compounder",
+  "roleReceptionist": "Receptionist",
+  "rolePharmacist": "Pharmacist",
+  "roleLabStaff": "Lab Staff",
+  "roleBloodBankStaff": "Blood Bank Staff",
+  "roleBillingStaff": "Billing Staff",
+  "roleInventoryStaff": "Inventory Staff",
+  "roleHospitalManager": "Hospital Manager",
+  "tryAgain": "Try again",
+  "noAccessTitle": "You don't have access",
+  "somethingWentWrong": "Something went wrong",
+  "signInToOpen": "Sign in with a staff account that may open {module}.",
+  "@signInToOpen": {
+    "placeholders": {
+      "module": {
+        "type": "String"
+      }
+    }
+  },
+  "signInUnavailableTitle": "Sign-in is not in this app version yet",
+  "signInUnavailableBody": "Staff and patient sign-in come with the next app update. Until then, use the web app to sign in.",
+  "moduleNotOnMobileTitle": "{module} is not in the mobile app yet",
+  "@moduleNotOnMobileTitle": {
+    "placeholders": {
+      "module": {
+        "type": "String"
+      }
+    }
+  },
+  "moduleNotOnMobileBody": "This module will be added in a later app update. Use the web app for this work until then.",
+  "backToHome": "Back to home",
+  "appSettingsIntro": "Settings for this device.",
+  "language": "Language",
+  "languageEnglish": "English",
+  "languageHindi": "हिंदी",
+  "serverConnection": "Server connection",
+  "serverConnectionText": "Check that this device can reach the hospital server.",
+  "backend": "Backend",
+  "checkingConnection": "Checking connection…",
+  "checkAgain": "Check again",
+  "errorNetwork": "Cannot reach the server. Check the connection and try again.",
+  "errorTimeout": "The server did not answer in time. Try again.",
+  "errorUnauthorized": "Your session has ended. Please sign in again.",
+  "errorForbidden": "Your role does not have access to this in the selected hospital.",
+  "errorNotFound": "This record was not found in the selected hospital.",
+  "errorValidation": "Some details are not valid. Check the form and try again.",
+  "errorConflict": "This record changed or already exists. Refresh and try again.",
+  "errorRateLimited": "Too many attempts. Wait a few minutes and try again.",
+  "errorServer": "The server had a problem. Try again shortly.",
+  "errorUnavailable": "This service is not set up on the server.",
+  "errorUnknown": "Something went wrong. Try again.",
+  "staffPortal": "Staff portal",
+  "patientPortal": "Patient portal",
+  "signInTitle": "Sign in",
+  "staffSignInIntro": "Use your hospital staff account.",
+  "usernameOrEmail": "Username or email",
+  "password": "Password",
+  "continueAction": "Continue",
+  "forgotPassword": "Forgot password?",
+  "enterTheCode": "Enter the code",
+  "codeSentToMobile": "We sent a 6-digit code to your mobile ({maskedPhone}).",
+  "@codeSentToMobile": {
+    "placeholders": {
+      "maskedPhone": {
+        "type": "String"
+      }
+    }
+  },
+  "sixDigitCode": "6-digit code",
+  "verifyAndContinue": "Verify and continue",
+  "back": "Back",
+  "resendCode": "Resend code",
+  "codeResent": "A new code was sent.",
+  "resetPasswordTitle": "Reset your password",
+  "resetRequestIntro": "A code is sent to the mobile number registered on your staff account.",
+  "resetConfirmIntro": "Enter the code from the SMS and choose a new password.",
+  "codeFromSms": "Code from SMS",
+  "newPassword": "New password",
+  "atLeast8Characters": "At least 8 characters.",
+  "sendResetCode": "Send reset code",
+  "setNewPassword": "Set new password",
+  "backToSignIn": "Back to sign in",
+  "resetCodeSent": "If an active staff account matches, a code was sent to its registered mobile number.",
+  "passwordUpdated": "Password updated. Sign in with your new password.",
+  "patientSignInIntro": "Patients see their own appointments, prescriptions, reports and bills.",
+  "signInMethod": "Sign-in method",
+  "tabMobileOtp": "Mobile OTP",
+  "tabTokenId": "Token / ID",
+  "tabEmail": "Email",
+  "loginWithMobile": "Login with Mobile",
+  "weWillSendCode": "We'll send a 6-digit verification code",
+  "mobileNumber": "Mobile number",
+  "enter10DigitNumber": "Enter 10-digit number",
+  "sendOtp": "Send OTP",
+  "verifyOtp": "Verify OTP",
+  "otpSentTo": "Enter the 6-digit OTP sent to {phone}",
+  "@otpSentTo": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "verifyAndContinueShort": "Verify & Continue",
+  "changeNumber": "Change number",
+  "otpPrintedOnServer": "Development server: the code is printed in the server log, not sent by SMS.",
+  "loginWithEmail": "Login with Email",
+  "emailLoginIntro": "Use the email and password from your patient account.",
+  "email": "Email",
+  "emailNotVerifiedSendOtp": "Email not verified? Send email OTP",
+  "sendEmailOtp": "Send Email OTP",
+  "otpLabel": "OTP",
+  "backToEmailLogin": "Back to email login",
+  "emailVerifiedSignIn": "Email verified. You can now sign in with your email and password.",
+  "loginWithTokenId": "Login with Token / ID",
+  "tokenIdIntro": "Enter your token number or hospital patient ID",
+  "tokenOrPatientId": "Token Number / Patient ID",
+  "tokenIdHint": "Use the patient ID from registration together with your account password.",
+  "lookupAndLogin": "Lookup & Login",
+  "newToHms": "New to the Hospital Management System?",
+  "createAccount": "Create Account",
+  "registerTitle": "Create your patient account",
+  "registerIntro": "Staff accounts are created by invitation from your hospital.",
+  "fullName": "Full name",
+  "confirmPassword": "Confirm password",
+  "gender": "Gender",
+  "genderMale": "Male",
+  "genderFemale": "Female",
+  "genderOther": "Other",
+  "verifyYourEmail": "Verify your email",
+  "verifyEmailIntro": "Enter the code sent to {email}. Then sign in with your email and password.",
+  "@verifyEmailIntro": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "emailCodeNotSent": "The verification email could not be sent. Ask the hospital to check its email settings.",
+  "haveAccountSignIn": "Already have an account? Sign in",
+  "restoringSession": "Opening your session…",
+  "restoreFailedTitle": "Could not reach the hospital server",
+  "restoreFailedBody": "Your sign-in is kept on this device. Check the connection and try again, or sign out.",
+  "sessionEndedNotice": "Your session has ended. Please sign in again.",
+  "signOut": "Sign out",
+  "signedInDevices": "Signed-in devices",
+  "signedInDevicesIntro": "Devices where your account is signed in. Sign out any you don't recognise.",
+  "thisDevice": "This device",
+  "lastActive": "Last active {time}",
+  "@lastActive": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "signOutDevice": "Sign out",
+  "signOutEverywhere": "Sign out everywhere",
+  "signOutEverywhereConfirm": "Sign out of every device, including this one?",
+  "signOutDeviceConfirm": "Sign this device out?",
+  "noOtherDevices": "No signed-in devices.",
+  "platformAndroid": "Android",
+  "platformIos": "iPhone / iPad",
+  "platformWeb": "Web browser",
+  "platformOther": "Other device",
+  "actingAs": "Acting as {role}",
+  "@actingAs": {
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "accountPatient": "Patient",
+  "accountFamily": "Family member (view only)",
+  "notEligibleForPage": "You are not eligible for that page",
+  "notEligibleForPageBody": "{module} is not open to your role in this hospital.",
+  "@notEligibleForPageBody": {
+    "placeholders": {
+      "module": {
+        "type": "String"
+      }
+    }
+  },
+  "noHospitalAccess": "Your account is not active in any hospital yet. Ask your hospital administrator.",
+  "patientHomeIntro": "Your hospitals and profile. Appointments, prescriptions, reports and bills open in later app updates.",
+  "myProfile": "My profile",
+  "myHospitals": "My hospitals",
+  "verified": "Verified",
+  "notVerified": "Not verified",
+  "patientNavHome": "Home",
+  "patientNavAppointments": "My Appointments",
+  "patientNavQueue": "My Queue / Token",
+  "patientNavRecords": "My Medical Records",
+  "patientNavPrescriptions": "My Prescriptions",
+  "patientNavLab": "My Lab Reports",
+  "patientNavBills": "My Bills",
+  "patientNavConsent": "Notifications / Consent",
+  "groupPatientPortal": "My health",
+  "authFieldsRequired": "Enter your username or email and password.",
+  "authInvalidCredentials": "The username, email or password is not correct.",
+  "authAccountDisabled": "This account is disabled. Contact your hospital administrator.",
+  "authNotStaff": "This account is not an active staff account. Patients sign in on the patient portal.",
+  "authLockedOut": "Too many failed sign-in attempts. Try again in 15 minutes or reset your password.",
+  "authOtpRequiredUnavailable": "This server requires an SMS code, but SMS is not set up. Contact your hospital administrator.",
+  "authChallengeExpired": "Your sign-in step expired. Enter your password again.",
+  "authInvalidOtp": "The code is not correct.",
+  "authOtpExpired": "The code has expired. Ask for a new one.",
+  "authOtpLocked": "Too many wrong codes. Sign in again in 15 minutes.",
+  "authOtpCooldown": "Please wait a minute before asking for another code.",
+  "authTooManyRequests": "Too many attempts. Please try again later.",
+  "authInvalidPhone": "Enter a valid 10-digit mobile number.",
+  "authInvalidEmail": "Enter a valid email address.",
+  "authEmailNotVerified": "Your email is not verified yet. Send an email OTP to verify it.",
+  "authStaffUseStaffLogin": "Staff accounts sign in on the staff portal.",
+  "authSmsUnavailable": "SMS codes are not set up on this server. Use another sign-in method or contact the hospital.",
+  "authResetUnavailable": "Password reset by SMS is not set up on this server. Contact your hospital administrator.",
+  "authResetCodeInvalid": "The code is not correct or has expired.",
+  "authPasswordTooShort": "Password must be at least 8 characters.",
+  "authPasswordMismatch": "Password and confirm password do not match.",
+  "authPasswordRejected": "This password was not accepted. Choose a longer, less common password.",
+  "authNameRequired": "Enter your full name.",
+  "authInvalidDob": "The date of birth is not valid.",
+  "authEmailExists": "An account already exists with this email. Sign in instead.",
+  "authPhoneExists": "An account already exists with this mobile number. Sign in instead.",
+  "authStaffInviteOnly": "Staff accounts are created by your hospital. Ask its administrator for an invitation.",
+  "authNotAllowed": "This sign-in is not allowed for this account.",
+  "authUnsupportedAccount": "This account cannot use the mobile app. Use the web app.",
+  "authEmailSendFailed": "The verification email could not be sent. Try again later.",
+  "fieldRequired": "Required",
+  "refreshFailed": "Could not refresh",
+  "statusScheduled": "Scheduled",
+  "statusCheckedIn": "Checked in",
+  "statusCancelled": "Cancelled",
+  "statusNoShow": "No show",
+  "statusCalled": "Called",
+  "statusAcknowledged": "Acknowledged",
+  "statusReady": "Ready",
+  "statusConfirmed": "Confirmed",
+  "statusDispensed": "Dispensed",
+  "statusPartiallyDispensed": "Partly dispensed",
+  "statusReleased": "Released",
+  "statusUnpaid": "Unpaid",
+  "statusPartiallyPaid": "Partly paid",
+  "statusPaid": "Paid",
+  "bookAppointmentIntro": "Choose a doctor, a date and a free time.",
+  "bookingNoHospital": "You are not registered at any hospital yet. Please register at the reception first.",
+  "bookingSlotTaken": "This time was just booked by someone else. Please choose another time.",
+  "bookingSlotUnavailable": "This time is no longer available. Please choose another time.",
+  "bookingDateInvalid": "This date cannot be booked. Choose a date within the booking window.",
+  "bookingDoctorUnavailable": "This doctor is not taking online bookings. Choose another doctor.",
+  "bookingLimitReached": "You already have the most upcoming appointments allowed. Attend or cancel one at the hospital first.",
+  "bookingRejected": "The hospital could not accept this booking. Check the details and try again.",
+  "doctor": "Doctor",
+  "selectDoctor": "Select doctor",
+  "date": "Date",
+  "chooseDoctorFirst": "Choose a doctor to see free times.",
+  "noFreeSlots": "No free time on this day. Try another date.",
+  "reasonForVisit": "Reason for visit",
+  "confirmBooking": "Confirm booking",
+  "bookingConfirmed": "Appointment booked",
+  "bookingConfirmedBody": "The hospital has recorded your booking. Please arrive a little before your time.",
+  "appointmentId": "Appointment ID",
+  "status": "Status",
+  "viewMyAppointments": "View my appointments",
+  "filterAll": "All",
+  "filterUpcoming": "Upcoming",
+  "filterPast": "Past",
+  "filterCancelled": "Cancelled",
+  "appointmentsIntro": "Your bookings at the selected hospital.",
+  "appointmentChangesAtHospital": "To cancel or change an appointment, please contact the hospital reception.",
+  "noAppointmentsYet": "No appointments yet",
+  "noAppointmentsMatch": "No appointments match this filter",
+  "noAppointmentsYetHint": "Use Book appointment to choose a doctor and a time.",
+  "appointmentDetails": "Appointment details",
+  "queueIntro": "Your place in today's consultation queue. This page checks again every 30 seconds while it is open.",
+  "lastChecked": "Last checked at {time}",
+  "@lastChecked": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "noActiveToken": "No active token",
+  "noActiveTokenHint": "You don't have a consultation waiting at the moment.",
+  "tokenNumber": "Token {number}",
+  "@tokenNumber": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "queuePosition": "Position in queue",
+  "estimatedWait": "Estimated wait",
+  "minutesShort": "{minutes} min",
+  "@minutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "expectedAround": "Expected around",
+  "tokenCalled": "Your token has been called",
+  "tokenCalledBody": "Please go to the consultation area now.",
+  "tokenNext": "You are next. The doctor will see you shortly.",
+  "estimatesAreApproximate": "Wait times are estimates, not appointment times. Please stay nearby so you don't miss your call.",
+  "prescriptionsIntro": "Medicines your doctors have prescribed.",
+  "noPrescriptionsYet": "No prescriptions yet",
+  "noPrescriptionsYetHint": "Prescriptions from your visits will appear here.",
+  "noMedicinesListed": "No medicines listed",
+  "dosage": "Dosage",
+  "frequency": "Frequency",
+  "duration": "Duration",
+  "quantity": "Quantity",
+  "instructions": "Instructions",
+  "labIntro": "Results released by the laboratory.",
+  "labReleasedOnly": "Reports appear here after the laboratory has checked and released them.",
+  "labNotADiagnosis": "Values are shown as the laboratory entered them. Please discuss them with your doctor.",
+  "noLabReportsYet": "No lab reports yet",
+  "noLabReportsYetHint": "Reports for tests in progress appear once they are released.",
+  "orderedBy": "Ordered by",
+  "laboratory": "Laboratory",
+  "testDate": "Test date",
+  "releasedOn": "Released on",
+  "results": "Results",
+  "noResultValues": "No values in this report",
+  "referenceRange": "Reference range",
+  "reportNotes": "Report notes",
+  "billsIntro": "Invoices and the payments recorded against them.",
+  "payAtHospital": "Bills are paid at the hospital",
+  "payAtHospitalBody": "Online payment is not available yet. Payments made at the billing desk appear here.",
+  "noBillsYet": "No bills yet",
+  "outstandingBalance": "Outstanding balance",
+  "billsWithBalance": "Bills with balance due",
+  "billDate": "Bill date",
+  "billTotal": "Total",
+  "amountPaid": "Paid",
+  "balanceDue": "Balance due",
+  "paymentHistory": "Payment history",
+  "noPaymentsYet": "No payments recorded",
+  "refund": "Refund",
+  "patientNavNotifications": "Notifications",
+  "notificationsIntro": "Messages from your hospital. Open one to see the page it is about.",
+  "markReadFailed": "Could not mark as read",
+  "noNotifications": "No notifications",
+  "unread": "Unread",
+  "documentsIntro": "Documents the hospital has shared with you.",
+  "documentsViewOnWeb": "Opening files in the app is not available yet. Use the patient portal on the web to open them.",
+  "noDocumentsYet": "No documents yet",
+  "profileIntro": "Your details as the hospital has recorded them.",
+  "refresh": "Refresh",
+  "profileChangesAtHospital": "To change your details, please contact the hospital reception.",
+  "patientId": "Patient ID",
+  "selectedHospital": "Selected hospital",
+  "viewingHospital": "Showing records at {name}",
+  "@viewingHospital": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "patientDataUnavailable": "Your records could not be loaded. Check your connection and try again.",
+  "somePatientDataUnavailable": "Some of your records could not be loaded.",
+  "upcomingAppointments": "Upcoming appointments",
+  "pastVisits": "Past visits",
+  "currentPrescriptions": "Current prescriptions",
+  "noUpcomingAppointments": "No upcoming appointments",
+  "recentPrescriptions": "Recent prescriptions",
+  "recentLabReports": "Recent lab reports",
+  "notAvailableNow": "Not available right now",
+  "medicineCount": "{count, plural, =1{1 medicine} other{{count} medicines}}",
+  "@medicineCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unreadNotifications": "{count, plural, =1{You have 1 unread notification} other{You have {count} unread notifications}}",
+  "@unreadNotifications": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ageLabel": "Age",
+  "timeLabel": "Time",
+  "tokenLabel": "Token",
+  "viewProfile": "View profile",
+  "addDiagnosis": "Add diagnosis",
+  "addMedicine": "Add medicine",
+  "addOneMedicine": "Add at least one medicine.",
+  "anotherDoctorsVisit": "This is another doctor's visit. You can read it but not add to it.",
+  "bmi": "BMI",
+  "bmiByServer": "BMI is calculated by the hospital system from weight (kg) and height (cm): kg ÷ m².",
+  "calledPatients": "Called",
+  "checkAndSavePrescription": "Check safety and save prescription",
+  "checkTheseFields": "Please check: {fields}",
+  "@checkTheseFields": {
+    "placeholders": {
+      "fields": {
+        "type": "String"
+      }
+    }
+  },
+  "clinicalHistory": "Clinical history",
+  "clinicalNotes": "Clinical notes",
+  "comments": "Comments",
+  "completeConsultation": "Complete consultation",
+  "completeConsultationBody": "The visit will be marked Completed. Records already saved stay as they are.",
+  "completeConsultationTitle": "Complete this consultation?",
+  "completedToday": "Completed today",
+  "consultationIntro": "Your visits. Open one to record vitals, notes, diagnoses, prescriptions and lab orders.",
+  "consultationQueueHint": "Queue tokens are moved on the Queue page.",
+  "continueSaving": "Continue and save",
+  "dateOfBirth": "Date of birth",
+  "diagnoses": "Diagnoses",
+  "diagnosisName": "Diagnosis",
+  "diagnosisNameRequired": "Enter the diagnosis.",
+  "diagnosisType": "Type",
+  "doctorAppointmentsIntro": "Bookings with you at the selected hospital.",
+  "doctorLabIntro": "Lab tests of patients in your care. Values appear once the laboratory releases them.",
+  "doctorPatientsIntro": "Find a patient in your care by name, mobile number or UHID.",
+  "doctorPrescriptionsIntro": "Prescriptions of patients in your care.",
+  "doctorProfileMissing": "No doctor profile is linked to your account at this hospital. Ask the hospital Admin.",
+  "doctorQueueIntro": "Today's patients for you. This page checks again every 30 seconds while it is open.",
+  "draft": "Draft",
+  "emergencyContact": "Emergency contact",
+  "enterAtLeastOneVital": "Enter at least one reading.",
+  "estimatedWaitShort": "about {minutes} min (estimate)",
+  "@estimatedWaitShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "filterToday": "Today",
+  "fixHighlightedFields": "Fix the highlighted readings.",
+  "goBack": "Go back",
+  "icd10Search": "Search ICD-10 (optional)",
+  "knownCondition": "Known condition",
+  "labOrders": "Lab orders",
+  "labTestName": "Test name",
+  "labTestNameRequired": "Enter the test name.",
+  "medicationSafetyAlerts": "Medication safety alerts",
+  "medicineName": "Medicine",
+  "medicineNameRequired": "Medicine {number}: enter the name.",
+  "@medicineNameRequired": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "medicineNumber": "Medicine {number}",
+  "@medicineNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "medicineQuantityInvalid": "Medicine {number}: quantity must be at least 1.",
+  "@medicineQuantityInvalid": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "medicines": "Medicines",
+  "myDoctorProfile": "My doctor profile",
+  "name": "Name",
+  "noAppointmentsToday": "No appointments today",
+  "nobodyCalled": "Nobody called",
+  "nobodyInConsultation": "Nobody in consultation",
+  "nobodyWaiting": "Nobody waiting",
+  "noConsultationsYet": "No completed consultations yet",
+  "noDiagnosesYet": "No diagnoses yet",
+  "noDoctorInbox": "Doctor notifications are not available: the hospital system has no inbox for staff yet.",
+  "noHistoryYet": "No history recorded",
+  "noLabOrdersForVisit": "No lab tests ordered on this visit",
+  "none": "None",
+  "noNotesYet": "No notes yet",
+  "noPatientsFound": "No patient found",
+  "noPatientsFoundHint": "Only patients in your care are shown.",
+  "noPrescriptionsForVisit": "No prescription on this visit yet",
+  "noShowTitle": "Mark as no-show?",
+  "noteAssessment": "Assessment",
+  "noteChiefComplaint": "Chief complaint",
+  "noteCurrentMedications": "Current medications",
+  "noteExamination": "Examination",
+  "noteNeedsOneSection": "Write at least one part of the note.",
+  "noteOther": "Other notes",
+  "notePastHistory": "Past history",
+  "notePlan": "Plan",
+  "notePresentIllness": "History of present illness",
+  "noVisitsToShow": "No visits to show",
+  "noVisitsToShowHint": "Visits are created at the reception when a patient arrives.",
+  "noVisitsYet": "No visits yet",
+  "noVitalsYet": "No vitals recorded on this visit",
+  "nowServing": "Now serving",
+  "openConsultation": "Open consultation",
+  "openPatientRecord": "Open patient record",
+  "openVisits": "Open visits",
+  "orderLabTest": "Order lab test",
+  "overrideReason": "Reason to prescribe anyway",
+  "overrideReasonHint": "At least {count} characters. It is recorded with the prescription.",
+  "@overrideReasonHint": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "patientLabel": "Patient",
+  "patientNotInCare": "You cannot open this record",
+  "patientNotInCareHint": "The hospital system shows a doctor only the patients in their care at this hospital.",
+  "patientProfile": "Patient profile",
+  "pickDate": "Pick a date",
+  "positionShort": "position {position}",
+  "@positionShort": {
+    "placeholders": {
+      "position": {
+        "type": "String"
+      }
+    }
+  },
+  "prescribeAnyway": "Prescribe anyway",
+  "prescription": "Prescription",
+  "prescriptionFreeTextNote": "Write each medicine as on the web form. Nothing is suggested by the app.",
+  "prescriptionMaybeSaved": "This prescription may already be saved. Check the list below before saving again.",
+  "prescriptionSaved": "Prescription #{id} saved by the hospital system.",
+  "@prescriptionSaved": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "priority": "Priority",
+  "queueCall": "Call",
+  "queueComplete": "Complete",
+  "queueFinishedToday": "{count, plural, =0{No token finished today} =1{1 token finished today} other{{count} tokens finished today}}",
+  "@queueFinishedToday": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueMoveConfirm": "Token #{token} will leave the queue. The patient may be notified by the hospital system.",
+  "@queueMoveConfirm": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "queueMoveFailed": "The queue could not be updated",
+  "queueNoShow": "No-show",
+  "queueSkip": "Skip",
+  "queueStartConsultation": "Start consultation",
+  "recentConsultations": "Recent consultations",
+  "recordSignedNoChange": "This record is signed and cannot be changed. Add a new record instead.",
+  "registration": "Registration",
+  "releasedResults": "Released results",
+  "remarks": "Remarks",
+  "removeMedicine": "Remove medicine",
+  "resultNotReleased": "Result not released yet",
+  "saveNoteDraft": "Save note as draft",
+  "saveVitals": "Save vitals",
+  "searchPatientName": "Search by patient name",
+  "searchPatientsHint": "Name, mobile number or UHID",
+  "signedOn": "Signed {date}",
+  "@signedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "signRecord": "Sign",
+  "signRecordBody": "A signed record is final. Corrections are added as new records.",
+  "signRecordTitle": "Sign this record?",
+  "skipTokenTitle": "Skip this token?",
+  "specialization": "Specialisation",
+  "startConsultation": "Start consultation",
+  "todaysAppointments": "Today's appointments",
+  "typeToSearch": "Type at least {count} letters to search",
+  "@typeToSearch": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "visitClosedReadOnly": "This visit is closed. Its records are shown read-only.",
+  "visits": "Visits",
+  "vitalBloodSugar": "Blood sugar",
+  "vitalDiastolic": "Diastolic BP",
+  "vitalHeight": "Height",
+  "vitalNegative": "Cannot be negative.",
+  "vitalNotANumber": "Enter a number.",
+  "vitalPainScore": "Pain score",
+  "vitalPulse": "Pulse",
+  "vitalRespiratoryRate": "Respiratory rate",
+  "vitals": "Vitals",
+  "vitalSpo2": "SpO₂",
+  "vitalsSaved": "Vitals saved by the hospital system.",
+  "vitalSystolic": "Systolic BP",
+  "vitalTemperature": "Temperature",
+  "vitalTooHigh": "Above the allowed maximum.",
+  "vitalTooPrecise": "Use at most 2 decimal places.",
+  "vitalWeight": "Weight",
+  "vitalWholeNumber": "Enter a whole number.",
+  "waitingPatients": "Waiting",
+  "writeInConsultation": "Write in a consultation"
+}

@@ -1,0 +1,76 @@
+# Flutter mobile app (mobile/): analysis, tests and an Android debug build.
+# Runs only when the app or this workflow changes.
+
+name: Mobile CI
+
+on:
+  push:
+    branches: [master, main, develop]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile.yml'
+  pull_request:
+    branches: [master, main, develop]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile.yml'
+
+permissions:
+  contents: read
+
+env:
+  # Same Flutter as the development machine (flutter --version, 2026-11-10).
+  FLUTTER_VERSION: '3.47.9'
+
+jobs:
+  mobile:
+    name: Flutter analyze, test, Android debug build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Android Gradle Plugin 9 needs JDK 17 or newer.
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # gen-l10n output is committed; fail if the ARB files and it disagree.
+      - name: Check generated localizations are up to date
+        run: |
+          flutter gen-l10n
+          git diff --exit-code -- lib/l10n/generated
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build Android debug APK
+        run: flutter build apk --debug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hms-mobile-debug-apk
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
