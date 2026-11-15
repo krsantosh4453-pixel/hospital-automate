@@ -38,7 +38,7 @@ eggs/
 .eggs/
 lib/
 # The Python rule above would also hide the Flutter app's Dart sources.
-!mobile/lib/
+!hospital-automate-mobile/lib/
 lib64/
 parts/
 sdist/

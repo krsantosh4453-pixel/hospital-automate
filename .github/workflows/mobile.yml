@@ -1,4 +1,4 @@
-# Flutter mobile app (mobile/): analysis, tests and an Android debug build.
+# Flutter mobile app (hospital-automate-mobile/): analysis, tests and an Android debug build.
 # Runs only when the app or this workflow changes.
 
 name: Mobile CI
@@ -7,12 +7,12 @@ on:
   push:
     branches: [master, main, develop]
     paths:
-      - 'mobile/**'
+      - 'hospital-automate-mobile/**'
       - '.github/workflows/mobile.yml'
   pull_request:
     branches: [master, main, develop]
     paths:
-      - 'mobile/**'
+      - 'hospital-automate-mobile/**'
       - '.github/workflows/mobile.yml'
 
 permissions:
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: mobile
+        working-directory: hospital-automate-mobile
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -72,5 +72,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hms-mobile-debug-apk
-          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          path: hospital-automate-mobile/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 7
