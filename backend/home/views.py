@@ -89,11 +89,12 @@ def home_dashboard(request):
     pending_appointments = appointment_qs.filter(status="Scheduled").count()
     completed_appointments = appointment_qs.filter(status="Completed").count()
     
-    # Queue stats
-    total_queue = queue_qs.count()
-    waiting_queue = queue_qs.filter(status="Waiting").count()
-    in_consultation_queue = queue_qs.filter(status="In Consultation").count()
-    completed_queue = queue_qs.filter(status="Completed").count()
+    # Queue stats cover today's tokens only, like the queue board.
+    today_queue_qs = queue_qs.filter(token_date=today)
+    total_queue = today_queue_qs.count()
+    waiting_queue = today_queue_qs.filter(status="Waiting").count()
+    in_consultation_queue = today_queue_qs.filter(status="In Consultation").count()
+    completed_queue = today_queue_qs.filter(status="Completed").count()
     
     # Bed stats
     total_beds = bed_qs.count()
@@ -131,7 +132,7 @@ def home_dashboard(request):
     current_token_number = current_token.token_number if current_token else 0
     
     # Waiting patients estimate (waiting queue * estimated wait)
-    avg_wait = queue_qs.filter(status="Waiting").aggregate(
+    avg_wait = today_queue_qs.filter(status="Waiting").aggregate(
         avg=Sum("estimated_wait_minutes")
     )["avg"] or 0
     waiting_patients = waiting_queue
@@ -232,6 +233,7 @@ def home_stats_summary(request):
     )).count()
     waiting_queue = own(QueueToken.objects.filter(
         hospital_id=hospital_id,
+        token_date=today,
         status="Waiting"
     )).count()
     available_beds = Bed.objects.filter(
