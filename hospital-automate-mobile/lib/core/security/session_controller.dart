@@ -122,6 +122,16 @@ class SessionState {
     return activeHospital?.permissions.contains('$module.View') ?? false;
   }
 
+  /// Whether the active role holds `<module>.<action>` (e.g. `Billing.Add`).
+  /// Like [canView], this only decides what the app offers.
+  bool can(String module, String action) =>
+      isStaff &&
+      (activeHospital?.permissions.contains('$module.$action') ?? false);
+
+  /// Whether the active role is one of [roles] (server role names).
+  bool hasRole(Set<String> roles) =>
+      isStaff && activeRole != null && roles.contains(activeRole);
+
   SessionState copyWith({int? activeHospitalId}) => SessionState(
     user: user,
     hospitals: hospitals,

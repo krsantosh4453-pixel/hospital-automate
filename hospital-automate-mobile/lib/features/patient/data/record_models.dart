@@ -98,6 +98,11 @@ class LabResultData {
     this.referenceRanges = const {},
     this.flags = const {},
     this.releasedAt,
+    this.enteredAt,
+    this.enteredByName,
+    this.verifiedAt,
+    this.verifiedByName,
+    this.isVerified = false,
   });
 
   factory LabResultData.fromJson(Map<String, Object?> json) => LabResultData(
@@ -106,6 +111,11 @@ class LabResultData {
     referenceRanges: _stringMap(json['reference_ranges']),
     flags: _stringMap(json['abnormal_flags']),
     releasedAt: readDateTime(json['released_at']),
+    enteredAt: readDateTime(json['entered_at']),
+    enteredByName: readText(json['entered_by_name']),
+    verifiedAt: readDateTime(json['verified_at']),
+    verifiedByName: readText(json['verified_by_name']),
+    isVerified: json['is_verified'] == true,
   );
 
   /// Parameter → value, as the laboratory entered it.
@@ -116,6 +126,13 @@ class LabResultData {
   /// Parameter → the laboratory's own flag (e.g. "H", "L"); never interpreted here.
   final Map<String, String> flags;
   final DateTime? releasedAt;
+
+  /// Audit trail the laboratory keeps (staff views only).
+  final DateTime? enteredAt;
+  final String? enteredByName;
+  final DateTime? verifiedAt;
+  final String? verifiedByName;
+  final bool isVerified;
 
   bool get isEmpty => values.isEmpty && text == null;
 
@@ -131,6 +148,71 @@ class LabResultData {
     final List l => l.join(', '),
     _ => '$value',
   };
+}
+
+/// How and when the sample was taken (SampleCollectionSerializer). Written
+/// once by the collect step; the server never edits it afterwards.
+@immutable
+class LabSample {
+  const LabSample({
+    required this.sampleId,
+    this.sampleType,
+    this.containerType,
+    this.collectedAt,
+    this.collectedByName,
+    this.notes,
+    this.barcoded = false,
+  });
+
+  factory LabSample.fromJson(Map<String, Object?> json) => LabSample(
+    sampleId: readText(json['sample_id']) ?? '',
+    sampleType: readText(json['sample_type']),
+    containerType: readText(json['container_type']),
+    collectedAt: readDateTime(json['collected_at']),
+    collectedByName: readText(json['collected_by_name']),
+    notes: readText(json['collection_notes']),
+    barcoded: json['barcoded'] == true,
+  );
+
+  final String sampleId;
+  final String? sampleType;
+  final String? containerType;
+  final DateTime? collectedAt;
+  final String? collectedByName;
+  final String? notes;
+  final bool barcoded;
+}
+
+/// The sample's trip to the laboratory (SampleDispatchSerializer).
+@immutable
+class LabDispatch {
+  const LabDispatch({
+    required this.status,
+    this.dispatchedAt,
+    this.dispatchedByName,
+    this.receivedAt,
+    this.receivedByName,
+    this.notes,
+    this.externalLab,
+  });
+
+  factory LabDispatch.fromJson(Map<String, Object?> json) => LabDispatch(
+    status: readText(json['status']) ?? '',
+    dispatchedAt: readDateTime(json['dispatched_at']),
+    dispatchedByName: readText(json['dispatched_by_name']),
+    receivedAt: readDateTime(json['received_at']),
+    receivedByName: readText(json['received_by_name']),
+    notes: readText(json['dispatch_notes']),
+    externalLab: readText(json['external_lab']),
+  );
+
+  final String status;
+  final DateTime? dispatchedAt;
+  final String? dispatchedByName;
+  final DateTime? receivedAt;
+  final String? receivedByName;
+  final String? notes;
+  final String? externalLab;
 }
 
 /// `GET laboratory/tests/`. Patients receive only tests the laboratory has
@@ -150,11 +232,35 @@ class LabTest {
     this.patientId,
     this.patientName,
     this.visitId,
+    this.hospitalId,
+    this.doctorId,
+    this.collectedAt,
+    this.dispatchedAt,
+    this.receivedAt,
+    this.processedAt,
+    this.verifiedAt,
+    this.sample,
+    this.dispatch,
   });
 
   factory LabTest.fromJson(Map<String, Object?> json) {
     final result = json['lab_result'];
+    final sample = json['sample_collection'];
+    final dispatch = json['sample_dispatch'];
     return LabTest(
+      hospitalId: readInt(json['hospital']),
+      doctorId: readInt(json['doctor']),
+      collectedAt: readDateTime(json['collected_at']),
+      dispatchedAt: readDateTime(json['dispatched_at']),
+      receivedAt: readDateTime(json['received_at']),
+      processedAt: readDateTime(json['processed_at']),
+      verifiedAt: readDateTime(json['verified_at']),
+      sample: sample is Map
+          ? LabSample.fromJson(Map<String, Object?>.from(sample))
+          : null,
+      dispatch: dispatch is Map
+          ? LabDispatch.fromJson(Map<String, Object?>.from(dispatch))
+          : null,
       id: readInt(json['id']) ?? 0,
       patientId: readInt(json['patient']),
       patientName: readText(json['patient_name']),
@@ -188,6 +294,17 @@ class LabTest {
   final String? doctorName;
   final String? hospitalName;
   final LabResultData? result;
+
+  /// Staff-side workflow detail (the laboratory pages).
+  final int? hospitalId;
+  final int? doctorId;
+  final DateTime? collectedAt;
+  final DateTime? dispatchedAt;
+  final DateTime? receivedAt;
+  final DateTime? processedAt;
+  final DateTime? verifiedAt;
+  final LabSample? sample;
+  final LabDispatch? dispatch;
 }
 
 @immutable
@@ -197,6 +314,8 @@ class InvoiceLine {
     this.quantity,
     this.unitPrice,
     this.subtotal,
+    this.taxRate,
+    this.fromPharmacy = false,
   });
 
   factory InvoiceLine.fromJson(Map<String, Object?> json) => InvoiceLine(
@@ -204,12 +323,20 @@ class InvoiceLine {
     quantity: readInt(json['quantity']),
     unitPrice: readMoney(json['unit_price']),
     subtotal: readMoney(json['subtotal']),
+    taxRate: readMoney(json['tax_rate']),
+    fromPharmacy: json['pharmacy_sale'] != null,
   );
 
   final String description;
   final int? quantity;
   final double? unitPrice;
   final double? subtotal;
+
+  /// GST percent on this line, as the server stored it.
+  final double? taxRate;
+
+  /// A medicine line billed by the pharmacy (changes only through a return there).
+  final bool fromPharmacy;
 }
 
 /// A payment or refund recorded at the hospital desk (PaymentSerializer).
@@ -217,19 +344,34 @@ class InvoiceLine {
 class InvoicePayment {
   const InvoicePayment({
     required this.kind,
+    this.id,
+    this.invoiceId,
     this.amount,
     this.method,
     this.receiptNumber,
+    this.reference,
     this.paidAt,
   });
 
   factory InvoicePayment.fromJson(Map<String, Object?> json) => InvoicePayment(
+    id: readInt(json['id']),
+    invoiceId: readInt(json['invoice']),
     kind: readText(json['kind']) ?? '',
     amount: readMoney(json['amount']),
     method: readText(json['payment_method']),
     receiptNumber: readText(json['receipt_number']),
+    reference: readText(json['reference']),
     paidAt: readDateTime(json['paid_at']),
   );
+
+  static const refundKind = 'refund';
+
+  final int? id;
+  final int? invoiceId;
+
+  /// Transaction reference typed at the desk (UPI/card slip), or a refund's reason.
+  final String? reference;
+  bool get isRefund => kind == refundKind;
 
   final String kind;
   final double? amount;
@@ -252,10 +394,24 @@ class Invoice {
     this.balanceDue,
     this.items = const [],
     this.payments = const [],
+    this.patientId,
+    this.patientName,
+    this.patientUhid,
+    this.hospitalId,
+    this.subtotal,
+    this.discount,
+    this.taxAmount,
   });
 
   factory Invoice.fromJson(Map<String, Object?> json) => Invoice(
     id: readInt(json['id']) ?? 0,
+    patientId: readInt(json['patient']),
+    patientName: readText(json['patient_name']),
+    patientUhid: readText(json['patient_uhid']),
+    hospitalId: readInt(json['hospital']),
+    subtotal: readMoney(json['subtotal']),
+    discount: readMoney(json['discount']),
+    taxAmount: readMoney(json['tax_amount']) ?? readMoney(json['tax']),
     status: readText(json['status']) ?? '',
     invoiceNumber: readText(json['invoice_number']),
     createdAt: readDateTime(json['created_at']),
@@ -274,6 +430,24 @@ class Invoice {
 
   /// `Invoice.Status` values with money still owed.
   static const owingStatuses = {'Unpaid', 'Partially Paid'};
+
+  /// Every `Invoice.Status` value, in the order the desk filters them.
+  static const statuses = ['Unpaid', 'Partially Paid', 'Paid', 'Cancelled'];
+  static const cancelledStatus = 'Cancelled';
+
+  /// Staff-side fields; all amounts are the server's.
+  final int? patientId;
+  final String? patientName;
+  final String? patientUhid;
+  final int? hospitalId;
+  final double? subtotal;
+  final double? discount;
+  final double? taxAmount;
+
+  bool get isCancelled => status == cancelledStatus;
+
+  /// Net money received on this bill (payments less refunds), per the server.
+  bool get hasMoneyReceived => (totalPaid ?? 0) > 0;
 
   final int id;
   final String status;

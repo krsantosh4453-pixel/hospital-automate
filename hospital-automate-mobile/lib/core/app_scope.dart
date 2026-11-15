@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 import '../features/auth/auth_service.dart';
+import '../features/billing/data/billing_repository.dart';
+import '../features/laboratory/data/lab_repository.dart';
 import '../features/dashboard/dashboard_repository.dart';
 import '../features/doctor/data/doctor_repository.dart';
 import '../features/patient/data/patient_repository.dart';
@@ -24,6 +26,8 @@ class AppServices {
     required this.dashboard,
     required this.patient,
     required this.doctor,
+    required this.laboratory,
+    required this.billing,
   });
 
   final ApiConfig config;
@@ -41,6 +45,12 @@ class AppServices {
 
   /// Clinical work of the signed-in doctor (doctor pages).
   final DoctorRepository doctor;
+
+  /// Laboratory orders and their workflow (lab desk pages).
+  final LabRepository laboratory;
+
+  /// Invoices, payments and refunds (billing desk pages).
+  final BillingRepository billing;
 }
 
 class AppScope extends InheritedWidget {

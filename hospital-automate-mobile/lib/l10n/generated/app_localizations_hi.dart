@@ -330,6 +330,280 @@ class AppLocalizationsHi extends AppLocalizations {
   String get billTotal => 'कुल';
 
   @override
+  String get billingAmount => 'राशि';
+
+  @override
+  String get billingAmountInvalid =>
+      'रुपये में राशि लिखें, जैसे 500 या 499.50।';
+
+  @override
+  String get billingAmountRefused =>
+      'अस्पताल प्रणाली ने यह राशि स्वीकार नहीं की। बकाया जाँचें और फिर कोशिश करें।';
+
+  @override
+  String billingAmountTooHigh(String limit) {
+    return 'राशि बकाया ($limit) से अधिक है।';
+  }
+
+  @override
+  String get billingAnyDate => 'कोई भी तारीख';
+
+  @override
+  String get billingBackToDesk => 'बिलिंग पर वापस';
+
+  @override
+  String get billingBackToInvoice => 'बिल पर वापस';
+
+  @override
+  String get billingChargeConsultation => 'परामर्श';
+
+  @override
+  String get billingChargeLaboratory => 'प्रयोगशाला';
+
+  @override
+  String get billingChargeOther => 'अन्य शुल्क';
+
+  @override
+  String get billingChargePharmacy => 'फार्मेसी';
+
+  @override
+  String get billingChoosePatient => 'नाम, फ़ोन या UHID से खोजकर मरीज़ चुनें।';
+
+  @override
+  String get billingClearDates => 'तारीखें हटाएँ';
+
+  @override
+  String billingConfirmPayment(
+    String amount,
+    String method,
+    String invoice,
+    String patient,
+  ) {
+    return 'बिल $invoice ($patient) के लिए $method से प्राप्त $amount दर्ज करें? यह काउंटर पर पहले से मिली राशि दर्ज करता है; इससे किसी से पैसा नहीं लिया जाता।';
+  }
+
+  @override
+  String get billingConfirmPaymentTitle => 'यह भुगतान दर्ज करें?';
+
+  @override
+  String billingConfirmRefund(String amount, String method, String invoice) {
+    return 'बिल $invoice पर $method से $amount की वापसी दर्ज करें? वापसी बाद में बदली या हटाई नहीं जा सकती।';
+  }
+
+  @override
+  String get billingConfirmRefundTitle => 'यह वापसी दर्ज करें?';
+
+  @override
+  String get billingCountsUnavailable => 'बिलिंग आँकड़े लोड नहीं हो सके';
+
+  @override
+  String get billingCreateInvoice => 'बिल बनाएँ';
+
+  @override
+  String get billingCreateNotAllowed =>
+      'इस अस्पताल में आपकी भूमिका बिल नहीं बना सकती।';
+
+  @override
+  String get billingDeskIntro =>
+      'चुने गए अस्पताल के बिल और भुगतान। कुल और बकाया अस्पताल प्रणाली से आते हैं।';
+
+  @override
+  String get billingDiscount => 'छूट';
+
+  @override
+  String get billingDiscountHint =>
+      'GST से पहले घटाई जाती है, जैसा अस्पताल प्रणाली गणना करती है।';
+
+  @override
+  String get billingDiscountRefused =>
+      'छूट ऋणात्मक या कर से पहले के बिल से अधिक नहीं हो सकती।';
+
+  @override
+  String billingDue(String amount) {
+    return 'बकाया $amount';
+  }
+
+  @override
+  String get billingFromPharmacy => 'फार्मेसी से';
+
+  @override
+  String get billingGstPercent => 'GST %';
+
+  @override
+  String billingGstRate(String rate) {
+    return 'GST $rate%';
+  }
+
+  @override
+  String get billingInvoiceClosed =>
+      'यह बिल रद्द या बंद है, इसलिए इस पर कोई राशि दर्ज नहीं हो सकती।';
+
+  @override
+  String get billingInvoiceMaybeCreated =>
+      'अस्पताल प्रणाली से जवाब नहीं आया, इसलिए बिल शायद बन गया हो। दोबारा बनाने से पहले बिल सूची देखें।';
+
+  @override
+  String get billingInvoiceTitle => 'बिल';
+
+  @override
+  String get billingInvoices => 'बिल';
+
+  @override
+  String get billingItems => 'मदें';
+
+  @override
+  String get billingKeyReused =>
+      'यह अनुरोध पहले ही किसी और रिकॉर्ड के लिए उपयोग हो चुका है। बिल पर वापस जाकर फिर से शुरू करें।';
+
+  @override
+  String billingLatestRecords(int count) {
+    return 'नवीनतम $count रिकॉर्ड';
+  }
+
+  @override
+  String get billingLineDescription => 'विवरण';
+
+  @override
+  String get billingLineDescriptionRequired => 'शुल्क का विवरण लिखें।';
+
+  @override
+  String billingLineNumber(int number) {
+    return 'मद $number';
+  }
+
+  @override
+  String get billingNetOfRefunds => 'वापसी के बाद';
+
+  @override
+  String get billingNewInvoice => 'नया बिल';
+
+  @override
+  String get billingNewInvoiceIntro =>
+      'मरीज़ चुनें और शुल्क जोड़ें। कर, कुल और बिल संख्या अस्पताल प्रणाली तय करती है।';
+
+  @override
+  String get billingNoGateway => 'भुगतान काउंटर पर दर्ज होते हैं';
+
+  @override
+  String get billingNoGatewayBody =>
+      'कोई ऑनलाइन भुगतान गेटवे नहीं है। नकद, UPI, कार्ड या बैंक ट्रांसफ़र राशि मिलने के बाद ही दर्ज करें। यहाँ कुछ भी लंबित या विफल नहीं है: हर रिकॉर्ड एक पुष्ट रसीद है।';
+
+  @override
+  String get billingNoInvoicesMatch => 'इन फ़िल्टर से कोई बिल मेल नहीं खाता';
+
+  @override
+  String get billingNoItems => 'इस बिल में कोई मद नहीं है।';
+
+  @override
+  String get billingOpenInvoiceList => 'बिल सूची खोलें';
+
+  @override
+  String get billingPatientSearchHint => 'नाम, फ़ोन या UHID से मरीज़ खोजें';
+
+  @override
+  String get billingPaymentIntro => 'इस बिल के लिए काउंटर पर प्राप्त राशि।';
+
+  @override
+  String get billingPaymentKind => 'भुगतान';
+
+  @override
+  String get billingPaymentMethod => 'भुगतान का तरीका';
+
+  @override
+  String get billingPaymentNotAllowed =>
+      'आपकी भूमिका इस बिल पर भुगतान दर्ज नहीं कर सकती।';
+
+  @override
+  String get billingPaymentRecorded => 'अस्पताल प्रणाली ने भुगतान दर्ज किया';
+
+  @override
+  String get billingPayments => 'भुगतान';
+
+  @override
+  String get billingPaymentsRecorded => 'दर्ज भुगतान';
+
+  @override
+  String get billingPharmacyAutomatic =>
+      'फार्मेसी द्वारा बेची गई दवाओं का बिल अपने आप बनता है, इसलिए वे यहाँ नहीं जोड़ी जातीं।';
+
+  @override
+  String get billingPrintOnWeb =>
+      'छपे बिल और PDF वेब ऐप से बनते हैं; फ़ोन के लिए अस्पताल प्रणाली में बिल PDF नहीं है।';
+
+  @override
+  String get billingQuantityInvalid =>
+      'मात्रा कम से कम 1 की पूर्ण संख्या होनी चाहिए।';
+
+  @override
+  String get billingReceipt => 'रसीद संख्या';
+
+  @override
+  String get billingRecordPayment => 'भुगतान दर्ज करें';
+
+  @override
+  String get billingRecordRefund => 'वापसी दर्ज करें';
+
+  @override
+  String get billingReference => 'लेन-देन संदर्भ';
+
+  @override
+  String get billingReferenceHint =>
+      'UPI लेन-देन ID, कार्ड पर्ची या ट्रांसफ़र संख्या। कभी कार्ड नंबर, CVV या PIN नहीं।';
+
+  @override
+  String get billingRefundIntro => 'इस बिल पर मरीज़ को लौटाई गई राशि।';
+
+  @override
+  String get billingRefundNotAllowed =>
+      'आपकी भूमिका इस बिल पर वापसी दर्ज नहीं कर सकती।';
+
+  @override
+  String get billingRefundReason => 'वापसी का कारण';
+
+  @override
+  String get billingRefundReasonRequired => 'वापसी का कारण लिखें।';
+
+  @override
+  String get billingRefundRecorded => 'अस्पताल प्रणाली ने वापसी दर्ज की';
+
+  @override
+  String billingRefundTooHigh(String limit) {
+    return 'वापसी प्राप्त राशि ($limit) से अधिक नहीं हो सकती।';
+  }
+
+  @override
+  String get billingRefunds => 'वापसियाँ';
+
+  @override
+  String get billingRefused =>
+      'अस्पताल प्रणाली ने इसे स्वीकार नहीं किया। रीफ़्रेश करके फिर कोशिश करें।';
+
+  @override
+  String get billingRemoveLine => 'मद हटाएँ';
+
+  @override
+  String get billingSearchHint => 'बिल संख्या, मरीज़ या UHID खोजें';
+
+  @override
+  String get billingServerTotals =>
+      'बिल बनाते समय कर, कुल और बिल संख्या अस्पताल प्रणाली गणना करती है।';
+
+  @override
+  String get billingSubtotal => 'उप-योग';
+
+  @override
+  String get billingTax => 'कर (GST)';
+
+  @override
+  String get billingTaxRateInvalid => 'GST 0 से 100 प्रतिशत के बीच होना चाहिए।';
+
+  @override
+  String get billingTotalInvoices => 'बिल';
+
+  @override
+  String get billingUnitPrice => 'इकाई मूल्य';
+
+  @override
   String get billsIntro => 'बिल और उन पर दर्ज भुगतान।';
 
   @override
@@ -861,18 +1135,258 @@ class AppLocalizationsHi extends AppLocalizations {
   String get knownCondition => 'ज्ञात स्थिति';
 
   @override
+  String get labBackToWorklist => 'कार्यसूची पर वापस';
+
+  @override
+  String labCancelConfirm(String test) {
+    return '$test का ऑर्डर रद्द करें? यह रिकॉर्ड में रद्द के रूप में रहेगा।';
+  }
+
+  @override
+  String get labCancelOrder => 'ऑर्डर रद्द करें';
+
+  @override
+  String get labChoosePatient => 'पहले मरीज़ चुनें।';
+
+  @override
+  String get labCollectedAt => 'संग्रह का समय';
+
+  @override
+  String get labCollectedBy => 'संग्रह किया';
+
+  @override
+  String get labCollectionNotes => 'संग्रह टिप्पणी';
+
+  @override
+  String get labCommonTestsNote =>
+      'सामान्य जाँचें (केवल नाम; अस्पताल प्रणाली में कीमतों वाली जाँच सूची नहीं है):';
+
+  @override
+  String get labContainerType => 'पात्र';
+
+  @override
+  String get labCountsUnavailable => 'प्रयोगशाला गिनती लोड नहीं हो सकी';
+
+  @override
+  String get labDeskIntro =>
+      'चुने गए अस्पताल के ऑर्डर, नमूना संग्रह से जारी परिणाम तक।';
+
+  @override
+  String get labDispatchNotes => 'भेजने की टिप्पणी';
+
+  @override
+  String get labDispatchedBy => 'भेजा';
+
+  @override
+  String get labEnteredAt => 'दर्ज करने का समय';
+
+  @override
+  String get labEnteredBy => 'दर्ज किया';
+
+  @override
+  String get labExternalLab => 'बाहरी प्रयोगशाला';
+
+  @override
+  String get labExternalLabHint =>
+      'नमूना इसी अस्पताल की प्रयोगशाला जाए तो खाली छोड़ें।';
+
+  @override
+  String get labFindSample => 'नमूना खोजें';
+
+  @override
+  String get labFindSampleHint =>
+      'नमूना संख्या स्कैन करें या लिखें, फिर एंटर दबाएँ';
+
+  @override
   String get labIntro => 'प्रयोगशाला द्वारा जारी परिणाम।';
+
+  @override
+  String get labNewOrder => 'नया लैब ऑर्डर';
+
+  @override
+  String get labNewOrderIntro =>
+      'प्रयोगशाला काउंटर से वॉक-इन ऑर्डर। डॉक्टर परामर्श से, विज़िट से जुड़ा ऑर्डर देते हैं।';
+
+  @override
+  String labNextStepByOthers(String step) {
+    return 'अगला चरण: $step। इस अस्पताल में आपकी भूमिका यह नहीं कर सकती।';
+  }
+
+  @override
+  String get labNoOrdersMatch => 'इन फ़िल्टर से कोई ऑर्डर मेल नहीं खाता';
+
+  @override
+  String get labNoOrdersYet => 'अभी कोई प्रयोगशाला ऑर्डर नहीं';
+
+  @override
+  String get labNoResultYet => 'अभी कोई परिणाम दर्ज नहीं हुआ।';
 
   @override
   String get labNotADiagnosis =>
       'मान वैसे ही दिखाए गए हैं जैसे प्रयोगशाला ने दर्ज किए। कृपया अपने डॉक्टर से इन पर बात करें।';
 
   @override
+  String get labOpenWorklist => 'कार्यसूची खोलें';
+
+  @override
+  String get labOrderCancelled => 'अस्पताल प्रणाली ने ऑर्डर रद्द किया।';
+
+  @override
+  String get labOrderMaybeCreated =>
+      'अस्पताल प्रणाली से जवाब नहीं आया, इसलिए ऑर्डर शायद हो गया हो। दोबारा ऑर्डर करने से पहले कार्यसूची देखें।';
+
+  @override
+  String get labOrderNotAllowed =>
+      'इस अस्पताल में आपकी भूमिका प्रयोगशाला ऑर्डर नहीं दे सकती।';
+
+  @override
+  String get labOrderTitle => 'प्रयोगशाला ऑर्डर';
+
+  @override
   String get labOrders => 'लैब ऑर्डर';
+
+  @override
+  String get labPatientSearchHint =>
+      'नाम, फ़ोन या UHID के कम से कम 3 अक्षर लिखें';
+
+  @override
+  String get labPlaceOrder => 'ऑर्डर दें';
+
+  @override
+  String get labPriorityNormal => 'सामान्य';
+
+  @override
+  String labProgressLabel(int stage, int total) {
+    return 'चरण $stage / $total';
+  }
+
+  @override
+  String get labQueueAwaitingCollection => 'संग्रह बाकी';
+
+  @override
+  String get labQueueAwaitingRelease => 'जारी करना बाकी';
+
+  @override
+  String get labQueueCancelled => 'रद्द';
+
+  @override
+  String get labQueueInProgress => 'प्रगति में';
+
+  @override
+  String get labQueueReleased => 'जारी';
+
+  @override
+  String get labQueueSampleCollected => 'नमूना लिया गया';
+
+  @override
+  String get labReceivedBy => 'प्राप्त किया';
+
+  @override
+  String labReleaseConfirm(String test) {
+    return '$test का सत्यापित परिणाम जारी करें? इसके बाद डॉक्टर और मरीज़ इसे देखेंगे।';
+  }
 
   @override
   String get labReleasedOnly =>
       'प्रयोगशाला की जाँच और जारी करने के बाद रिपोर्ट यहाँ दिखती हैं।';
+
+  @override
+  String get labResultAwaitingVerification => 'सत्यापन बाकी';
+
+  @override
+  String get labResultNotVerifiedYet =>
+      'परिणाम वैसे लिखें जैसे प्रयोगशाला बताती है। अलग सत्यापन चरण तक यह असत्यापित रहेगा।';
+
+  @override
+  String get labResultRequired => 'परिणाम दर्ज करें।';
+
+  @override
+  String get labResultText => 'परिणाम';
+
+  @override
+  String get labResultVerified => 'सत्यापित';
+
+  @override
+  String get labReviewOrder => 'ऑर्डर जाँचें';
+
+  @override
+  String get labReviewOrderHint =>
+      'मरीज़ और जाँच की पुष्टि करें। ऑर्डर तभी होगा जब अस्पताल प्रणाली पुष्टि करेगी।';
+
+  @override
+  String get labSample => 'नमूना';
+
+  @override
+  String get labSampleNumber => 'नमूना संख्या';
+
+  @override
+  String get labSampleNumberHint =>
+      'लेबल स्कैन करें, या खाली छोड़ें और अस्पताल प्रणाली नमूने को संख्या देगी।';
+
+  @override
+  String get labSampleType => 'नमूने का प्रकार';
+
+  @override
+  String get labSearchHint => 'जाँच, मरीज़ या नमूना संख्या खोजें';
+
+  @override
+  String get labStatusCollected => 'नमूना लिया गया';
+
+  @override
+  String get labStatusDispatched => 'भेजा गया';
+
+  @override
+  String get labStatusOrdered => 'ऑर्डर किया';
+
+  @override
+  String get labStatusProcessing => 'जाँच जारी';
+
+  @override
+  String get labStatusReceived => 'लैब में प्राप्त';
+
+  @override
+  String get labStatusResultEntered => 'परिणाम दर्ज';
+
+  @override
+  String get labStatusSamplePending => 'नमूना बाकी';
+
+  @override
+  String get labStatusVerified => 'सत्यापित';
+
+  @override
+  String get labStepCollect => 'नमूना लें';
+
+  @override
+  String labStepConfirm(String step, String test) {
+    return '$test के लिए $step?';
+  }
+
+  @override
+  String get labStepDispatch => 'नमूना भेजें';
+
+  @override
+  String labStepDone(String step) {
+    return '$step: अस्पताल प्रणाली ने सहेजा।';
+  }
+
+  @override
+  String get labStepEnterResult => 'परिणाम दर्ज करें';
+
+  @override
+  String get labStepReceive => 'लैब में प्राप्त करें';
+
+  @override
+  String get labStepRefused =>
+      'अस्पताल प्रणाली ने यह चरण अस्वीकार किया: ऑर्डर शायद आगे बढ़ चुका है। इसे फिर से लोड किया गया।';
+
+  @override
+  String get labStepRelease => 'परिणाम जारी करें';
+
+  @override
+  String get labStepStartProcessing => 'जाँच शुरू करें';
+
+  @override
+  String get labStepVerify => 'परिणाम सत्यापित करें';
 
   @override
   String get labTestName => 'जाँच का नाम';
@@ -881,7 +1395,32 @@ class AppLocalizationsHi extends AppLocalizations {
   String get labTestNameRequired => 'जाँच का नाम दर्ज करें।';
 
   @override
+  String labTestNameTooLong(int max) {
+    return 'अधिकतम $max अक्षर लिखें।';
+  }
+
+  @override
   String get labTestStatus => 'लैब जाँच की स्थिति';
+
+  @override
+  String get labTimeline => 'समयरेखा';
+
+  @override
+  String get labTotalOrders => 'लैब ऑर्डर';
+
+  @override
+  String get labVerifiedBy => 'सत्यापित किया';
+
+  @override
+  String labVerifyConfirm(String test) {
+    return '$test का परिणाम सत्यापित करें? दर्ज परिणाम को नमूने और उपकरण रिपोर्ट से मिलाने के बाद ही सत्यापित करें।';
+  }
+
+  @override
+  String get labWorklist => 'कार्यसूची';
+
+  @override
+  String get labWorklistNewestFirst => 'नए ऑर्डर पहले';
 
   @override
   String get laboratory => 'प्रयोगशाला';
@@ -1443,10 +1982,30 @@ class AppLocalizationsHi extends AppLocalizations {
       'ऑनलाइन भुगतान अभी उपलब्ध नहीं है। बिलिंग काउंटर पर किए गए भुगतान यहाँ दिखते हैं।';
 
   @override
+  String get paymentBankTransfer => 'बैंक ट्रांसफ़र';
+
+  @override
+  String get paymentCard => 'कार्ड';
+
+  @override
+  String get paymentCash => 'नकद';
+
+  @override
   String get paymentHistory => 'भुगतान इतिहास';
 
   @override
+  String get paymentUpi => 'UPI';
+
+  @override
   String get pickDate => 'तारीख चुनें';
+
+  @override
+  String get pickerChange => 'बदलें';
+
+  @override
+  String pickerTypeMore(int count) {
+    return 'कम से कम $count अक्षर लिखें।';
+  }
 
   @override
   String get platformAndroid => 'Android';

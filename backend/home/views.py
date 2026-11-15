@@ -38,6 +38,19 @@ def _get_authorized_hospital(request):
     return hospital_id
 
 
+OPEN_INVOICE_STATUSES = (Invoice.Status.UNPAID, Invoice.Status.PARTIALLY_PAID)
+
+
+def _sum_amount(payments):
+    return payments.aggregate(total=Sum("amount"))["total"] or 0
+
+
+def _net_received(payments):
+    """Payments received less refunds paid back, as billing.services.net_paid counts them."""
+    return (_sum_amount(payments.filter(kind=Payment.Kind.PAYMENT))
+            - _sum_amount(payments.filter(kind=Payment.Kind.REFUND)))
+
+
 def _money(request, hospital_id, amount):
     """``amount`` as a float for REVENUE_ROLES; None (not shown) for other roles."""
     if not set(get_user_roles(request.user, hospital_id)) & REVENUE_ROLES:
@@ -119,14 +132,22 @@ def home_dashboard(request):
     
     # Billing stats
     total_invoices = invoice_qs.count()
-    paid_invoices = invoice_qs.filter(status="Paid").count()
-    pending_invoices = invoice_qs.filter(status="Unpaid").count()
-    partial_invoices = invoice_qs.filter(status="Partial").count()
-    
-    # Revenue - use aggregation
-    total_revenue = payment_qs.aggregate(total=Sum("amount"))["total"] or 0
-    today_revenue = payment_qs.filter(paid_at__date=today).aggregate(total=Sum("amount"))["total"] or 0
-    
+    paid_invoices = invoice_qs.filter(status=Invoice.Status.PAID).count()
+    pending_invoices = invoice_qs.filter(status=Invoice.Status.UNPAID).count()
+    # This counted status="Partial", which an invoice never has, so it was always 0.
+    partial_invoices = invoice_qs.filter(status=Invoice.Status.PARTIALLY_PAID).count()
+
+    # Money received net of refunds (refunds are Payment rows too).
+    total_revenue = _net_received(payment_qs)
+    today_revenue = _net_received(payment_qs.filter(paid_at__date=today))
+    refunded = _sum_amount(payment_qs.filter(kind=Payment.Kind.REFUND))
+    # Still owed on open bills: their totals less what was received on them.
+    open_invoice_qs = invoice_qs.filter(status__in=OPEN_INVOICE_STATUSES)
+    outstanding = (
+        (open_invoice_qs.aggregate(total=Sum("total"))["total"] or 0)
+        - _net_received(payment_qs.filter(invoice__in=open_invoice_qs))
+    )
+
     # Queue tokens for today
     current_token = queue_qs.filter(token_date=today).order_by("-token_number").first()
     current_token_number = current_token.token_number if current_token else 0
@@ -192,6 +213,8 @@ def home_dashboard(request):
                 "partial": partial_invoices,
                 "total_revenue": _money(request, hospital_id, total_revenue),
                 "today_revenue": _money(request, hospital_id, today_revenue),
+                "refunded": _money(request, hospital_id, refunded),
+                "outstanding": _money(request, hospital_id, outstanding),
             },
         },
         "recent_patients": [
@@ -240,9 +263,7 @@ def home_stats_summary(request):
         room__ward__hospital_id=hospital_id,
         status="Available"
     ).count()
-    total_revenue = own(Payment.objects.filter(
-        invoice__hospital_id=hospital_id
-    )).aggregate(total=Sum("amount"))["total"] or 0
+    total_revenue = _net_received(own(Payment.objects.filter(invoice__hospital_id=hospital_id)))
 
     return Response({
         "patients": total_patients,

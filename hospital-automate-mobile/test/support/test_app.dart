@@ -15,15 +15,21 @@ import 'package:hms_mobile/features/auth/google_identity.dart';
 import 'package:hms_mobile/features/dashboard/dashboard_repository.dart';
 import 'package:hms_mobile/features/dashboard/dashboard_stats.dart';
 import 'package:hms_mobile/features/doctor/data/doctor_repository.dart';
+import 'package:hms_mobile/features/billing/data/billing_repository.dart';
+import 'package:hms_mobile/features/laboratory/data/lab_repository.dart';
 import 'package:hms_mobile/features/patient/data/patient_repository.dart';
 
 import 'fake_auth_repository.dart';
 import 'fake_doctor_repository.dart';
 import 'fake_patient_repository.dart';
+import 'fake_billing_repository.dart';
+import 'fake_lab_repository.dart';
 
 export 'fake_auth_repository.dart';
 export 'fake_doctor_repository.dart';
 export 'fake_patient_repository.dart';
+export 'fake_billing_repository.dart';
+export 'fake_lab_repository.dart';
 
 /// Answers every request with [respond] instead of touching the network.
 class FakeAdapter implements HttpClientAdapter {
@@ -82,6 +88,8 @@ AppServices testServices({
   TokenStore? tokenStore,
   PatientRepository? patient,
   DoctorRepository? doctor,
+  LabRepository? laboratory,
+  BillingRepository? billing,
   GoogleIdentity? google,
 }) {
   final store = tokenStore ?? InMemoryTokenStore();
@@ -117,6 +125,8 @@ AppServices testServices({
     dashboard: dashboard ?? FakeDashboardRepository(),
     patient: patient ?? FakePatientRepository(),
     doctor: doctor ?? FakeDoctorRepository(),
+    laboratory: laboratory ?? FakeLabRepository(),
+    billing: billing ?? FakeBillingRepository(),
   );
 }
 

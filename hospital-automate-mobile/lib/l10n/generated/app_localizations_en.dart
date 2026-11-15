@@ -331,6 +331,285 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billTotal => 'Total';
 
   @override
+  String get billingAmount => 'Amount';
+
+  @override
+  String get billingAmountInvalid =>
+      'Enter an amount in rupees, like 500 or 499.50.';
+
+  @override
+  String get billingAmountRefused =>
+      'The hospital system did not accept this amount. Check the balance and try again.';
+
+  @override
+  String billingAmountTooHigh(String limit) {
+    return 'The amount is more than the balance due ($limit).';
+  }
+
+  @override
+  String get billingAnyDate => 'Any date';
+
+  @override
+  String get billingBackToDesk => 'Back to billing';
+
+  @override
+  String get billingBackToInvoice => 'Back to invoice';
+
+  @override
+  String get billingChargeConsultation => 'Consultation';
+
+  @override
+  String get billingChargeLaboratory => 'Laboratory';
+
+  @override
+  String get billingChargeOther => 'Other charge';
+
+  @override
+  String get billingChargePharmacy => 'Pharmacy';
+
+  @override
+  String get billingChoosePatient =>
+      'Choose the patient by searching their name, phone or UHID.';
+
+  @override
+  String get billingClearDates => 'Clear dates';
+
+  @override
+  String billingConfirmPayment(
+    String amount,
+    String method,
+    String invoice,
+    String patient,
+  ) {
+    return 'Record $amount received by $method for invoice $invoice ($patient)? This records money already received at the desk; it does not charge anyone.';
+  }
+
+  @override
+  String get billingConfirmPaymentTitle => 'Record this payment?';
+
+  @override
+  String billingConfirmRefund(String amount, String method, String invoice) {
+    return 'Record a refund of $amount by $method on invoice $invoice? A refund cannot be edited or deleted later.';
+  }
+
+  @override
+  String get billingConfirmRefundTitle => 'Record this refund?';
+
+  @override
+  String get billingCountsUnavailable => 'Billing figures could not be loaded';
+
+  @override
+  String get billingCreateInvoice => 'Create invoice';
+
+  @override
+  String get billingCreateNotAllowed =>
+      'Your role at this hospital cannot create invoices.';
+
+  @override
+  String get billingDeskIntro =>
+      'Invoices and payments of the selected hospital. Totals and balances come from the hospital system.';
+
+  @override
+  String get billingDiscount => 'Discount';
+
+  @override
+  String get billingDiscountHint =>
+      'Taken off before GST, as the hospital system calculates it.';
+
+  @override
+  String get billingDiscountRefused =>
+      'The discount cannot be negative or more than the bill before tax.';
+
+  @override
+  String billingDue(String amount) {
+    return 'Due $amount';
+  }
+
+  @override
+  String get billingFromPharmacy => 'from pharmacy';
+
+  @override
+  String get billingGstPercent => 'GST %';
+
+  @override
+  String billingGstRate(String rate) {
+    return 'GST $rate%';
+  }
+
+  @override
+  String get billingInvoiceClosed =>
+      'This invoice is cancelled or closed, so no money can be recorded on it.';
+
+  @override
+  String get billingInvoiceMaybeCreated =>
+      'No answer came from the hospital system, so the invoice may have been created. Check the invoice list before creating it again.';
+
+  @override
+  String get billingInvoiceTitle => 'Invoice';
+
+  @override
+  String get billingInvoices => 'Invoices';
+
+  @override
+  String get billingItems => 'Items';
+
+  @override
+  String get billingKeyReused =>
+      'This request was already used for another record. Go back to the invoice and start again.';
+
+  @override
+  String billingLatestRecords(int count) {
+    return 'Latest $count records';
+  }
+
+  @override
+  String get billingLineDescription => 'Description';
+
+  @override
+  String get billingLineDescriptionRequired => 'Describe the charge.';
+
+  @override
+  String billingLineNumber(int number) {
+    return 'Item $number';
+  }
+
+  @override
+  String get billingNetOfRefunds => 'After refunds';
+
+  @override
+  String get billingNewInvoice => 'New invoice';
+
+  @override
+  String get billingNewInvoiceIntro =>
+      'Choose the patient and add the charges. The hospital system works out tax, the total and the invoice number.';
+
+  @override
+  String get billingNoGateway => 'Payments are recorded at the desk';
+
+  @override
+  String get billingNoGatewayBody =>
+      'There is no online payment gateway. Record cash, UPI, card or bank transfer only after the money has been received. Nothing here is pending or failed: every record is a confirmed receipt.';
+
+  @override
+  String get billingNoInvoicesMatch => 'No invoices match these filters';
+
+  @override
+  String get billingNoItems => 'This invoice has no items.';
+
+  @override
+  String get billingOpenInvoiceList => 'Open invoice list';
+
+  @override
+  String get billingPatientSearchHint =>
+      'Search patient by name, phone or UHID';
+
+  @override
+  String get billingPaymentIntro =>
+      'Money received at the desk against this invoice.';
+
+  @override
+  String get billingPaymentKind => 'Payment';
+
+  @override
+  String get billingPaymentMethod => 'Payment method';
+
+  @override
+  String get billingPaymentNotAllowed =>
+      'A payment cannot be recorded on this invoice by your role.';
+
+  @override
+  String get billingPaymentRecorded =>
+      'Payment recorded by the hospital system';
+
+  @override
+  String get billingPayments => 'Payments';
+
+  @override
+  String get billingPaymentsRecorded => 'Payments recorded';
+
+  @override
+  String get billingPharmacyAutomatic =>
+      'Medicines sold by the pharmacy are billed automatically, so they are not added here.';
+
+  @override
+  String get billingPrintOnWeb =>
+      'Printed bills and PDFs are made from the web app; the hospital system has no invoice PDF for the phone.';
+
+  @override
+  String get billingQuantityInvalid =>
+      'Quantity must be a whole number of at least 1.';
+
+  @override
+  String get billingReceipt => 'Receipt number';
+
+  @override
+  String get billingRecordPayment => 'Record payment';
+
+  @override
+  String get billingRecordRefund => 'Record refund';
+
+  @override
+  String get billingReference => 'Transaction reference';
+
+  @override
+  String get billingReferenceHint =>
+      'UPI transaction ID, card slip or transfer number. Never a card number, CVV or PIN.';
+
+  @override
+  String get billingRefundIntro =>
+      'Money paid back to the patient on this invoice.';
+
+  @override
+  String get billingRefundNotAllowed =>
+      'A refund cannot be recorded on this invoice by your role.';
+
+  @override
+  String get billingRefundReason => 'Reason for the refund';
+
+  @override
+  String get billingRefundReasonRequired => 'Give the reason for the refund.';
+
+  @override
+  String get billingRefundRecorded => 'Refund recorded by the hospital system';
+
+  @override
+  String billingRefundTooHigh(String limit) {
+    return 'A refund cannot be more than the amount received ($limit).';
+  }
+
+  @override
+  String get billingRefunds => 'Refunds';
+
+  @override
+  String get billingRefused =>
+      'The hospital system did not accept this. Refresh and try again.';
+
+  @override
+  String get billingRemoveLine => 'Remove item';
+
+  @override
+  String get billingSearchHint => 'Search invoice number, patient or UHID';
+
+  @override
+  String get billingServerTotals =>
+      'Tax, the total and the invoice number are calculated by the hospital system when you create the invoice.';
+
+  @override
+  String get billingSubtotal => 'Subtotal';
+
+  @override
+  String get billingTax => 'Tax (GST)';
+
+  @override
+  String get billingTaxRateInvalid => 'GST must be between 0 and 100 percent.';
+
+  @override
+  String get billingTotalInvoices => 'Invoices';
+
+  @override
+  String get billingUnitPrice => 'Unit price';
+
+  @override
   String get billsIntro => 'Invoices and the payments recorded against them.';
 
   @override
@@ -864,18 +1143,258 @@ class AppLocalizationsEn extends AppLocalizations {
   String get knownCondition => 'Known condition';
 
   @override
+  String get labBackToWorklist => 'Back to worklist';
+
+  @override
+  String labCancelConfirm(String test) {
+    return 'Cancel the order for $test? It stays in the record as cancelled.';
+  }
+
+  @override
+  String get labCancelOrder => 'Cancel order';
+
+  @override
+  String get labChoosePatient => 'Choose the patient first.';
+
+  @override
+  String get labCollectedAt => 'Collected at';
+
+  @override
+  String get labCollectedBy => 'Collected by';
+
+  @override
+  String get labCollectionNotes => 'Collection notes';
+
+  @override
+  String get labCommonTestsNote =>
+      'Common tests (names only; the hospital system has no test catalogue with prices):';
+
+  @override
+  String get labContainerType => 'Container';
+
+  @override
+  String get labCountsUnavailable => 'Laboratory counts could not be loaded';
+
+  @override
+  String get labDeskIntro =>
+      'Orders of the selected hospital, from sample collection to released result.';
+
+  @override
+  String get labDispatchNotes => 'Dispatch notes';
+
+  @override
+  String get labDispatchedBy => 'Dispatched by';
+
+  @override
+  String get labEnteredAt => 'Entered at';
+
+  @override
+  String get labEnteredBy => 'Entered by';
+
+  @override
+  String get labExternalLab => 'External laboratory';
+
+  @override
+  String get labExternalLabHint =>
+      'Leave empty when the sample goes to this hospital\'s laboratory.';
+
+  @override
+  String get labFindSample => 'Find a sample';
+
+  @override
+  String get labFindSampleHint =>
+      'Scan or type a sample number, then press enter';
+
+  @override
   String get labIntro => 'Results released by the laboratory.';
+
+  @override
+  String get labNewOrder => 'New lab order';
+
+  @override
+  String get labNewOrderIntro =>
+      'A walk-in order from the laboratory desk. Doctors order from the consultation, linked to the visit.';
+
+  @override
+  String labNextStepByOthers(String step) {
+    return 'Next step: $step. Your role at this hospital cannot do it.';
+  }
+
+  @override
+  String get labNoOrdersMatch => 'No orders match these filters';
+
+  @override
+  String get labNoOrdersYet => 'No laboratory orders yet';
+
+  @override
+  String get labNoResultYet => 'No result has been entered yet.';
 
   @override
   String get labNotADiagnosis =>
       'Values are shown as the laboratory entered them. Please discuss them with your doctor.';
 
   @override
+  String get labOpenWorklist => 'Open worklist';
+
+  @override
+  String get labOrderCancelled => 'Order cancelled by the hospital system.';
+
+  @override
+  String get labOrderMaybeCreated =>
+      'No answer came from the hospital system, so the order may have been placed. Check the worklist before ordering again.';
+
+  @override
+  String get labOrderNotAllowed =>
+      'Your role at this hospital cannot place laboratory orders.';
+
+  @override
+  String get labOrderTitle => 'Laboratory order';
+
+  @override
   String get labOrders => 'Lab orders';
+
+  @override
+  String get labPatientSearchHint =>
+      'Type at least 3 letters of the name, phone or UHID';
+
+  @override
+  String get labPlaceOrder => 'Place order';
+
+  @override
+  String get labPriorityNormal => 'Normal';
+
+  @override
+  String labProgressLabel(int stage, int total) {
+    return 'Stage $stage of $total';
+  }
+
+  @override
+  String get labQueueAwaitingCollection => 'To collect';
+
+  @override
+  String get labQueueAwaitingRelease => 'To release';
+
+  @override
+  String get labQueueCancelled => 'Cancelled';
+
+  @override
+  String get labQueueInProgress => 'In progress';
+
+  @override
+  String get labQueueReleased => 'Released';
+
+  @override
+  String get labQueueSampleCollected => 'Sample collected';
+
+  @override
+  String get labReceivedBy => 'Received by';
+
+  @override
+  String labReleaseConfirm(String test) {
+    return 'Release the verified result of $test? The doctor and the patient will then see it.';
+  }
 
   @override
   String get labReleasedOnly =>
       'Reports appear here after the laboratory has checked and released them.';
+
+  @override
+  String get labResultAwaitingVerification => 'Awaiting verification';
+
+  @override
+  String get labResultNotVerifiedYet =>
+      'Type the result as the laboratory reports it. It stays unverified until it is verified as a separate step.';
+
+  @override
+  String get labResultRequired => 'Enter the result.';
+
+  @override
+  String get labResultText => 'Result';
+
+  @override
+  String get labResultVerified => 'Verified';
+
+  @override
+  String get labReviewOrder => 'Review order';
+
+  @override
+  String get labReviewOrderHint =>
+      'Check the patient and the test. The order is placed only when the hospital system confirms it.';
+
+  @override
+  String get labSample => 'Sample';
+
+  @override
+  String get labSampleNumber => 'Sample number';
+
+  @override
+  String get labSampleNumberHint =>
+      'Scan the label, or leave empty and the hospital system numbers the sample.';
+
+  @override
+  String get labSampleType => 'Sample type';
+
+  @override
+  String get labSearchHint => 'Search test, patient or sample number';
+
+  @override
+  String get labStatusCollected => 'Sample collected';
+
+  @override
+  String get labStatusDispatched => 'Dispatched';
+
+  @override
+  String get labStatusOrdered => 'Ordered';
+
+  @override
+  String get labStatusProcessing => 'Processing';
+
+  @override
+  String get labStatusReceived => 'Received in lab';
+
+  @override
+  String get labStatusResultEntered => 'Result entered';
+
+  @override
+  String get labStatusSamplePending => 'Sample pending';
+
+  @override
+  String get labStatusVerified => 'Verified';
+
+  @override
+  String get labStepCollect => 'Collect sample';
+
+  @override
+  String labStepConfirm(String step, String test) {
+    return '$step for $test?';
+  }
+
+  @override
+  String get labStepDispatch => 'Dispatch sample';
+
+  @override
+  String labStepDone(String step) {
+    return '$step: saved by the hospital system.';
+  }
+
+  @override
+  String get labStepEnterResult => 'Enter result';
+
+  @override
+  String get labStepReceive => 'Receive in lab';
+
+  @override
+  String get labStepRefused =>
+      'The hospital system refused this step: the order has probably moved on. It has been reloaded.';
+
+  @override
+  String get labStepRelease => 'Release result';
+
+  @override
+  String get labStepStartProcessing => 'Start processing';
+
+  @override
+  String get labStepVerify => 'Verify result';
 
   @override
   String get labTestName => 'Test name';
@@ -884,7 +1403,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labTestNameRequired => 'Enter the test name.';
 
   @override
+  String labTestNameTooLong(int max) {
+    return 'Use at most $max characters.';
+  }
+
+  @override
   String get labTestStatus => 'Lab test status';
+
+  @override
+  String get labTimeline => 'Timeline';
+
+  @override
+  String get labTotalOrders => 'Lab orders';
+
+  @override
+  String get labVerifiedBy => 'Verified by';
+
+  @override
+  String labVerifyConfirm(String test) {
+    return 'Verify the result of $test? Verify only after checking the entered result against the sample and the instrument report.';
+  }
+
+  @override
+  String get labWorklist => 'Worklist';
+
+  @override
+  String get labWorklistNewestFirst => 'Newest orders first';
 
   @override
   String get laboratory => 'Laboratory';
@@ -1449,10 +1993,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'Online payment is not available yet. Payments made at the billing desk appear here.';
 
   @override
+  String get paymentBankTransfer => 'Bank transfer';
+
+  @override
+  String get paymentCard => 'Card';
+
+  @override
+  String get paymentCash => 'Cash';
+
+  @override
   String get paymentHistory => 'Payment history';
 
   @override
+  String get paymentUpi => 'UPI';
+
+  @override
   String get pickDate => 'Pick a date';
+
+  @override
+  String get pickerChange => 'Change';
+
+  @override
+  String pickerTypeMore(int count) {
+    return 'Type at least $count characters.';
+  }
 
   @override
   String get platformAndroid => 'Android';

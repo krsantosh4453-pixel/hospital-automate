@@ -161,3 +161,67 @@ class QueueStatsAreForTodayTests(TestCase):
         response = self.client.get(f"/api/home/stats/?hospital={self.hospital.id}")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["waiting_queue"], 1)
+
+
+class BillingStatsTests(TestCase):
+    """The dashboard's billing figures follow the real invoice statuses and count refunds as money paid back."""
+
+    def setUp(self):
+        from billing.models import Invoice, InvoiceItem
+        from billing.services import recalculate, record_payment, record_refund
+
+        self.hospital = Hospital.objects.create(name="Synthetic Billing Stats", is_active=True)
+        self.admin, _ = make_staff("billing_stats_admin", self.hospital)
+        self.lab_staff, _ = make_staff("billing_stats_lab", self.hospital, role=StaffRole.LAB_STAFF)
+        patient = Patient.objects.create(name="Synthetic Billing Patient", age=40, gender="Male",
+                                         phone="9000000966", hospital=self.hospital)
+
+        def bill(number, amount):
+            invoice = Invoice.objects.create(patient=patient, hospital=self.hospital, invoice_number=number)
+            InvoiceItem.objects.create(invoice=invoice, description="Synthetic consultation",
+                                       quantity=1, unit_price=amount, subtotal=amount)
+            return recalculate(invoice)
+
+        unpaid = bill("SYN-1", 1000)
+        partial = bill("SYN-2", 1000)
+        paid = bill("SYN-3", 500)
+        record_payment(partial, 400, method="UPI")
+        record_payment(paid, 500, method="Cash")
+        record_refund(paid, 100, "Synthetic overcharge")  # paid becomes Partially Paid again
+        cancelled = bill("SYN-4", 300)
+        cancelled.status = Invoice.Status.CANCELLED
+        cancelled.save(update_fields=["status"])
+        self.unpaid, self.partial, self.paid = unpaid, partial, paid
+
+    def billing(self, user):
+        client = APIClient(raise_request_exception=False)
+        client.force_authenticate(user)
+        response = client.get(f"/api/home/stats/detail/?hospital={self.hospital.id}")
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.data["statistics"]["billing"]
+
+    def test_partially_paid_invoices_are_counted(self):
+        billing = self.billing(self.admin)
+        self.assertEqual(billing["total_invoices"], 4)
+        self.assertEqual(billing["pending"], 1)
+        self.assertEqual(billing["partial"], 2)  # SYN-2, and SYN-3 after its refund
+        self.assertEqual(billing["paid"], 0)
+
+    def test_revenue_is_net_of_refunds(self):
+        billing = self.billing(self.admin)
+        self.assertEqual(billing["total_revenue"], 800.0)  # 400 + 500 - 100
+        self.assertEqual(billing["today_revenue"], 800.0)
+        self.assertEqual(billing["refunded"], 100.0)
+        summary = APIClient(raise_request_exception=False)
+        summary.force_authenticate(self.admin)
+        self.assertEqual(summary.get(f"/api/home/stats/?hospital={self.hospital.id}").data["total_revenue"], 800.0)
+
+    def test_outstanding_is_what_open_bills_still_owe(self):
+        # 1000 unpaid + 600 left on SYN-2 + 100 left on SYN-3; the cancelled bill owes nothing.
+        self.assertEqual(self.billing(self.admin)["outstanding"], 1700.0)
+
+    def test_money_figures_stay_hidden_from_roles_without_revenue_access(self):
+        billing = self.billing(self.lab_staff)
+        self.assertEqual(billing["partial"], 2)
+        for key in ("total_revenue", "today_revenue", "refunded", "outstanding"):
+            self.assertIsNone(billing[key], key)

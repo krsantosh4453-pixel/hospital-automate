@@ -142,6 +142,155 @@
   },
   "billDate": "Bill date",
   "billTotal": "Total",
+  "billingAmount": "Amount",
+  "billingAmountInvalid": "Enter an amount in rupees, like 500 or 499.50.",
+  "billingAmountRefused": "The hospital system did not accept this amount. Check the balance and try again.",
+  "billingAmountTooHigh": "The amount is more than the balance due ({limit}).",
+  "@billingAmountTooHigh": {
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "billingAnyDate": "Any date",
+  "billingBackToDesk": "Back to billing",
+  "billingBackToInvoice": "Back to invoice",
+  "billingChargeConsultation": "Consultation",
+  "billingChargeLaboratory": "Laboratory",
+  "billingChargeOther": "Other charge",
+  "billingChargePharmacy": "Pharmacy",
+  "billingChoosePatient": "Choose the patient by searching their name, phone or UHID.",
+  "billingClearDates": "Clear dates",
+  "billingConfirmPayment": "Record {amount} received by {method} for invoice {invoice} ({patient})? This records money already received at the desk; it does not charge anyone.",
+  "@billingConfirmPayment": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "method": {
+        "type": "String"
+      },
+      "invoice": {
+        "type": "String"
+      },
+      "patient": {
+        "type": "String"
+      }
+    }
+  },
+  "billingConfirmPaymentTitle": "Record this payment?",
+  "billingConfirmRefund": "Record a refund of {amount} by {method} on invoice {invoice}? A refund cannot be edited or deleted later.",
+  "@billingConfirmRefund": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "method": {
+        "type": "String"
+      },
+      "invoice": {
+        "type": "String"
+      }
+    }
+  },
+  "billingConfirmRefundTitle": "Record this refund?",
+  "billingCountsUnavailable": "Billing figures could not be loaded",
+  "billingCreateInvoice": "Create invoice",
+  "billingCreateNotAllowed": "Your role at this hospital cannot create invoices.",
+  "billingDeskIntro": "Invoices and payments of the selected hospital. Totals and balances come from the hospital system.",
+  "billingDiscount": "Discount",
+  "billingDiscountHint": "Taken off before GST, as the hospital system calculates it.",
+  "billingDiscountRefused": "The discount cannot be negative or more than the bill before tax.",
+  "billingDue": "Due {amount}",
+  "@billingDue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "billingFromPharmacy": "from pharmacy",
+  "billingGstPercent": "GST %",
+  "billingGstRate": "GST {rate}%",
+  "@billingGstRate": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "billingInvoiceClosed": "This invoice is cancelled or closed, so no money can be recorded on it.",
+  "billingInvoiceMaybeCreated": "No answer came from the hospital system, so the invoice may have been created. Check the invoice list before creating it again.",
+  "billingInvoiceTitle": "Invoice",
+  "billingInvoices": "Invoices",
+  "billingItems": "Items",
+  "billingKeyReused": "This request was already used for another record. Go back to the invoice and start again.",
+  "billingLatestRecords": "Latest {count} records",
+  "@billingLatestRecords": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "billingLineDescription": "Description",
+  "billingLineDescriptionRequired": "Describe the charge.",
+  "billingLineNumber": "Item {number}",
+  "@billingLineNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "billingNetOfRefunds": "After refunds",
+  "billingNewInvoice": "New invoice",
+  "billingNewInvoiceIntro": "Choose the patient and add the charges. The hospital system works out tax, the total and the invoice number.",
+  "billingNoGateway": "Payments are recorded at the desk",
+  "billingNoGatewayBody": "There is no online payment gateway. Record cash, UPI, card or bank transfer only after the money has been received. Nothing here is pending or failed: every record is a confirmed receipt.",
+  "billingNoInvoicesMatch": "No invoices match these filters",
+  "billingNoItems": "This invoice has no items.",
+  "billingOpenInvoiceList": "Open invoice list",
+  "billingPatientSearchHint": "Search patient by name, phone or UHID",
+  "billingPaymentIntro": "Money received at the desk against this invoice.",
+  "billingPaymentKind": "Payment",
+  "billingPaymentMethod": "Payment method",
+  "billingPaymentNotAllowed": "A payment cannot be recorded on this invoice by your role.",
+  "billingPaymentRecorded": "Payment recorded by the hospital system",
+  "billingPayments": "Payments",
+  "billingPaymentsRecorded": "Payments recorded",
+  "billingPharmacyAutomatic": "Medicines sold by the pharmacy are billed automatically, so they are not added here.",
+  "billingPrintOnWeb": "Printed bills and PDFs are made from the web app; the hospital system has no invoice PDF for the phone.",
+  "billingQuantityInvalid": "Quantity must be a whole number of at least 1.",
+  "billingReceipt": "Receipt number",
+  "billingRecordPayment": "Record payment",
+  "billingRecordRefund": "Record refund",
+  "billingReference": "Transaction reference",
+  "billingReferenceHint": "UPI transaction ID, card slip or transfer number. Never a card number, CVV or PIN.",
+  "billingRefundIntro": "Money paid back to the patient on this invoice.",
+  "billingRefundNotAllowed": "A refund cannot be recorded on this invoice by your role.",
+  "billingRefundReason": "Reason for the refund",
+  "billingRefundReasonRequired": "Give the reason for the refund.",
+  "billingRefundRecorded": "Refund recorded by the hospital system",
+  "billingRefundTooHigh": "A refund cannot be more than the amount received ({limit}).",
+  "@billingRefundTooHigh": {
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "billingRefunds": "Refunds",
+  "billingRefused": "The hospital system did not accept this. Refresh and try again.",
+  "billingRemoveLine": "Remove item",
+  "billingSearchHint": "Search invoice number, patient or UHID",
+  "billingServerTotals": "Tax, the total and the invoice number are calculated by the hospital system when you create the invoice.",
+  "billingSubtotal": "Subtotal",
+  "billingTax": "Tax (GST)",
+  "billingTaxRateInvalid": "GST must be between 0 and 100 percent.",
+  "billingTotalInvoices": "Invoices",
+  "billingUnitPrice": "Unit price",
   "billsIntro": "Invoices and the payments recorded against them.",
   "billsWithBalance": "Bills with balance due",
   "bmi": "BMI",
@@ -355,13 +504,154 @@
   "jumpTo": "Jump to…",
   "jumpToPage": "Jump to a page",
   "knownCondition": "Known condition",
+  "labBackToWorklist": "Back to worklist",
+  "labCancelConfirm": "Cancel the order for {test}? It stays in the record as cancelled.",
+  "@labCancelConfirm": {
+    "placeholders": {
+      "test": {
+        "type": "String"
+      }
+    }
+  },
+  "labCancelOrder": "Cancel order",
+  "labChoosePatient": "Choose the patient first.",
+  "labCollectedAt": "Collected at",
+  "labCollectedBy": "Collected by",
+  "labCollectionNotes": "Collection notes",
+  "labCommonTestsNote": "Common tests (names only; the hospital system has no test catalogue with prices):",
+  "labContainerType": "Container",
+  "labCountsUnavailable": "Laboratory counts could not be loaded",
+  "labDeskIntro": "Orders of the selected hospital, from sample collection to released result.",
+  "labDispatchNotes": "Dispatch notes",
+  "labDispatchedBy": "Dispatched by",
+  "labEnteredAt": "Entered at",
+  "labEnteredBy": "Entered by",
+  "labExternalLab": "External laboratory",
+  "labExternalLabHint": "Leave empty when the sample goes to this hospital's laboratory.",
+  "labFindSample": "Find a sample",
+  "labFindSampleHint": "Scan or type a sample number, then press enter",
   "labIntro": "Results released by the laboratory.",
+  "labNewOrder": "New lab order",
+  "labNewOrderIntro": "A walk-in order from the laboratory desk. Doctors order from the consultation, linked to the visit.",
+  "labNextStepByOthers": "Next step: {step}. Your role at this hospital cannot do it.",
+  "@labNextStepByOthers": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "labNoOrdersMatch": "No orders match these filters",
+  "labNoOrdersYet": "No laboratory orders yet",
+  "labNoResultYet": "No result has been entered yet.",
   "labNotADiagnosis": "Values are shown as the laboratory entered them. Please discuss them with your doctor.",
+  "labOpenWorklist": "Open worklist",
+  "labOrderCancelled": "Order cancelled by the hospital system.",
+  "labOrderMaybeCreated": "No answer came from the hospital system, so the order may have been placed. Check the worklist before ordering again.",
+  "labOrderNotAllowed": "Your role at this hospital cannot place laboratory orders.",
+  "labOrderTitle": "Laboratory order",
   "labOrders": "Lab orders",
+  "labPatientSearchHint": "Type at least 3 letters of the name, phone or UHID",
+  "labPlaceOrder": "Place order",
+  "labPriorityNormal": "Normal",
+  "labProgressLabel": "Stage {stage} of {total}",
+  "@labProgressLabel": {
+    "placeholders": {
+      "stage": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "labQueueAwaitingCollection": "To collect",
+  "labQueueAwaitingRelease": "To release",
+  "labQueueCancelled": "Cancelled",
+  "labQueueInProgress": "In progress",
+  "labQueueReleased": "Released",
+  "labQueueSampleCollected": "Sample collected",
+  "labReceivedBy": "Received by",
+  "labReleaseConfirm": "Release the verified result of {test}? The doctor and the patient will then see it.",
+  "@labReleaseConfirm": {
+    "placeholders": {
+      "test": {
+        "type": "String"
+      }
+    }
+  },
   "labReleasedOnly": "Reports appear here after the laboratory has checked and released them.",
+  "labResultAwaitingVerification": "Awaiting verification",
+  "labResultNotVerifiedYet": "Type the result as the laboratory reports it. It stays unverified until it is verified as a separate step.",
+  "labResultRequired": "Enter the result.",
+  "labResultText": "Result",
+  "labResultVerified": "Verified",
+  "labReviewOrder": "Review order",
+  "labReviewOrderHint": "Check the patient and the test. The order is placed only when the hospital system confirms it.",
+  "labSample": "Sample",
+  "labSampleNumber": "Sample number",
+  "labSampleNumberHint": "Scan the label, or leave empty and the hospital system numbers the sample.",
+  "labSampleType": "Sample type",
+  "labSearchHint": "Search test, patient or sample number",
+  "labStatusCollected": "Sample collected",
+  "labStatusDispatched": "Dispatched",
+  "labStatusOrdered": "Ordered",
+  "labStatusProcessing": "Processing",
+  "labStatusReceived": "Received in lab",
+  "labStatusResultEntered": "Result entered",
+  "labStatusSamplePending": "Sample pending",
+  "labStatusVerified": "Verified",
+  "labStepCollect": "Collect sample",
+  "labStepConfirm": "{step} for {test}?",
+  "@labStepConfirm": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      },
+      "test": {
+        "type": "String"
+      }
+    }
+  },
+  "labStepDispatch": "Dispatch sample",
+  "labStepDone": "{step}: saved by the hospital system.",
+  "@labStepDone": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "labStepEnterResult": "Enter result",
+  "labStepReceive": "Receive in lab",
+  "labStepRefused": "The hospital system refused this step: the order has probably moved on. It has been reloaded.",
+  "labStepRelease": "Release result",
+  "labStepStartProcessing": "Start processing",
+  "labStepVerify": "Verify result",
   "labTestName": "Test name",
   "labTestNameRequired": "Enter the test name.",
+  "labTestNameTooLong": "Use at most {max} characters.",
+  "@labTestNameTooLong": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
   "labTestStatus": "Lab test status",
+  "labTimeline": "Timeline",
+  "labTotalOrders": "Lab orders",
+  "labVerifiedBy": "Verified by",
+  "labVerifyConfirm": "Verify the result of {test}? Verify only after checking the entered result against the sample and the instrument report.",
+  "@labVerifyConfirm": {
+    "placeholders": {
+      "test": {
+        "type": "String"
+      }
+    }
+  },
+  "labWorklist": "Worklist",
+  "labWorklistNewestFirst": "Newest orders first",
   "laboratory": "Laboratory",
   "language": "Language",
   "languageEnglish": "English",
@@ -633,8 +923,21 @@
   "patientSignInIntro": "Patients see their own appointments, prescriptions, reports and bills.",
   "payAtHospital": "Bills are paid at the hospital",
   "payAtHospitalBody": "Online payment is not available yet. Payments made at the billing desk appear here.",
+  "paymentBankTransfer": "Bank transfer",
+  "paymentCard": "Card",
+  "paymentCash": "Cash",
   "paymentHistory": "Payment history",
+  "paymentUpi": "UPI",
   "pickDate": "Pick a date",
+  "pickerChange": "Change",
+  "pickerTypeMore": "Type at least {count} characters.",
+  "@pickerTypeMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "platformAndroid": "Android",
   "platformIos": "iPhone / iPad",
   "platformOther": "Other device",

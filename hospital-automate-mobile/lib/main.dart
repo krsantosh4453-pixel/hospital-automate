@@ -15,7 +15,9 @@ import 'core/security/token_store.dart';
 import 'features/auth/auth_repository.dart';
 import 'features/auth/auth_service.dart';
 import 'features/auth/google_identity.dart';
+import 'features/billing/data/billing_repository.dart';
 import 'features/dashboard/dashboard_repository.dart';
+import 'features/laboratory/data/lab_repository.dart';
 import 'features/doctor/data/doctor_repository.dart';
 import 'features/patient/data/patient_repository.dart';
 
@@ -72,6 +74,8 @@ Future<void> main() async {
         dashboard: ApiDashboardRepository(api),
         patient: ApiPatientRepository(api),
         doctor: ApiDoctorRepository(api),
+        laboratory: ApiLabRepository(api),
+        billing: ApiBillingRepository(api),
       ),
     ),
   );

@@ -596,6 +596,479 @@ abstract class AppLocalizations {
   /// **'Total'**
   String get billTotal;
 
+  /// No description provided for @billingAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get billingAmount;
+
+  /// No description provided for @billingAmountInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an amount in rupees, like 500 or 499.50.'**
+  String get billingAmountInvalid;
+
+  /// No description provided for @billingAmountRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The hospital system did not accept this amount. Check the balance and try again.'**
+  String get billingAmountRefused;
+
+  /// No description provided for @billingAmountTooHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'The amount is more than the balance due ({limit}).'**
+  String billingAmountTooHigh(String limit);
+
+  /// No description provided for @billingAnyDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Any date'**
+  String get billingAnyDate;
+
+  /// No description provided for @billingBackToDesk.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to billing'**
+  String get billingBackToDesk;
+
+  /// No description provided for @billingBackToInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to invoice'**
+  String get billingBackToInvoice;
+
+  /// No description provided for @billingChargeConsultation.
+  ///
+  /// In en, this message translates to:
+  /// **'Consultation'**
+  String get billingChargeConsultation;
+
+  /// No description provided for @billingChargeLaboratory.
+  ///
+  /// In en, this message translates to:
+  /// **'Laboratory'**
+  String get billingChargeLaboratory;
+
+  /// No description provided for @billingChargeOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other charge'**
+  String get billingChargeOther;
+
+  /// No description provided for @billingChargePharmacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Pharmacy'**
+  String get billingChargePharmacy;
+
+  /// No description provided for @billingChoosePatient.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the patient by searching their name, phone or UHID.'**
+  String get billingChoosePatient;
+
+  /// No description provided for @billingClearDates.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear dates'**
+  String get billingClearDates;
+
+  /// No description provided for @billingConfirmPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Record {amount} received by {method} for invoice {invoice} ({patient})? This records money already received at the desk; it does not charge anyone.'**
+  String billingConfirmPayment(
+    String amount,
+    String method,
+    String invoice,
+    String patient,
+  );
+
+  /// No description provided for @billingConfirmPaymentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record this payment?'**
+  String get billingConfirmPaymentTitle;
+
+  /// No description provided for @billingConfirmRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a refund of {amount} by {method} on invoice {invoice}? A refund cannot be edited or deleted later.'**
+  String billingConfirmRefund(String amount, String method, String invoice);
+
+  /// No description provided for @billingConfirmRefundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record this refund?'**
+  String get billingConfirmRefundTitle;
+
+  /// No description provided for @billingCountsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Billing figures could not be loaded'**
+  String get billingCountsUnavailable;
+
+  /// No description provided for @billingCreateInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Create invoice'**
+  String get billingCreateInvoice;
+
+  /// No description provided for @billingCreateNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your role at this hospital cannot create invoices.'**
+  String get billingCreateNotAllowed;
+
+  /// No description provided for @billingDeskIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoices and payments of the selected hospital. Totals and balances come from the hospital system.'**
+  String get billingDeskIntro;
+
+  /// No description provided for @billingDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount'**
+  String get billingDiscount;
+
+  /// No description provided for @billingDiscountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Taken off before GST, as the hospital system calculates it.'**
+  String get billingDiscountHint;
+
+  /// No description provided for @billingDiscountRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The discount cannot be negative or more than the bill before tax.'**
+  String get billingDiscountRefused;
+
+  /// No description provided for @billingDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Due {amount}'**
+  String billingDue(String amount);
+
+  /// No description provided for @billingFromPharmacy.
+  ///
+  /// In en, this message translates to:
+  /// **'from pharmacy'**
+  String get billingFromPharmacy;
+
+  /// No description provided for @billingGstPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'GST %'**
+  String get billingGstPercent;
+
+  /// No description provided for @billingGstRate.
+  ///
+  /// In en, this message translates to:
+  /// **'GST {rate}%'**
+  String billingGstRate(String rate);
+
+  /// No description provided for @billingInvoiceClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'This invoice is cancelled or closed, so no money can be recorded on it.'**
+  String get billingInvoiceClosed;
+
+  /// No description provided for @billingInvoiceMaybeCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'No answer came from the hospital system, so the invoice may have been created. Check the invoice list before creating it again.'**
+  String get billingInvoiceMaybeCreated;
+
+  /// No description provided for @billingInvoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice'**
+  String get billingInvoiceTitle;
+
+  /// No description provided for @billingInvoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoices'**
+  String get billingInvoices;
+
+  /// No description provided for @billingItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get billingItems;
+
+  /// No description provided for @billingKeyReused.
+  ///
+  /// In en, this message translates to:
+  /// **'This request was already used for another record. Go back to the invoice and start again.'**
+  String get billingKeyReused;
+
+  /// No description provided for @billingLatestRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest {count} records'**
+  String billingLatestRecords(int count);
+
+  /// No description provided for @billingLineDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get billingLineDescription;
+
+  /// No description provided for @billingLineDescriptionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe the charge.'**
+  String get billingLineDescriptionRequired;
+
+  /// No description provided for @billingLineNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Item {number}'**
+  String billingLineNumber(int number);
+
+  /// No description provided for @billingNetOfRefunds.
+  ///
+  /// In en, this message translates to:
+  /// **'After refunds'**
+  String get billingNetOfRefunds;
+
+  /// No description provided for @billingNewInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'New invoice'**
+  String get billingNewInvoice;
+
+  /// No description provided for @billingNewInvoiceIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the patient and add the charges. The hospital system works out tax, the total and the invoice number.'**
+  String get billingNewInvoiceIntro;
+
+  /// No description provided for @billingNoGateway.
+  ///
+  /// In en, this message translates to:
+  /// **'Payments are recorded at the desk'**
+  String get billingNoGateway;
+
+  /// No description provided for @billingNoGatewayBody.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no online payment gateway. Record cash, UPI, card or bank transfer only after the money has been received. Nothing here is pending or failed: every record is a confirmed receipt.'**
+  String get billingNoGatewayBody;
+
+  /// No description provided for @billingNoInvoicesMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No invoices match these filters'**
+  String get billingNoInvoicesMatch;
+
+  /// No description provided for @billingNoItems.
+  ///
+  /// In en, this message translates to:
+  /// **'This invoice has no items.'**
+  String get billingNoItems;
+
+  /// No description provided for @billingOpenInvoiceList.
+  ///
+  /// In en, this message translates to:
+  /// **'Open invoice list'**
+  String get billingOpenInvoiceList;
+
+  /// No description provided for @billingPatientSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search patient by name, phone or UHID'**
+  String get billingPatientSearchHint;
+
+  /// No description provided for @billingPaymentIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Money received at the desk against this invoice.'**
+  String get billingPaymentIntro;
+
+  /// No description provided for @billingPaymentKind.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment'**
+  String get billingPaymentKind;
+
+  /// No description provided for @billingPaymentMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment method'**
+  String get billingPaymentMethod;
+
+  /// No description provided for @billingPaymentNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'A payment cannot be recorded on this invoice by your role.'**
+  String get billingPaymentNotAllowed;
+
+  /// No description provided for @billingPaymentRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment recorded by the hospital system'**
+  String get billingPaymentRecorded;
+
+  /// No description provided for @billingPayments.
+  ///
+  /// In en, this message translates to:
+  /// **'Payments'**
+  String get billingPayments;
+
+  /// No description provided for @billingPaymentsRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Payments recorded'**
+  String get billingPaymentsRecorded;
+
+  /// No description provided for @billingPharmacyAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicines sold by the pharmacy are billed automatically, so they are not added here.'**
+  String get billingPharmacyAutomatic;
+
+  /// No description provided for @billingPrintOnWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Printed bills and PDFs are made from the web app; the hospital system has no invoice PDF for the phone.'**
+  String get billingPrintOnWeb;
+
+  /// No description provided for @billingQuantityInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity must be a whole number of at least 1.'**
+  String get billingQuantityInvalid;
+
+  /// No description provided for @billingReceipt.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt number'**
+  String get billingReceipt;
+
+  /// No description provided for @billingRecordPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Record payment'**
+  String get billingRecordPayment;
+
+  /// No description provided for @billingRecordRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Record refund'**
+  String get billingRecordRefund;
+
+  /// No description provided for @billingReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction reference'**
+  String get billingReference;
+
+  /// No description provided for @billingReferenceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'UPI transaction ID, card slip or transfer number. Never a card number, CVV or PIN.'**
+  String get billingReferenceHint;
+
+  /// No description provided for @billingRefundIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Money paid back to the patient on this invoice.'**
+  String get billingRefundIntro;
+
+  /// No description provided for @billingRefundNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'A refund cannot be recorded on this invoice by your role.'**
+  String get billingRefundNotAllowed;
+
+  /// No description provided for @billingRefundReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for the refund'**
+  String get billingRefundReason;
+
+  /// No description provided for @billingRefundReasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the reason for the refund.'**
+  String get billingRefundReasonRequired;
+
+  /// No description provided for @billingRefundRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund recorded by the hospital system'**
+  String get billingRefundRecorded;
+
+  /// No description provided for @billingRefundTooHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'A refund cannot be more than the amount received ({limit}).'**
+  String billingRefundTooHigh(String limit);
+
+  /// No description provided for @billingRefunds.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunds'**
+  String get billingRefunds;
+
+  /// No description provided for @billingRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The hospital system did not accept this. Refresh and try again.'**
+  String get billingRefused;
+
+  /// No description provided for @billingRemoveLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove item'**
+  String get billingRemoveLine;
+
+  /// No description provided for @billingSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search invoice number, patient or UHID'**
+  String get billingSearchHint;
+
+  /// No description provided for @billingServerTotals.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax, the total and the invoice number are calculated by the hospital system when you create the invoice.'**
+  String get billingServerTotals;
+
+  /// No description provided for @billingSubtotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtotal'**
+  String get billingSubtotal;
+
+  /// No description provided for @billingTax.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax (GST)'**
+  String get billingTax;
+
+  /// No description provided for @billingTaxRateInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'GST must be between 0 and 100 percent.'**
+  String get billingTaxRateInvalid;
+
+  /// No description provided for @billingTotalInvoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoices'**
+  String get billingTotalInvoices;
+
+  /// No description provided for @billingUnitPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit price'**
+  String get billingUnitPrice;
+
   /// No description provided for @billsIntro.
   ///
   /// In en, this message translates to:
@@ -1562,11 +2035,161 @@ abstract class AppLocalizations {
   /// **'Known condition'**
   String get knownCondition;
 
+  /// No description provided for @labBackToWorklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to worklist'**
+  String get labBackToWorklist;
+
+  /// No description provided for @labCancelConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel the order for {test}? It stays in the record as cancelled.'**
+  String labCancelConfirm(String test);
+
+  /// No description provided for @labCancelOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel order'**
+  String get labCancelOrder;
+
+  /// No description provided for @labChoosePatient.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the patient first.'**
+  String get labChoosePatient;
+
+  /// No description provided for @labCollectedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Collected at'**
+  String get labCollectedAt;
+
+  /// No description provided for @labCollectedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Collected by'**
+  String get labCollectedBy;
+
+  /// No description provided for @labCollectionNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Collection notes'**
+  String get labCollectionNotes;
+
+  /// No description provided for @labCommonTestsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Common tests (names only; the hospital system has no test catalogue with prices):'**
+  String get labCommonTestsNote;
+
+  /// No description provided for @labContainerType.
+  ///
+  /// In en, this message translates to:
+  /// **'Container'**
+  String get labContainerType;
+
+  /// No description provided for @labCountsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Laboratory counts could not be loaded'**
+  String get labCountsUnavailable;
+
+  /// No description provided for @labDeskIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders of the selected hospital, from sample collection to released result.'**
+  String get labDeskIntro;
+
+  /// No description provided for @labDispatchNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch notes'**
+  String get labDispatchNotes;
+
+  /// No description provided for @labDispatchedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatched by'**
+  String get labDispatchedBy;
+
+  /// No description provided for @labEnteredAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Entered at'**
+  String get labEnteredAt;
+
+  /// No description provided for @labEnteredBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Entered by'**
+  String get labEnteredBy;
+
+  /// No description provided for @labExternalLab.
+  ///
+  /// In en, this message translates to:
+  /// **'External laboratory'**
+  String get labExternalLab;
+
+  /// No description provided for @labExternalLabHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty when the sample goes to this hospital\'s laboratory.'**
+  String get labExternalLabHint;
+
+  /// No description provided for @labFindSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Find a sample'**
+  String get labFindSample;
+
+  /// No description provided for @labFindSampleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan or type a sample number, then press enter'**
+  String get labFindSampleHint;
+
   /// No description provided for @labIntro.
   ///
   /// In en, this message translates to:
   /// **'Results released by the laboratory.'**
   String get labIntro;
+
+  /// No description provided for @labNewOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'New lab order'**
+  String get labNewOrder;
+
+  /// No description provided for @labNewOrderIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'A walk-in order from the laboratory desk. Doctors order from the consultation, linked to the visit.'**
+  String get labNewOrderIntro;
+
+  /// No description provided for @labNextStepByOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Next step: {step}. Your role at this hospital cannot do it.'**
+  String labNextStepByOthers(String step);
+
+  /// No description provided for @labNoOrdersMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders match these filters'**
+  String get labNoOrdersMatch;
+
+  /// No description provided for @labNoOrdersYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No laboratory orders yet'**
+  String get labNoOrdersYet;
+
+  /// No description provided for @labNoResultYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No result has been entered yet.'**
+  String get labNoResultYet;
 
   /// No description provided for @labNotADiagnosis.
   ///
@@ -1574,17 +2197,299 @@ abstract class AppLocalizations {
   /// **'Values are shown as the laboratory entered them. Please discuss them with your doctor.'**
   String get labNotADiagnosis;
 
+  /// No description provided for @labOpenWorklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Open worklist'**
+  String get labOpenWorklist;
+
+  /// No description provided for @labOrderCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Order cancelled by the hospital system.'**
+  String get labOrderCancelled;
+
+  /// No description provided for @labOrderMaybeCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'No answer came from the hospital system, so the order may have been placed. Check the worklist before ordering again.'**
+  String get labOrderMaybeCreated;
+
+  /// No description provided for @labOrderNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your role at this hospital cannot place laboratory orders.'**
+  String get labOrderNotAllowed;
+
+  /// No description provided for @labOrderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Laboratory order'**
+  String get labOrderTitle;
+
   /// No description provided for @labOrders.
   ///
   /// In en, this message translates to:
   /// **'Lab orders'**
   String get labOrders;
 
+  /// No description provided for @labPatientSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type at least 3 letters of the name, phone or UHID'**
+  String get labPatientSearchHint;
+
+  /// No description provided for @labPlaceOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Place order'**
+  String get labPlaceOrder;
+
+  /// No description provided for @labPriorityNormal.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal'**
+  String get labPriorityNormal;
+
+  /// No description provided for @labProgressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage {stage} of {total}'**
+  String labProgressLabel(int stage, int total);
+
+  /// No description provided for @labQueueAwaitingCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'To collect'**
+  String get labQueueAwaitingCollection;
+
+  /// No description provided for @labQueueAwaitingRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'To release'**
+  String get labQueueAwaitingRelease;
+
+  /// No description provided for @labQueueCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get labQueueCancelled;
+
+  /// No description provided for @labQueueInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get labQueueInProgress;
+
+  /// No description provided for @labQueueReleased.
+  ///
+  /// In en, this message translates to:
+  /// **'Released'**
+  String get labQueueReleased;
+
+  /// No description provided for @labQueueSampleCollected.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample collected'**
+  String get labQueueSampleCollected;
+
+  /// No description provided for @labReceivedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Received by'**
+  String get labReceivedBy;
+
+  /// No description provided for @labReleaseConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Release the verified result of {test}? The doctor and the patient will then see it.'**
+  String labReleaseConfirm(String test);
+
   /// No description provided for @labReleasedOnly.
   ///
   /// In en, this message translates to:
   /// **'Reports appear here after the laboratory has checked and released them.'**
   String get labReleasedOnly;
+
+  /// No description provided for @labResultAwaitingVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting verification'**
+  String get labResultAwaitingVerification;
+
+  /// No description provided for @labResultNotVerifiedYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the result as the laboratory reports it. It stays unverified until it is verified as a separate step.'**
+  String get labResultNotVerifiedYet;
+
+  /// No description provided for @labResultRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the result.'**
+  String get labResultRequired;
+
+  /// No description provided for @labResultText.
+  ///
+  /// In en, this message translates to:
+  /// **'Result'**
+  String get labResultText;
+
+  /// No description provided for @labResultVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified'**
+  String get labResultVerified;
+
+  /// No description provided for @labReviewOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Review order'**
+  String get labReviewOrder;
+
+  /// No description provided for @labReviewOrderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the patient and the test. The order is placed only when the hospital system confirms it.'**
+  String get labReviewOrderHint;
+
+  /// No description provided for @labSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample'**
+  String get labSample;
+
+  /// No description provided for @labSampleNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample number'**
+  String get labSampleNumber;
+
+  /// No description provided for @labSampleNumberHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan the label, or leave empty and the hospital system numbers the sample.'**
+  String get labSampleNumberHint;
+
+  /// No description provided for @labSampleType.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample type'**
+  String get labSampleType;
+
+  /// No description provided for @labSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search test, patient or sample number'**
+  String get labSearchHint;
+
+  /// No description provided for @labStatusCollected.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample collected'**
+  String get labStatusCollected;
+
+  /// No description provided for @labStatusDispatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatched'**
+  String get labStatusDispatched;
+
+  /// No description provided for @labStatusOrdered.
+  ///
+  /// In en, this message translates to:
+  /// **'Ordered'**
+  String get labStatusOrdered;
+
+  /// No description provided for @labStatusProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get labStatusProcessing;
+
+  /// No description provided for @labStatusReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Received in lab'**
+  String get labStatusReceived;
+
+  /// No description provided for @labStatusResultEntered.
+  ///
+  /// In en, this message translates to:
+  /// **'Result entered'**
+  String get labStatusResultEntered;
+
+  /// No description provided for @labStatusSamplePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample pending'**
+  String get labStatusSamplePending;
+
+  /// No description provided for @labStatusVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified'**
+  String get labStatusVerified;
+
+  /// No description provided for @labStepCollect.
+  ///
+  /// In en, this message translates to:
+  /// **'Collect sample'**
+  String get labStepCollect;
+
+  /// No description provided for @labStepConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'{step} for {test}?'**
+  String labStepConfirm(String step, String test);
+
+  /// No description provided for @labStepDispatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch sample'**
+  String get labStepDispatch;
+
+  /// No description provided for @labStepDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{step}: saved by the hospital system.'**
+  String labStepDone(String step);
+
+  /// No description provided for @labStepEnterResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter result'**
+  String get labStepEnterResult;
+
+  /// No description provided for @labStepReceive.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive in lab'**
+  String get labStepReceive;
+
+  /// No description provided for @labStepRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The hospital system refused this step: the order has probably moved on. It has been reloaded.'**
+  String get labStepRefused;
+
+  /// No description provided for @labStepRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Release result'**
+  String get labStepRelease;
+
+  /// No description provided for @labStepStartProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Start processing'**
+  String get labStepStartProcessing;
+
+  /// No description provided for @labStepVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify result'**
+  String get labStepVerify;
 
   /// No description provided for @labTestName.
   ///
@@ -1598,11 +2503,53 @@ abstract class AppLocalizations {
   /// **'Enter the test name.'**
   String get labTestNameRequired;
 
+  /// No description provided for @labTestNameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at most {max} characters.'**
+  String labTestNameTooLong(int max);
+
   /// No description provided for @labTestStatus.
   ///
   /// In en, this message translates to:
   /// **'Lab test status'**
   String get labTestStatus;
+
+  /// No description provided for @labTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeline'**
+  String get labTimeline;
+
+  /// No description provided for @labTotalOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Lab orders'**
+  String get labTotalOrders;
+
+  /// No description provided for @labVerifiedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified by'**
+  String get labVerifiedBy;
+
+  /// No description provided for @labVerifyConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify the result of {test}? Verify only after checking the entered result against the sample and the instrument report.'**
+  String labVerifyConfirm(String test);
+
+  /// No description provided for @labWorklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Worklist'**
+  String get labWorklist;
+
+  /// No description provided for @labWorklistNewestFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest orders first'**
+  String get labWorklistNewestFirst;
 
   /// No description provided for @laboratory.
   ///
@@ -2624,17 +3571,53 @@ abstract class AppLocalizations {
   /// **'Online payment is not available yet. Payments made at the billing desk appear here.'**
   String get payAtHospitalBody;
 
+  /// No description provided for @paymentBankTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank transfer'**
+  String get paymentBankTransfer;
+
+  /// No description provided for @paymentCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Card'**
+  String get paymentCard;
+
+  /// No description provided for @paymentCash.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get paymentCash;
+
   /// No description provided for @paymentHistory.
   ///
   /// In en, this message translates to:
   /// **'Payment history'**
   String get paymentHistory;
 
+  /// No description provided for @paymentUpi.
+  ///
+  /// In en, this message translates to:
+  /// **'UPI'**
+  String get paymentUpi;
+
   /// No description provided for @pickDate.
   ///
   /// In en, this message translates to:
   /// **'Pick a date'**
   String get pickDate;
+
+  /// No description provided for @pickerChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get pickerChange;
+
+  /// No description provided for @pickerTypeMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Type at least {count} characters.'**
+  String pickerTypeMore(int count);
 
   /// No description provided for @platformAndroid.
   ///

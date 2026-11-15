@@ -4,7 +4,16 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/ui/patient_login_screen.dart';
 import '../../features/auth/ui/register_screen.dart';
 import '../../features/auth/ui/staff_login_screen.dart';
+import '../../features/billing/ui/billing_screen.dart';
+import '../../features/billing/ui/billing_ui.dart';
+import '../../features/billing/ui/invoice_screen.dart';
+import '../../features/billing/ui/money_entry_screen.dart';
+import '../../features/billing/ui/new_invoice_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
+import '../../features/laboratory/ui/lab_new_order_screen.dart';
+import '../../features/laboratory/ui/lab_order_screen.dart';
+import '../../features/laboratory/ui/lab_ui.dart';
+import '../../features/laboratory/ui/laboratory_screen.dart';
 import '../../features/doctor/ui/consultation_screen.dart';
 import '../../features/doctor/ui/doctor_appointments_screen.dart';
 import '../../features/doctor/ui/doctor_lists_screens.dart';
@@ -67,7 +76,27 @@ GoRouter buildAppRouter({
     '${DoctorRoutes.consultation}/:visitId': (state) =>
         ConsultationScreen(visitId: _idOf(state, 'visitId')),
     DoctorRoutes.prescriptions: (_) => const DoctorPrescriptionsScreen(),
-    DoctorRoutes.laboratory: (_) => const DoctorLabScreen(),
+  };
+  // Laboratory and billing desks, for every role the sidebar lets in (the
+  // module check in redirectFor). Each page offers only the actions the
+  // server allows that role; /laboratory shows doctors their ordered tests.
+  final deskScreens = <String, Widget Function(GoRouterState)>{
+    LabRoutes.worklist: (_) => const LabHomeScreen(),
+    LabRoutes.newOrder: (_) => const LabNewOrderScreen(),
+    '${LabRoutes.worklist}/:id': (state) =>
+        LabOrderScreen(orderId: _idOf(state)),
+    BillingRoutes.desk: (_) => const BillingScreen(),
+    BillingRoutes.newInvoice: (_) => const NewInvoiceScreen(),
+    '${BillingRoutes.desk}/invoices/:id': (state) =>
+        InvoiceScreen(invoiceId: _idOf(state)),
+    '${BillingRoutes.desk}/invoices/:id/pay': (state) => MoneyEntryScreen(
+      invoiceId: _idOf(state),
+      kind: MoneyEntryKind.payment,
+    ),
+    '${BillingRoutes.desk}/invoices/:id/refund': (state) => MoneyEntryScreen(
+      invoiceId: _idOf(state),
+      kind: MoneyEntryKind.refund,
+    ),
   };
   GoRoute doctorPage(String path, Widget Function(GoRouterState) build) =>
       GoRoute(
@@ -117,11 +146,23 @@ GoRouter buildAppRouter({
             patientPage(entry.key, entry.value),
           for (final entry in doctorScreens.entries)
             doctorPage(entry.key, entry.value),
+          for (final entry in deskScreens.entries)
+            GoRoute(
+              path: entry.key,
+              pageBuilder: (_, state) => _page(
+                state,
+                PatientPage(
+                  location: state.uri.path,
+                  child: entry.value(state),
+                ),
+              ),
+            ),
           for (final group in [...staffNav, ...patientNav])
             for (final item in group.items)
               if (!ownScreens.contains(item.path) &&
                   !patientScreens.containsKey(item.path) &&
-                  !doctorScreens.containsKey(item.path))
+                  !doctorScreens.containsKey(item.path) &&
+                  !deskScreens.containsKey(item.path))
                 page(
                   item.path,
                   (location) => ModuleScreen(item: item, location: location),
