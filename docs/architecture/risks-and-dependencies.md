@@ -10,7 +10,7 @@ Related: [implementation-roadmap.md](implementation-roadmap.md) · [target-syste
 | B | Platform super-admin | New `PlatformStaff` model, separate `/api/v1/platform/` endpoints, no patient data by default | Phase 3 |
 | C | UUID primary keys | Keep integer keys; add `public_id` UUIDs only where ids leave the system | Phase 2–3 |
 | D | PostgreSQL RLS | Pilot on two tables in Phase 11, then decide | Phase 11 |
-| E | Where the Flutter app lives | `mobile/` in this repository | Phase 4 |
+| E | Where the Flutter app lives | `hospital-automate-mobile/` in this repository | Phase 4 |
 | F | Payment gateway | Choose a provider (for example Razorpay, Cashfree or PayU in India); needs a merchant account | Phase 8 |
 | G | Same-slot policy | **Decided 2026-11-09:** one patient per doctor slot by default; a hospital admin may raise `Doctor.slot_capacity` (1–20) for group consultations. Enforced by a database constraint on numbered places plus the doctor-row lock | Done (Phase 2) |
 

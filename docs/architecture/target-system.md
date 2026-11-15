@@ -77,12 +77,12 @@ The other requested entities already exist under different names, so no new tabl
 
 ## 7. Flutter application
 
-Location — **DECISION E:** `mobile/` inside this repository (monorepo), so API and app changes land in one reviewable PR and CI can check them together. The alternative is a separate repository.
+Location — **DECISION E:** `hospital-automate-mobile/` inside this repository (monorepo), so API and app changes land in one reviewable PR and CI can check them together. The alternative is a separate repository.
 
 Stack: Flutter (stable), Dart 3, Material 3, Riverpod, GoRouter, Dio, Drift (SQLite) with SQLCipher, `flutter_secure_storage`, `firebase_messaging` (FCM, with APNs on iOS), generated OpenAPI client.
 
 ```
-mobile/lib/
+hospital-automate-mobile/lib/
   main.dart, app.dart
   core/      config (flavours: dev/staging/prod), network (Dio, auth + hospital interceptors, retry),
              security (secure storage, biometric unlock), database (Drift), routing (GoRouter + role guards),
