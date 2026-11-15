@@ -174,6 +174,16 @@ AI_SCRIBE_ENABLED=False  # Disable if no API key
 
 ## 5. Project Structure
 
+Three applications share one repository and one Django backend (the single source of truth and the only database):
+
+| Application | Folder | Stack | Dependencies | Tests |
+|-------------|--------|-------|--------------|-------|
+| Web app | repository root (`src/`, `public/`, `index.html`) | React + Vite | `package.json` | `npm test` (Vitest, `src/**/*.test.jsx`), `npm run test:e2e` (Playwright, `e2e/`) |
+| Mobile app | `hospital-automate-mobile/` | Flutter (Android, iOS) | `hospital-automate-mobile/pubspec.yaml` | `flutter test` in that folder; see its [README](hospital-automate-mobile/README.md) |
+| Backend API | `backend/` | Django + DRF | `backend/requirements*.txt` | `python manage.py test` in `backend/` |
+
+CI: `.github/workflows/ci.yml` (backend and web), `.github/workflows/mobile.yml` (mobile; runs only when `hospital-automate-mobile/**` changes).
+
 ```
 hospital-automate/
 ├── backend/                    # Django project
@@ -220,6 +230,12 @@ hospital-automate/
 │   ├── utils/                  # Utilities
 │   ├── App.jsx                 # Routes & providers
 │   └── main.jsx                # Entry point
+│
+├── hospital-automate-mobile/   # Flutter mobile app (own pubspec.yaml, README, tests)
+│   ├── lib/                    # Dart sources: core/, features/, shared/, l10n/
+│   ├── test/                   # Flutter unit and widget tests (+ opt-in live tests)
+│   ├── android/  ios/          # Platform projects
+│   └── assets/fonts/           # Inter font
 │
 ├── docs/                       # Documentation (this folder)
 │   ├── ARCHITECTURE.md

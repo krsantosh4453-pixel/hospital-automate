@@ -53,20 +53,25 @@ def _status_for(invoice, paid):
 
 def recalculate(invoice, save=True):
     """Recompute subtotal-derived tax and total, then the payment status."""
+    items = list(invoice.items.all())
     subtotal = ZERO
-    tax = ZERO
-    for item in invoice.items.all():
+    for item in items:
         item_subtotal = line_subtotal(item.quantity, item.unit_price)
         if item.subtotal != item_subtotal:
             item.subtotal = item_subtotal
             item.save(update_fields=["subtotal"])
         subtotal += item_subtotal
-        tax += money(item_subtotal * Decimal(item.tax_rate or 0) / 100)
     discount = money(invoice.discount)
     if discount < ZERO:
         raise ValidationError({"discount": "Discount cannot be negative."})
-    if discount > subtotal + tax:
-        raise ValidationError({"discount": "Discount cannot exceed the bill amount."})
+    if discount > subtotal:
+        raise ValidationError({"discount": "Discount cannot exceed the bill amount before tax."})
+    # P1-05 (owner's decision 2026-11-06): the discount comes off before GST.
+    # It is shared by each line's value, and each line is taxed on what is left.
+    tax = ZERO
+    for item in items:
+        share = money(discount * item.subtotal / subtotal) if subtotal else ZERO
+        tax += money((item.subtotal - share) * Decimal(item.tax_rate or 0) / 100)
     invoice.tax = money(tax)
     invoice.total = money(subtotal + tax - discount)
     invoice.status = _status_for(invoice, net_paid(invoice))

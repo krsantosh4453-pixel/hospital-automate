@@ -9,6 +9,7 @@ import { Plus as PlusIcon } from "lucide-react"
 import { buildDispenseRequest, defaultLines } from "../utils/dispenseBatches.js"
 import DispenseLine from "../components/pharmacy/DispenseLine.jsx"
 import SaleReturns from "../components/pharmacy/SaleReturns.jsx"
+import H1Register from "../components/pharmacy/H1Register.jsx"
 import PrescriptionQueue from "../components/pharmacy/PrescriptionQueue.jsx"
 import TranscribeDialog from "../components/pharmacy/TranscribeDialog.jsx"
 import DispensingSlip from "../components/pharmacy/DispensingSlip.jsx"
@@ -23,6 +24,15 @@ const RETURN_ROLES = ["Admin", "Hospital Manager", "Pharmacist"]
 const TRANSCRIBE_ROLES = ["Admin", "Pharmacist"]
 // Not dispensed until something changes: cancelled, or a transcription nobody has verified yet.
 const BLOCKED_STATUSES = ["Cancelled", PENDING_VERIFICATION]
+// P1-10: Drugs and Cosmetics Rules schedules; H, H1, X and NDPS need a prescription.
+const DRUG_SCHEDULES = [["", "Not scheduled"], ["H", "Schedule H"], ["H1", "Schedule H1"], ["X", "Schedule X"], ["NDPS", "NDPS"]]
+// Catalogue fields the server checks (MRP cap, HSN format); a blank MRP is sent as "none".
+const regulatoryFields = (form) => ({
+  drug_schedule: form.drugSchedule || "",
+  hsn_code: (form.hsnCode || "").trim(),
+  mrp: form.mrp === "" || form.mrp == null ? null : Number(form.mrp),
+  manufacturer: (form.manufacturer || "").trim(),
+})
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 // Convert "MM/YYYY" (UI) to "YYYY-MM-01" (API DateField). Returns null if invalid.
@@ -100,6 +110,10 @@ function Pharmacy() {
     expiry: "",
     price: "",
     taxRate: "",
+    drugSchedule: "",
+    hsnCode: "",
+    mrp: "",
+    manufacturer: "",
   })
 
   const [issueData, setIssueData] = useState({
@@ -394,6 +408,8 @@ function Pharmacy() {
         tax_rate:
           Number(formData.taxRate || 0),
 
+        ...regulatoryFields(formData),
+
         expiry_date:
           toApiDate(formData.expiry),
 
@@ -462,6 +478,11 @@ function Pharmacy() {
       taxRate:
         String(medicine.taxRate || 0),
 
+      drugSchedule: medicine.drugSchedule || "",
+      hsnCode: medicine.hsnCode || "",
+      mrp: medicine.mrp === "" || medicine.mrp == null ? "" : String(medicine.mrp),
+      manufacturer: medicine.manufacturer || "",
+
     })
 
 
@@ -509,6 +530,8 @@ function Pharmacy() {
 
           tax_rate:
             Number(formData.taxRate || 0),
+
+          ...regulatoryFields(formData),
 
           expiry_date:
             toApiDate(formData.expiry),
@@ -996,7 +1019,8 @@ function Pharmacy() {
                 icon={PlusIcon}
                 onClick={() => {
                   setSelectedMedicine(null)
-                  setFormData({ name: "", genericName: "", category: "", batch: "", stock: "", expiry: "", price: "", taxRate: "" })
+                  setFormData({ name: "", genericName: "", category: "", batch: "", stock: "", expiry: "", price: "", taxRate: "",
+                    drugSchedule: "", hsnCode: "", mrp: "", manufacturer: "" })
                   setShowForm(true)
                 }}
               >
@@ -1839,6 +1863,20 @@ function Pharmacy() {
               <Field label="GST %" hint="Added to the patient's bill; 0 if exempt.">
                 <Input type="number" name="taxRate" min="0" max="100" step="0.01" value={formData.taxRate} onChange={handleChange} />
               </Field>
+              <Field label="MRP" hint="The selling price cannot be above it.">
+                <Input type="number" name="mrp" min="0" step="0.01" value={formData.mrp} onChange={handleChange} />
+              </Field>
+              <Field label="Schedule" hint="H, H1, X and NDPS are sold only against a prescription.">
+                <Select name="drugSchedule" value={formData.drugSchedule} onChange={handleChange}>
+                  {DRUG_SCHEDULES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </Select>
+              </Field>
+              <Field label="HSN code" hint="4, 6 or 8 digits; printed on the GST bill.">
+                <Input name="hsnCode" inputMode="numeric" maxLength={8} value={formData.hsnCode} onChange={handleChange} />
+              </Field>
+              <Field label="Manufacturer">
+                <Input name="manufacturer" value={formData.manufacturer} onChange={handleChange} />
+              </Field>
             </form>
           </Modal>
 
@@ -2236,6 +2274,9 @@ function Pharmacy() {
             onReturned={reloadPharmacyData}
             sales={hospitalSales.map((sale) => sale.record).filter(Boolean)}
           />
+
+          {/* P1-10: the same roles that take returns keep the scheduled-drug register. */}
+          {RETURN_ROLES.includes(activeRoleName) && <H1Register hospitalId={selectedHospital.id} />}
 
           <TranscribeDialog
             open={showTranscribe}

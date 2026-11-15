@@ -24,6 +24,19 @@ class Medicine(models.Model):
     status = models.CharField(max_length=20, default="Available", db_index=True)
     # Generic (salt) names, comma-separated for combinations; used by the prescription safety check.
     generic_name = models.CharField(max_length=255, blank=True, default="")
+    # P1-10 (Drugs and Cosmetics Rules): the schedule decides who may buy it and
+    # which register records it; MRP caps the selling price; HSN is printed on GST bills.
+    drug_schedule = models.CharField(max_length=10, blank=True, default="", choices=[
+        ("", "Not scheduled"), ("H", "Schedule H"), ("H1", "Schedule H1"), ("X", "Schedule X"), ("NDPS", "NDPS"),
+    ])
+    hsn_code = models.CharField(max_length=8, blank=True, default="")
+    mrp = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    manufacturer = models.CharField(max_length=150, blank=True, default="")
+
+    # Sold only against a prescription.
+    PRESCRIPTION_ONLY_SCHEDULES = ("H", "H1", "X", "NDPS")
+    # Each sale is written in the Schedule H1 register (Rule 65(9)); X and NDPS are kept there too.
+    REGISTER_SCHEDULES = ("H1", "X", "NDPS")
     # Store settings: how stock is counted, when it is low, and who usually supplies it.
     unit = models.CharField(max_length=30, default="Unit")
     reorder_level = models.PositiveIntegerField(default=10)

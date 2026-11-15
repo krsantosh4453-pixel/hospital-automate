@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from audit.services import record_audit
 from hospital.models import Department
 
+from .tokens import revoke_all_sessions
 from .models import StaffHospitalMembership, StaffRole
 from .permissions import (
     get_request_hospital_id,
@@ -52,6 +53,10 @@ def _role(value, granter_roles):
         raise ValidationError({"role": f"Role must be one of: {', '.join(StaffRole.values)}."})
     if value == StaffRole.ADMIN and StaffRole.ADMIN not in granter_roles:
         raise PermissionDenied("Only an Admin can grant the Admin role.")
+    # Decision 1 / Q1 (2026-11-09): a Manager hands out clinical and
+    # operational roles, never Admin or another Hospital Manager.
+    if value == StaffRole.HOSPITAL_MANAGER and StaffRole.ADMIN not in granter_roles:
+        raise PermissionDenied("Only an Admin can grant the Hospital Manager role.")
     return value
 
 
@@ -115,6 +120,8 @@ class StaffMembershipView(APIView):
             raise ValidationError("You cannot change your own access.")
         if membership.role == StaffRole.ADMIN and StaffRole.ADMIN not in granter_roles:
             raise PermissionDenied("Only an Admin can change another Admin.")
+        if membership.role == StaffRole.HOSPITAL_MANAGER and StaffRole.ADMIN not in granter_roles:
+            raise PermissionDenied("Only an Admin can change a Hospital Manager.")
         changes = {}
         if "role" in request.data:
             membership.role = _role(request.data["role"], granter_roles)
@@ -133,6 +140,11 @@ class StaffMembershipView(APIView):
         if not changes:
             raise ValidationError("Nothing to change.")
         membership.save()
+        if changes.get("is_active") is False and not StaffHospitalMembership.objects.filter(
+            staff=membership.staff, is_active=True
+        ).exists():
+            # No hospital left: sign the person out everywhere now, not when tokens expire.
+            revoke_all_sessions(membership.staff.user, "last hospital membership removed")
         record_audit(request, "users.staff.membership_changed", membership.staff, hospital=hospital_id,
                      details={"user": user_id, **changes})
         return Response(_row(membership.staff, membership))

@@ -129,9 +129,10 @@ def get_user_roles(user, hospital_id=None):
     if not staff_profile or not staff_profile.is_active_staff:
         return []
 
-    memberships = get_user_active_hospital_memberships(user)
+    # A suspended hospital's roles count nowhere, with or without a hospital asked for.
+    memberships = get_user_active_hospital_memberships(user).filter(hospital__is_active=True)
     if hospital_id is not None:
-        memberships = memberships.filter(hospital_id=hospital_id, hospital__is_active=True)
+        memberships = memberships.filter(hospital_id=hospital_id)
     roles = []
     for membership in memberships:
         if membership.role not in roles:
@@ -338,6 +339,20 @@ class IsClinicalStaff(RoleBasedPermission):
     required_roles = [StaffRole.DOCTOR, StaffRole.NURSE, StaffRole.ADMIN]
 
 
+# The role classes above also admit the Admin. Decision 2 (2026-11-09): for
+# clinical records the Admin only reads, so these admit the role alone.
+class IsDoctorOnly(RoleBasedPermission):
+    required_roles = [StaffRole.DOCTOR]
+
+
+class IsNurseOnly(RoleBasedPermission):
+    required_roles = [StaffRole.NURSE]
+
+
+class IsPharmacistOnly(RoleBasedPermission):
+    required_roles = [StaffRole.PHARMACIST]
+
+
 class IsAdminOrManager(RoleBasedPermission):
     """Admin or Hospital Manager."""
     required_roles = [StaffRole.ADMIN, StaffRole.HOSPITAL_MANAGER]
@@ -357,6 +372,8 @@ def read_only(permission_class):
     return ReadOnly
 
 
+# Decision 2 (2026-11-09): a hospital Admin reads clinical records, never writes them.
+IsAdminReadOnly = read_only(IsAdmin)
 IsNurseReadOnly = read_only(IsNurse)
 IsReceptionistReadOnly = read_only(IsReceptionist)
 IsCompounderReadOnly = read_only(IsCompounder)

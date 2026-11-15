@@ -124,7 +124,9 @@ def put_on_duty(user, hospital, ward):
     return nurse
 
 
-class TenantIsolationProbe(TestCase):
+class HospitalBRecords:
+    """One synthetic row of every tenant model in Hospital B, and an Admin of each hospital."""
+
     @classmethod
     def setUpTestData(cls):
         cls.hospital_a = Hospital.objects.create(name="Synthetic Hospital A", is_active=True)
@@ -156,6 +158,9 @@ class TenantIsolationProbe(TestCase):
             except Exception as exc:  # recorded, reported below
                 cls.unbuildable[label] = f"{type(exc).__name__}: {exc}"[:160]
 
+
+
+class TenantIsolationProbe(HospitalBRecords, TestCase):
     def setUp(self):
         self.client = APIClient(raise_request_exception=False)
         self.client.force_authenticate(self.user_a)
@@ -188,6 +193,31 @@ class TenantIsolationProbe(TestCase):
         print(report)
         self.assertEqual(leaks, [], report)
         self.assertEqual(errors, [], report)
+
+    def test_naming_hospital_b_never_reveals_its_records(self):
+        """Phase 3: a forged X-Hospital-ID or ?hospital= for B, under both prefixes."""
+        routes = _list_routes()
+        leaks, errors = [], []
+        forged = APIClient(raise_request_exception=False)
+        forged.force_authenticate(self.user_a)
+        forged.credentials(HTTP_X_HOSPITAL_ID=str(self.hospital_b.id))
+        for label, obj in sorted(self.b_records.items()):
+            url = routes.get(label)
+            if not url:
+                continue
+            legacy = url.replace("/api/v1/", "/api/", 1)
+            for client, target in ((forged, url), (forged, legacy), (self.client, f"{url}?hospital={self.hospital_b.id}")):
+                resp = client.get(target)
+                if resp.status_code >= 500:
+                    errors.append(f"{label} LIST {target} -> {resp.status_code}")
+                elif resp.status_code == 200 and obj.pk in _ids(resp.json()):
+                    leaks.append(f"{label} LIST {target}")
+            resp = forged.get(f"{url}{obj.pk}/")
+            if resp.status_code == 200:
+                leaks.append(f"{label} DETAIL {url}{obj.pk}/ with X-Hospital-ID B")
+            elif resp.status_code >= 500:
+                errors.append(f"{label} DETAIL {url}{obj.pk}/ -> {resp.status_code}")
+        self.assertEqual((leaks, errors), ([], []))
 
     def test_hospital_a_cannot_query_hospital_b_by_parameter(self):
         """Passing another hospital's id must be rejected, not honoured."""

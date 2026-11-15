@@ -1,6 +1,6 @@
 """Dashboard statistics endpoints (synthetic data only)."""
 
-from datetime import time
+from datetime import time, timedelta
 
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -9,6 +9,7 @@ from config.hospital_time import hospital_today
 
 from appointments.models import Appointment
 from doctors.models import Doctor
+from encounters.models import QueueToken, Visit
 from hospital.models import Hospital
 from laboratory.models import LabTest
 from patients.models import Patient
@@ -121,3 +122,42 @@ class DoctorHomeStatsTests(TestCase):
         stats = self.stats(self.admin_user)["statistics"]
         self.assertEqual(stats["patients"]["total"], 2)
         self.assertEqual(stats["appointments"]["today"], 2)
+
+
+class QueueStatsAreForTodayTests(TestCase):
+    """The queue counts match the queue board, which shows only today's tokens."""
+
+    def setUp(self):
+        self.hospital = Hospital.objects.create(name="Synthetic Queue Stats", is_active=True)
+        self.user, _ = make_staff("queue_stats_admin", self.hospital)
+        doctor = Doctor.objects.create(hospital=self.hospital, name="Dr Queue", specialization="", phone="")
+        patient = Patient.objects.create(name="Synthetic Queue Patient", age=40, gender="Male",
+                                         phone="9000000955", hospital=self.hospital)
+        today = hospital_today()
+        yesterday = today - timedelta(days=1)
+        tokens = (
+            (1, yesterday, QueueToken.Status.WAITING),
+            (2, yesterday, QueueToken.Status.IN_CONSULTATION),
+            (3, yesterday, QueueToken.Status.COMPLETED),
+            (1, today, QueueToken.Status.WAITING),
+        )
+        for number, day, status in tokens:
+            visit = Visit.objects.create(patient=patient, doctor=doctor, hospital=self.hospital)
+            QueueToken.objects.create(visit=visit, hospital=self.hospital, patient=patient, doctor=doctor,
+                                      token_number=number, token_date=day, status=status)
+        self.client = APIClient(raise_request_exception=False)
+        self.client.force_authenticate(self.user)
+
+    def test_dashboard_queue_counts_ignore_earlier_days(self):
+        response = self.client.get(f"/api/home/stats/detail/?hospital={self.hospital.id}")
+        self.assertEqual(response.status_code, 200)
+        queue = response.data["statistics"]["queue"]
+        self.assertEqual(queue["total"], 1)
+        self.assertEqual(queue["waiting"], 1)
+        self.assertEqual(queue["in_consultation"], 0)
+        self.assertEqual(queue["completed"], 0)
+
+    def test_summary_waiting_count_ignores_earlier_days(self):
+        response = self.client.get(f"/api/home/stats/?hospital={self.hospital.id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["waiting_queue"], 1)

@@ -11,15 +11,22 @@ class DoctorSerializer(serializers.ModelSerializer):
             "user",
             "name",
             "specialization",
+            "registration_number",
             "email",
             "phone",
             "department",
             "experience",
             "availability",
             "status",
+            "slot_capacity",
+            "registration_council",
+            "registration_verified_at",
+            "registration_verified_by",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        # Set only by POST doctors/{id}/verify-registration/ (hospital Admin).
+        read_only_fields = ["id", "created_at", "registration_council", "registration_verified_at",
+                            "registration_verified_by"]
 
     def validate_hospital(self, value):
         user = self.context["request"].user

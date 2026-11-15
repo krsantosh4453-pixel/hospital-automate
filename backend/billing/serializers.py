@@ -12,7 +12,8 @@ from django.db import transaction
 from hospital.models import Hospital
 from patients.models import Patient
 
-from .services import line_subtotal, money, new_reference, recalculate
+from .numbering import next_invoice_number
+from .services import line_subtotal, money, recalculate
 
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
@@ -201,23 +202,23 @@ class InvoiceSerializer(serializers.ModelSerializer):
             memberships = obj.patient.hospital_memberships.all()
         return next((m.uhid for m in memberships if m.hospital_id == obj.hospital_id and m.is_active), "")
 
-    def get_total_paid(self, obj):
+    def get_total_paid(self, obj) -> str:
         # Exact decimal string, like the stored money fields.
         return str(money(obj.total_paid))
 
-    def get_balance_due(self, obj):
+    def get_balance_due(self, obj) -> str:
         return str(money(obj.balance_due))
 
-    def get_is_paid(self, obj):
+    def get_is_paid(self, obj) -> bool:
         return obj.is_paid
 
-    def get_subtotal(self, obj):
+    def get_subtotal(self, obj) -> str:
         return str(money(obj.subtotal))
 
-    def get_tax_amount(self, obj):
+    def get_tax_amount(self, obj) -> str:
         return str(money(obj.tax_amount))
 
-    def get_total_amount(self, obj):
+    def get_total_amount(self, obj) -> str:
         return str(money(obj.total_amount))
 
     def validate_discount(self, value):
@@ -230,9 +231,10 @@ class InvoiceSerializer(serializers.ModelSerializer):
             scoped_hospital = self.context.get("scoped_hospital")
             if scoped_hospital:
                 validated_data["hospital"] = scoped_hospital
-        validated_data["invoice_number"] = new_reference("INV")
         items_data = validated_data.pop("items_data", [])
         with transaction.atomic():
+            # P1-05: the hospital's consecutive GST series, locked until this bill is saved.
+            validated_data["invoice_number"] = next_invoice_number(validated_data["hospital"])
             invoice = Invoice.objects.create(**validated_data)
             for item_data in items_data:
                 item_data.pop("invoice", None)

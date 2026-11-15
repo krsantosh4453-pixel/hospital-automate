@@ -101,7 +101,8 @@ class MedicalCertificateTests(DocumentTestBase):
 
         response = self.post(CERTIFICATES, self.certificate(), user=admin)
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # Refused by role since decision 2 (2026-11-09), before the doctor-profile check.
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(MedicalCertificate.objects.count(), 0)
 
     def test_nurse_and_receptionist_cannot_issue(self):

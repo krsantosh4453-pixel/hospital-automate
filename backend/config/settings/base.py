@@ -282,6 +282,8 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=15),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7),
+    # Refresh also checks the DeviceSession and the account (users/tokens.py).
+    'TOKEN_REFRESH_SERIALIZER': 'users.tokens.SessionTokenRefreshSerializer',
 }
 
 
@@ -524,6 +526,14 @@ TWILIO_VERIFY_SERVICE_SID = None
 # Legacy Twilio SMS (fallback)
 TWILIO_AUTH_TOKEN = None
 TWILIO_PHONE_NUMBER = None
+# P1-09: SMS and WhatsApp messages (notifications/services/providers.py). A Messaging
+# Service holds the DLT-registered sender Indian operators require; WhatsApp messages
+# the hospital starts need an approved template (Content SID). The callback URL
+# must be the public HTTPS address of /api/notifications/twilio/status/.
+TWILIO_MESSAGING_SERVICE_SID = os.environ.get("TWILIO_MESSAGING_SERVICE_SID", "")
+TWILIO_WHATSAPP_FROM = os.environ.get("TWILIO_WHATSAPP_FROM", "")
+TWILIO_WHATSAPP_CONTENT_SID = os.environ.get("TWILIO_WHATSAPP_CONTENT_SID", "")
+TWILIO_STATUS_CALLBACK_URL = os.environ.get("TWILIO_STATUS_CALLBACK_URL", "")
 
 # OTP Provider selection: 'twilio' (Verify v2) or 'console' (dev) or 'cache' (test)
 OTP_PROVIDER = 'twilio'
@@ -620,7 +630,10 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
-    'SCHEMA_PATH_PREFIX': '/api/',
+    # The API is mounted at /api/v1/ and /api/ (config/urls.py); the schema shows
+    # /api/v1/ only, and the prefix regex keeps tags per module, not "v1".
+    'SCHEMA_PATH_PREFIX': r'/api/(v1/)?',
+    'PREPROCESSING_HOOKS': ['config.api_paths.versioned_paths_only'],
     # Schema warnings are documentation gaps; keep them out of `manage.py check --deploy`.
     'ENABLE_DJANGO_DEPLOY_CHECK': False,
     'TAGS': [

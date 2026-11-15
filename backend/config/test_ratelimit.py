@@ -47,6 +47,23 @@ class RateLimitMiddlewareTests(SimpleTestCase):
             user = {"username": f"staff{n}"}
             self.assertEqual(self.call("/api/auth/staff/login/otp/start/", data=user).status_code, 200, n)
 
+    def test_patients_behind_one_mobile_carrier_address_can_all_ask_for_a_code(self):
+        """P1-08: carrier-grade NAT puts many patients on one IP; the limit is per phone."""
+        for n in range(30):
+            phone = {"phone": f"98765{n:05d}"}
+            self.assertEqual(self.call("/api/auth/patient/otp/request/", data=phone).status_code, 200, n)
+
+    def test_one_phone_is_still_capped_across_addresses(self):
+        phone = {"phone": "9876500001"}
+        for n in range(5):
+            self.call("/api/auth/patient/otp/request/", ip=f"10.0.1.{n}", data=phone)
+        self.assertEqual(self.call("/api/auth/patient/otp/request/", ip="10.0.1.99", data=phone).status_code, 429)
+
+    def test_one_address_spraying_many_phones_is_still_capped(self):
+        for n in range(60):
+            self.call("/api/auth/patient/otp/request/", data={"phone": f"91111{n:05d}"})
+        self.assertEqual(self.call("/api/auth/patient/otp/request/", data={"phone": "9222200000"}).status_code, 429)
+
     def test_one_address_trying_many_accounts_is_still_capped(self):
         for n in range(60):
             self.call("/api/auth/staff/login/", data={"username": f"spray{n}"})

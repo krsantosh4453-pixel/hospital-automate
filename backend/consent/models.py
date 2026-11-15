@@ -108,3 +108,49 @@ class RecordShareAccess(models.Model):
 
     class Meta:
         ordering = ["-accessed_at"]
+
+
+class DataRightsRequest(models.Model):
+    """
+    P1-03 (DPDP Act 2023): a patient's request about their personal data, or a
+    grievance, and the hospital's answer. Nothing is erased automatically: the
+    hospital decides, since medical records have their own retention duties,
+    and records the reason. Every filing and answer is audited.
+    """
+
+    class Kind(models.TextChoices):
+        ACCESS = "access", "A summary of my data and who it was shared with"
+        CORRECTION = "correction", "Correct or complete my data"
+        ERASURE = "erasure", "Erase my data"
+        GRIEVANCE = "grievance", "A complaint about how my data is handled"
+        NOMINEE = "nominee", "Name someone to act for me"
+
+    class Status(models.TextChoices):
+        RECEIVED = "received", "Received"
+        IN_PROGRESS = "in_progress", "In progress"
+        COMPLETED = "completed", "Completed"
+        REFUSED = "refused", "Refused"
+
+    patient = models.ForeignKey("patients.Patient", on_delete=models.PROTECT, related_name="data_rights_requests")
+    hospital = models.ForeignKey("hospital.Hospital", on_delete=models.PROTECT, related_name="data_rights_requests")
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    details = models.TextField(max_length=2000, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.RECEIVED, db_index=True)
+    response = models.TextField(max_length=2000, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    due_at = models.DateTimeField(db_index=True)
+    handled_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name="+")
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["hospital", "status"])]
+
+    @property
+    def is_open(self):
+        return self.status in (self.Status.RECEIVED, self.Status.IN_PROGRESS)
+
+    @property
+    def overdue(self):
+        return self.is_open and self.due_at < timezone.now()

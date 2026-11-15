@@ -238,11 +238,13 @@ function Queue() {
     setSuccessMessage("")
     setBusy("next")
 
-    // Django advances the queue (completes the token being served and calls
-    // the next one). The screen changes only from the server's reload.
+    // Django calls the next token. It never completes the one being served:
+    // while that doctor has a patient in consultation it refuses (409) and the
+    // reason is shown below. The screen changes only from the server's reload.
     try {
-      await api.queue.callNext(selectedHospital.id)
-      setSuccessMessage(t("Called token #{token}. Start the consultation when the patient comes in.", { token: nextPatient.token }))
+      // Name the token the server called: it may re-call an earlier Called one.
+      const called = await api.queue.callNext(selectedHospital.id)
+      setSuccessMessage(t("Called token #{token}. Start the consultation when the patient comes in.", { token: called?.token_number ?? nextPatient.token }))
     } catch (error) {
       setActionError(t("Not changed: {reason}", { reason: error.message || "Failed to call the next patient." }))
     } finally {

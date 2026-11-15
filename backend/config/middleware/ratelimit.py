@@ -12,6 +12,7 @@ from django.http import JsonResponse
 from django.core.cache import cache
 from django.conf import settings
 
+from config.api_paths import unversioned_path
 from config.client_ip import client_ip
 
 logger = logging.getLogger(__name__)
@@ -38,11 +39,23 @@ class RateLimitMiddleware(MiddlewareMixin):
         '/api/auth/token/refresh/': {'limit': 20, 'window': 60, 'scope': 'user'},
         '/api/auth/token/verify/': {'limit': 30, 'window': 60, 'scope': 'user'},
         '/api/auth/google/': {'limit': 5, 'window': 60, 'scope': 'ip'},
-        '/api/auth/patient/otp/': {'limit': 5, 'window': 60, 'scope': 'ip'},
-        '/api/auth/patient/email-otp/': {'limit': 5, 'window': 60, 'scope': 'ip'},
+        # Patient codes: 5/min per phone or email, so patients sharing a mobile
+        # carrier's address (carrier-grade NAT) are not blocked by each other
+        # (P1-08); the per-IP ceiling still stops one address spraying numbers.
+        '/api/auth/patient/otp/': [
+            {'limit': 5, 'window': 60, 'scope': 'phone'},
+            {'limit': 60, 'window': 60, 'scope': 'ip'},
+        ],
+        '/api/auth/patient/email-otp/': [
+            {'limit': 5, 'window': 60, 'scope': 'email'},
+            {'limit': 60, 'window': 60, 'scope': 'ip'},
+        ],
         '/api/auth/patient/login/': {'limit': 5, 'window': 60, 'scope': 'ip'},
         '/api/auth/patient/token/': {'limit': 5, 'window': 60, 'scope': 'ip'},
-        '/api/auth/proxy/': {'limit': 5, 'window': 60, 'scope': 'ip'},
+        '/api/auth/proxy/': [
+            {'limit': 5, 'window': 60, 'scope': 'phone'},
+            {'limit': 60, 'window': 60, 'scope': 'ip'},
+        ],
         '/api/auth/register/': {'limit': 5, 'window': 300, 'scope': 'ip'},
         '/api/auth/staff/logout/': {'limit': 30, 'window': 60, 'scope': 'user'},
 
@@ -84,8 +97,10 @@ class RateLimitMiddleware(MiddlewareMixin):
         if request.path.startswith('/static/') or request.path.startswith('/media/'):
             return None
 
-        # The longest matching prefix wins, so a specific rule beats a broad one
-        matches = [pattern for pattern in self.RATE_LIMITS if request.path.startswith(pattern)]
+        # The longest matching prefix wins, so a specific rule beats a broad one.
+        # /api/v1/ paths match the same rules (and budgets) as /api/ ones.
+        path = unversioned_path(request.path)
+        matches = [pattern for pattern in self.RATE_LIMITS if path.startswith(pattern)]
         if not matches:
             return None
         matched_pattern = max(matches, key=len)

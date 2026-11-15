@@ -1,5 +1,11 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+
+# Decision G (2026-11-09): one patient per appointment slot unless a hospital
+# raises a doctor's capacity for group or shared consultations.
+DEFAULT_SLOT_CAPACITY = 1
+MAX_SLOT_CAPACITY = 20
 
 
 class Doctor(models.Model):
@@ -23,6 +29,16 @@ class Doctor(models.Model):
 
     name = models.CharField(max_length=100, db_index=True)
     specialization = models.CharField(max_length=100, db_index=True)
+    # Medical council registration number: printed on prescriptions and the
+    # Schedule H1 register (P1-10).
+    registration_number = models.CharField(max_length=50, blank=True, default="")
+    # Decision 1 / Q2 (2026-11-09): the hospital Admin records who checked the
+    # registration and when. Changing the number clears the check.
+    registration_council = models.CharField(max_length=100, blank=True, default="", db_default="")
+    registration_verified_at = models.DateTimeField(null=True, blank=True)
+    registration_verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
     email = models.EmailField(blank=True, default="")
     phone = models.CharField(max_length=15)
     department = models.ForeignKey(
@@ -48,10 +64,20 @@ class Doctor(models.Model):
         default="Available",
         db_index=True
     )
+    # Patients one appointment slot may hold (appointments/slots.py).
+    slot_capacity = models.PositiveSmallIntegerField(
+        default=DEFAULT_SLOT_CAPACITY,
+        validators=[MinValueValidator(1), MaxValueValidator(MAX_SLOT_CAPACITY)],
+        help_text=f"Patients per appointment slot (1–{MAX_SLOT_CAPACITY}). Keep 1 unless the hospital runs group consultations.",
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __str__(self):
         return self.name
+
+    def may_sign(self):
+        """Whether this doctor may sign prescriptions and notes (Q2: the hospital may require verification)."""
+        return self.registration_verified_at is not None or not self.hospital.require_verified_doctors
 
     class Meta:
         ordering = ["-created_at"]
@@ -60,6 +86,10 @@ class Doctor(models.Model):
                 fields=["user", "hospital"],
                 condition=models.Q(user__isnull=False),
                 name="doctor_unique_user_per_hospital",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(slot_capacity__gte=1, slot_capacity__lte=MAX_SLOT_CAPACITY),
+                name="doctor_slot_capacity_in_range",
             ),
         ]
         indexes = [

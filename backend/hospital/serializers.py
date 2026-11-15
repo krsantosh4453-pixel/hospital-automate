@@ -10,16 +10,16 @@ class HospitalSerializer(serializers.ModelSerializer):
     doctors = serializers.SerializerMethodField()
     nurses = serializers.SerializerMethodField()
 
-    def get_status(self, obj):
+    def get_status(self, obj) -> str:
         return "Active" if obj.is_active else "Inactive"
 
-    def get_departments(self, obj):
+    def get_departments(self, obj) -> int:
         return obj.departments.count()
 
-    def get_doctors(self, obj):
+    def get_doctors(self, obj) -> int:
         return obj.doctors.count()
 
-    def get_nurses(self, obj):
+    def get_nurses(self, obj) -> int:
         return obj.nurses.count()
 
     def validate_code(self, value):
@@ -46,6 +46,10 @@ class HospitalSerializer(serializers.ModelSerializer):
             "name",
             "code",
             "uhid_prefix",
+            "require_verified_doctors",
+            "grievance_officer_name",
+            "grievance_officer_email",
+            "grievance_officer_phone",
             "type",
             "status",
             "departments",
@@ -66,7 +70,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
     head_name = serializers.CharField(source="head.name", read_only=True, default="")
     doctors = serializers.SerializerMethodField()
 
-    def get_doctors(self, obj):
+    def get_doctors(self, obj) -> int:
         return obj.doctors.count()
 
     def validate(self, attrs):

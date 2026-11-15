@@ -1,13 +1,15 @@
 from datetime import date, datetime, time, timedelta
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
-from .models import Appointment
-from .serializers import AppointmentSerializer
+from .models import Appointment, clashing_booking
+from .openapi import BOOK_SCHEMA, BOOKING_OPTIONS_SCHEMA
+from .slots import SlotFull, lock_doctor, remaining_places, slot_is_full, take_place
+from .serializers import AppointmentSerializer, refuse_double_booking
 from audit.services import record_audit
 from config.hospital_time import hospital_now
 from doctors.models import Doctor
@@ -31,6 +33,7 @@ SLOT_END = time(17, 0)
 SLOT_MINUTES = 15
 BOOKING_WINDOW_DAYS = 60
 MAX_UPCOMING_BOOKINGS = 3
+IDEMPOTENCY_KEY_LENGTH = 80
 # Doctors with these statuses take no online bookings.
 UNBOOKABLE_DOCTOR_STATUSES = {"On Leave", "Inactive", "Unavailable"}
 
@@ -74,12 +77,46 @@ def _parse_slot(value):
     return slot
 
 
-def _taken_slots(doctor, day):
-    return set(
-        Appointment.objects.filter(doctor=doctor, appointment_date=day)
-        .exclude(status="Cancelled")
-        .values_list("appointment_time", flat=True)
+def _booking_with_key(patient, key):
+    """The patient's earlier booking made with this Idempotency-Key, if any."""
+    if not key:
+        return None
+    return Appointment.objects.filter(patient=patient, idempotency_key=key).first()
+
+
+SLOT_JUST_TAKEN = "This slot was just booked. Please choose another time."
+
+
+def _place_or_refuse(doctor_id, day, slot, exclude_pk=None):
+    """A free place in the slot (doctor locked), or a 400 naming the full slot."""
+    try:
+        return take_place(doctor_id, day, slot, exclude_pk=exclude_pk)
+    except SlotFull as full:
+        raise ValidationError({"appointment_time": str(full)})
+
+
+def _claim_place(data, instance=None):
+    """
+    Give a staff-made or edited booking a place in its slot. A booking keeps
+    its place unless it moves to another doctor, day or time, or becomes
+    active again (for example a cancelled one set back to Scheduled).
+    """
+    def current(field):
+        return data.get(field, getattr(instance, field, None))
+
+    if current("status") not in (*Appointment.ACTIVE_STATUSES, None):
+        return
+    doctor = current("doctor")
+    if doctor is None:
+        return
+    moved = instance is None or any(
+        field in data and data[field] != getattr(instance, field)
+        for field in ("doctor", "appointment_date", "appointment_time")
     )
+    reactivated = instance is not None and instance.status not in Appointment.ACTIVE_STATUSES
+    if moved or reactivated:
+        data["slot_seat"] = _place_or_refuse(doctor.pk, current("appointment_date"), current("appointment_time"),
+                                             exclude_pk=getattr(instance, "pk", None))
 
 
 class AppointmentViewSet(HospitalScopedViewSet):
@@ -117,6 +154,7 @@ class AppointmentViewSet(HospitalScopedViewSet):
     # Online booking by a signed-in patient (for themselves only)
     # ------------------------------------------------------------------
 
+    @BOOKING_OPTIONS_SCHEMA
     @action(detail=False, methods=["get"], url_path="booking-options", permission_classes=[IsLinkedPatient])
     def booking_options(self, request):
         """
@@ -147,19 +185,29 @@ class AppointmentViewSet(HospitalScopedViewSet):
                 raise ValidationError({"doctor": "Choose a doctor at this hospital."})
             day = _parse_date(day)
             now = _hospital_now()
-            taken = _taken_slots(doctor, day)
+            slots = _day_slots()
+            remaining = remaining_places(doctor, day, slots)
             payload["slots"] = [
                 {
                     "time": slot.strftime("%H:%M"),
-                    "available": slot not in taken and (day > now.date() or (day == now.date() and slot > now.time())),
+                    "available": remaining[slot] > 0 and (day > now.date() or (day == now.date() and slot > now.time())),
+                    "capacity": doctor.slot_capacity,
+                    "remaining": remaining[slot],
                 }
-                for slot in _day_slots()
+                for slot in slots
             ]
         return Response(payload)
 
+    @BOOK_SCHEMA
     @action(detail=False, methods=["post"], url_path="book", permission_classes=[IsLinkedPatient])
     def book(self, request):
-        """POST {doctor, appointment_date, appointment_time, reason?} — book a slot for yourself."""
+        """
+        POST {doctor, appointment_date, appointment_time, reason?} — book a slot for yourself.
+
+        An optional ``Idempotency-Key`` header makes retries safe: repeating a
+        request with the same key returns the first booking (200) instead of a
+        second one; the same key for a different slot is refused (409).
+        """
         patient = get_linked_patient(request.user)
         doctor = (
             Doctor.objects.filter(pk=request.data.get("doctor"), hospital_id__in=_patient_hospital_ids(patient))
@@ -171,6 +219,15 @@ class AppointmentViewSet(HospitalScopedViewSet):
 
         day = _parse_date(request.data.get("appointment_date"))
         slot = _parse_slot(request.data.get("appointment_time"))
+        key = request.headers.get("Idempotency-Key", "").strip()
+        if len(key) > IDEMPOTENCY_KEY_LENGTH:
+            # Refused, not truncated: two long keys sharing a prefix would collide.
+            raise ValidationError({"idempotency_key": f"Use at most {IDEMPOTENCY_KEY_LENGTH} characters."})
+        earlier = _booking_with_key(patient, key)
+        if earlier is not None:
+            # Checked before the time and limit rules so a late retry still gets its booking back.
+            return self._replay_booking(earlier, doctor, day, slot)
+
         now = _hospital_now()
         if day < now.date() or (day == now.date() and slot <= now.time()):
             raise ValidationError({"appointment_time": "This time has already passed."})
@@ -183,26 +240,67 @@ class AppointmentViewSet(HospitalScopedViewSet):
         if upcoming.count() >= MAX_UPCOMING_BOOKINGS:
             raise ValidationError(f"You already have {MAX_UPCOMING_BOOKINGS} upcoming appointments.")
 
-        with transaction.atomic():
-            # Lock the doctor's day so two patients cannot take the same slot.
-            list(Appointment.objects.select_for_update().filter(doctor=doctor, appointment_date=day))
-            if slot in _taken_slots(doctor, day):
-                return Response(
-                    {"error": "This slot was just booked. Please choose another time."},
-                    status=status.HTTP_409_CONFLICT,
+        try:
+            with transaction.atomic():
+                # Lock the doctor row, not the day's appointments: on a day with no
+                # bookings yet there are no rows to lock (appointments/slots.py).
+                lock_doctor(doctor.pk)
+                earlier = _booking_with_key(patient, key)
+                if earlier is not None:
+                    return self._replay_booking(earlier, doctor, day, slot)
+                if clashing_booking(patient, doctor, day, slot) is not None:
+                    return Response({"error": SLOT_JUST_TAKEN}, status=status.HTTP_409_CONFLICT)
+                try:
+                    place = take_place(doctor.pk, day, slot)
+                except SlotFull:
+                    return Response({"error": SLOT_JUST_TAKEN}, status=status.HTTP_409_CONFLICT)
+                appointment = Appointment.objects.create(
+                    hospital_id=doctor.hospital_id,
+                    patient=patient,
+                    doctor=doctor,
+                    appointment_date=day,
+                    appointment_time=slot,
+                    status="Scheduled",
+                    reason=str(request.data.get("reason") or "")[:500],
+                    contact=(patient.phone or "")[:15],
+                    idempotency_key=key,
+                    slot_seat=place,
                 )
-            appointment = Appointment.objects.create(
-                hospital_id=doctor.hospital_id,
-                patient=patient,
-                doctor=doctor,
-                appointment_date=day,
-                appointment_time=slot,
-                status="Scheduled",
-                reason=str(request.data.get("reason") or "")[:500],
-                contact=(patient.phone or "")[:15],
-            )
+        except IntegrityError:
+            # The same key was used at the same moment for another doctor (each
+            # doctor has its own lock), or a writer that skips the lock (a token
+            # status sync, a script) filled the place: answer, don't fail with 500.
+            earlier = _booking_with_key(patient, key)
+            if earlier is not None:
+                return self._replay_booking(earlier, doctor, day, slot)
+            if clashing_booking(patient, doctor, day, slot) is not None or slot_is_full(doctor, day, slot):
+                return Response({"error": SLOT_JUST_TAKEN}, status=status.HTTP_409_CONFLICT)
+            raise
         record_audit(request, "appointments.appointment.self_booked", appointment, hospital=doctor.hospital_id)
         return Response(self.get_serializer(appointment).data, status=status.HTTP_201_CREATED)
+
+    def _replay_booking(self, earlier, doctor, day, slot):
+        """Answer a retried booking request with the booking its key already made."""
+        if (earlier.doctor_id, earlier.appointment_date, earlier.appointment_time) != (doctor.pk, day, slot):
+            return Response(
+                {"error": "This Idempotency-Key was already used for a different booking."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(self.get_serializer(earlier).data, status=status.HTTP_200_OK)
+
+    # ------------------------------------------------------------------
+    # Staff bookings and edits take a place in the slot the same way
+    # ------------------------------------------------------------------
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            _claim_place(serializer.validated_data)
+            super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            _claim_place(serializer.validated_data, instance=serializer.instance)
+            super().perform_update(serializer)
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
@@ -218,10 +316,21 @@ class AppointmentViewSet(HospitalScopedViewSet):
         appointment = self.get_object()
         appointment_date = request.data.get("appointment_date")
         appointment_time = request.data.get("appointment_time")
-        
-        if appointment_date:
-            appointment.appointment_date = appointment_date
-        if appointment_time:
-            appointment.appointment_time = appointment_time
-        appointment.save()
+
+        with transaction.atomic():
+            # Doctor first, then the booking (the order staff edits use), re-read
+            # under the lock so a cancel or queue update made meanwhile is kept.
+            lock_doctor(appointment.doctor_id)
+            appointment = Appointment.objects.select_for_update().get(pk=appointment.pk)
+            if appointment_date:
+                appointment.appointment_date = appointment_date
+            if appointment_time:
+                appointment.appointment_time = appointment_time
+            if appointment.status in Appointment.ACTIVE_STATUSES:
+                refuse_double_booking(appointment.patient, appointment.doctor, appointment.appointment_date,
+                                      appointment.appointment_time, exclude_pk=appointment.pk)
+                appointment.slot_seat = _place_or_refuse(appointment.doctor_id, appointment.appointment_date,
+                                                         appointment.appointment_time, exclude_pk=appointment.pk)
+            appointment.save(update_fields=["appointment_date", "appointment_time", "slot_seat"])
+            appointment.refresh_from_db()
         return Response(self.get_serializer(appointment).data)

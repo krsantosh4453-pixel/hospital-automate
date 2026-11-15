@@ -32,7 +32,7 @@ from rest_framework.views import APIView
 from audit.services import record_audit
 from hospital.models import Department
 
-from .models import StaffHospitalMembership, StaffProfile
+from .models import StaffHospitalMembership, StaffProfile, StaffRole
 from .patient_auth import normalize_phone
 from .staff_admin import _acting_hospital, _role, _row
 
@@ -131,6 +131,28 @@ def _response(request, profile, membership, hospital_name, invited):
     return body
 
 
+def _ensure_doctor_profile(user, hospital_id, name, phone, email, department, specialization):
+    """
+    P1-06: an invited Doctor gets the Doctor record that bookings, queues and
+    prescriptions use. An unlinked record with the same email is linked rather
+    than duplicated.
+    """
+    from doctors.models import Doctor
+
+    doctor = Doctor.objects.filter(hospital_id=hospital_id, user=user).first()
+    if doctor is None and email:
+        doctor = Doctor.objects.filter(hospital_id=hospital_id, user__isnull=True, email__iexact=email).first()
+    if doctor is not None:
+        if doctor.user_id is None:
+            doctor.user = user
+            doctor.save(update_fields=["user"])
+        return doctor
+    return Doctor.objects.create(
+        user=user, hospital_id=hospital_id, name=name, phone=phone, email=email, department=department,
+        specialization=specialization or (department.name if department else "General"),
+    )
+
+
 class StaffInviteView(APIView):
     """
     POST /api/users/invite/ {name, phone, email?, role, department?}
@@ -174,10 +196,12 @@ class StaffInviteView(APIView):
         )
         record_audit(request, "users.staff.invited", profile, hospital=hospital_id,
                      details={"user": profile.user_id, "role": role, "new_account": existing is None})
-        return Response(
-            _response(request, profile, membership, membership.hospital.name, invited),
-            status=status.HTTP_201_CREATED,
-        )
+        body = _response(request, profile, membership, membership.hospital.name, invited)
+        if role == StaffRole.DOCTOR:
+            specialization = str(request.data.get("specialization") or "").strip()
+            body["doctor_profile"] = _ensure_doctor_profile(profile.user, hospital_id, name, phone, email,
+                                                            department, specialization).pk
+        return Response(body, status=status.HTTP_201_CREATED)
 
 
 class StaffInviteResendView(APIView):

@@ -55,6 +55,45 @@ class StaffInviteTests(TestCase):
         self.assertTrue(resp.data["emailed"])
         self.assertIn(resp.data["invite_url"], mail.outbox[0].body)
 
+    # --- P1-06: an invited doctor can be booked at once -------------------------
+
+    def test_inviting_a_doctor_creates_their_bookable_profile(self):
+        from doctors.models import Doctor
+
+        resp = self._invite(department=self.cardio.id, specialization="Interventional cardiology")
+
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        doctor = Doctor.objects.get(user__email="asha@example.com", hospital=self.hospital)
+        self.assertEqual((doctor.name, doctor.phone, doctor.department_id, doctor.specialization),
+                         ("Asha Verma", "9876543210", self.cardio.id, "Interventional cardiology"))
+        self.assertEqual(resp.data["doctor_profile"], doctor.id)
+
+    def test_specialization_falls_back_to_the_department(self):
+        from doctors.models import Doctor
+
+        self._invite(department=self.cardio.id)
+
+        self.assertEqual(Doctor.objects.get(user__email="asha@example.com").specialization, "Cardiology")
+
+    def test_an_existing_unlinked_profile_is_linked_not_duplicated(self):
+        from doctors.models import Doctor
+
+        existing = Doctor.objects.create(hospital=self.hospital, name="Dr Asha Verma", specialization="Cardiology",
+                                         phone="9876543210", email="asha@example.com")
+
+        self._invite()
+
+        self.assertEqual(Doctor.objects.filter(hospital=self.hospital).count(), 1)
+        existing.refresh_from_db()
+        self.assertEqual(existing.user.email, "asha@example.com")
+
+    def test_other_roles_get_no_doctor_profile(self):
+        from doctors.models import Doctor
+
+        self._invite(role="Nurse")
+
+        self.assertFalse(Doctor.objects.exists())
+
     def test_person_sets_password_once_then_link_is_dead(self):
         uid, token = self._link_parts(self._invite().data["invite_url"])
         anon = APIClient()

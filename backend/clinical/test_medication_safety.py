@@ -53,8 +53,24 @@ class MedicationSafetyTests(TestCase):
         self.assertIn(("allergy", "high"), self.kinds(alerts))
         self.assertIn("Hives", alerts[0]["message"])
 
-    def test_allergy_recorded_in_another_hospital_is_not_used(self):
+    def test_allergy_recorded_in_another_hospital_is_used_and_named(self):
+        """P1-07 (owner's decision 2026-11-06): an allergy follows the patient across hospitals."""
         Allergy.objects.create(patient=self.patient, hospital=self.other_hospital, name="Penicillin")
+
+        alerts = self.alerts("Cap Amoxicillin 500")
+
+        self.assertIn(("allergy", "high"), self.kinds(alerts))
+        self.assertIn("Synthetic Other Hospital", alerts[0]["message"])
+
+    def test_allergy_of_this_hospital_does_not_name_a_hospital(self):
+        Allergy.objects.create(patient=self.patient, hospital=self.hospital, name="Penicillin")
+
+        self.assertNotIn("recorded at", self.alerts("Cap Amoxicillin 500")[0]["message"])
+
+    def test_another_patients_allergy_is_never_used(self):
+        other = Patient.objects.create(name="Synthetic Other", age=30, gender="Male", phone="9000000052",
+                                       hospital=self.hospital)
+        Allergy.objects.create(patient=other, hospital=self.hospital, name="Penicillin")
 
         self.assertNotIn(("allergy", "high"), self.kinds(self.alerts("Cap Amoxicillin 500")))
 

@@ -225,6 +225,10 @@ class SaleViewSet(HospitalScopedViewSet):
 
         self._check_batch(medicine, hospital)
         prescription = serializer.validated_data.get("prescription")
+        if prescription is None and medicine.drug_schedule in Medicine.PRESCRIPTION_ONLY_SCHEDULES:
+            # P1-10: scheduled drugs are sold only against a prescription.
+            raise serializers.ValidationError({"prescription": (
+                f"{medicine.name} is a Schedule {medicine.drug_schedule} drug; dispense it from a prescription.")})
         if prescription is not None and prescription.hospital_id != hospital.pk:
             raise serializers.ValidationError({"prescription": "Prescription is from another hospital."})
         if prescription is not None:
@@ -255,6 +259,65 @@ class SaleViewSet(HospitalScopedViewSet):
                          details={"prescription": prescription.pk, "sales": [sale.pk for sale in sales],
                                   "total": str(invoice.total)})
         return invoice
+
+    @action(detail=False, methods=["get"], url_path="h1-register")
+    def h1_register(self, request):
+        """
+        P1-10: Schedule H1 register (Rule 65(9)), with Schedule X and NDPS sales.
+        ?from=YYYY-MM-DD&to=YYYY-MM-DD in hospital days. Prescriber, patient,
+        drug, quantity and batch for every sale; reading it is audited.
+        """
+        from datetime import date, datetime, time, timedelta
+        from zoneinfo import ZoneInfo
+
+        from django.conf import settings
+
+        zone = ZoneInfo(getattr(settings, "HOSPITAL_TIME_ZONE", "Asia/Kolkata"))
+        sales = (self.get_queryset()
+                 .filter(medicine__drug_schedule__in=Medicine.REGISTER_SCHEDULES)
+                 .select_related("prescription__doctor", "prescription__patient", "dispensed_by")
+                 .prefetch_related("prescription__patient__hospital_memberships")
+                 .order_by("created_at", "id"))
+        try:
+            start = date.fromisoformat(request.query_params["from"]) if request.query_params.get("from") else None
+            end = date.fromisoformat(request.query_params["to"]) if request.query_params.get("to") else None
+        except ValueError:
+            raise serializers.ValidationError({"from": "Dates are YYYY-MM-DD."})
+        if start:
+            sales = sales.filter(created_at__gte=datetime.combine(start, time.min, tzinfo=zone))
+        if end:
+            sales = sales.filter(created_at__lt=datetime.combine(end + timedelta(days=1), time.min, tzinfo=zone))
+
+        rows = [self._register_row(sale, zone) for sale in sales]
+        record_audit(request, "pharmacy.h1_register.read", None, hospital=next(iter(self.get_acting_hospital_ids()), None),
+                     details={"from": str(start or ""), "to": str(end or ""), "rows": len(rows)})
+        return Response({"results": rows})
+
+    @staticmethod
+    def _register_row(sale, zone):
+        rx = sale.prescription
+        doctor = getattr(rx, "doctor", None)
+        patient = getattr(rx, "patient", None)
+        uhid = ""
+        if patient is not None:
+            uhid = next((m.uhid for m in patient.hospital_memberships.all()
+                         if m.hospital_id == sale.hospital_id and m.is_active), "")
+        return {
+            "date": sale.created_at.astimezone(zone).strftime("%Y-%m-%d %H:%M"),
+            "sale": f"SALE-{sale.pk}",
+            "prescription": rx.pk if rx else None,
+            "patient": patient.name if patient else sale.patient_name,
+            "patient_uhid": uhid,
+            "prescriber": doctor.name if doctor else getattr(rx, "original_prescriber_name", ""),
+            "prescriber_registration": (doctor.registration_number if doctor
+                                        else getattr(rx, "original_prescriber_registration", "")),
+            "medicine": sale.medicine.name,
+            "schedule": sale.medicine.drug_schedule,
+            "batch": sale.medicine.batch,
+            "quantity": sale.quantity,
+            "dispensed_by": (sale.dispensed_by.get_full_name() or sale.dispensed_by.username)
+                            if sale.dispensed_by else "",
+        }
 
     @action(detail=False, methods=["post"], url_path="dispense-prescription")
     @transaction.atomic

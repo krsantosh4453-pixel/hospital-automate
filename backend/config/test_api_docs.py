@@ -30,7 +30,12 @@ class ApiDocsTests(TestCase):
         response = self.client_for(self.platform_admin).get("/api/schema/?format=json")
 
         self.assertEqual(response.status_code, 200, response.content[:300])
-        self.assertIn("/api/patients/", response.json()["paths"])
+        paths = response.json()["paths"]
+        # Each endpoint is documented once, under the versioned prefix.
+        self.assertIn("/api/v1/patients/", paths)
+        self.assertNotIn("/api/patients/", paths)
+        tags = {tag for item in paths["/api/v1/patients/"].values() for tag in item.get("tags", [])}
+        self.assertNotIn("v1", tags)
 
     @override_settings(API_DOCS_PUBLIC=True)
     def test_public_docs_open_to_anyone(self):

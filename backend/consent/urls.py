@@ -2,11 +2,15 @@
 
 from django.urls import path
 
-from . import views
+from . import rights, views
 
 app_name = 'consent'
 
 urlpatterns = [
+    # P1-03 (DPDP Act): data-principal requests and the privacy notice.
+    path('rights-requests/', rights.RightsRequestListView.as_view(), name='rights-request-list'),
+    path('rights-requests/<int:id>/respond/', rights.RightsRequestRespondView.as_view(), name='rights-request-respond'),
+    path('privacy-notice/', rights.PrivacyNoticeView.as_view(), name='privacy-notice'),
     path('forms/', views.ConsentFormListView.as_view(), name='consent-form-list'),
     path('forms/<str:id>/', views.ConsentFormDetailView.as_view(), name='consent-form-detail'),
     path('records/', views.ConsentRecordListView.as_view(), name='consent-record-list'),

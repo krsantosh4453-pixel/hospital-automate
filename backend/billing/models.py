@@ -37,7 +37,9 @@ class Invoice(models.Model):
         blank=True,
         related_name="invoices",
     )
-    invoice_number = models.CharField(max_length=50, unique=True)
+    # P1-05: INV/26-27/000001, consecutive per hospital per financial year
+    # (billing/numbering.py), so unique within a hospital, not across them.
+    invoice_number = models.CharField(max_length=50)
     discount =models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tax = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -83,7 +85,29 @@ class Invoice(models.Model):
         constraints = [
             models.CheckConstraint(condition=models.Q(discount__gte=0), name="invoice_discount_non_negative"),
             models.CheckConstraint(condition=models.Q(total__gte=0), name="invoice_total_non_negative"),
+            models.UniqueConstraint(fields=["hospital", "invoice_number"], name="unique_invoice_number_per_hospital"),
         ]
+
+
+class InvoiceSequence(models.Model):
+    """
+    P1-05: the last invoice number a hospital issued in a financial year
+    (April to March, keyed by its starting year). Only billing/numbering.py
+    changes it, through a row-locking UPDATE, so two counters never share one.
+    """
+
+    hospital = models.ForeignKey("hospital.Hospital", on_delete=models.CASCADE, related_name="invoice_sequences")
+    financial_year = models.PositiveIntegerField()
+    last_value = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["hospital", "financial_year"],
+                                    name="one_invoice_sequence_per_hospital_year"),
+        ]
+
+    def __str__(self):
+        return f"{self.hospital_id} FY{self.financial_year}: {self.last_value}"
 
 
 class InvoiceItem(models.Model):
@@ -98,6 +122,8 @@ class InvoiceItem(models.Model):
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    # P1-10: HSN code of a medicine line, printed on the GST bill.
+    hsn_code = models.CharField(max_length=8, blank=True, default="")
     # F9: the pharmacy sale this line bills. One line per sale, so a sale is
     # never charged twice; the quantity drops when medicine is returned.
     pharmacy_sale = models.OneToOneField(

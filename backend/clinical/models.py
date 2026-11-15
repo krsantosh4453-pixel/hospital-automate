@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 
 from audit.entered_in_error import EnteredInError
@@ -132,6 +133,13 @@ class ClinicalNote(EnteredInError):
         ("note", "Other notes"),
     ]
 
+    # Decision 2 / Q4 (2026-11-09): a draft until its author signs it; then it
+    # is never edited. A correction is a new record whose ``amends`` points here.
+    signed_at = models.DateTimeField(null=True, blank=True)
+    signed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name="+")
+    amends = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="amendments")
+
     class Meta:
         indexes = [
             models.Index(fields=["visit", "created_at"]),
@@ -168,6 +176,13 @@ class Diagnosis(EnteredInError):
 
     def __str__(self):
         return self.name
+
+    # Decision 2 / Q4 (2026-11-09): a draft until its author signs it; then it
+    # is never edited. A correction is a new record whose ``amends`` points here.
+    signed_at = models.DateTimeField(null=True, blank=True)
+    signed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name="+")
+    amends = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="amendments")
 
     class Meta:
         indexes = [
@@ -301,6 +316,9 @@ class Prescription(EnteredInError):
     # the alerts shown and, for high-severity ones, the doctor's reason to go ahead.
     safety_alerts = models.JSONField(default=list, blank=True)
     safety_override_reason = models.TextField(blank=True, default="")
+    # Idempotency-Key of the request that wrote it (blank when none was sent):
+    # a retried POST returns this prescription instead of writing a second one.
+    idempotency_key = models.CharField(max_length=80, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
@@ -310,6 +328,13 @@ class Prescription(EnteredInError):
             models.Index(fields=["patient", "created_at"]),
             models.Index(fields=["doctor", "created_at"]),
             models.Index(fields=["hospital", "status"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["hospital", "idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="prescription_unique_idempotency_key",
+            ),
         ]
 
     def __str__(self):
@@ -507,3 +532,24 @@ class Immunization(models.Model):
 
     def __str__(self):
         return f"{self.vaccine} dose {self.dose_number}"
+
+
+class PrescriptionRevision(models.Model):
+    """
+    The prescription as it stood before one change (decision 2, 2026-11-09):
+    a prescription may be corrected until medicine is dispensed, and every
+    earlier version is kept with who changed it and when.
+    """
+
+    prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name="revisions")
+    number = models.PositiveIntegerField()
+    content = models.JSONField(encoder=DjangoJSONEncoder)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+")
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["prescription", "number"]
+        constraints = [models.UniqueConstraint(fields=["prescription", "number"], name="one_prescription_revision_number")]
+
+    def __str__(self):
+        return f"Prescription {self.prescription_id} revision {self.number}"

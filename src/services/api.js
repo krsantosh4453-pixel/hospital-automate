@@ -1462,6 +1462,14 @@ const api = {
         // POST /api/pharmacy-sales/<id>/return/ { quantity, reason, restock } — pharmacist (F5)
         returnSale: async (saleId, data) =>
           request(`${API_BASE_URL}/pharmacy-sales/${saleId}/return/`, { method: 'POST', ...jsonBody(data) }),
+
+        // GET /api/pharmacy-sales/h1-register/?hospital=&from=&to= — Schedule H1/X/NDPS register (P1-10)
+        h1Register: async (hospitalId, { from = '', to = '' } = {}) => {
+          const params = new URLSearchParams({ hospital: hospitalId })
+          if (from) params.set('from', from)
+          if (to) params.set('to', to)
+          return request(`${API_BASE_URL}/pharmacy-sales/h1-register/?${params.toString()}`)
+        },
       },
     },
   },
@@ -2316,6 +2324,21 @@ api.consent = {
     revoke: async (id) =>
       request(`${API_BASE_URL}/consent/records/${id}/revoke/`, { method: "POST" }),
   },
+  // P1-03 (DPDP Act): data-principal requests and the privacy notice.
+  rights: {
+    list: async (params = {}) => {
+      const query = new URLSearchParams(params).toString()
+      return request(`${API_BASE_URL}/consent/rights-requests/${query ? `?${query}` : ""}`)
+    },
+    // data: { hospital, kind, details } (patient)
+    create: async (data) =>
+      request(`${API_BASE_URL}/consent/rights-requests/`, { method: "POST", ...jsonBody(data) }),
+    // data: { status: in_progress | completed | refused, response } (Admin / Hospital Manager)
+    respond: async (id, data) =>
+      request(`${API_BASE_URL}/consent/rights-requests/${id}/respond/`, { method: "POST", ...jsonBody(data) }),
+    notice: async (hospitalId) =>
+      request(`${API_BASE_URL}/consent/privacy-notice/?hospital=${encodeURIComponent(hospitalId)}`),
+  },
   shares: {
     list: async () => request(`${API_BASE_URL}/consent/shares/`),
     received: async () => request(`${API_BASE_URL}/consent/shares/received/`),
@@ -2539,10 +2562,15 @@ api.ipd.admissions.finalBill = async (id, data) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-// Read-only security configuration (A14), Admin only.
+// Server-wide security configuration (A14), platform staff only since 2026-11-09.
 // GET /api/auth/security-settings/
 api.securitySettings = {
   get: async () => request(`${API_BASE_URL}/auth/security-settings/`),
+}
+// The acting hospital's read-only security overview, its Admin only (decision 3).
+// GET /api/hospital/security-overview/
+api.securityOverview = {
+  get: async () => request(`${API_BASE_URL}/hospital/security-overview/`),
 }
 // PATCH /api/ipd/discharge-plans/{id}/  e.g. { medications_reconciled: true }
 api.ipd.dischargePlans.patch = async (id, data) =>

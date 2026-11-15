@@ -171,5 +171,5 @@ def proxy_login(request):
         "user": {"id": user.id, "username": user.username, "name": grant.name},
         "patient": patient_payload(grant.patient),
         "proxy": proxy_payload(grant),
-        **issue_proxy_tokens(user, grant),
+        **issue_proxy_tokens(user, grant, request),
     })

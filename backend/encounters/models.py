@@ -177,7 +177,13 @@ class QueueToken(models.Model):
             models.UniqueConstraint(
                 fields=["hospital", "token_date", "token_number"],
                 name="unique_queue_token_per_hospital_day",
-            )
+            ),
+            # P1-04: one token per appointment (issue also locks the appointment row).
+            models.UniqueConstraint(
+                fields=["appointment"],
+                condition=models.Q(appointment__isnull=False),
+                name="unique_queue_token_per_appointment",
+            ),
         ]
         indexes = [
             models.Index(fields=["hospital", "token_date", "status"]),

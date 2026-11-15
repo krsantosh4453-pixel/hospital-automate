@@ -47,7 +47,7 @@ export const DEFAULT_ROLES = [
       Laboratory: ["View", "Add", "Edit", "Delete"],
       Billing: ["View", "Add", "Edit", "Delete"],
       Inventory: ["View", "Add", "Edit", "Delete"],
-      Prescriptions: ["View", "Add", "Edit", "Delete"],
+      Prescriptions: ["View"], // Decision 2 (2026-11-09): Admin reads prescriptions only
       Reports: ["View", "Add", "Edit", "Delete"],
       Emergency: ["View", "Add", "Edit", "Delete"],
       BloodBank: ["View", "Add", "Edit", "Delete"],

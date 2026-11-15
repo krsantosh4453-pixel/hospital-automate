@@ -1,10 +1,12 @@
 import logging
 
+from django.db import OperationalError, transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from appointments.models import Appointment
+from appointments.slots import lock_doctor
 
 from .models import Visit, QueueToken, DoctorSchedule
 from .serializers import (
@@ -29,6 +31,10 @@ from config.hospital_time import hospital_today
 
 
 logger = logging.getLogger(__name__)
+
+# Call Next takes the first of these in queue order (a Called token is called again).
+CALLABLE_STATUSES = [QueueToken.Status.WAITING, QueueToken.Status.CALLED]
+QUEUE_CHANGE_IN_PROGRESS = "Another queue change was being saved at the same moment. Check the queue, then try again."
 
 
 class VisitViewSet(HospitalScopedViewSet):
@@ -190,7 +196,19 @@ class QueueTokenViewSet(HospitalScopedViewSet):
         )
 
     def _change_status(self, request, new_status, allowed_from=None, send_notification=True):
+        # Hospital and care scope first: a token the caller may not see is a 404
+        # before any lock is taken.
         token = self.get_object()
+        return self._in_one_transaction(lambda: self._change_status_locked(
+            token.pk, token.doctor_id, new_status, allowed_from, send_notification,
+        ))
+
+    def _change_status_locked(self, token_pk, doctor_id, new_status, allowed_from, send_notification):
+        """A token's status change; the caller wraps it in one transaction."""
+        # Same lock order as Call Next: the doctor row, then the token row. The
+        # checks below use the token as it is now, not as it was read before.
+        lock_doctor(doctor_id)
+        token = QueueToken.objects.select_for_update().get(pk=token_pk)
         old_status = token.status
 
         if allowed_from and old_status not in allowed_from:
@@ -199,6 +217,16 @@ class QueueTokenViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # One open consultation per doctor, the rule Call Next already keeps.
+        if new_status == QueueToken.Status.IN_CONSULTATION:
+            serving = self._open_consultation(token.hospital_id, token.doctor_id, exclude_pk=token.pk)
+            if serving is not None:
+                return Response(
+                    {"detail": f"Token #{serving.token_number} is still in consultation with this doctor. "
+                               "Complete it before starting another."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
         token.status = new_status
         token.save()
         sync_appointment_status(token)
@@ -206,9 +234,31 @@ class QueueTokenViewSet(HospitalScopedViewSet):
         self._recalculate_estimates(token.hospital_id, token.doctor_id, token.token_date)
 
         if send_notification:
-            self._send_status_change_notification(token, old_status, new_status)
+            # Sent only once the change is committed: a rollback never messages the patient.
+            transaction.on_commit(lambda: self._send_status_change_notification(token, old_status, new_status))
 
         return Response(self.get_serializer(token).data)
+
+    def _open_consultation(self, hospital_id, doctor_id, exclude_pk=None):
+        """The doctor's token now In Consultation, if any. Read it under the doctor lock."""
+        serving = QueueToken.objects.filter(
+            hospital_id=hospital_id, doctor_id=doctor_id, status=QueueToken.Status.IN_CONSULTATION,
+        )
+        if exclude_pk is not None:
+            serving = serving.exclude(pk=exclude_pk)
+        return serving.order_by("token_date", "token_number").first()
+
+    def _in_one_transaction(self, work):
+        """Run ``work`` in one transaction and return its response."""
+        try:
+            with transaction.atomic():
+                return work()
+        except OperationalError as error:
+            if "database is locked" not in str(error):
+                raise
+            # SQLite only: it has no row locks and refuses a second writer at the
+            # same moment. This request was rolled back whole, so nothing changed.
+            return Response({"detail": QUEUE_CHANGE_IN_PROGRESS}, status=status.HTTP_409_CONFLICT)
 
     def _send_status_change_notification(self, token: QueueToken, old_status: str, new_status: str):
         """Send appropriate notification based on status transition."""
@@ -370,9 +420,15 @@ class QueueTokenViewSet(HospitalScopedViewSet):
 
         POST /api/encounters/queue-tokens/call-next/?hospital=<id>
 
-        If another token is currently "In Consultation" it is completed
-        before the next waiting token is called. The next token is chosen by
-        queue order (token_date, token_number).
+        The next token is chosen by queue order (token_date, token_number).
+        It never completes a consultation: while the next patient's doctor
+        still has a token "In Consultation", nothing changes and the answer
+        is 409; the doctor completes that one first (decision 2026-11-14).
+
+        Two clicks at once call one patient once: the second is answered 409.
+        On PostgreSQL the doctor's row lock makes it wait and then see what the
+        first did; SQLite has no row locks and refuses the second writer
+        outright ("database is locked"), which is answered the same way.
         """
         hospital_id = request.query_params.get("hospital") or request.data.get(
             "hospital"
@@ -383,47 +439,72 @@ class QueueTokenViewSet(HospitalScopedViewSet):
                 {"hospital": "A hospital id is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if not str(hospital_id).isascii() or not str(hospital_id).isdecimal():
+            return Response(
+                {"hospital": "Use a hospital id (a number)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        hospital_id = int(hospital_id)
 
         from users.permissions import user_has_hospital_access
-        if not user_has_hospital_access(request.user, int(hospital_id)):
+        if not user_has_hospital_access(request.user, hospital_id):
             return Response(
                 {"detail": "Access denied to this hospital."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         base = QueueToken.objects.filter(hospital_id=hospital_id)
-        # A Doctor calls and completes only their own patients' tokens; staff
-        # with a department only that department's.
-        if doctor_hospital_ids(request.user, [int(hospital_id)]):
+        # A Doctor calls only their own patients' tokens; staff with a
+        # department only that department's.
+        if doctor_hospital_ids(request.user, [hospital_id]):
             base = base.filter(doctor__user=request.user)
-        base = limit_queue_to_department(base, request.user, [int(hospital_id)])
+        base = limit_queue_to_department(base, request.user, [hospital_id])
 
-        serving = list(base.filter(status__iexact="In Consultation"))
-        base.filter(pk__in=[t.pk for t in serving]).update(status=QueueToken.Status.COMPLETED)
-        for finished in serving:
-            finished.status = QueueToken.Status.COMPLETED
-            sync_appointment_status(finished)
+        return self._in_one_transaction(lambda: self._call_next_in_transaction(base, hospital_id))
 
-        next_token = (
-            base.filter(status__in=[QueueToken.Status.WAITING, QueueToken.Status.CALLED])
-            .order_by("token_date", "token_number")
-            .first()
-        )
-
-        if next_token is None:
+    def _call_next_in_transaction(self, base, hospital_id):
+        """Call Next's reads and writes; the caller wraps them in one transaction."""
+        candidate = base.filter(status__in=CALLABLE_STATUSES).order_by("token_date", "token_number").first()
+        if candidate is None:
             return Response(
                 {"detail": "No waiting patients in the queue."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        next_token.status = QueueToken.Status.CALLED
-        next_token.save()
+        # One Call Next per doctor at a time (PostgreSQL row lock, the same one
+        # bookings take). A request that waited here re-reads the token and
+        # finds it already called by the one before it.
+        lock_doctor(candidate.doctor_id)
+        token = QueueToken.objects.select_for_update().get(pk=candidate.pk)
+        if token.status != candidate.status:
+            return Response(
+                {"detail": f"Token #{token.token_number} was just called by another request. "
+                           "The queue has changed; check it before calling again."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-        self._recalculate_estimates(next_token.hospital_id, next_token.doctor_id, next_token.token_date)
+        # Scoped to that doctor, not to the caller: the front desk is not held
+        # up by another doctor's consultation, and nobody's is ever closed here.
+        serving = self._open_consultation(hospital_id, token.doctor_id)
+        if serving is not None:
+            return Response(
+                {"detail": f"Token #{serving.token_number} is still in consultation. "
+                           "Complete it before calling the next patient."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-        self._send_status_change_notification(next_token, QueueToken.Status.WAITING, QueueToken.Status.CALLED)
+        previous = token.status
+        token.status = QueueToken.Status.CALLED
+        token.save()
 
-        return Response(self.get_serializer(next_token).data)
+        self._recalculate_estimates(token.hospital_id, token.doctor_id, token.token_date)
+
+        # Sent only once the call is committed: a rollback never messages the patient.
+        transaction.on_commit(
+            lambda: self._send_status_change_notification(token, previous, QueueToken.Status.CALLED)
+        )
+
+        return Response(self.get_serializer(token).data)
 
     @action(detail=False, methods=["get"], url_path="estimates")
     def estimates(self, request):

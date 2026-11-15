@@ -15,7 +15,6 @@ from django.core.cache import cache
 from django.core.mail import send_mail
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from notifications.models import OTPVerification
 from patients.models import Patient
@@ -336,13 +335,10 @@ def authenticate_patient_identifier(identifier, password):
     return matches[0]
 
 
-def issue_login_tokens(user, patient=None):
-    refresh = RefreshToken.for_user(user)
-    access = refresh.access_token
-    access["role"] = "Patient" if patient is not None else ""
-    if patient is not None:
-        access["patient_id"] = patient.id
-    return {"access": str(access), "refresh": str(refresh)}
+def issue_login_tokens(user, patient=None, request=None):
+    from .tokens import issue_session_tokens
+
+    return issue_session_tokens(user, request, account_type="patient")
 
 
 def patient_payload(patient):

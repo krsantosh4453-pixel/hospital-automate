@@ -37,6 +37,11 @@ const mapMedicineFromApi = (record = {}) => {
     price: num(record.price),
     // GST % added when the medicine is billed to a patient (F9).
     taxRate: num(record.tax_rate),
+    // P1-10: schedule (H, H1, X, NDPS), HSN, MRP and maker, from the catalogue.
+    drugSchedule: record.drug_schedule || "",
+    hsnCode: record.hsn_code || "",
+    mrp: record.mrp ?? "",
+    manufacturer: record.manufacturer || "",
     genericName: record.generic_name || "",
     // Same rule as Inventory: low at or below the item's own reorder level (server default 10).
     status: stock <= num(record.reorder_level ?? 10) ? "Low Stock" : "In Stock",

@@ -89,7 +89,8 @@ class PrescriptionIntegrityTests(TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(Prescription.objects.get().doctor, self.doctor)
 
-    def test_admin_may_record_a_prescription_for_any_doctor_of_the_hospital(self):
+    def test_admin_cannot_write_a_prescription_for_any_doctor(self):
+        # Decision 2 (2026-11-09): the hospital Admin reads prescriptions only.
         response = self.api(self.admin_user).post(URL, self.body(doctor=self.other_doctor.id), format="json")
-        self.assertEqual(response.status_code, 201, response.content)
-        self.assertEqual(Prescription.objects.get().doctor, self.other_doctor)
+        self.assertEqual(response.status_code, 403, response.content)
+        self.assertFalse(Prescription.objects.exists())
