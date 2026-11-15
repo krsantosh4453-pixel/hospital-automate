@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Call Next takes the first of these in queue order (a Called token is called again).
 CALLABLE_STATUSES = [QueueToken.Status.WAITING, QueueToken.Status.CALLED]
-CALL_NEXT_IN_PROGRESS = "Another Call Next was being saved at the same moment. Check the queue, then try again."
+QUEUE_CHANGE_IN_PROGRESS = "Another queue change was being saved at the same moment. Check the queue, then try again."
 
 
 class VisitViewSet(HospitalScopedViewSet):
@@ -196,7 +196,19 @@ class QueueTokenViewSet(HospitalScopedViewSet):
         )
 
     def _change_status(self, request, new_status, allowed_from=None, send_notification=True):
+        # Hospital and care scope first: a token the caller may not see is a 404
+        # before any lock is taken.
         token = self.get_object()
+        return self._in_one_transaction(lambda: self._change_status_locked(
+            token.pk, token.doctor_id, new_status, allowed_from, send_notification,
+        ))
+
+    def _change_status_locked(self, token_pk, doctor_id, new_status, allowed_from, send_notification):
+        """A token's status change; the caller wraps it in one transaction."""
+        # Same lock order as Call Next: the doctor row, then the token row. The
+        # checks below use the token as it is now, not as it was read before.
+        lock_doctor(doctor_id)
+        token = QueueToken.objects.select_for_update().get(pk=token_pk)
         old_status = token.status
 
         if allowed_from and old_status not in allowed_from:
@@ -205,6 +217,16 @@ class QueueTokenViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # One open consultation per doctor, the rule Call Next already keeps.
+        if new_status == QueueToken.Status.IN_CONSULTATION:
+            serving = self._open_consultation(token.hospital_id, token.doctor_id, exclude_pk=token.pk)
+            if serving is not None:
+                return Response(
+                    {"detail": f"Token #{serving.token_number} is still in consultation with this doctor. "
+                               "Complete it before starting another."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
         token.status = new_status
         token.save()
         sync_appointment_status(token)
@@ -212,9 +234,31 @@ class QueueTokenViewSet(HospitalScopedViewSet):
         self._recalculate_estimates(token.hospital_id, token.doctor_id, token.token_date)
 
         if send_notification:
-            self._send_status_change_notification(token, old_status, new_status)
+            # Sent only once the change is committed: a rollback never messages the patient.
+            transaction.on_commit(lambda: self._send_status_change_notification(token, old_status, new_status))
 
         return Response(self.get_serializer(token).data)
+
+    def _open_consultation(self, hospital_id, doctor_id, exclude_pk=None):
+        """The doctor's token now In Consultation, if any. Read it under the doctor lock."""
+        serving = QueueToken.objects.filter(
+            hospital_id=hospital_id, doctor_id=doctor_id, status=QueueToken.Status.IN_CONSULTATION,
+        )
+        if exclude_pk is not None:
+            serving = serving.exclude(pk=exclude_pk)
+        return serving.order_by("token_date", "token_number").first()
+
+    def _in_one_transaction(self, work):
+        """Run ``work`` in one transaction and return its response."""
+        try:
+            with transaction.atomic():
+                return work()
+        except OperationalError as error:
+            if "database is locked" not in str(error):
+                raise
+            # SQLite only: it has no row locks and refuses a second writer at the
+            # same moment. This request was rolled back whole, so nothing changed.
+            return Response({"detail": QUEUE_CHANGE_IN_PROGRESS}, status=status.HTTP_409_CONFLICT)
 
     def _send_status_change_notification(self, token: QueueToken, old_status: str, new_status: str):
         """Send appropriate notification based on status transition."""
@@ -416,15 +460,7 @@ class QueueTokenViewSet(HospitalScopedViewSet):
             base = base.filter(doctor__user=request.user)
         base = limit_queue_to_department(base, request.user, [hospital_id])
 
-        try:
-            with transaction.atomic():
-                return self._call_next_in_transaction(base, hospital_id)
-        except OperationalError as error:
-            if "database is locked" not in str(error):
-                raise
-            # SQLite only: another Call Next was writing at the same moment.
-            # This one was rolled back whole, so nothing changed.
-            return Response({"detail": CALL_NEXT_IN_PROGRESS}, status=status.HTTP_409_CONFLICT)
+        return self._in_one_transaction(lambda: self._call_next_in_transaction(base, hospital_id))
 
     def _call_next_in_transaction(self, base, hospital_id):
         """Call Next's reads and writes; the caller wraps them in one transaction."""
@@ -449,9 +485,7 @@ class QueueTokenViewSet(HospitalScopedViewSet):
 
         # Scoped to that doctor, not to the caller: the front desk is not held
         # up by another doctor's consultation, and nobody's is ever closed here.
-        serving = QueueToken.objects.filter(
-            hospital_id=hospital_id, doctor_id=token.doctor_id, status=QueueToken.Status.IN_CONSULTATION,
-        ).order_by("token_date", "token_number").first()
+        serving = self._open_consultation(hospital_id, token.doctor_id)
         if serving is not None:
             return Response(
                 {"detail": f"Token #{serving.token_number} is still in consultation. "
