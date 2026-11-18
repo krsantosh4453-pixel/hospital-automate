@@ -19,6 +19,9 @@ import 'features/billing/data/billing_repository.dart';
 import 'features/dashboard/dashboard_repository.dart';
 import 'features/laboratory/data/lab_repository.dart';
 import 'features/doctor/data/doctor_repository.dart';
+import 'features/emergency/data/emergency_repository.dart';
+import 'features/hospital/data/hospital_repository.dart';
+import 'features/ipd/data/ipd_repository.dart';
 import 'features/nursing/data/nursing_repository.dart';
 import 'features/patient/data/patient_repository.dart';
 import 'features/pharmacy/data/pharmacy_repository.dart';
@@ -81,6 +84,9 @@ Future<void> main() async {
         billing: ApiBillingRepository(api),
         nursing: ApiNursingRepository(api, doctor),
         pharmacy: ApiPharmacyRepository(api),
+        emergency: ApiEmergencyRepository(api),
+        ipd: ApiIpdRepository(api),
+        hospital: ApiHospitalRepository(api),
       ),
     ),
   );

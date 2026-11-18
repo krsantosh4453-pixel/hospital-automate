@@ -381,9 +381,24 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get bedAvailable => 'Available';
+
+  @override
+  String get bedCleaning => 'Cleaning';
+
+  @override
+  String get bedMaintenance => 'Maintenance';
+
+  @override
   String bedNumber(String bed) {
     return 'Bed $bed';
   }
+
+  @override
+  String get bedOccupied => 'Occupied';
+
+  @override
+  String get bedReserved => 'Reserved';
 
   @override
   String bedsOccupiedOf(String occupied, String total) {
@@ -915,13 +930,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deptConsultationText => 'Doctors\' clinical work.';
 
   @override
+  String get deptDescription => 'Description';
+
+  @override
   String get deptEmergencyText => 'Triage and emergency care.';
+
+  @override
+  String get deptHead => 'Head of department';
+
+  @override
+  String get deptIntro => 'Departments of this hospital.';
 
   @override
   String get deptInventoryText => 'Store, suppliers and purchase orders.';
 
   @override
   String get deptLaboratoryText => 'Samples, results and reports.';
+
+  @override
+  String get deptNone => 'No departments set up yet.';
 
   @override
   String get deptNursing => 'Nursing';
@@ -1141,6 +1168,264 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterTheCode => 'Enter the code';
 
   @override
+  String get erActiveNow => 'In the ER now';
+
+  @override
+  String get erAddNote => 'Add note';
+
+  @override
+  String get erAdmitHint =>
+      'The server allocates the bed and closes the ER visit as Admitted.';
+
+  @override
+  String get erAdmitToIpd => 'Admit to IPD';
+
+  @override
+  String get erAdmitted => 'Admission created by the hospital system.';
+
+  @override
+  String get erAlreadyAdmitted => 'This patient already has an open admission:';
+
+  @override
+  String get erArrival => 'Arrival';
+
+  @override
+  String get erAttendingDoctor => 'Attending doctor';
+
+  @override
+  String get erBp => 'BP';
+
+  @override
+  String get erChiefComplaint => 'Chief complaint';
+
+  @override
+  String get erChiefComplaintRequired => 'Enter the chief complaint.';
+
+  @override
+  String get erCompleteTriage => 'Complete triage';
+
+  @override
+  String get erConsultationStarted => 'Consultation started';
+
+  @override
+  String get erDetails => 'Visit details';
+
+  @override
+  String get erDischarge => 'Discharge from ER';
+
+  @override
+  String get erDischargeDiagnosis => 'Discharge diagnosis';
+
+  @override
+  String get erDischargeWarning =>
+      'The visit is closed after discharge and cannot be reopened here.';
+
+  @override
+  String get erDischarged => 'Discharge saved by the hospital system.';
+
+  @override
+  String get erFilterActive => 'Active';
+
+  @override
+  String get erFilterClosed => 'Closed';
+
+  @override
+  String get erFollowUp => 'Follow-up instructions';
+
+  @override
+  String get erGcs => 'Glasgow Coma Scale';
+
+  @override
+  String get erGiven => 'Given';
+
+  @override
+  String get erIntro =>
+      'Patients in the emergency department, most urgent first.';
+
+  @override
+  String erKeepDoctor(String name) {
+    return 'Keep $name';
+  }
+
+  @override
+  String get erLeftEr => 'Left the ER';
+
+  @override
+  String get erMedicationsSection => 'Medicines';
+
+  @override
+  String get erNextSteps => 'Next steps';
+
+  @override
+  String get erNoActiveVisits => 'No patients in the emergency department now.';
+
+  @override
+  String get erNoDoctorYet => 'No doctor assigned';
+
+  @override
+  String get erNoMedications => 'No medicines recorded.';
+
+  @override
+  String get erNoNotes => 'No notes yet.';
+
+  @override
+  String get erNoOrders => 'No orders.';
+
+  @override
+  String get erNoPatientMatch => 'No patient found at this hospital.';
+
+  @override
+  String get erNoVisits => 'No emergency visits.';
+
+  @override
+  String get erNoVitals => 'No vitals recorded.';
+
+  @override
+  String get erNotGiven => 'Not given yet';
+
+  @override
+  String get erNotTriaged => 'Not triaged yet.';
+
+  @override
+  String get erNote => 'Note';
+
+  @override
+  String get erNoteHint => 'Notes are kept permanently and cannot be edited.';
+
+  @override
+  String get erNoteRequired => 'Write the note.';
+
+  @override
+  String get erNoteSaved => 'Note saved by the hospital system.';
+
+  @override
+  String get erNotes => 'Notes';
+
+  @override
+  String get erOpenAdmission => 'Open the admission';
+
+  @override
+  String get erOrdersSection => 'Orders';
+
+  @override
+  String get erPainScore => 'Pain score';
+
+  @override
+  String get erReadOnly =>
+      'You can view emergency visits. Changes need a doctor or nurse role at this hospital.';
+
+  @override
+  String get erRecordVitals => 'Record vitals';
+
+  @override
+  String get erRefer => 'Refer out';
+
+  @override
+  String get erReferWarning =>
+      'The visit is closed after referral and cannot be reopened here.';
+
+  @override
+  String get erReferred => 'Referral saved by the hospital system.';
+
+  @override
+  String get erReferredTo => 'Referred to (facility)';
+
+  @override
+  String get erReferredToRequired => 'Enter where the patient is referred.';
+
+  @override
+  String get erRegister => 'Register';
+
+  @override
+  String get erRegisterHint =>
+      'Only patients already registered at this hospital can be chosen.';
+
+  @override
+  String get erRegisterPatient => 'Register ER patient';
+
+  @override
+  String get erRegistered =>
+      'Emergency visit registered by the hospital system.';
+
+  @override
+  String get erRemarks => 'Remarks';
+
+  @override
+  String get erRr => 'Resp.';
+
+  @override
+  String get erSearchPatient => 'Name, UHID or phone';
+
+  @override
+  String get erStartConsultation => 'Start consultation';
+
+  @override
+  String get erStartTriage => 'Start triage';
+
+  @override
+  String get erStartTriageConfirm => 'Move this patient to triage?';
+
+  @override
+  String get erStatusAdmitted => 'Admitted to IPD';
+
+  @override
+  String get erStatusDischarged => 'Discharged';
+
+  @override
+  String get erStatusExpired => 'Expired';
+
+  @override
+  String get erStatusInvestigations => 'Investigations';
+
+  @override
+  String get erStatusLeftAgainstAdvice => 'Left against advice';
+
+  @override
+  String get erStatusObservation => 'Observation';
+
+  @override
+  String get erStatusReferred => 'Referred';
+
+  @override
+  String get erStatusRegistered => 'Registered';
+
+  @override
+  String get erStatusTreatment => 'Treatment';
+
+  @override
+  String get erStatusTriage => 'In triage';
+
+  @override
+  String get erStatusUnderConsultation => 'Under consultation';
+
+  @override
+  String get erSugar => 'Sugar';
+
+  @override
+  String get erTriageLevel => 'Triage level';
+
+  @override
+  String get erTriageNotes => 'Triage notes';
+
+  @override
+  String get erTriageSection => 'Triage';
+
+  @override
+  String get erTriageStarted => 'Triage started';
+
+  @override
+  String get erTriagedBy => 'Triaged by';
+
+  @override
+  String get erVisitClosed => 'This visit is closed; only notes can be added.';
+
+  @override
+  String get erVitalsEmpty => 'Enter at least one reading.';
+
+  @override
+  String get erVitalsSection => 'Vitals';
+
+  @override
   String get errorConflict =>
       'This record changed or already exists. Refresh and try again.';
 
@@ -1344,6 +1629,57 @@ class AppLocalizationsEn extends AppLocalizations {
   String get haveAccountSignIn => 'Already have an account? Sign in';
 
   @override
+  String get hospActive => 'Active';
+
+  @override
+  String get hospAddress => 'Address';
+
+  @override
+  String get hospCode => 'Code';
+
+  @override
+  String get hospCurrent => 'Current';
+
+  @override
+  String get hospDepartments => 'Departments';
+
+  @override
+  String get hospDoctors => 'Doctors';
+
+  @override
+  String get hospEmail => 'Email';
+
+  @override
+  String get hospGrievanceOfficer => 'Grievance officer';
+
+  @override
+  String get hospInactive => 'Inactive';
+
+  @override
+  String get hospIntro => 'The hospital you are working in now.';
+
+  @override
+  String get hospNoWards => 'No wards set up yet.';
+
+  @override
+  String get hospNurses => 'Nurses';
+
+  @override
+  String get hospPhone => 'Phone';
+
+  @override
+  String get hospSwitch => 'Switch';
+
+  @override
+  String get hospType => 'Type';
+
+  @override
+  String get hospWards => 'Wards';
+
+  @override
+  String get hospYourHospitals => 'Your hospitals';
+
+  @override
   String get hospital => 'Hospital';
 
   @override
@@ -1374,6 +1710,186 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get invoicesPaidTotal => 'Invoices paid / total';
+
+  @override
+  String get ipdAdmitted => 'Admitted';
+
+  @override
+  String get ipdAdmittedOn => 'Admitted on';
+
+  @override
+  String get ipdAdmittingDoctor => 'Admitting doctor';
+
+  @override
+  String get ipdAllocateBed => 'Allocate bed';
+
+  @override
+  String get ipdAvailableBeds => 'Free beds';
+
+  @override
+  String get ipdAwaitingBed => 'Waiting for a bed';
+
+  @override
+  String get ipdBalanceDue => 'Balance due';
+
+  @override
+  String get ipdBedHistory => 'Bed history';
+
+  @override
+  String get ipdBedSaved => 'Bed saved by the hospital system.';
+
+  @override
+  String get ipdBedTaken =>
+      'That bed is no longer free. The list has been refreshed.';
+
+  @override
+  String ipdBedsPartial(int count) {
+    return 'Showing the first $count beds; the counts may be incomplete.';
+  }
+
+  @override
+  String get ipdBillDue => 'The final bill still has money due.';
+
+  @override
+  String get ipdBillTotal => 'Total';
+
+  @override
+  String get ipdCheckCounselled => 'Patient and family counselled';
+
+  @override
+  String get ipdCheckDocuments => 'Documents handed over';
+
+  @override
+  String get ipdCheckFollowUp => 'Follow-up arranged';
+
+  @override
+  String get ipdCheckMedications => 'Medications reconciled';
+
+  @override
+  String get ipdChecklist => 'Discharge checklist';
+
+  @override
+  String get ipdChooseBed => 'Choose a free bed:';
+
+  @override
+  String get ipdCompleteDischarge => 'Complete discharge';
+
+  @override
+  String get ipdConfirmComplete =>
+      'Complete the discharge? The bed is released and the stay is closed.';
+
+  @override
+  String get ipdConfirmInitiate =>
+      'Start the discharge? The checklist, summary and final bill must still be finished.';
+
+  @override
+  String get ipdCurrentBed => 'Bed';
+
+  @override
+  String get ipdDaysBilled => 'Days billed';
+
+  @override
+  String get ipdDischarge => 'Discharge';
+
+  @override
+  String get ipdDischargeDone => 'Discharge completed by the hospital system.';
+
+  @override
+  String get ipdDischargeInitiated => 'Discharge started';
+
+  @override
+  String get ipdDischargeReady => 'Ready: every discharge step is done.';
+
+  @override
+  String get ipdDischargeStepsOnWeb =>
+      'The plan, checklist, summary and final bill are completed on the web app.';
+
+  @override
+  String get ipdDischarged => 'Discharged';
+
+  @override
+  String get ipdDischargedOn => 'Discharged on';
+
+  @override
+  String get ipdFilterCurrent => 'In hospital';
+
+  @override
+  String get ipdFinalBill => 'Final bill';
+
+  @override
+  String get ipdInitiateDischarge => 'Start discharge';
+
+  @override
+  String get ipdIntro => 'Admitted patients, their beds and discharges.';
+
+  @override
+  String get ipdNoAdmissions => 'No admissions.';
+
+  @override
+  String get ipdNoBedHistory => 'No bed allocated yet.';
+
+  @override
+  String get ipdNoBeds => 'No beds set up at this hospital.';
+
+  @override
+  String get ipdNoFinalBill => 'The final bill has not been created.';
+
+  @override
+  String get ipdNoFreeBeds => 'No free beds at this hospital right now.';
+
+  @override
+  String get ipdNoPlan => 'No discharge plan written yet.';
+
+  @override
+  String get ipdNoSummary => 'No discharge summary written yet.';
+
+  @override
+  String get ipdNotStarted => 'Discharge has not been started.';
+
+  @override
+  String get ipdReadOnly =>
+      'You can view admissions. Bed and discharge changes need a doctor or nurse role at this hospital.';
+
+  @override
+  String get ipdReason => 'Reason for admission';
+
+  @override
+  String get ipdSince => 'Since';
+
+  @override
+  String get ipdStay => 'Stay';
+
+  @override
+  String get ipdStillToDo => 'Still to do before discharge';
+
+  @override
+  String get ipdSummary => 'Discharge summary';
+
+  @override
+  String get ipdSummaryDoctorsOnly =>
+      'Only doctors and hospital managers can read discharge summaries.';
+
+  @override
+  String get ipdSummaryDraft => 'Draft, not finalised';
+
+  @override
+  String get ipdSummaryFinalized => 'Finalised by a doctor';
+
+  @override
+  String get ipdSummaryNotFinalized =>
+      'A doctor must finalise the discharge summary.';
+
+  @override
+  String get ipdTabAdmissions => 'Admissions';
+
+  @override
+  String get ipdTabBeds => 'Beds';
+
+  @override
+  String get ipdTransferBed => 'Transfer bed';
+
+  @override
+  String get ipdTransferred => 'Transferred';
 
   @override
   String get jumpTo => 'Jump to…';
@@ -2269,6 +2785,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get operations => 'Operations';
 
   @override
+  String get opsBackToList => 'Back to list';
+
+  @override
+  String get opsSaved => 'Saved by the hospital system.';
+
+  @override
+  String get opsSearch => 'Search';
+
+  @override
+  String get opsStepRefused =>
+      'The hospital system did not allow this step for the record as it is now. Refresh to see its current state.';
+
+  @override
   String get orDivider => 'OR';
 
   @override
@@ -2925,7 +3454,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get specialization => 'Specialisation';
 
   @override
+  String get staffAccessEnded => 'Access ended';
+
+  @override
+  String get staffIntro => 'Staff with access to this hospital.';
+
+  @override
+  String get staffInvitePending => 'Invite pending';
+
+  @override
+  String get staffManagersOnly =>
+      'Only this hospital\'s Admin or Hospital Manager can see the staff list.';
+
+  @override
+  String get staffNone => 'No staff found.';
+
+  @override
   String get staffPortal => 'Staff portal';
+
+  @override
+  String get staffSearch => 'Search staff by name or employee ID';
 
   @override
   String get staffSignIn => 'Staff sign in';
@@ -3167,6 +3715,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get totalMedicines => 'Medicine batches';
+
+  @override
+  String get triageCritical => 'Critical';
+
+  @override
+  String get triageEmergency => 'Emergency';
+
+  @override
+  String get triageNonUrgent => 'Non-urgent';
+
+  @override
+  String get triageSemiUrgent => 'Semi-urgent';
+
+  @override
+  String get triageUrgent => 'Urgent';
 
   @override
   String get tryAgain => 'Try again';

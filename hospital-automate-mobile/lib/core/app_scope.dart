@@ -5,6 +5,9 @@ import '../features/billing/data/billing_repository.dart';
 import '../features/laboratory/data/lab_repository.dart';
 import '../features/dashboard/dashboard_repository.dart';
 import '../features/doctor/data/doctor_repository.dart';
+import '../features/emergency/data/emergency_repository.dart';
+import '../features/hospital/data/hospital_repository.dart';
+import '../features/ipd/data/ipd_repository.dart';
 import '../features/nursing/data/nursing_repository.dart';
 import '../features/patient/data/patient_repository.dart';
 import '../features/pharmacy/data/pharmacy_repository.dart';
@@ -32,6 +35,9 @@ class AppServices {
     required this.billing,
     required this.nursing,
     required this.pharmacy,
+    required this.emergency,
+    required this.ipd,
+    required this.hospital,
   });
 
   final ApiConfig config;
@@ -61,6 +67,15 @@ class AppServices {
 
   /// Stock, prescriptions and dispensing (pharmacy pages).
   final PharmacyRepository pharmacy;
+
+  /// Emergency department visits of the acting hospital (Emergency pages).
+  final EmergencyRepository emergency;
+
+  /// Admissions, beds and discharges (IPD pages).
+  final IpdRepository ipd;
+
+  /// The acting hospital's record, departments, wards and staff.
+  final HospitalRepository hospital;
 }
 
 class AppScope extends InheritedWidget {

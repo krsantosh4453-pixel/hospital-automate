@@ -20,6 +20,14 @@ import '../../features/doctor/ui/doctor_lists_screens.dart';
 import '../../features/doctor/ui/doctor_ui.dart';
 import '../../features/doctor/ui/patient_records_screens.dart';
 import '../../features/doctor/ui/queue_board_screen.dart';
+import '../../features/emergency/ui/emergency_screen.dart';
+import '../../features/emergency/ui/emergency_ui.dart';
+import '../../features/emergency/ui/emergency_visit_screen.dart';
+import '../../features/hospital/ui/hospital_screens.dart';
+import '../../features/ipd/ui/admission_screen.dart';
+import '../../features/ipd/ui/ipd_screen.dart';
+import '../../features/ipd/ui/ipd_ui.dart';
+import '../../features/operations/ops_ui.dart';
 import '../../features/navigation/app_shell.dart';
 import '../../features/nursing/ui/nursing_ui.dart';
 import '../../features/nursing/ui/ward_patient_screen.dart';
@@ -119,6 +127,20 @@ GoRouter buildAppRouter({
     '${PharmacyRoutes.home}/medicines/:id': (state) =>
         MedicineScreen(medicineId: _idOf(state)),
   };
+  // Emergency, IPD and hospital pages, for every role whose permissions open
+  // the module (redirectFor). Each page offers only what the role may do;
+  // the server checks every request.
+  final opsScreens = <String, Widget Function(GoRouterState)>{
+    EmergencyRoutes.list: (_) => const EmergencyScreen(),
+    '${EmergencyRoutes.list}/:id': (state) =>
+        EmergencyVisitScreen(visitId: _idOf(state)),
+    IpdRoutes.list: (_) => const IpdScreen(),
+    '${IpdRoutes.list}/:id': (state) =>
+        AdmissionScreen(admissionId: _idOf(state)),
+    HospitalRoutes.hospitals: (_) => const HospitalOverviewScreen(),
+    HospitalRoutes.departments: (_) => const DepartmentsScreen(),
+    HospitalRoutes.staff: (_) => const StaffScreen(),
+  };
   GoRoute rolePage(
     String path,
     bool Function(SessionState) allowed,
@@ -197,6 +219,17 @@ GoRouter buildAppRouter({
                 ),
               ),
             ),
+          for (final entry in opsScreens.entries)
+            GoRoute(
+              path: entry.key,
+              pageBuilder: (_, state) => _page(
+                state,
+                StaffModulePage(
+                  location: state.uri.path,
+                  child: entry.value(state),
+                ),
+              ),
+            ),
           for (final group in [...staffNav, ...patientNav])
             for (final item in group.items)
               if (!ownScreens.contains(item.path) &&
@@ -204,7 +237,8 @@ GoRouter buildAppRouter({
                   !doctorScreens.containsKey(item.path) &&
                   !nurseScreens.containsKey(item.path) &&
                   !pharmacyScreens.containsKey(item.path) &&
-                  !deskScreens.containsKey(item.path))
+                  !deskScreens.containsKey(item.path) &&
+                  !opsScreens.containsKey(item.path))
                 page(
                   item.path,
                   (location) => ModuleScreen(item: item, location: location),

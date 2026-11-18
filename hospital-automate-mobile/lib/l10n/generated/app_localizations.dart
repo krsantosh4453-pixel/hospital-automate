@@ -686,11 +686,41 @@ abstract class AppLocalizations {
   /// **'Batch {batch}'**
   String batchCode(String batch);
 
+  /// No description provided for @bedAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get bedAvailable;
+
+  /// No description provided for @bedCleaning.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleaning'**
+  String get bedCleaning;
+
+  /// No description provided for @bedMaintenance.
+  ///
+  /// In en, this message translates to:
+  /// **'Maintenance'**
+  String get bedMaintenance;
+
   /// No description provided for @bedNumber.
   ///
   /// In en, this message translates to:
   /// **'Bed {bed}'**
   String bedNumber(String bed);
+
+  /// No description provided for @bedOccupied.
+  ///
+  /// In en, this message translates to:
+  /// **'Occupied'**
+  String get bedOccupied;
+
+  /// No description provided for @bedReserved.
+  ///
+  /// In en, this message translates to:
+  /// **'Reserved'**
+  String get bedReserved;
 
   /// No description provided for @bedsOccupiedOf.
   ///
@@ -1615,11 +1645,29 @@ abstract class AppLocalizations {
   /// **'Doctors\' clinical work.'**
   String get deptConsultationText;
 
+  /// No description provided for @deptDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get deptDescription;
+
   /// No description provided for @deptEmergencyText.
   ///
   /// In en, this message translates to:
   /// **'Triage and emergency care.'**
   String get deptEmergencyText;
+
+  /// No description provided for @deptHead.
+  ///
+  /// In en, this message translates to:
+  /// **'Head of department'**
+  String get deptHead;
+
+  /// No description provided for @deptIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Departments of this hospital.'**
+  String get deptIntro;
 
   /// No description provided for @deptInventoryText.
   ///
@@ -1632,6 +1680,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Samples, results and reports.'**
   String get deptLaboratoryText;
+
+  /// No description provided for @deptNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No departments set up yet.'**
+  String get deptNone;
 
   /// No description provided for @deptNursing.
   ///
@@ -2005,6 +2059,504 @@ abstract class AppLocalizations {
   /// **'Enter the code'**
   String get enterTheCode;
 
+  /// No description provided for @erActiveNow.
+  ///
+  /// In en, this message translates to:
+  /// **'In the ER now'**
+  String get erActiveNow;
+
+  /// No description provided for @erAddNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Add note'**
+  String get erAddNote;
+
+  /// No description provided for @erAdmitHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The server allocates the bed and closes the ER visit as Admitted.'**
+  String get erAdmitHint;
+
+  /// No description provided for @erAdmitToIpd.
+  ///
+  /// In en, this message translates to:
+  /// **'Admit to IPD'**
+  String get erAdmitToIpd;
+
+  /// No description provided for @erAdmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Admission created by the hospital system.'**
+  String get erAdmitted;
+
+  /// No description provided for @erAlreadyAdmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'This patient already has an open admission:'**
+  String get erAlreadyAdmitted;
+
+  /// No description provided for @erArrival.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrival'**
+  String get erArrival;
+
+  /// No description provided for @erAttendingDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Attending doctor'**
+  String get erAttendingDoctor;
+
+  /// No description provided for @erBp.
+  ///
+  /// In en, this message translates to:
+  /// **'BP'**
+  String get erBp;
+
+  /// No description provided for @erChiefComplaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Chief complaint'**
+  String get erChiefComplaint;
+
+  /// No description provided for @erChiefComplaintRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the chief complaint.'**
+  String get erChiefComplaintRequired;
+
+  /// No description provided for @erCompleteTriage.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete triage'**
+  String get erCompleteTriage;
+
+  /// No description provided for @erConsultationStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Consultation started'**
+  String get erConsultationStarted;
+
+  /// No description provided for @erDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit details'**
+  String get erDetails;
+
+  /// No description provided for @erDischarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge from ER'**
+  String get erDischarge;
+
+  /// No description provided for @erDischargeDiagnosis.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge diagnosis'**
+  String get erDischargeDiagnosis;
+
+  /// No description provided for @erDischargeWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit is closed after discharge and cannot be reopened here.'**
+  String get erDischargeWarning;
+
+  /// No description provided for @erDischarged.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge saved by the hospital system.'**
+  String get erDischarged;
+
+  /// No description provided for @erFilterActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get erFilterActive;
+
+  /// No description provided for @erFilterClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get erFilterClosed;
+
+  /// No description provided for @erFollowUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow-up instructions'**
+  String get erFollowUp;
+
+  /// No description provided for @erGcs.
+  ///
+  /// In en, this message translates to:
+  /// **'Glasgow Coma Scale'**
+  String get erGcs;
+
+  /// No description provided for @erGiven.
+  ///
+  /// In en, this message translates to:
+  /// **'Given'**
+  String get erGiven;
+
+  /// No description provided for @erIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Patients in the emergency department, most urgent first.'**
+  String get erIntro;
+
+  /// No description provided for @erKeepDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep {name}'**
+  String erKeepDoctor(String name);
+
+  /// No description provided for @erLeftEr.
+  ///
+  /// In en, this message translates to:
+  /// **'Left the ER'**
+  String get erLeftEr;
+
+  /// No description provided for @erMedicationsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicines'**
+  String get erMedicationsSection;
+
+  /// No description provided for @erNextSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'Next steps'**
+  String get erNextSteps;
+
+  /// No description provided for @erNoActiveVisits.
+  ///
+  /// In en, this message translates to:
+  /// **'No patients in the emergency department now.'**
+  String get erNoActiveVisits;
+
+  /// No description provided for @erNoDoctorYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No doctor assigned'**
+  String get erNoDoctorYet;
+
+  /// No description provided for @erNoMedications.
+  ///
+  /// In en, this message translates to:
+  /// **'No medicines recorded.'**
+  String get erNoMedications;
+
+  /// No description provided for @erNoNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes yet.'**
+  String get erNoNotes;
+
+  /// No description provided for @erNoOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders.'**
+  String get erNoOrders;
+
+  /// No description provided for @erNoPatientMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No patient found at this hospital.'**
+  String get erNoPatientMatch;
+
+  /// No description provided for @erNoVisits.
+  ///
+  /// In en, this message translates to:
+  /// **'No emergency visits.'**
+  String get erNoVisits;
+
+  /// No description provided for @erNoVitals.
+  ///
+  /// In en, this message translates to:
+  /// **'No vitals recorded.'**
+  String get erNoVitals;
+
+  /// No description provided for @erNotGiven.
+  ///
+  /// In en, this message translates to:
+  /// **'Not given yet'**
+  String get erNotGiven;
+
+  /// No description provided for @erNotTriaged.
+  ///
+  /// In en, this message translates to:
+  /// **'Not triaged yet.'**
+  String get erNotTriaged;
+
+  /// No description provided for @erNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get erNote;
+
+  /// No description provided for @erNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes are kept permanently and cannot be edited.'**
+  String get erNoteHint;
+
+  /// No description provided for @erNoteRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Write the note.'**
+  String get erNoteRequired;
+
+  /// No description provided for @erNoteSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Note saved by the hospital system.'**
+  String get erNoteSaved;
+
+  /// No description provided for @erNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get erNotes;
+
+  /// No description provided for @erOpenAdmission.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the admission'**
+  String get erOpenAdmission;
+
+  /// No description provided for @erOrdersSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get erOrdersSection;
+
+  /// No description provided for @erPainScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Pain score'**
+  String get erPainScore;
+
+  /// No description provided for @erReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'You can view emergency visits. Changes need a doctor or nurse role at this hospital.'**
+  String get erReadOnly;
+
+  /// No description provided for @erRecordVitals.
+  ///
+  /// In en, this message translates to:
+  /// **'Record vitals'**
+  String get erRecordVitals;
+
+  /// No description provided for @erRefer.
+  ///
+  /// In en, this message translates to:
+  /// **'Refer out'**
+  String get erRefer;
+
+  /// No description provided for @erReferWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit is closed after referral and cannot be reopened here.'**
+  String get erReferWarning;
+
+  /// No description provided for @erReferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Referral saved by the hospital system.'**
+  String get erReferred;
+
+  /// No description provided for @erReferredTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Referred to (facility)'**
+  String get erReferredTo;
+
+  /// No description provided for @erReferredToRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter where the patient is referred.'**
+  String get erReferredToRequired;
+
+  /// No description provided for @erRegister.
+  ///
+  /// In en, this message translates to:
+  /// **'Register'**
+  String get erRegister;
+
+  /// No description provided for @erRegisterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only patients already registered at this hospital can be chosen.'**
+  String get erRegisterHint;
+
+  /// No description provided for @erRegisterPatient.
+  ///
+  /// In en, this message translates to:
+  /// **'Register ER patient'**
+  String get erRegisterPatient;
+
+  /// No description provided for @erRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency visit registered by the hospital system.'**
+  String get erRegistered;
+
+  /// No description provided for @erRemarks.
+  ///
+  /// In en, this message translates to:
+  /// **'Remarks'**
+  String get erRemarks;
+
+  /// No description provided for @erRr.
+  ///
+  /// In en, this message translates to:
+  /// **'Resp.'**
+  String get erRr;
+
+  /// No description provided for @erSearchPatient.
+  ///
+  /// In en, this message translates to:
+  /// **'Name, UHID or phone'**
+  String get erSearchPatient;
+
+  /// No description provided for @erStartConsultation.
+  ///
+  /// In en, this message translates to:
+  /// **'Start consultation'**
+  String get erStartConsultation;
+
+  /// No description provided for @erStartTriage.
+  ///
+  /// In en, this message translates to:
+  /// **'Start triage'**
+  String get erStartTriage;
+
+  /// No description provided for @erStartTriageConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Move this patient to triage?'**
+  String get erStartTriageConfirm;
+
+  /// No description provided for @erStatusAdmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Admitted to IPD'**
+  String get erStatusAdmitted;
+
+  /// No description provided for @erStatusDischarged.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharged'**
+  String get erStatusDischarged;
+
+  /// No description provided for @erStatusExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get erStatusExpired;
+
+  /// No description provided for @erStatusInvestigations.
+  ///
+  /// In en, this message translates to:
+  /// **'Investigations'**
+  String get erStatusInvestigations;
+
+  /// No description provided for @erStatusLeftAgainstAdvice.
+  ///
+  /// In en, this message translates to:
+  /// **'Left against advice'**
+  String get erStatusLeftAgainstAdvice;
+
+  /// No description provided for @erStatusObservation.
+  ///
+  /// In en, this message translates to:
+  /// **'Observation'**
+  String get erStatusObservation;
+
+  /// No description provided for @erStatusReferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Referred'**
+  String get erStatusReferred;
+
+  /// No description provided for @erStatusRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered'**
+  String get erStatusRegistered;
+
+  /// No description provided for @erStatusTreatment.
+  ///
+  /// In en, this message translates to:
+  /// **'Treatment'**
+  String get erStatusTreatment;
+
+  /// No description provided for @erStatusTriage.
+  ///
+  /// In en, this message translates to:
+  /// **'In triage'**
+  String get erStatusTriage;
+
+  /// No description provided for @erStatusUnderConsultation.
+  ///
+  /// In en, this message translates to:
+  /// **'Under consultation'**
+  String get erStatusUnderConsultation;
+
+  /// No description provided for @erSugar.
+  ///
+  /// In en, this message translates to:
+  /// **'Sugar'**
+  String get erSugar;
+
+  /// No description provided for @erTriageLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Triage level'**
+  String get erTriageLevel;
+
+  /// No description provided for @erTriageNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Triage notes'**
+  String get erTriageNotes;
+
+  /// No description provided for @erTriageSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Triage'**
+  String get erTriageSection;
+
+  /// No description provided for @erTriageStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Triage started'**
+  String get erTriageStarted;
+
+  /// No description provided for @erTriagedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Triaged by'**
+  String get erTriagedBy;
+
+  /// No description provided for @erVisitClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'This visit is closed; only notes can be added.'**
+  String get erVisitClosed;
+
+  /// No description provided for @erVitalsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter at least one reading.'**
+  String get erVitalsEmpty;
+
+  /// No description provided for @erVitalsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Vitals'**
+  String get erVitalsSection;
+
   /// No description provided for @errorConflict.
   ///
   /// In en, this message translates to:
@@ -2353,6 +2905,108 @@ abstract class AppLocalizations {
   /// **'Already have an account? Sign in'**
   String get haveAccountSignIn;
 
+  /// No description provided for @hospActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get hospActive;
+
+  /// No description provided for @hospAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get hospAddress;
+
+  /// No description provided for @hospCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Code'**
+  String get hospCode;
+
+  /// No description provided for @hospCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get hospCurrent;
+
+  /// No description provided for @hospDepartments.
+  ///
+  /// In en, this message translates to:
+  /// **'Departments'**
+  String get hospDepartments;
+
+  /// No description provided for @hospDoctors.
+  ///
+  /// In en, this message translates to:
+  /// **'Doctors'**
+  String get hospDoctors;
+
+  /// No description provided for @hospEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get hospEmail;
+
+  /// No description provided for @hospGrievanceOfficer.
+  ///
+  /// In en, this message translates to:
+  /// **'Grievance officer'**
+  String get hospGrievanceOfficer;
+
+  /// No description provided for @hospInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get hospInactive;
+
+  /// No description provided for @hospIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The hospital you are working in now.'**
+  String get hospIntro;
+
+  /// No description provided for @hospNoWards.
+  ///
+  /// In en, this message translates to:
+  /// **'No wards set up yet.'**
+  String get hospNoWards;
+
+  /// No description provided for @hospNurses.
+  ///
+  /// In en, this message translates to:
+  /// **'Nurses'**
+  String get hospNurses;
+
+  /// No description provided for @hospPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get hospPhone;
+
+  /// No description provided for @hospSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get hospSwitch;
+
+  /// No description provided for @hospType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get hospType;
+
+  /// No description provided for @hospWards.
+  ///
+  /// In en, this message translates to:
+  /// **'Wards'**
+  String get hospWards;
+
+  /// No description provided for @hospYourHospitals.
+  ///
+  /// In en, this message translates to:
+  /// **'Your hospitals'**
+  String get hospYourHospitals;
+
   /// No description provided for @hospital.
   ///
   /// In en, this message translates to:
@@ -2412,6 +3066,348 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Invoices paid / total'**
   String get invoicesPaidTotal;
+
+  /// No description provided for @ipdAdmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Admitted'**
+  String get ipdAdmitted;
+
+  /// No description provided for @ipdAdmittedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Admitted on'**
+  String get ipdAdmittedOn;
+
+  /// No description provided for @ipdAdmittingDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Admitting doctor'**
+  String get ipdAdmittingDoctor;
+
+  /// No description provided for @ipdAllocateBed.
+  ///
+  /// In en, this message translates to:
+  /// **'Allocate bed'**
+  String get ipdAllocateBed;
+
+  /// No description provided for @ipdAvailableBeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Free beds'**
+  String get ipdAvailableBeds;
+
+  /// No description provided for @ipdAwaitingBed.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for a bed'**
+  String get ipdAwaitingBed;
+
+  /// No description provided for @ipdBalanceDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance due'**
+  String get ipdBalanceDue;
+
+  /// No description provided for @ipdBedHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Bed history'**
+  String get ipdBedHistory;
+
+  /// No description provided for @ipdBedSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Bed saved by the hospital system.'**
+  String get ipdBedSaved;
+
+  /// No description provided for @ipdBedTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'That bed is no longer free. The list has been refreshed.'**
+  String get ipdBedTaken;
+
+  /// No description provided for @ipdBedsPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {count} beds; the counts may be incomplete.'**
+  String ipdBedsPartial(int count);
+
+  /// No description provided for @ipdBillDue.
+  ///
+  /// In en, this message translates to:
+  /// **'The final bill still has money due.'**
+  String get ipdBillDue;
+
+  /// No description provided for @ipdBillTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get ipdBillTotal;
+
+  /// No description provided for @ipdCheckCounselled.
+  ///
+  /// In en, this message translates to:
+  /// **'Patient and family counselled'**
+  String get ipdCheckCounselled;
+
+  /// No description provided for @ipdCheckDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents handed over'**
+  String get ipdCheckDocuments;
+
+  /// No description provided for @ipdCheckFollowUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow-up arranged'**
+  String get ipdCheckFollowUp;
+
+  /// No description provided for @ipdCheckMedications.
+  ///
+  /// In en, this message translates to:
+  /// **'Medications reconciled'**
+  String get ipdCheckMedications;
+
+  /// No description provided for @ipdChecklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge checklist'**
+  String get ipdChecklist;
+
+  /// No description provided for @ipdChooseBed.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a free bed:'**
+  String get ipdChooseBed;
+
+  /// No description provided for @ipdCompleteDischarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete discharge'**
+  String get ipdCompleteDischarge;
+
+  /// No description provided for @ipdConfirmComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete the discharge? The bed is released and the stay is closed.'**
+  String get ipdConfirmComplete;
+
+  /// No description provided for @ipdConfirmInitiate.
+  ///
+  /// In en, this message translates to:
+  /// **'Start the discharge? The checklist, summary and final bill must still be finished.'**
+  String get ipdConfirmInitiate;
+
+  /// No description provided for @ipdCurrentBed.
+  ///
+  /// In en, this message translates to:
+  /// **'Bed'**
+  String get ipdCurrentBed;
+
+  /// No description provided for @ipdDaysBilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Days billed'**
+  String get ipdDaysBilled;
+
+  /// No description provided for @ipdDischarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge'**
+  String get ipdDischarge;
+
+  /// No description provided for @ipdDischargeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge completed by the hospital system.'**
+  String get ipdDischargeDone;
+
+  /// No description provided for @ipdDischargeInitiated.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge started'**
+  String get ipdDischargeInitiated;
+
+  /// No description provided for @ipdDischargeReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready: every discharge step is done.'**
+  String get ipdDischargeReady;
+
+  /// No description provided for @ipdDischargeStepsOnWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'The plan, checklist, summary and final bill are completed on the web app.'**
+  String get ipdDischargeStepsOnWeb;
+
+  /// No description provided for @ipdDischarged.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharged'**
+  String get ipdDischarged;
+
+  /// No description provided for @ipdDischargedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharged on'**
+  String get ipdDischargedOn;
+
+  /// No description provided for @ipdFilterCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'In hospital'**
+  String get ipdFilterCurrent;
+
+  /// No description provided for @ipdFinalBill.
+  ///
+  /// In en, this message translates to:
+  /// **'Final bill'**
+  String get ipdFinalBill;
+
+  /// No description provided for @ipdInitiateDischarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Start discharge'**
+  String get ipdInitiateDischarge;
+
+  /// No description provided for @ipdIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Admitted patients, their beds and discharges.'**
+  String get ipdIntro;
+
+  /// No description provided for @ipdNoAdmissions.
+  ///
+  /// In en, this message translates to:
+  /// **'No admissions.'**
+  String get ipdNoAdmissions;
+
+  /// No description provided for @ipdNoBedHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'No bed allocated yet.'**
+  String get ipdNoBedHistory;
+
+  /// No description provided for @ipdNoBeds.
+  ///
+  /// In en, this message translates to:
+  /// **'No beds set up at this hospital.'**
+  String get ipdNoBeds;
+
+  /// No description provided for @ipdNoFinalBill.
+  ///
+  /// In en, this message translates to:
+  /// **'The final bill has not been created.'**
+  String get ipdNoFinalBill;
+
+  /// No description provided for @ipdNoFreeBeds.
+  ///
+  /// In en, this message translates to:
+  /// **'No free beds at this hospital right now.'**
+  String get ipdNoFreeBeds;
+
+  /// No description provided for @ipdNoPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'No discharge plan written yet.'**
+  String get ipdNoPlan;
+
+  /// No description provided for @ipdNoSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'No discharge summary written yet.'**
+  String get ipdNoSummary;
+
+  /// No description provided for @ipdNotStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge has not been started.'**
+  String get ipdNotStarted;
+
+  /// No description provided for @ipdReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'You can view admissions. Bed and discharge changes need a doctor or nurse role at this hospital.'**
+  String get ipdReadOnly;
+
+  /// No description provided for @ipdReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for admission'**
+  String get ipdReason;
+
+  /// No description provided for @ipdSince.
+  ///
+  /// In en, this message translates to:
+  /// **'Since'**
+  String get ipdSince;
+
+  /// No description provided for @ipdStay.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay'**
+  String get ipdStay;
+
+  /// No description provided for @ipdStillToDo.
+  ///
+  /// In en, this message translates to:
+  /// **'Still to do before discharge'**
+  String get ipdStillToDo;
+
+  /// No description provided for @ipdSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge summary'**
+  String get ipdSummary;
+
+  /// No description provided for @ipdSummaryDoctorsOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only doctors and hospital managers can read discharge summaries.'**
+  String get ipdSummaryDoctorsOnly;
+
+  /// No description provided for @ipdSummaryDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft, not finalised'**
+  String get ipdSummaryDraft;
+
+  /// No description provided for @ipdSummaryFinalized.
+  ///
+  /// In en, this message translates to:
+  /// **'Finalised by a doctor'**
+  String get ipdSummaryFinalized;
+
+  /// No description provided for @ipdSummaryNotFinalized.
+  ///
+  /// In en, this message translates to:
+  /// **'A doctor must finalise the discharge summary.'**
+  String get ipdSummaryNotFinalized;
+
+  /// No description provided for @ipdTabAdmissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Admissions'**
+  String get ipdTabAdmissions;
+
+  /// No description provided for @ipdTabBeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Beds'**
+  String get ipdTabBeds;
+
+  /// No description provided for @ipdTransferBed.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer bed'**
+  String get ipdTransferBed;
+
+  /// No description provided for @ipdTransferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Transferred'**
+  String get ipdTransferred;
 
   /// No description provided for @jumpTo.
   ///
@@ -4033,6 +5029,30 @@ abstract class AppLocalizations {
   /// **'Operations'**
   String get operations;
 
+  /// No description provided for @opsBackToList.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to list'**
+  String get opsBackToList;
+
+  /// No description provided for @opsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved by the hospital system.'**
+  String get opsSaved;
+
+  /// No description provided for @opsSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get opsSearch;
+
+  /// No description provided for @opsStepRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The hospital system did not allow this step for the record as it is now. Refresh to see its current state.'**
+  String get opsStepRefused;
+
   /// No description provided for @orDivider.
   ///
   /// In en, this message translates to:
@@ -5209,11 +6229,47 @@ abstract class AppLocalizations {
   /// **'Specialisation'**
   String get specialization;
 
+  /// No description provided for @staffAccessEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Access ended'**
+  String get staffAccessEnded;
+
+  /// No description provided for @staffIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Staff with access to this hospital.'**
+  String get staffIntro;
+
+  /// No description provided for @staffInvitePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite pending'**
+  String get staffInvitePending;
+
+  /// No description provided for @staffManagersOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this hospital\'s Admin or Hospital Manager can see the staff list.'**
+  String get staffManagersOnly;
+
+  /// No description provided for @staffNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No staff found.'**
+  String get staffNone;
+
   /// No description provided for @staffPortal.
   ///
   /// In en, this message translates to:
   /// **'Staff portal'**
   String get staffPortal;
+
+  /// No description provided for @staffSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search staff by name or employee ID'**
+  String get staffSearch;
 
   /// No description provided for @staffSignIn.
   ///
@@ -5682,6 +6738,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Medicine batches'**
   String get totalMedicines;
+
+  /// No description provided for @triageCritical.
+  ///
+  /// In en, this message translates to:
+  /// **'Critical'**
+  String get triageCritical;
+
+  /// No description provided for @triageEmergency.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency'**
+  String get triageEmergency;
+
+  /// No description provided for @triageNonUrgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-urgent'**
+  String get triageNonUrgent;
+
+  /// No description provided for @triageSemiUrgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Semi-urgent'**
+  String get triageSemiUrgent;
+
+  /// No description provided for @triageUrgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Urgent'**
+  String get triageUrgent;
 
   /// No description provided for @tryAgain.
   ///

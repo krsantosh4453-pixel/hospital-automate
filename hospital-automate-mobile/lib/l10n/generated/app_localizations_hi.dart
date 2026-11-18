@@ -379,9 +379,24 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
+  String get bedAvailable => 'उपलब्ध';
+
+  @override
+  String get bedCleaning => 'सफ़ाई हो रही है';
+
+  @override
+  String get bedMaintenance => 'रखरखाव में';
+
+  @override
   String bedNumber(String bed) {
     return 'बेड $bed';
   }
+
+  @override
+  String get bedOccupied => 'भरा हुआ';
+
+  @override
+  String get bedReserved => 'आरक्षित';
 
   @override
   String bedsOccupiedOf(String occupied, String total) {
@@ -909,13 +924,25 @@ class AppLocalizationsHi extends AppLocalizations {
   String get deptConsultationText => 'Doctors\' clinical work.';
 
   @override
+  String get deptDescription => 'विवरण';
+
+  @override
   String get deptEmergencyText => 'Triage and emergency care.';
+
+  @override
+  String get deptHead => 'विभागाध्यक्ष';
+
+  @override
+  String get deptIntro => 'इस अस्पताल के विभाग।';
 
   @override
   String get deptInventoryText => 'Store, suppliers and purchase orders.';
 
   @override
   String get deptLaboratoryText => 'Samples, results and reports.';
+
+  @override
+  String get deptNone => 'अभी कोई विभाग नहीं बनाया गया है।';
 
   @override
   String get deptNursing => 'नर्सिंग';
@@ -1132,6 +1159,264 @@ class AppLocalizationsHi extends AppLocalizations {
   String get enterTheCode => 'कोड दर्ज करें';
 
   @override
+  String get erActiveNow => 'अभी आपातकालीन विभाग में';
+
+  @override
+  String get erAddNote => 'नोट जोड़ें';
+
+  @override
+  String get erAdmitHint =>
+      'सर्वर बिस्तर देगा और आपातकालीन विज़िट को भर्ती के रूप में बंद करेगा।';
+
+  @override
+  String get erAdmitToIpd => 'आईपीडी में भर्ती करें';
+
+  @override
+  String get erAdmitted => 'अस्पताल प्रणाली ने भर्ती बना दी।';
+
+  @override
+  String get erAlreadyAdmitted => 'इस मरीज़ की पहले से एक खुली भर्ती है:';
+
+  @override
+  String get erArrival => 'आगमन';
+
+  @override
+  String get erAttendingDoctor => 'उपचार करने वाले डॉक्टर';
+
+  @override
+  String get erBp => 'बीपी';
+
+  @override
+  String get erChiefComplaint => 'मुख्य शिकायत';
+
+  @override
+  String get erChiefComplaintRequired => 'मुख्य शिकायत लिखें।';
+
+  @override
+  String get erCompleteTriage => 'ट्राइएज पूरा करें';
+
+  @override
+  String get erConsultationStarted => 'परामर्श शुरू हुआ';
+
+  @override
+  String get erDetails => 'विज़िट का विवरण';
+
+  @override
+  String get erDischarge => 'आपातकालीन विभाग से छुट्टी';
+
+  @override
+  String get erDischargeDiagnosis => 'छुट्टी के समय निदान';
+
+  @override
+  String get erDischargeWarning =>
+      'छुट्टी के बाद विज़िट बंद हो जाती है और यहाँ दोबारा नहीं खोली जा सकती।';
+
+  @override
+  String get erDischarged => 'छुट्टी अस्पताल प्रणाली में सहेजी गई।';
+
+  @override
+  String get erFilterActive => 'सक्रिय';
+
+  @override
+  String get erFilterClosed => 'बंद';
+
+  @override
+  String get erFollowUp => 'फ़ॉलो-अप निर्देश';
+
+  @override
+  String get erGcs => 'ग्लासगो कोमा स्केल';
+
+  @override
+  String get erGiven => 'दी गई';
+
+  @override
+  String get erIntro => 'आपातकालीन विभाग के मरीज़, सबसे ज़रूरी पहले।';
+
+  @override
+  String erKeepDoctor(String name) {
+    return '$name को ही रखें';
+  }
+
+  @override
+  String get erLeftEr => 'आपातकालीन विभाग से गए';
+
+  @override
+  String get erMedicationsSection => 'दवाइयाँ';
+
+  @override
+  String get erNextSteps => 'अगले कदम';
+
+  @override
+  String get erNoActiveVisits => 'अभी आपातकालीन विभाग में कोई मरीज़ नहीं है।';
+
+  @override
+  String get erNoDoctorYet => 'कोई डॉक्टर तय नहीं';
+
+  @override
+  String get erNoMedications => 'कोई दवा दर्ज नहीं।';
+
+  @override
+  String get erNoNotes => 'अभी कोई नोट नहीं।';
+
+  @override
+  String get erNoOrders => 'कोई ऑर्डर नहीं।';
+
+  @override
+  String get erNoPatientMatch => 'इस अस्पताल में कोई मरीज़ नहीं मिला।';
+
+  @override
+  String get erNoVisits => 'कोई आपातकालीन विज़िट नहीं।';
+
+  @override
+  String get erNoVitals => 'कोई वाइटल्स दर्ज नहीं।';
+
+  @override
+  String get erNotGiven => 'अभी नहीं दी गई';
+
+  @override
+  String get erNotTriaged => 'अभी ट्राइएज नहीं हुआ।';
+
+  @override
+  String get erNote => 'नोट';
+
+  @override
+  String get erNoteHint =>
+      'नोट स्थायी रूप से रखे जाते हैं और बदले नहीं जा सकते।';
+
+  @override
+  String get erNoteRequired => 'नोट लिखें।';
+
+  @override
+  String get erNoteSaved => 'नोट अस्पताल प्रणाली में सहेजा गया।';
+
+  @override
+  String get erNotes => 'नोट';
+
+  @override
+  String get erOpenAdmission => 'भर्ती खोलें';
+
+  @override
+  String get erOrdersSection => 'ऑर्डर';
+
+  @override
+  String get erPainScore => 'दर्द स्कोर';
+
+  @override
+  String get erReadOnly =>
+      'आप आपातकालीन विज़िट देख सकते हैं। बदलाव के लिए इस अस्पताल में डॉक्टर या नर्स की भूमिका चाहिए।';
+
+  @override
+  String get erRecordVitals => 'वाइटल्स दर्ज करें';
+
+  @override
+  String get erRefer => 'दूसरी जगह रेफ़र करें';
+
+  @override
+  String get erReferWarning =>
+      'रेफ़रल के बाद विज़िट बंद हो जाती है और यहाँ दोबारा नहीं खोली जा सकती।';
+
+  @override
+  String get erReferred => 'रेफ़रल अस्पताल प्रणाली में सहेजा गया।';
+
+  @override
+  String get erReferredTo => 'किस अस्पताल/केंद्र में रेफ़र';
+
+  @override
+  String get erReferredToRequired =>
+      'लिखें कि मरीज़ को कहाँ रेफ़र किया गया है।';
+
+  @override
+  String get erRegister => 'पंजीकरण करें';
+
+  @override
+  String get erRegisterHint =>
+      'केवल इस अस्पताल में पहले से पंजीकृत मरीज़ चुने जा सकते हैं।';
+
+  @override
+  String get erRegisterPatient => 'आपातकालीन मरीज़ दर्ज करें';
+
+  @override
+  String get erRegistered => 'आपातकालीन विज़िट अस्पताल प्रणाली में दर्ज हुई।';
+
+  @override
+  String get erRemarks => 'टिप्पणी';
+
+  @override
+  String get erRr => 'श्वसन';
+
+  @override
+  String get erSearchPatient => 'नाम, UHID या फ़ोन';
+
+  @override
+  String get erStartConsultation => 'परामर्श शुरू करें';
+
+  @override
+  String get erStartTriage => 'ट्राइएज शुरू करें';
+
+  @override
+  String get erStartTriageConfirm => 'इस मरीज़ को ट्राइएज में ले जाएँ?';
+
+  @override
+  String get erStatusAdmitted => 'आईपीडी में भर्ती';
+
+  @override
+  String get erStatusDischarged => 'छुट्टी दी गई';
+
+  @override
+  String get erStatusExpired => 'मृत्यु';
+
+  @override
+  String get erStatusInvestigations => 'जाँच';
+
+  @override
+  String get erStatusLeftAgainstAdvice => 'सलाह के विरुद्ध गए';
+
+  @override
+  String get erStatusObservation => 'निगरानी में';
+
+  @override
+  String get erStatusReferred => 'रेफ़र किया गया';
+
+  @override
+  String get erStatusRegistered => 'दर्ज';
+
+  @override
+  String get erStatusTreatment => 'उपचार';
+
+  @override
+  String get erStatusTriage => 'ट्राइएज में';
+
+  @override
+  String get erStatusUnderConsultation => 'परामर्श में';
+
+  @override
+  String get erSugar => 'शुगर';
+
+  @override
+  String get erTriageLevel => 'ट्राइएज स्तर';
+
+  @override
+  String get erTriageNotes => 'ट्राइएज नोट';
+
+  @override
+  String get erTriageSection => 'ट्राइएज';
+
+  @override
+  String get erTriageStarted => 'ट्राइएज शुरू हुआ';
+
+  @override
+  String get erTriagedBy => 'ट्राइएज किसने किया';
+
+  @override
+  String get erVisitClosed => 'यह विज़िट बंद है; केवल नोट जोड़े जा सकते हैं।';
+
+  @override
+  String get erVitalsEmpty => 'कम से कम एक माप दर्ज करें।';
+
+  @override
+  String get erVitalsSection => 'वाइटल्स';
+
+  @override
   String get errorConflict =>
       'यह रिकॉर्ड बदल गया है या पहले से मौजूद है। रीफ़्रेश करके फिर कोशिश करें।';
 
@@ -1335,6 +1620,57 @@ class AppLocalizationsHi extends AppLocalizations {
   String get haveAccountSignIn => 'पहले से खाता है? साइन इन करें';
 
   @override
+  String get hospActive => 'सक्रिय';
+
+  @override
+  String get hospAddress => 'पता';
+
+  @override
+  String get hospCode => 'कोड';
+
+  @override
+  String get hospCurrent => 'वर्तमान';
+
+  @override
+  String get hospDepartments => 'विभाग';
+
+  @override
+  String get hospDoctors => 'डॉक्टर';
+
+  @override
+  String get hospEmail => 'ईमेल';
+
+  @override
+  String get hospGrievanceOfficer => 'शिकायत अधिकारी';
+
+  @override
+  String get hospInactive => 'निष्क्रिय';
+
+  @override
+  String get hospIntro => 'वह अस्पताल जिसमें आप अभी काम कर रहे हैं।';
+
+  @override
+  String get hospNoWards => 'अभी कोई वार्ड नहीं बनाया गया है।';
+
+  @override
+  String get hospNurses => 'नर्सें';
+
+  @override
+  String get hospPhone => 'फ़ोन';
+
+  @override
+  String get hospSwitch => 'बदलें';
+
+  @override
+  String get hospType => 'प्रकार';
+
+  @override
+  String get hospWards => 'वार्ड';
+
+  @override
+  String get hospYourHospitals => 'आपके अस्पताल';
+
+  @override
   String get hospital => 'अस्पताल';
 
   @override
@@ -1365,6 +1701,186 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get invoicesPaidTotal => 'भुगतान किए / कुल बिल';
+
+  @override
+  String get ipdAdmitted => 'भर्ती';
+
+  @override
+  String get ipdAdmittedOn => 'भर्ती की तारीख';
+
+  @override
+  String get ipdAdmittingDoctor => 'भर्ती करने वाले डॉक्टर';
+
+  @override
+  String get ipdAllocateBed => 'बिस्तर दें';
+
+  @override
+  String get ipdAvailableBeds => 'खाली बिस्तर';
+
+  @override
+  String get ipdAwaitingBed => 'बिस्तर का इंतज़ार';
+
+  @override
+  String get ipdBalanceDue => 'बकाया राशि';
+
+  @override
+  String get ipdBedHistory => 'बिस्तर का इतिहास';
+
+  @override
+  String get ipdBedSaved => 'बिस्तर अस्पताल प्रणाली में सहेजा गया।';
+
+  @override
+  String get ipdBedTaken =>
+      'वह बिस्तर अब खाली नहीं है। सूची ताज़ा कर दी गई है।';
+
+  @override
+  String ipdBedsPartial(int count) {
+    return 'पहले $count बिस्तर दिखाए जा रहे हैं; गिनती अधूरी हो सकती है।';
+  }
+
+  @override
+  String get ipdBillDue => 'अंतिम बिल में अभी राशि बकाया है।';
+
+  @override
+  String get ipdBillTotal => 'कुल';
+
+  @override
+  String get ipdCheckCounselled => 'मरीज़ और परिवार को परामर्श दिया गया';
+
+  @override
+  String get ipdCheckDocuments => 'दस्तावेज़ सौंपे गए';
+
+  @override
+  String get ipdCheckFollowUp => 'फ़ॉलो-अप तय किया गया';
+
+  @override
+  String get ipdCheckMedications => 'दवाइयों का मिलान किया गया';
+
+  @override
+  String get ipdChecklist => 'छुट्टी की जाँच-सूची';
+
+  @override
+  String get ipdChooseBed => 'एक खाली बिस्तर चुनें:';
+
+  @override
+  String get ipdCompleteDischarge => 'छुट्टी पूरी करें';
+
+  @override
+  String get ipdConfirmComplete =>
+      'छुट्टी पूरी करें? बिस्तर खाली होगा और भर्ती बंद हो जाएगी।';
+
+  @override
+  String get ipdConfirmInitiate =>
+      'छुट्टी शुरू करें? जाँच-सूची, सारांश और अंतिम बिल अभी पूरे करने होंगे।';
+
+  @override
+  String get ipdCurrentBed => 'बिस्तर';
+
+  @override
+  String get ipdDaysBilled => 'बिल किए गए दिन';
+
+  @override
+  String get ipdDischarge => 'छुट्टी';
+
+  @override
+  String get ipdDischargeDone => 'अस्पताल प्रणाली ने छुट्टी पूरी कर दी।';
+
+  @override
+  String get ipdDischargeInitiated => 'छुट्टी शुरू';
+
+  @override
+  String get ipdDischargeReady => 'तैयार: छुट्टी के सभी कदम पूरे हैं।';
+
+  @override
+  String get ipdDischargeStepsOnWeb =>
+      'योजना, जाँच-सूची, सारांश और अंतिम बिल वेब ऐप पर पूरे किए जाते हैं।';
+
+  @override
+  String get ipdDischarged => 'छुट्टी दी गई';
+
+  @override
+  String get ipdDischargedOn => 'छुट्टी की तारीख';
+
+  @override
+  String get ipdFilterCurrent => 'अस्पताल में';
+
+  @override
+  String get ipdFinalBill => 'अंतिम बिल';
+
+  @override
+  String get ipdInitiateDischarge => 'छुट्टी शुरू करें';
+
+  @override
+  String get ipdIntro => 'भर्ती मरीज़, उनके बिस्तर और छुट्टी।';
+
+  @override
+  String get ipdNoAdmissions => 'कोई भर्ती नहीं।';
+
+  @override
+  String get ipdNoBedHistory => 'अभी कोई बिस्तर नहीं दिया गया।';
+
+  @override
+  String get ipdNoBeds => 'इस अस्पताल में कोई बिस्तर नहीं बनाया गया है।';
+
+  @override
+  String get ipdNoFinalBill => 'अंतिम बिल अभी नहीं बना है।';
+
+  @override
+  String get ipdNoFreeBeds => 'इस अस्पताल में अभी कोई खाली बिस्तर नहीं है।';
+
+  @override
+  String get ipdNoPlan => 'अभी छुट्टी की योजना नहीं लिखी गई।';
+
+  @override
+  String get ipdNoSummary => 'अभी छुट्टी का सारांश नहीं लिखा गया।';
+
+  @override
+  String get ipdNotStarted => 'छुट्टी अभी शुरू नहीं हुई।';
+
+  @override
+  String get ipdReadOnly =>
+      'आप भर्ती देख सकते हैं। बिस्तर और छुट्टी के बदलाव के लिए इस अस्पताल में डॉक्टर या नर्स की भूमिका चाहिए।';
+
+  @override
+  String get ipdReason => 'भर्ती का कारण';
+
+  @override
+  String get ipdSince => 'से';
+
+  @override
+  String get ipdStay => 'भर्ती';
+
+  @override
+  String get ipdStillToDo => 'छुट्टी से पहले अभी बाकी';
+
+  @override
+  String get ipdSummary => 'छुट्टी का सारांश';
+
+  @override
+  String get ipdSummaryDoctorsOnly =>
+      'छुट्टी का सारांश केवल डॉक्टर और अस्पताल प्रबंधक पढ़ सकते हैं।';
+
+  @override
+  String get ipdSummaryDraft => 'मसौदा, अंतिम नहीं';
+
+  @override
+  String get ipdSummaryFinalized => 'डॉक्टर द्वारा अंतिम किया गया';
+
+  @override
+  String get ipdSummaryNotFinalized =>
+      'डॉक्टर को छुट्टी का सारांश अंतिम करना होगा।';
+
+  @override
+  String get ipdTabAdmissions => 'भर्ती';
+
+  @override
+  String get ipdTabBeds => 'बिस्तर';
+
+  @override
+  String get ipdTransferBed => 'बिस्तर बदलें';
+
+  @override
+  String get ipdTransferred => 'स्थानांतरित';
 
   @override
   String get jumpTo => 'पेज पर जाएँ…';
@@ -2256,6 +2772,19 @@ class AppLocalizationsHi extends AppLocalizations {
   String get operations => 'संचालन';
 
   @override
+  String get opsBackToList => 'सूची पर वापस';
+
+  @override
+  String get opsSaved => 'अस्पताल प्रणाली में सहेजा गया।';
+
+  @override
+  String get opsSearch => 'खोजें';
+
+  @override
+  String get opsStepRefused =>
+      'अस्पताल प्रणाली ने रिकॉर्ड की मौजूदा स्थिति में यह कदम नहीं होने दिया। मौजूदा स्थिति देखने के लिए ताज़ा करें।';
+
+  @override
   String get orDivider => 'या';
 
   @override
@@ -2909,7 +3438,26 @@ class AppLocalizationsHi extends AppLocalizations {
   String get specialization => 'विशेषज्ञता';
 
   @override
+  String get staffAccessEnded => 'पहुँच समाप्त';
+
+  @override
+  String get staffIntro => 'इस अस्पताल तक पहुँच वाले कर्मचारी।';
+
+  @override
+  String get staffInvitePending => 'निमंत्रण लंबित';
+
+  @override
+  String get staffManagersOnly =>
+      'कर्मचारी सूची केवल इस अस्पताल के एडमिन या अस्पताल प्रबंधक देख सकते हैं।';
+
+  @override
+  String get staffNone => 'कोई कर्मचारी नहीं मिला।';
+
+  @override
   String get staffPortal => 'स्टाफ़ पोर्टल';
+
+  @override
+  String get staffSearch => 'नाम या कर्मचारी आईडी से खोजें';
 
   @override
   String get staffSignIn => 'स्टाफ़ साइन इन';
@@ -3151,6 +3699,21 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get totalMedicines => 'दवा बैच';
+
+  @override
+  String get triageCritical => 'गंभीर';
+
+  @override
+  String get triageEmergency => 'आपातकालीन';
+
+  @override
+  String get triageNonUrgent => 'गैर-ज़रूरी';
+
+  @override
+  String get triageSemiUrgent => 'अर्ध-ज़रूरी';
+
+  @override
+  String get triageUrgent => 'ज़रूरी';
 
   @override
   String get tryAgain => 'फिर से कोशिश करें';
