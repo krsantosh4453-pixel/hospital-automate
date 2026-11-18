@@ -281,6 +281,12 @@ class FakeScribeRecorder implements ScribeRecorder {
   @override
   Future<void> cancel() async => recording = false;
 
+  /// Paths passed to [discard], in order.
+  final List<String> discarded = [];
+
+  @override
+  Future<void> discard(ScribeAudio audio) async => discarded.add(audio.path);
+
   @override
   Future<void> dispose() async => disposed = true;
 }

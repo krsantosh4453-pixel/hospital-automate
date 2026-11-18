@@ -11,6 +11,7 @@ from django.db.models import Max
 
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -275,6 +276,9 @@ class ConversationTranscriptViewSet(HospitalScopedViewSet):
     )
     serializer_class = ConversationTranscriptSerializer
     permission_classes = [IsClinicalStaff]
+    # Read-only: the transcript is the AI draft's input and is written only by
+    # the session's transcribe step, never edited or deleted by hand.
+    http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -296,6 +300,12 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
     ).prefetch_related("doctor_reviews")
     serializer_class = AIConsultationDraftSerializer
     permission_classes = [IsDoctor]
+    # Drafts are made by the pipeline and changed only through the workflow
+    # actions below (POST), so plain create, edit and delete are refused.
+    http_method_names = ["get", "post", "head", "options"]
+
+    def create(self, request, *args, **kwargs):
+        raise MethodNotAllowed(request.method)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -634,6 +644,8 @@ class DoctorReviewViewSet(HospitalScopedViewSet):
     )
     serializer_class = DoctorReviewSerializer
     permission_classes = [IsClinicalStaff]
+    # Review history is written only by the draft's review/approve/reject actions.
+    http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
         qs = super().get_queryset()

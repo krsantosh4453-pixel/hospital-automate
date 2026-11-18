@@ -138,6 +138,8 @@ void main() {
     await tapKey(tester, 'stop-recording');
     expect(env.ai.uploads.single.duration, const Duration(seconds: 42));
     expect(find.text('Audio uploaded'), findsWidgets);
+    // The local recording is deleted once uploaded.
+    expect(env.mic.discarded, ['/tmp/test-consultation.m4a']);
 
     await tapKey(tester, 'transcribe');
     expect(env.ai.calls, contains('transcribe:en'));

@@ -133,6 +133,23 @@ class StaffInviteTests(TestCase):
         self.assertNotIn("invite_url", resp.data)
         self.assertEqual(StaffHospitalMembership.objects.filter(staff__user__email="nurse@example.com").count(), 2)
 
+    def test_pending_invite_at_another_hospital_cannot_be_taken_over(self):
+        # Hospital "Other" invited this doctor; they have not set a password yet.
+        pending = User.objects.create(username="pending", email="pending@example.com")
+        pending.set_unusable_password()
+        pending.save()
+        profile = StaffProfile.objects.create(user=pending, role=StaffRole.DOCTOR, employee_id="EMP-pending",
+                                              is_active_staff=True)
+        StaffHospitalMembership.objects.create(staff=profile, hospital=self.other, role=StaffRole.DOCTOR,
+                                               is_active=True)
+
+        resp = self._invite(email="pending@example.com", role="Receptionist")
+
+        self.assertEqual(resp.status_code, 400, resp.data)
+        self.assertNotIn("invite_url", resp.data)
+        self.assertFalse(StaffHospitalMembership.objects.filter(staff=profile, hospital=self.hospital).exists())
+        self.assertEqual(len(mail.outbox), 0)
+
     def test_patient_email_or_existing_member_is_refused(self):
         patient_user = User.objects.create_user(username="pat", email="pat@example.com", password="x-Long-pass-1")
         Patient.objects.create(user=patient_user, name="Pat", age=30, gender="Male", phone="9000000009")

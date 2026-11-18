@@ -195,10 +195,15 @@ class _ScribeScreenState extends State<ScribeScreen> {
       setState(() => _error = t.aiNothingRecorded);
       return;
     }
-    await _step(
-      () => _ai.stopRecording(data.session!.id, audio),
-      done: t.aiAudioUploaded,
-    );
+    try {
+      await _step(
+        () => _ai.stopRecording(data.session!.id, audio),
+        done: t.aiAudioUploaded,
+      );
+    } finally {
+      // The server keeps the uploaded copy; never leave PHI audio in the cache.
+      await _recorder.discard(audio);
+    }
   }
 
   @override

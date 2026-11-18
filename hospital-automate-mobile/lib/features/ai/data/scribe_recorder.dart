@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -13,6 +15,10 @@ abstract interface class ScribeRecorder {
   /// Stops and returns the recording, or null when nothing was captured.
   Future<ScribeAudio?> stop();
   Future<void> cancel();
+
+  /// Deletes a recording returned by [stop] once it has been uploaded (or
+  /// the upload failed): consultation audio must not stay on the device.
+  Future<void> discard(ScribeAudio audio);
   Future<void> dispose();
 }
 
@@ -53,6 +59,12 @@ class DeviceScribeRecorder implements ScribeRecorder {
   Future<void> cancel() async {
     _startedAt = null;
     await _recorder.cancel();
+  }
+
+  @override
+  Future<void> discard(ScribeAudio audio) async {
+    final file = File(audio.path);
+    if (await file.exists()) await file.delete();
   }
 
   @override
