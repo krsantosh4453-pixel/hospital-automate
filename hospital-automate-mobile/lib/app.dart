@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/theme/app_scroll_behavior.dart';
 import 'core/app_scope.dart';
 import 'core/localization/l10n.dart';
 import 'core/routing/app_router.dart';
@@ -48,6 +49,8 @@ class _HmsAppState extends State<HmsApp> {
           onGenerateTitle: (context) =>
               '${context.l10n.appName} — ${context.l10n.appSubtitle}',
           debugShowCheckedModeBanner: false,
+          // No stretch overscroll: it scales text at the ends of a scroll.
+          scrollBehavior: const HmsScrollBehavior(),
           theme: AppTheme.light(),
           locale: widget.services.locale.locale,
           supportedLocales: AppLocalizations.supportedLocales,
