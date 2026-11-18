@@ -4,6 +4,7 @@ import json
 from datetime import timedelta
 from unittest import mock
 
+from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -41,6 +42,7 @@ class FakeProvider:
 
 class DischargeDraftTests(TestCase):
     def setUp(self):
+        cache.clear()  # model drafts are cached per record
         self.hospital = Hospital.objects.create(name="Synthetic Discharge Hospital", is_active=True)
         self.other = Hospital.objects.create(name="Synthetic Other Hospital", is_active=True)
         self.patient = Patient.objects.create(name="Synthetic Inpatient", age=64, gender="Male",
@@ -96,6 +98,14 @@ class DischargeDraftTests(TestCase):
         self.assertEqual(sent["reason_for_admission"], "Community-acquired pneumonia")
         self.assertNotIn("Synthetic Inpatient", provider.prompts[0])
         self.assertNotIn("9000000091", provider.prompts[0])
+
+    def test_same_record_is_drafted_once(self):
+        reply = {key: f"{heading} text" for key, heading in SECTIONS}
+        provider = FakeProvider(reply=reply)
+        draft_discharge_summary(self.admission, provider=provider)
+        _, again = draft_discharge_summary(self.admission, provider=provider)
+        self.assertEqual(len(provider.prompts), 1)
+        self.assertEqual(again.source, "llm")
 
     def test_model_failure_falls_back_to_records(self):
         _, draft = draft_discharge_summary(self.admission, provider=FakeProvider(error=RuntimeError("down")))

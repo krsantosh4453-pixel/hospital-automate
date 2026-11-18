@@ -266,6 +266,438 @@ abstract class AppLocalizations {
   /// **'{age} y'**
   String ageYears(String age);
 
+  /// No description provided for @aiApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve and save'**
+  String get aiApprove;
+
+  /// No description provided for @aiApproveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You confirm you have read and corrected every section. It is saved as your clinical note for this visit. No prescription is created.'**
+  String get aiApproveBody;
+
+  /// No description provided for @aiApproveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save this draft to the medical record?'**
+  String get aiApproveTitle;
+
+  /// No description provided for @aiAudioUploaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio uploaded'**
+  String get aiAudioUploaded;
+
+  /// No description provided for @aiCnnBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get aiCnnBlocked;
+
+  /// No description provided for @aiCnnBlockedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No validated imaging model, dataset or approved medical use case is set up, so the app makes no image predictions. Any future prediction will need review by a qualified clinician and will never be a diagnosis.'**
+  String get aiCnnBlockedBody;
+
+  /// No description provided for @aiCnnTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image prediction (CNN)'**
+  String get aiCnnTitle;
+
+  /// No description provided for @aiConsentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'The patient agrees to this consultation being recorded'**
+  String get aiConsentLabel;
+
+  /// No description provided for @aiConsentRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Patient consent recorded'**
+  String get aiConsentRecorded;
+
+  /// No description provided for @aiDraftApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved and saved to the record'**
+  String get aiDraftApproved;
+
+  /// No description provided for @aiDraftFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The last draft attempt failed. Try again or document manually.'**
+  String get aiDraftFailed;
+
+  /// No description provided for @aiDraftPending.
+  ///
+  /// In en, this message translates to:
+  /// **'AI draft v{version}: pending your review'**
+  String aiDraftPending(int version);
+
+  /// No description provided for @aiDraftRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected: nothing was saved'**
+  String get aiDraftRejected;
+
+  /// No description provided for @aiDrafting.
+  ///
+  /// In en, this message translates to:
+  /// **'Clinical draft'**
+  String get aiDrafting;
+
+  /// No description provided for @aiEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One item per line. Leave it empty if it was not discussed.'**
+  String get aiEditHint;
+
+  /// No description provided for @aiEditSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get aiEditSection;
+
+  /// No description provided for @aiEngineNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured on this server'**
+  String get aiEngineNotConfigured;
+
+  /// No description provided for @aiGenerateDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate draft'**
+  String get aiGenerateDraft;
+
+  /// No description provided for @aiIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Drafts that a qualified clinician reviews before anything is saved.'**
+  String get aiIntro;
+
+  /// No description provided for @aiLangAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect'**
+  String get aiLangAuto;
+
+  /// No description provided for @aiLangEn.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get aiLangEn;
+
+  /// No description provided for @aiLangHi.
+  ///
+  /// In en, this message translates to:
+  /// **'Hindi'**
+  String get aiLangHi;
+
+  /// No description provided for @aiLangHinglish.
+  ///
+  /// In en, this message translates to:
+  /// **'Hinglish'**
+  String get aiLangHinglish;
+
+  /// No description provided for @aiMicDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone permission is needed to record.'**
+  String get aiMicDenied;
+
+  /// No description provided for @aiMockDraftWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This draft came from the development mock and cannot be approved into a record.'**
+  String get aiMockDraftWarning;
+
+  /// No description provided for @aiMockEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'Development mock: its text can never be approved into a record'**
+  String get aiMockEngine;
+
+  /// No description provided for @aiNoDraftYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe the audio, then generate a draft.'**
+  String get aiNoDraftYet;
+
+  /// No description provided for @aiNoSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'No scribe sessions yet'**
+  String get aiNoSessions;
+
+  /// No description provided for @aiNoSessionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Open one of your consultations and choose AI scribe.'**
+  String get aiNoSessionsHint;
+
+  /// No description provided for @aiNoTranscriptYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload the audio, then transcribe it.'**
+  String get aiNoTranscriptYet;
+
+  /// No description provided for @aiNotConsultingDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the consulting doctor of this visit can use the scribe.'**
+  String get aiNotConsultingDoctor;
+
+  /// No description provided for @aiNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recorded in this consultation'**
+  String get aiNotRecorded;
+
+  /// No description provided for @aiNothingRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was recorded. Try again.'**
+  String get aiNothingRecorded;
+
+  /// No description provided for @aiOpenConsultations.
+  ///
+  /// In en, this message translates to:
+  /// **'Open consultations'**
+  String get aiOpenConsultations;
+
+  /// No description provided for @aiProviderUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI service is not available. Document the consultation manually.'**
+  String get aiProviderUnavailable;
+
+  /// No description provided for @aiReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'You can view this scribe session but not change it.'**
+  String get aiReadOnly;
+
+  /// No description provided for @aiRecordAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Record again'**
+  String get aiRecordAgain;
+
+  /// No description provided for @aiRecordingNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording… speak normally.'**
+  String get aiRecordingNow;
+
+  /// No description provided for @aiRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'New draft'**
+  String get aiRegenerate;
+
+  /// No description provided for @aiReject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject draft'**
+  String get aiReject;
+
+  /// No description provided for @aiRejectBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing from it is saved to the record.'**
+  String get aiRejectBody;
+
+  /// No description provided for @aiRejectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject this draft?'**
+  String get aiRejectTitle;
+
+  /// No description provided for @aiSafetyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every AI suggestion needs review by a qualified doctor. AI never completes a consultation or writes a prescription.'**
+  String get aiSafetyBody;
+
+  /// No description provided for @aiSafetyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI output is a draft, not a diagnosis'**
+  String get aiSafetyTitle;
+
+  /// No description provided for @aiSaveSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Save section'**
+  String get aiSaveSection;
+
+  /// No description provided for @aiScribeCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Medical scribe'**
+  String get aiScribeCardTitle;
+
+  /// No description provided for @aiScribeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI scribe'**
+  String get aiScribeTitle;
+
+  /// No description provided for @aiSecAllergies.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergies'**
+  String get aiSecAllergies;
+
+  /// No description provided for @aiSecAssessment.
+  ///
+  /// In en, this message translates to:
+  /// **'Assessment'**
+  String get aiSecAssessment;
+
+  /// No description provided for @aiSecChiefComplaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Chief complaint'**
+  String get aiSecChiefComplaint;
+
+  /// No description provided for @aiSecExamination.
+  ///
+  /// In en, this message translates to:
+  /// **'Examination'**
+  String get aiSecExamination;
+
+  /// No description provided for @aiSecFollowUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow-up'**
+  String get aiSecFollowUp;
+
+  /// No description provided for @aiSecHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get aiSecHistory;
+
+  /// No description provided for @aiSecInvestigations.
+  ///
+  /// In en, this message translates to:
+  /// **'Investigations'**
+  String get aiSecInvestigations;
+
+  /// No description provided for @aiSecMedications.
+  ///
+  /// In en, this message translates to:
+  /// **'Current medications'**
+  String get aiSecMedications;
+
+  /// No description provided for @aiSecPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get aiSecPlan;
+
+  /// No description provided for @aiSecSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get aiSecSummary;
+
+  /// No description provided for @aiSecSymptoms.
+  ///
+  /// In en, this message translates to:
+  /// **'Symptoms'**
+  String get aiSecSymptoms;
+
+  /// No description provided for @aiSecVitals.
+  ///
+  /// In en, this message translates to:
+  /// **'Vital signs'**
+  String get aiSecVitals;
+
+  /// No description provided for @aiSessionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your scribe sessions'**
+  String get aiSessionsTitle;
+
+  /// No description provided for @aiSpeechToText.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech to text'**
+  String get aiSpeechToText;
+
+  /// No description provided for @aiSpokenLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Spoken language'**
+  String get aiSpokenLanguage;
+
+  /// No description provided for @aiStartRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Start recording'**
+  String get aiStartRecording;
+
+  /// No description provided for @aiStepApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'4. Approve and save'**
+  String get aiStepApprove;
+
+  /// No description provided for @aiStepDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Review and edit the draft'**
+  String get aiStepDraft;
+
+  /// No description provided for @aiStepRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Record the consultation'**
+  String get aiStepRecord;
+
+  /// No description provided for @aiStepTranscript.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Review the transcript'**
+  String get aiStepTranscript;
+
+  /// No description provided for @aiStopRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop and upload'**
+  String get aiStopRecording;
+
+  /// No description provided for @aiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI assist'**
+  String get aiTitle;
+
+  /// No description provided for @aiTranscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe'**
+  String get aiTranscribe;
+
+  /// No description provided for @aiTranscriptFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription failed. Try again or document manually.'**
+  String get aiTranscriptFailed;
+
+  /// No description provided for @aiWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working on it… this can take up to a minute. You can leave this page; the result is saved.'**
+  String get aiWorking;
+
   /// No description provided for @alreadyDispensed.
   ///
   /// In en, this message translates to:

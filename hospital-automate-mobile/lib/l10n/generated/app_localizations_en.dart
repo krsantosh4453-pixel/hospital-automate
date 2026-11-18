@@ -98,6 +98,239 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get aiApprove => 'Approve and save';
+
+  @override
+  String get aiApproveBody =>
+      'You confirm you have read and corrected every section. It is saved as your clinical note for this visit. No prescription is created.';
+
+  @override
+  String get aiApproveTitle => 'Save this draft to the medical record?';
+
+  @override
+  String get aiAudioUploaded => 'Audio uploaded';
+
+  @override
+  String get aiCnnBlocked => 'Blocked';
+
+  @override
+  String get aiCnnBlockedBody =>
+      'No validated imaging model, dataset or approved medical use case is set up, so the app makes no image predictions. Any future prediction will need review by a qualified clinician and will never be a diagnosis.';
+
+  @override
+  String get aiCnnTitle => 'Image prediction (CNN)';
+
+  @override
+  String get aiConsentLabel =>
+      'The patient agrees to this consultation being recorded';
+
+  @override
+  String get aiConsentRecorded => 'Patient consent recorded';
+
+  @override
+  String get aiDraftApproved => 'Approved and saved to the record';
+
+  @override
+  String get aiDraftFailed =>
+      'The last draft attempt failed. Try again or document manually.';
+
+  @override
+  String aiDraftPending(int version) {
+    return 'AI draft v$version: pending your review';
+  }
+
+  @override
+  String get aiDraftRejected => 'Rejected: nothing was saved';
+
+  @override
+  String get aiDrafting => 'Clinical draft';
+
+  @override
+  String get aiEditHint =>
+      'One item per line. Leave it empty if it was not discussed.';
+
+  @override
+  String get aiEditSection => 'Edit';
+
+  @override
+  String get aiEngineNotConfigured => 'Not configured on this server';
+
+  @override
+  String get aiGenerateDraft => 'Generate draft';
+
+  @override
+  String get aiIntro =>
+      'Drafts that a qualified clinician reviews before anything is saved.';
+
+  @override
+  String get aiLangAuto => 'Detect';
+
+  @override
+  String get aiLangEn => 'English';
+
+  @override
+  String get aiLangHi => 'Hindi';
+
+  @override
+  String get aiLangHinglish => 'Hinglish';
+
+  @override
+  String get aiMicDenied => 'Microphone permission is needed to record.';
+
+  @override
+  String get aiMockDraftWarning =>
+      'This draft came from the development mock and cannot be approved into a record.';
+
+  @override
+  String get aiMockEngine =>
+      'Development mock: its text can never be approved into a record';
+
+  @override
+  String get aiNoDraftYet => 'Transcribe the audio, then generate a draft.';
+
+  @override
+  String get aiNoSessions => 'No scribe sessions yet';
+
+  @override
+  String get aiNoSessionsHint =>
+      'Open one of your consultations and choose AI scribe.';
+
+  @override
+  String get aiNoTranscriptYet => 'Upload the audio, then transcribe it.';
+
+  @override
+  String get aiNotConsultingDoctor =>
+      'Only the consulting doctor of this visit can use the scribe.';
+
+  @override
+  String get aiNotRecorded => 'Not recorded in this consultation';
+
+  @override
+  String get aiNothingRecorded => 'Nothing was recorded. Try again.';
+
+  @override
+  String get aiOpenConsultations => 'Open consultations';
+
+  @override
+  String get aiProviderUnavailable =>
+      'The AI service is not available. Document the consultation manually.';
+
+  @override
+  String get aiReadOnly =>
+      'You can view this scribe session but not change it.';
+
+  @override
+  String get aiRecordAgain => 'Record again';
+
+  @override
+  String get aiRecordingNow => 'Recording… speak normally.';
+
+  @override
+  String get aiRegenerate => 'New draft';
+
+  @override
+  String get aiReject => 'Reject draft';
+
+  @override
+  String get aiRejectBody => 'Nothing from it is saved to the record.';
+
+  @override
+  String get aiRejectTitle => 'Reject this draft?';
+
+  @override
+  String get aiSafetyBody =>
+      'Every AI suggestion needs review by a qualified doctor. AI never completes a consultation or writes a prescription.';
+
+  @override
+  String get aiSafetyTitle => 'AI output is a draft, not a diagnosis';
+
+  @override
+  String get aiSaveSection => 'Save section';
+
+  @override
+  String get aiScribeCardTitle => 'Medical scribe';
+
+  @override
+  String get aiScribeTitle => 'AI scribe';
+
+  @override
+  String get aiSecAllergies => 'Allergies';
+
+  @override
+  String get aiSecAssessment => 'Assessment';
+
+  @override
+  String get aiSecChiefComplaint => 'Chief complaint';
+
+  @override
+  String get aiSecExamination => 'Examination';
+
+  @override
+  String get aiSecFollowUp => 'Follow-up';
+
+  @override
+  String get aiSecHistory => 'History';
+
+  @override
+  String get aiSecInvestigations => 'Investigations';
+
+  @override
+  String get aiSecMedications => 'Current medications';
+
+  @override
+  String get aiSecPlan => 'Plan';
+
+  @override
+  String get aiSecSummary => 'Summary';
+
+  @override
+  String get aiSecSymptoms => 'Symptoms';
+
+  @override
+  String get aiSecVitals => 'Vital signs';
+
+  @override
+  String get aiSessionsTitle => 'Your scribe sessions';
+
+  @override
+  String get aiSpeechToText => 'Speech to text';
+
+  @override
+  String get aiSpokenLanguage => 'Spoken language';
+
+  @override
+  String get aiStartRecording => 'Start recording';
+
+  @override
+  String get aiStepApprove => '4. Approve and save';
+
+  @override
+  String get aiStepDraft => '3. Review and edit the draft';
+
+  @override
+  String get aiStepRecord => '1. Record the consultation';
+
+  @override
+  String get aiStepTranscript => '2. Review the transcript';
+
+  @override
+  String get aiStopRecording => 'Stop and upload';
+
+  @override
+  String get aiTitle => 'AI assist';
+
+  @override
+  String get aiTranscribe => 'Transcribe';
+
+  @override
+  String get aiTranscriptFailed =>
+      'Transcription failed. Try again or document manually.';
+
+  @override
+  String get aiWorking =>
+      'Working on it… this can take up to a minute. You can leave this page; the result is saved.';
+
+  @override
   String get alreadyDispensed =>
       'This prescription has already been dispensed.';
 

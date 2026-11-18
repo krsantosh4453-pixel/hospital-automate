@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../features/ai/data/ai_repository.dart';
+import '../features/ai/data/scribe_recorder.dart';
 import '../features/auth/auth_service.dart';
 import '../features/billing/data/billing_repository.dart';
 import '../features/laboratory/data/lab_repository.dart';
@@ -38,6 +40,8 @@ class AppServices {
     required this.emergency,
     required this.ipd,
     required this.hospital,
+    this.aiOverride,
+    this.scribeRecorderFactory,
   });
 
   final ApiConfig config;
@@ -76,6 +80,20 @@ class AppServices {
 
   /// The acting hospital's record, departments, wards and staff.
   final HospitalRepository hospital;
+
+  /// Tests pass a fake here; the app uses the API (see [ai]).
+  final AiRepository? aiOverride;
+
+  /// AI scribe and AI status pages. Optional so existing wiring in
+  /// `main.dart` and tests keeps compiling; the repository holds no state.
+  AiRepository get ai => aiOverride ?? ApiAiRepository(api);
+
+  /// Tests pass a fake microphone here.
+  final ScribeRecorder Function()? scribeRecorderFactory;
+
+  /// A new recorder for one scribe screen (disposed with it).
+  ScribeRecorder newScribeRecorder() =>
+      (scribeRecorderFactory ?? DeviceScribeRecorder.new)();
 }
 
 class AppScope extends InheritedWidget {

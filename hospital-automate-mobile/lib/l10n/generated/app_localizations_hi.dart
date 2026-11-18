@@ -98,6 +98,239 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
+  String get aiApprove => 'स्वीकृत करें और सहेजें';
+
+  @override
+  String get aiApproveBody =>
+      'आप पुष्टि करते हैं कि आपने हर सेक्शन पढ़कर सुधारा है। यह इस विज़िट के आपके क्लिनिकल नोट के रूप में सहेजा जाएगा। कोई पर्चा नहीं बनेगा।';
+
+  @override
+  String get aiApproveTitle => 'यह ड्राफ्ट मेडिकल रिकॉर्ड में सहेजें?';
+
+  @override
+  String get aiAudioUploaded => 'ऑडियो अपलोड हो गया';
+
+  @override
+  String get aiCnnBlocked => 'रुका हुआ';
+
+  @override
+  String get aiCnnBlockedBody =>
+      'कोई प्रमाणित इमेजिंग मॉडल, डेटासेट या स्वीकृत चिकित्सा उपयोग तय नहीं है, इसलिए ऐप कोई इमेज अनुमान नहीं देता। भविष्य का हर अनुमान योग्य चिकित्सक द्वारा जाँचा जाएगा और कभी निदान नहीं होगा।';
+
+  @override
+  String get aiCnnTitle => 'इमेज अनुमान (CNN)';
+
+  @override
+  String get aiConsentLabel => 'मरीज़ इस परामर्श की रिकॉर्डिंग के लिए सहमत है';
+
+  @override
+  String get aiConsentRecorded => 'मरीज़ की सहमति दर्ज है';
+
+  @override
+  String get aiDraftApproved => 'स्वीकृत और रिकॉर्ड में सहेजा गया';
+
+  @override
+  String get aiDraftFailed =>
+      'पिछला ड्राफ्ट प्रयास विफल रहा। फिर से कोशिश करें या खुद लिखें।';
+
+  @override
+  String aiDraftPending(int version) {
+    return 'एआई ड्राफ्ट v$version: आपकी जाँच बाकी';
+  }
+
+  @override
+  String get aiDraftRejected => 'अस्वीकृत: कुछ भी सहेजा नहीं गया';
+
+  @override
+  String get aiDrafting => 'क्लिनिकल ड्राफ्ट';
+
+  @override
+  String get aiEditHint =>
+      'हर पंक्ति में एक बात। अगर चर्चा नहीं हुई तो खाली छोड़ दें।';
+
+  @override
+  String get aiEditSection => 'बदलें';
+
+  @override
+  String get aiEngineNotConfigured => 'इस सर्वर पर कॉन्फ़िगर नहीं है';
+
+  @override
+  String get aiGenerateDraft => 'ड्राफ्ट बनाएँ';
+
+  @override
+  String get aiIntro =>
+      'ऐसे ड्राफ्ट जिन्हें कुछ भी सहेजने से पहले योग्य चिकित्सक जाँचते हैं।';
+
+  @override
+  String get aiLangAuto => 'पहचानें';
+
+  @override
+  String get aiLangEn => 'अंग्रेज़ी';
+
+  @override
+  String get aiLangHi => 'हिंदी';
+
+  @override
+  String get aiLangHinglish => 'हिंग्लिश';
+
+  @override
+  String get aiMicDenied => 'रिकॉर्ड करने के लिए माइक्रोफ़ोन की अनुमति चाहिए।';
+
+  @override
+  String get aiMockDraftWarning =>
+      'यह ड्राफ्ट डेवलपमेंट मॉक से बना है और रिकॉर्ड में स्वीकृत नहीं हो सकता।';
+
+  @override
+  String get aiMockEngine =>
+      'डेवलपमेंट मॉक: इसका टेक्स्ट कभी रिकॉर्ड में स्वीकृत नहीं हो सकता';
+
+  @override
+  String get aiNoDraftYet => 'ऑडियो ट्रांसक्राइब करें, फिर ड्राफ्ट बनाएँ।';
+
+  @override
+  String get aiNoSessions => 'अभी कोई स्क्राइब सत्र नहीं';
+
+  @override
+  String get aiNoSessionsHint =>
+      'अपना कोई परामर्श खोलें और एआई स्क्राइब चुनें।';
+
+  @override
+  String get aiNoTranscriptYet =>
+      'ऑडियो अपलोड करें, फिर उसे ट्रांसक्राइब करें।';
+
+  @override
+  String get aiNotConsultingDoctor =>
+      'केवल इस विज़िट के परामर्श डॉक्टर ही स्क्राइब का उपयोग कर सकते हैं।';
+
+  @override
+  String get aiNotRecorded => 'इस परामर्श में दर्ज नहीं';
+
+  @override
+  String get aiNothingRecorded => 'कुछ भी रिकॉर्ड नहीं हुआ। फिर से कोशिश करें।';
+
+  @override
+  String get aiOpenConsultations => 'परामर्श खोलें';
+
+  @override
+  String get aiProviderUnavailable =>
+      'एआई सेवा उपलब्ध नहीं है। परामर्श खुद लिखें।';
+
+  @override
+  String get aiReadOnly =>
+      'आप यह स्क्राइब सत्र देख सकते हैं, पर बदल नहीं सकते।';
+
+  @override
+  String get aiRecordAgain => 'फिर से रिकॉर्ड करें';
+
+  @override
+  String get aiRecordingNow => 'रिकॉर्डिंग चल रही है… सामान्य रूप से बोलें।';
+
+  @override
+  String get aiRegenerate => 'नया ड्राफ्ट';
+
+  @override
+  String get aiReject => 'ड्राफ्ट अस्वीकार करें';
+
+  @override
+  String get aiRejectBody => 'इसमें से कुछ भी रिकॉर्ड में नहीं सहेजा जाएगा।';
+
+  @override
+  String get aiRejectTitle => 'यह ड्राफ्ट अस्वीकार करें?';
+
+  @override
+  String get aiSafetyBody =>
+      'हर एआई सुझाव की योग्य डॉक्टर द्वारा जाँच ज़रूरी है। एआई कभी परामर्श पूरा नहीं करता और न ही पर्चा लिखता है।';
+
+  @override
+  String get aiSafetyTitle => 'एआई का आउटपुट ड्राफ्ट है, निदान नहीं';
+
+  @override
+  String get aiSaveSection => 'सेक्शन सहेजें';
+
+  @override
+  String get aiScribeCardTitle => 'मेडिकल स्क्राइब';
+
+  @override
+  String get aiScribeTitle => 'एआई स्क्राइब';
+
+  @override
+  String get aiSecAllergies => 'एलर्जी';
+
+  @override
+  String get aiSecAssessment => 'आकलन';
+
+  @override
+  String get aiSecChiefComplaint => 'मुख्य शिकायत';
+
+  @override
+  String get aiSecExamination => 'जाँच';
+
+  @override
+  String get aiSecFollowUp => 'फ़ॉलो-अप';
+
+  @override
+  String get aiSecHistory => 'इतिहास';
+
+  @override
+  String get aiSecInvestigations => 'जाँचें (इन्वेस्टिगेशन)';
+
+  @override
+  String get aiSecMedications => 'वर्तमान दवाएँ';
+
+  @override
+  String get aiSecPlan => 'योजना';
+
+  @override
+  String get aiSecSummary => 'सारांश';
+
+  @override
+  String get aiSecSymptoms => 'लक्षण';
+
+  @override
+  String get aiSecVitals => 'वाइटल साइन';
+
+  @override
+  String get aiSessionsTitle => 'आपके स्क्राइब सत्र';
+
+  @override
+  String get aiSpeechToText => 'आवाज़ से टेक्स्ट';
+
+  @override
+  String get aiSpokenLanguage => 'बोली गई भाषा';
+
+  @override
+  String get aiStartRecording => 'रिकॉर्डिंग शुरू करें';
+
+  @override
+  String get aiStepApprove => '4. स्वीकृत करें और सहेजें';
+
+  @override
+  String get aiStepDraft => '3. ड्राफ्ट जाँचें और बदलें';
+
+  @override
+  String get aiStepRecord => '1. परामर्श रिकॉर्ड करें';
+
+  @override
+  String get aiStepTranscript => '2. ट्रांसक्रिप्ट जाँचें';
+
+  @override
+  String get aiStopRecording => 'रोकें और अपलोड करें';
+
+  @override
+  String get aiTitle => 'एआई सहायता';
+
+  @override
+  String get aiTranscribe => 'ट्रांसक्राइब करें';
+
+  @override
+  String get aiTranscriptFailed =>
+      'ट्रांसक्रिप्शन विफल रहा। फिर से कोशिश करें या खुद लिखें।';
+
+  @override
+  String get aiWorking =>
+      'काम चल रहा है… इसमें एक मिनट तक लग सकता है। आप यह पेज छोड़ सकते हैं; परिणाम सहेजा जाएगा।';
+
+  @override
   String get alreadyDispensed => 'यह पर्चा पहले ही दिया जा चुका है।';
 
   @override

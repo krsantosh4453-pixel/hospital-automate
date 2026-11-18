@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/ai/ui/ai_dashboard_screen.dart';
+import '../../features/ai/ui/ai_ui.dart';
+import '../../features/ai/ui/scribe_screen.dart';
 import '../../features/auth/ui/patient_login_screen.dart';
 import '../../features/auth/ui/register_screen.dart';
 import '../../features/auth/ui/staff_login_screen.dart';
@@ -91,6 +94,10 @@ GoRouter buildAppRouter({
     '${DoctorRoutes.consultation}/:visitId': (state) =>
         ConsultationScreen(visitId: _idOf(state, 'visitId')),
     DoctorRoutes.prescriptions: (_) => const DoctorPrescriptionsScreen(),
+    // AI assist: status, the doctor's scribe sessions, one visit's scribe.
+    AiRoutes.home: (_) => const AiDashboardScreen(),
+    '${AiRoutes.home}/visits/:visitId': (state) =>
+        ScribeScreen(visitId: _idOf(state, 'visitId')),
   };
   // Laboratory and billing desks, for every role the sidebar lets in (the
   // module check in redirectFor). Each page offers only the actions the

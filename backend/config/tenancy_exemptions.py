@@ -103,6 +103,8 @@ TENANCY_EXEMPTIONS = {
     "users.staff_admin.StaffMembershipView": (OWN_CHECKS, "Admin or Manager of the acting hospital"),
     "users.staff_invite.StaffInviteView": (OWN_CHECKS, "Admin or Manager of the acting hospital"),
     "users.staff_invite.StaffInviteResendView": (OWN_CHECKS, "Admin or Manager of the acting hospital"),
+    # Server configuration only (clinical staff); no patient or hospital rows
+    "ai_scribe.views.AICapabilitiesView": (PUBLIC, "Which AI providers/models are configured; no tenant data"),
     # Provider callbacks
     "notifications.views.TwilioStatusView": (WEBHOOK, "Signed by Twilio; one delivery status per call"),
 }

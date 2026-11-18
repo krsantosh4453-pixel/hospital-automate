@@ -9,6 +9,8 @@ import 'package:hms_mobile/core/network/api_client.dart';
 import 'package:hms_mobile/core/network/backend_health.dart';
 import 'package:hms_mobile/core/security/session_controller.dart';
 import 'package:hms_mobile/core/security/token_store.dart';
+import 'package:hms_mobile/features/ai/data/ai_repository.dart';
+import 'package:hms_mobile/features/ai/data/scribe_recorder.dart';
 import 'package:hms_mobile/features/auth/auth_repository.dart';
 import 'package:hms_mobile/features/auth/auth_service.dart';
 import 'package:hms_mobile/features/auth/google_identity.dart';
@@ -32,6 +34,7 @@ import 'fake_nursing_repository.dart';
 import 'fake_pharmacy_repository.dart';
 import 'fake_lab_repository.dart';
 import 'fake_ops_repositories.dart';
+import 'fake_ai_repository.dart';
 
 export 'fake_auth_repository.dart';
 export 'fake_doctor_repository.dart';
@@ -41,6 +44,7 @@ export 'fake_nursing_repository.dart';
 export 'fake_pharmacy_repository.dart';
 export 'fake_lab_repository.dart';
 export 'fake_ops_repositories.dart';
+export 'fake_ai_repository.dart';
 
 /// Answers every request with [respond] instead of touching the network.
 class FakeAdapter implements HttpClientAdapter {
@@ -107,6 +111,8 @@ AppServices testServices({
   IpdRepository? ipd,
   HospitalRepository? hospital,
   GoogleIdentity? google,
+  AiRepository? ai,
+  ScribeRecorder Function()? scribeRecorder,
 }) {
   final store = tokenStore ?? InMemoryTokenStore();
   final controller = SessionController(tokenStore: store, initial: session);
@@ -148,6 +154,8 @@ AppServices testServices({
     emergency: emergency ?? FakeEmergencyRepository(),
     ipd: ipd ?? FakeIpdRepository(),
     hospital: hospital ?? FakeHospitalRepository(),
+    aiOverride: ai ?? FakeAiRepository(),
+    scribeRecorderFactory: scribeRecorder ?? FakeScribeRecorder.new,
   );
 }
 

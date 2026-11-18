@@ -13,6 +13,7 @@ import '../../../shared/widgets/hms_dialog.dart';
 import '../../../shared/widgets/page_header.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../shared/widgets/tone.dart';
+import '../../ai/ui/ai_ui.dart';
 import '../../patient/record_loader.dart';
 import '../../patient/ui/patient_ui.dart';
 import '../data/doctor_models.dart';
@@ -279,6 +280,14 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
                 variant: HmsButtonVariant.secondary,
                 onPressed: () =>
                     context.go(DoctorRoutes.patient(visit.patientId!)),
+              ),
+            if (own && data.doctor != null)
+              HmsButton(
+                key: const Key('open-ai-scribe'),
+                label: t.aiScribeTitle,
+                icon: LucideIcons.mic,
+                variant: HmsButtonVariant.secondary,
+                onPressed: () => context.go(AiRoutes.visit(visit.id)),
               ),
           ],
         ),

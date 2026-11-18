@@ -477,8 +477,14 @@ AI_SCRIBE_ENABLED = True
 # Mock STT/LLM providers return canned clinical text. Never allow them where
 # real patients are documented.
 AI_SCRIBE_ALLOW_MOCK_PROVIDERS = False
-AI_SCRIBE_PROVIDER = 'openai'  # openai, anthropic, local
-AI_SCRIBE_MODEL = 'gpt-4'
+AI_SCRIBE_PROVIDER = os.environ.get('AI_SCRIBE_PROVIDER', 'openai')  # openai, local
+# Clinical drafting LLM: any OpenAI-compatible chat-completions host (OpenAI,
+# Groq, a self-hosted vLLM). The smallest model that supports JSON-schema
+# output is the default; nothing is called without a key.
+AI_SCRIBE_API_KEY = os.environ.get('AI_SCRIBE_API_KEY', '')
+AI_SCRIBE_LLM_BASE_URL = os.environ.get('AI_SCRIBE_LLM_BASE_URL', 'https://api.openai.com/v1')
+AI_SCRIBE_MODEL = os.environ.get('AI_SCRIBE_MODEL', 'gpt-4o-mini')
+AI_SCRIBE_LLM_TIMEOUT_SECONDS = int(os.environ.get('AI_SCRIBE_LLM_TIMEOUT_SECONDS', '60'))
 AI_SCRIBE_MAX_TOKENS = 4000
 AI_SCRIBE_TEMPERATURE = 0.1
 

@@ -379,7 +379,7 @@ AI_SCRIBE_ENABLED = os.environ.get('AI_SCRIBE_ENABLED', 'True').lower() == 'true
 AI_SCRIBE_ALLOW_MOCK_PROVIDERS = False
 AI_SCRIBE_PROVIDER = os.environ.get('AI_SCRIBE_PROVIDER', 'openai')
 AI_SCRIBE_API_KEY = os.environ.get('AI_SCRIBE_API_KEY')
-AI_SCRIBE_MODEL = os.environ.get('AI_SCRIBE_MODEL', 'gpt-4')
+AI_SCRIBE_MODEL = os.environ.get('AI_SCRIBE_MODEL', 'gpt-4o-mini')
 AI_SCRIBE_MAX_TOKENS = int(os.environ.get('AI_SCRIBE_MAX_TOKENS', '4000'))
 AI_SCRIBE_TEMPERATURE = float(os.environ.get('AI_SCRIBE_TEMPERATURE', '0.1'))
 
