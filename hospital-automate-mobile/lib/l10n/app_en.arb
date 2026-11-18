@@ -29,6 +29,10 @@
   "addDiagnosis": "Add diagnosis",
   "addMedicine": "Add medicine",
   "addOneMedicine": "Add at least one medicine.",
+  "admissionAndVisits": "Admission and visits",
+  "admissionReason": "Reason for admission",
+  "admittedOn": "Admitted on",
+  "admittingDoctor": "Admitting doctor",
   "ageLabel": "Age",
   "ageYears": "{age} y",
   "@ageYears": {
@@ -38,6 +42,7 @@
       }
     }
   },
+  "alreadyDispensed": "This prescription has already been dispensed.",
   "amountPaid": "Paid",
   "anotherDoctorsVisit": "This is another doctor's visit. You can read it but not add to it.",
   "appName": "HMS",
@@ -48,7 +53,24 @@
   "appointmentId": "Appointment ID",
   "appointmentStatus": "Appointment status",
   "appointmentsIntro": "Your bookings at the selected hospital.",
+  "assignedForShift": "Assigned to you · {shift}",
+  "@assignedForShift": {
+    "placeholders": {
+      "shift": {
+        "type": "String"
+      }
+    }
+  },
+  "assignedToMe": "Assigned to me",
   "atLeast8Characters": "At least 8 characters.",
+  "atMost": "At most {count}",
+  "@atMost": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "attentionBilling": "{count, plural, =1{1 invoice awaiting payment} other{{count} invoices awaiting payment}}",
   "@attentionBilling": {
     "placeholders": {
@@ -123,12 +145,37 @@
   "authStaffUseStaffLogin": "Staff accounts sign in on the staff portal.",
   "authTooManyRequests": "Too many attempts. Please try again later.",
   "authUnsupportedAccount": "This account cannot use the mobile app. Use the web app.",
+  "authorNotRecorded": "Author not recorded",
+  "availabilityDone": "Fully issued",
+  "availabilityInStock": "In stock",
+  "availabilityNone": "Not in stock",
+  "availabilityShort": "Not enough stock",
+  "availabilitySplit": "Needs several batches",
+  "awaitingBed": "Awaiting bed",
+  "awaitingVerification": "Awaiting verification",
   "back": "Back",
   "backToEmailLogin": "Back to email login",
   "backToHome": "Back to home",
   "backToSignIn": "Back to sign in",
   "backend": "Backend",
   "balanceDue": "Balance due",
+  "batch": "Batch",
+  "batchCode": "Batch {batch}",
+  "@batchCode": {
+    "placeholders": {
+      "batch": {
+        "type": "String"
+      }
+    }
+  },
+  "bedNumber": "Bed {bed}",
+  "@bedNumber": {
+    "placeholders": {
+      "bed": {
+        "type": "String"
+      }
+    }
+  },
   "bedsOccupiedOf": "{occupied} occupied of {total}",
   "@bedsOccupiedOf": {
     "placeholders": {
@@ -306,11 +353,27 @@
   "bookingRejected": "The hospital could not accept this booking. Check the details and try again.",
   "bookingSlotTaken": "This time was just booked by someone else. Please choose another time.",
   "bookingSlotUnavailable": "This time is no longer available. Please choose another time.",
+  "bpNeedsBoth": "Enter both systolic and diastolic blood pressure, or neither.",
   "calledPatients": "Called",
   "cancel": "Cancel",
+  "careTasks": "Care tasks",
+  "category": "Category",
   "changeNumber": "Change number",
+  "chargedOnBill": "Charged on bill {invoice} ({total}).",
+  "@chargedOnBill": {
+    "placeholders": {
+      "invoice": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "checkAgain": "Check again",
   "checkAndSavePrescription": "Check safety and save prescription",
+  "checkDispenseLines": "Check these lines before dispensing",
+  "checkPatientBeforeDose": "Check the patient's name and ID, the medicine, dose and route against the patient before you confirm.",
   "checkTheseFields": "Please check: {fields}",
   "@checkTheseFields": {
     "placeholders": {
@@ -341,9 +404,17 @@
   "completeConsultation": "Complete consultation",
   "completeConsultationBody": "The visit will be marked Completed. Records already saved stay as they are.",
   "completeConsultationTitle": "Complete this consultation?",
+  "completeTask": "Complete",
+  "completeTaskTitle": "Mark this task complete?",
   "completedToday": "Completed today",
+  "confirm": "Confirm",
   "confirmBooking": "Confirm booking",
+  "confirmDispenseTitle": "Dispense these medicines?",
+  "confirmGiveTitle": "Record this dose as given?",
+  "confirmHoldTitle": "Hold this dose?",
+  "confirmMissedTitle": "Record this dose as missed?",
   "confirmPassword": "Confirm password",
+  "confirmRefuseTitle": "Record that the patient refused this dose?",
   "consultationIntro": "Your visits. Open one to record vitals, notes, diagnoses, prescriptions and lab orders.",
   "consultationQueueHint": "Queue tokens are moved on the Queue page.",
   "continueAction": "Continue",
@@ -362,6 +433,7 @@
   "dashboardLoadFailed": "Dashboard figures could not be loaded",
   "date": "Date",
   "dateOfBirth": "Date of birth",
+  "department": "Department",
   "departments": "Departments",
   "departmentsIntro": "Work in each department opens after the right staff member signs in.",
   "deptAppointmentsText": "Bookings and the daily schedule.",
@@ -385,6 +457,40 @@
   "diagnosisName": "Diagnosis",
   "diagnosisNameRequired": "Enter the diagnosis.",
   "diagnosisType": "Type",
+  "dispense": "Dispense",
+  "dispenseNoBatch": "{medicine}: choose a stock batch",
+  "@dispenseNoBatch": {
+    "placeholders": {
+      "medicine": {
+        "type": "String"
+      }
+    }
+  },
+  "dispenseNoReason": "{medicine}: give the reason for the substitute",
+  "@dispenseNoReason": {
+    "placeholders": {
+      "medicine": {
+        "type": "String"
+      }
+    }
+  },
+  "dispenseNothingChosen": "Enter a quantity for at least one medicine.",
+  "dispenseOutcomeUnknown": "The hospital system could not be reached, so it is not known whether the medicines were issued. The prescription has been reloaded: check the dispensing history before trying again.",
+  "dispenseRefused": "The hospital system refused this dispense (stock, quantity, expiry or substitute check). Nothing was issued; the stock has been reloaded.",
+  "dispenseTooMany": "{medicine}: at most {count} can still be issued",
+  "@dispenseTooMany": {
+    "placeholders": {
+      "medicine": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dispensedInFull": "Dispensed in full. Stock was updated by the hospital system.",
+  "dispensedInPart": "Part of the prescription was dispensed; the rest can be given later.",
+  "dispensingHistory": "Dispensing history",
   "doctor": "Doctor",
   "doctorAppointmentsIntro": "Bookings with you at the selected hospital.",
   "doctorLabIntro": "Lab tests of patients in your care. Values appear once the laboratory releases them.",
@@ -395,7 +501,49 @@
   "documentsIntro": "Documents the hospital has shared with you.",
   "documentsViewOnWeb": "Opening files in the app is not available yet. Use the patient portal on the web to open them.",
   "dosage": "Dosage",
+  "doseDue": "Due",
+  "doseDueAt": "Due {time}",
+  "@doseDueAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "doseExcluded": "Excluded by doctor",
+  "doseGiven": "Given",
+  "doseHeld": "Held",
+  "doseMissed": "Missed",
+  "doseNotRecorded": "This dose was not recorded: it was already recorded (perhaps by another nurse) or the doctor's order is no longer in force. The list has been refreshed.",
+  "doseOutcomeUnknown": "The hospital system could not be reached, so it is not known whether the dose was recorded. The list has been refreshed: check it before trying again.",
+  "doseOverdueAt": "Overdue since {time}",
+  "@doseOverdueAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "doseRecorded": "{medicine}: {status} at {time}, confirmed by the hospital system.",
+  "@doseRecorded": {
+    "placeholders": {
+      "medicine": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "doseRefused": "Refused",
+  "doseVomited": "Vomited",
+  "dosesDue": "Doses due",
+  "dosesOverdue": "Overdue",
   "draft": "Draft",
+  "drugSchedule": "Drug schedule",
   "duration": "Duration",
   "email": "Email",
   "emailCodeNotSent": "The verification email could not be sent. Ask the hospital to check its email settings.",
@@ -432,6 +580,24 @@
   "estimatesAreApproximate": "Wait times are estimates, not appointment times. Please stay nearby so you don't miss your call.",
   "expandSidebar": "Expand sidebar",
   "expectedAround": "Expected around",
+  "expiredInStock": "Expired",
+  "expiresOn": "Expires {date}",
+  "@expiresOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "expiringSoonCount": "{count, plural, =1{1 batch in stock expires within 30 days} other{{count} batches in stock expire within 30 days}}",
+  "@expiringSoonCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "expiryDate": "Expiry date",
   "familyChoosePatient": "Whose records do you want to view?",
   "familyCodeSentIfAccess": "If {phone} has family access, a 6-digit code was sent to it.",
   "@familyCodeSentIfAccess": {
@@ -498,6 +664,19 @@
   "howBookingWorks": "How booking works",
   "howBookingWorksIntro": "You can see the steps before signing in.",
   "icd10Search": "Search ICD-10 (optional)",
+  "inStock": "In stock",
+  "inStockCount": "{count} {unit} in stock",
+  "@inStockCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "inStockMedicines": "In stock",
   "instructions": "Instructions",
   "interfaceLanguage": "Interface language",
   "invoicesPaidTotal": "Invoices paid / total",
@@ -679,7 +858,15 @@
   "loginWithTokenId": "Login with Token / ID",
   "logout": "Logout",
   "lookupAndLogin": "Lookup & Login",
+  "lowStock": "Low stock",
+  "manufacturer": "Manufacturer",
+  "markGiven": "Given",
+  "markHeld": "Hold",
+  "markMissed": "Missed",
   "markReadFailed": "Could not mark as read",
+  "markRefused": "Refused",
+  "medicationAdministration": "Medication administration",
+  "medicationOrdersByDoctor": "Medication orders are written by the doctor. Nurses record the doses given under them.",
   "medicationSafetyAlerts": "Medication safety alerts",
   "medicineCount": "{count, plural, =1{1 medicine} other{{count} medicines}}",
   "@medicineCount": {
@@ -714,6 +901,7 @@
       }
     }
   },
+  "medicineStock": "Medicines",
   "medicines": "Medicines",
   "minutesShort": "{minutes} min",
   "@minutesShort": {
@@ -733,8 +921,10 @@
       }
     }
   },
+  "mrp": "MRP",
   "myDoctorProfile": "My doctor profile",
   "myHospitals": "My hospitals",
+  "myNurseProfile": "My nurse profile",
   "myProfile": "My profile",
   "name": "Name",
   "navAdminDashboard": "Admin Dashboard",
@@ -773,6 +963,7 @@
   "newPassword": "New password",
   "newToHms": "New to the Hospital Management System?",
   "noAccessTitle": "You don't have access",
+  "noActiveStay": "No current admission or open visit",
   "noActiveToken": "No active token",
   "noActiveTokenHint": "You don't have a consultation waiting at the moment.",
   "noAppointmentsMatch": "No appointments match this filter",
@@ -783,8 +974,12 @@
   "noBillsYet": "No bills yet",
   "noConsultationsYet": "No completed consultations yet",
   "noDiagnosesYet": "No diagnoses yet",
+  "noDispensingYet": "Nothing dispensed yet",
   "noDoctorInbox": "Doctor notifications are not available: the hospital system has no inbox for staff yet.",
   "noDocumentsYet": "No documents yet",
+  "noDosesDue": "No doses due",
+  "noDutyToday": "No duty assigned for today",
+  "noEncounterForVitals": "Vitals are recorded on an admission or an open OPD visit; this patient has neither.",
   "noFreeSlots": "No free time on this day. Try another date.",
   "noHistoryYet": "No history recorded",
   "noHospitalAccess": "Your account is not active in any hospital yet. Ask your hospital administrator.",
@@ -792,9 +987,12 @@
   "noLabOrdersForVisit": "No lab tests ordered on this visit",
   "noLabReportsYet": "No lab reports yet",
   "noLabReportsYetHint": "Reports for tests in progress appear once they are released.",
+  "noMedicationOrders": "No active medication orders",
+  "noMedicinesFound": "No medicines found",
   "noMedicinesListed": "No medicines listed",
   "noNotesYet": "No notes yet",
   "noNotifications": "No notifications",
+  "noOpenTasks": "No open tasks",
   "noOtherDevices": "No signed-in devices.",
   "noPageMatches": "No page matches “{query}”.",
   "@noPageMatches": {
@@ -809,16 +1007,23 @@
   "noPatientsYet": "No patients registered yet",
   "noPaymentsYet": "No payments recorded",
   "noPrescriptionsForVisit": "No prescription on this visit yet",
+  "noPrescriptionsInQueue": "No prescriptions here",
   "noPrescriptionsYet": "No prescriptions yet",
   "noPrescriptionsYetHint": "Prescriptions from your visits will appear here.",
+  "noReadingsYet": "No readings recorded yet",
   "noResultValues": "No values in this report",
   "noShowTitle": "Mark as no-show?",
+  "noStaffInbox": "Notifications are not available: the hospital system has no inbox for staff yet.",
+  "noStockMovements": "No stock movements yet",
   "noTokenServed": "No token being served",
   "noUpcomingAppointments": "No upcoming appointments",
+  "noUsableBatch": "No unexpired batch of this medicine is in stock.",
   "noVisitsToShow": "No visits to show",
   "noVisitsToShowHint": "Visits are created at the reception when a patient arrives.",
   "noVisitsYet": "No visits yet",
   "noVitalsYet": "No vitals recorded on this visit",
+  "noWardPatients": "No patients on your duty",
+  "noWardPatientsHint": "Patients appear here when they are in a ward you are on duty in, or assigned to you for today's shift.",
   "nobodyCalled": "Nobody called",
   "nobodyInConsultation": "Nobody in consultation",
   "nobodyWaiting": "Nobody waiting",
@@ -846,6 +1051,7 @@
   },
   "notEligibleTitle": "You are not eligible for this work",
   "notMemberOfAnyHospital": "You are not a member of any hospital yet.",
+  "notScheduled": "Not scheduled",
   "notSignedInSignIn": "Not signed in · Sign in",
   "notVerified": "Not verified",
   "noteAssessment": "Assessment",
@@ -857,6 +1063,25 @@
   "notePastHistory": "Past history",
   "notePlan": "Plan",
   "notePresentIllness": "History of present illness",
+  "noteSaved": "Note saved by the hospital system.",
+  "noteText": "Note",
+  "noteTextRequired": "Write the note first.",
+  "noteTooLong": "Keep the note under {count} characters.",
+  "@noteTooLong": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noteType": "Note type",
+  "noteTypeCommunication": "Communication",
+  "noteTypeEducation": "Patient education",
+  "noteTypeHandoff": "Shift handoff",
+  "noteTypeIncident": "Incident report",
+  "noteTypeProgress": "Progress note",
+  "notesAreFinal": "Saved notes cannot be edited. To correct one, add a new note.",
+  "nothingLeftToDispense": "Nothing is left to dispense on this prescription.",
   "nothingNeedsAttention": "Nothing needs attention",
   "nothingNeedsAttentionText": "No waiting patients, urgent tests or active emergencies right now.",
   "notifications": "Notifications",
@@ -870,10 +1095,22 @@
       }
     }
   },
+  "nurseProfileMissing": "No nurse profile is linked to your login at this hospital. Ask the hospital Admin to link it.",
+  "nursingNotes": "Nursing notes",
+  "onThisStay": "This admission",
+  "opdVisitOn": "OPD visit · {date}",
+  "@opdVisitOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "open": "Open",
   "openConsultation": "Open consultation",
   "openNavigation": "Open navigation",
   "openPatientRecord": "Open patient record",
+  "openTasks": "Open tasks",
   "openVisits": "Open visits",
   "operations": "Operations",
   "orDivider": "OR",
@@ -889,6 +1126,7 @@
       }
     }
   },
+  "outOfStock": "Out of stock",
   "outstandingBalance": "Outstanding balance",
   "overrideReason": "Reason to prescribe anyway",
   "overrideReasonHint": "At least {count} characters. It is recorded with the prescription.",
@@ -921,6 +1159,7 @@
   "patientProfile": "Patient profile",
   "patientSignIn": "Patient sign in",
   "patientSignInIntro": "Patients see their own appointments, prescriptions, reports and bills.",
+  "patientsInCare": "Patients in care",
   "payAtHospital": "Bills are paid at the hospital",
   "payAtHospitalBody": "Online payment is not available yet. Payments made at the billing desk appear here.",
   "paymentBankTransfer": "Bank transfer",
@@ -928,6 +1167,10 @@
   "paymentCash": "Cash",
   "paymentHistory": "Payment history",
   "paymentUpi": "UPI",
+  "pendingPrescriptions": "Prescriptions to dispense",
+  "pendingTasks": "Pending tasks",
+  "pharmacyActivity": "Activity",
+  "pharmacyIntro": "Prescriptions to dispense, medicine stock and recent activity at this hospital.",
   "pickDate": "Pick a date",
   "pickerChange": "Change",
   "pickerTypeMore": "Type at least {count} characters.",
@@ -951,9 +1194,34 @@
     }
   },
   "prescribeAnyway": "Prescribe anyway",
+  "prescribedIssuedLeft": "Prescribed {prescribed} · Issued {issued} · Left {left}",
+  "@prescribedIssuedLeft": {
+    "placeholders": {
+      "prescribed": {
+        "type": "int"
+      },
+      "issued": {
+        "type": "int"
+      },
+      "left": {
+        "type": "int"
+      }
+    }
+  },
   "prescription": "Prescription",
+  "prescriptionCancelledNoDispense": "This prescription was cancelled; it cannot be dispensed.",
+  "prescriptionCode": "RX-{id}",
+  "@prescriptionCode": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
   "prescriptionFreeTextNote": "Write each medicine as on the web form. Nothing is suggested by the app.",
   "prescriptionMaybeSaved": "This prescription may already be saved. Check the list below before saving again.",
+  "prescriptionNeedsVerification": "This paper prescription must be verified by a second pharmacist or an Admin before it is dispensed.",
+  "prescriptionQueue": "Prescriptions",
   "prescriptionSaved": "Prescription #{id} saved by the hospital system.",
   "@prescriptionSaved": {
     "placeholders": {
@@ -964,6 +1232,8 @@
   },
   "prescriptionsIntro": "Medicines your doctors have prescribed.",
   "priority": "Priority",
+  "priorityRoutine": "Routine",
+  "priorityStat": "STAT",
   "profileChangesAtHospital": "To change your details, please contact the hospital reception.",
   "profileIntro": "Your details as the hospital has recorded them.",
   "profileMenuFor": "Profile menu for {name}",
@@ -974,7 +1244,9 @@
       }
     }
   },
+  "qualification": "Qualification",
   "quantity": "Quantity",
+  "quantityNow": "Quantity to issue now",
   "queueCall": "Call",
   "queueComplete": "Complete",
   "queueDoctorBusy": "This doctor already has a patient in consultation. Complete that one first.",
@@ -1003,10 +1275,15 @@
   "queueStatus": "Queue status",
   "quickActions": "Quick actions",
   "reasonForVisit": "Reason for visit",
+  "reasonRequired": "Reason (required)",
   "recentConsultations": "Recent consultations",
+  "recentDispensing": "Recent dispensing",
   "recentLabReports": "Recent lab reports",
+  "recentNursingActivity": "Recent nursing activity",
   "recentPrescriptions": "Recent prescriptions",
+  "recentStockMovements": "Recent stock movements",
   "recentlyRegistered": "Recently registered patients",
+  "recordOn": "Record on",
   "recordSignedNoChange": "This record is signed and cannot be changed. Add a new record instead.",
   "referenceRange": "Reference range",
   "refresh": "Refresh",
@@ -1027,6 +1304,7 @@
   "releasedResults": "Released results",
   "remarks": "Remarks",
   "removeMedicine": "Remove medicine",
+  "reorderLevel": "Reorder level",
   "reportNotes": "Report notes",
   "resendCode": "Resend code",
   "resetCodeSent": "If an active staff account matches, a code was sent to its registered mobile number.",
@@ -1058,13 +1336,27 @@
   "roleNurse": "Nurse",
   "rolePharmacist": "Pharmacist",
   "roleReceptionist": "Receptionist",
+  "roomNumber": "Room {room}",
+  "@roomNumber": {
+    "placeholders": {
+      "room": {
+        "type": "String"
+      }
+    }
+  },
+  "route": "Route",
+  "saveNote": "Save note",
   "saveNoteDraft": "Save note as draft",
   "saveVitals": "Save vitals",
+  "scheduledFor": "Scheduled for",
   "searchByNameOrCity": "Search by name or city",
   "searchHospitals": "Search hospitals",
+  "searchMedicinesHint": "Search medicines by name",
   "searchPages": "Search pages",
   "searchPatientName": "Search by patient name",
   "searchPatientsHint": "Name, mobile number or UHID",
+  "searchPrescriptionsHint": "RX number, patient name or UHID",
+  "searchWardPatients": "Search by name, ward or bed",
   "selectDoctor": "Select doctor",
   "selectHospital": "Select hospital",
   "selectHospitalForDashboard": "Select a hospital from the header to see its dashboard.",
@@ -1078,6 +1370,20 @@
   "sessionEndedNotice": "Your session has ended. Please sign in again.",
   "setNewPassword": "Set new password",
   "settings": "Settings",
+  "shiftEvening": "Evening",
+  "shiftMorning": "Morning",
+  "shiftNight": "Night",
+  "showingFirstOf": "Showing the first {shown} of {total}. Search to narrow the list.",
+  "@showingFirstOf": {
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "signIn": "Sign in",
   "signInMethod": "Sign-in method",
   "signInRequired": "Sign-in required",
@@ -1128,15 +1434,21 @@
   "staffSignIn": "Staff sign in",
   "staffSignInIntro": "Use your hospital staff account.",
   "startConsultation": "Start consultation",
+  "startTask": "Start",
   "status": "Status",
   "statusAcknowledged": "Acknowledged",
+  "statusAdmitted": "Admitted",
   "statusCalled": "Called",
   "statusCancelled": "Cancelled",
   "statusCheckedIn": "Checked in",
   "statusCompleted": "Completed",
   "statusConfirmed": "Confirmed",
+  "statusDeferred": "Deferred",
+  "statusDischargeInitiated": "Discharge initiated",
+  "statusDischarged": "Discharged",
   "statusDispensed": "Dispensed",
   "statusInConsultation": "In consultation",
+  "statusInProgress": "In progress",
   "statusNoShow": "No show",
   "statusPaid": "Paid",
   "statusPartiallyDispensed": "Partly dispensed",
@@ -1155,6 +1467,23 @@
   "stepSelectDoctor": "Select doctor",
   "stepSelectDoctorText": "Choose a department and doctor.",
   "stepSelectHospitalText": "Pick where you want to be seen.",
+  "stockAdjust": "Adjusted",
+  "stockBatch": "Stock batch",
+  "stockChangedByStore": "Stock is read-only here. It changes only when medicines are dispensed or received, or when the store (Admin, Hospital Manager or Inventory Staff) corrects it.",
+  "stockIn": "In",
+  "stockMovements": "Stock movements",
+  "stockOut": "Out",
+  "substitute": "Substitute",
+  "substituteFor": "instead of {medicine}",
+  "@substituteFor": {
+    "placeholders": {
+      "medicine": {
+        "type": "String"
+      }
+    }
+  },
+  "substituteReason": "Why is a substitute given?",
+  "supplier": "Supplier",
   "switchingHospitalNote": "Switching hospital changes every list you see to that hospital's records.",
   "tabEmail": "Email",
   "tabFamily": "Family",
@@ -1173,9 +1502,11 @@
   "tilePatientsToday": "Patients registered today",
   "tileWaitingInQueue": "Waiting in queue",
   "timeLabel": "Time",
+  "toDispense": "To dispense",
   "todayAtAGlance": "Today at a glance",
   "todaysAppointments": "Today's appointments",
   "todaysPatientFlow": "Today's patient flow",
+  "todaysShift": "Today's duty",
   "tokenCalled": "Your token has been called",
   "tokenCalledBody": "Please go to the consultation area now.",
   "tokenIdHint": "Use the patient ID from registration together with your account password.",
@@ -1191,6 +1522,7 @@
     }
   },
   "tokenOrPatientId": "Token Number / Patient ID",
+  "totalMedicines": "Medicine batches",
   "tryAgain": "Try again",
   "typeModuleName": "Type a module name…",
   "typeToSearch": "Type at least {count} letters to search",
@@ -1201,6 +1533,7 @@
       }
     }
   },
+  "unitPrice": "Unit price",
   "unread": "Unread",
   "unreadNotifications": "{count, plural, =1{You have 1 unread notification} other{You have {count} unread notifications}}",
   "@unreadNotifications": {
@@ -1240,6 +1573,7 @@
   },
   "visitClosedReadOnly": "This visit is closed. Its records are shown read-only.",
   "visits": "Visits",
+  "vitalBloodPressure": "Blood pressure",
   "vitalBloodSugar": "Blood sugar",
   "vitalDiastolic": "Diastolic BP",
   "vitalHeight": "Height",
@@ -1258,6 +1592,10 @@
   "vitals": "Vitals",
   "vitalsSaved": "Vitals saved by the hospital system.",
   "waitingPatients": "Waiting",
+  "wardAndBed": "Ward and bed",
+  "wardAttention": "Needs attention on the ward",
+  "wardPatients": "Ward patients",
+  "wardPatientsIntro": "Patients of your duty today: in your wards, or assigned to you.",
   "weWillSendCode": "We'll send a 6-digit verification code",
   "welcome": "Welcome",
   "writeInConsultation": "Write in a consultation",

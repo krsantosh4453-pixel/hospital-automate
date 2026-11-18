@@ -5,6 +5,21 @@ import 'api_client.dart';
 /// few pages, and this bounds the work if it does.
 const maxListPages = 5;
 
+/// The first page of a DRF list and the server's total `count` (null when
+/// the list is not paged), for counts and "recent" lists.
+Future<({List<Map<String, Object?>> rows, int? count})> getFirstPage(
+  ApiClient api,
+  String path, {
+  Map<String, Object?>? query,
+}) => api.get<({List<Map<String, Object?>> rows, int? count})>(
+  path,
+  query: query,
+  decode: (json) => (
+    rows: List.unmodifiable(readRows(json)),
+    count: json is Map ? readInt(json['count']) : readRows(json).length,
+  ),
+);
+
 /// Every row of a DRF list at [path], following `next` up to [maxPages].
 Future<List<Map<String, Object?>>> getAllRows(
   ApiClient api,

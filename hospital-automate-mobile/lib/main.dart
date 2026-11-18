@@ -19,7 +19,9 @@ import 'features/billing/data/billing_repository.dart';
 import 'features/dashboard/dashboard_repository.dart';
 import 'features/laboratory/data/lab_repository.dart';
 import 'features/doctor/data/doctor_repository.dart';
+import 'features/nursing/data/nursing_repository.dart';
 import 'features/patient/data/patient_repository.dart';
+import 'features/pharmacy/data/pharmacy_repository.dart';
 
 const _healthTimeout = Duration(seconds: 10);
 
@@ -62,6 +64,7 @@ Future<void> main() async {
     ),
   );
 
+  final doctor = ApiDoctorRepository(api);
   runApp(
     HmsApp(
       services: AppServices(
@@ -73,9 +76,11 @@ Future<void> main() async {
         checkHealth: () => health.check(config.healthUrl),
         dashboard: ApiDashboardRepository(api),
         patient: ApiPatientRepository(api),
-        doctor: ApiDoctorRepository(api),
+        doctor: doctor,
         laboratory: ApiLabRepository(api),
         billing: ApiBillingRepository(api),
+        nursing: ApiNursingRepository(api, doctor),
+        pharmacy: ApiPharmacyRepository(api),
       ),
     ),
   );

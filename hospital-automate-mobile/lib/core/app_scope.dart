@@ -5,7 +5,9 @@ import '../features/billing/data/billing_repository.dart';
 import '../features/laboratory/data/lab_repository.dart';
 import '../features/dashboard/dashboard_repository.dart';
 import '../features/doctor/data/doctor_repository.dart';
+import '../features/nursing/data/nursing_repository.dart';
 import '../features/patient/data/patient_repository.dart';
+import '../features/pharmacy/data/pharmacy_repository.dart';
 import 'config/api_config.dart';
 import 'localization/locale_controller.dart';
 import 'network/api_client.dart';
@@ -28,6 +30,8 @@ class AppServices {
     required this.doctor,
     required this.laboratory,
     required this.billing,
+    required this.nursing,
+    required this.pharmacy,
   });
 
   final ApiConfig config;
@@ -51,6 +55,12 @@ class AppServices {
 
   /// Invoices, payments and refunds (billing desk pages).
   final BillingRepository billing;
+
+  /// Ward work of the signed-in nurse (nursing pages).
+  final NursingRepository nursing;
+
+  /// Stock, prescriptions and dispensing (pharmacy pages).
+  final PharmacyRepository pharmacy;
 }
 
 class AppScope extends InheritedWidget {

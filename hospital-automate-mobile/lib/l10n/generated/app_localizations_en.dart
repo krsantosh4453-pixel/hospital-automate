@@ -78,12 +78,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addOneMedicine => 'Add at least one medicine.';
 
   @override
+  String get admissionAndVisits => 'Admission and visits';
+
+  @override
+  String get admissionReason => 'Reason for admission';
+
+  @override
+  String get admittedOn => 'Admitted on';
+
+  @override
+  String get admittingDoctor => 'Admitting doctor';
+
+  @override
   String get ageLabel => 'Age';
 
   @override
   String ageYears(String age) {
     return '$age y';
   }
+
+  @override
+  String get alreadyDispensed =>
+      'This prescription has already been dispensed.';
 
   @override
   String get amountPaid => 'Paid';
@@ -118,7 +134,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appointmentsIntro => 'Your bookings at the selected hospital.';
 
   @override
+  String assignedForShift(String shift) {
+    return 'Assigned to you · $shift';
+  }
+
+  @override
+  String get assignedToMe => 'Assigned to me';
+
+  @override
   String get atLeast8Characters => 'At least 8 characters.';
+
+  @override
+  String atMost(int count) {
+    return 'At most $count';
+  }
 
   @override
   String attentionBilling(int count) {
@@ -302,6 +331,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'This account cannot use the mobile app. Use the web app.';
 
   @override
+  String get authorNotRecorded => 'Author not recorded';
+
+  @override
+  String get availabilityDone => 'Fully issued';
+
+  @override
+  String get availabilityInStock => 'In stock';
+
+  @override
+  String get availabilityNone => 'Not in stock';
+
+  @override
+  String get availabilityShort => 'Not enough stock';
+
+  @override
+  String get availabilitySplit => 'Needs several batches';
+
+  @override
+  String get awaitingBed => 'Awaiting bed';
+
+  @override
+  String get awaitingVerification => 'Awaiting verification';
+
+  @override
   String get back => 'Back';
 
   @override
@@ -318,6 +371,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get balanceDue => 'Balance due';
+
+  @override
+  String get batch => 'Batch';
+
+  @override
+  String batchCode(String batch) {
+    return 'Batch $batch';
+  }
+
+  @override
+  String bedNumber(String bed) {
+    return 'Bed $bed';
+  }
 
   @override
   String bedsOccupiedOf(String occupied, String total) {
@@ -664,19 +730,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'This time is no longer available. Please choose another time.';
 
   @override
+  String get bpNeedsBoth =>
+      'Enter both systolic and diastolic blood pressure, or neither.';
+
+  @override
   String get calledPatients => 'Called';
 
   @override
   String get cancel => 'Cancel';
 
   @override
+  String get careTasks => 'Care tasks';
+
+  @override
+  String get category => 'Category';
+
+  @override
   String get changeNumber => 'Change number';
+
+  @override
+  String chargedOnBill(String invoice, String total) {
+    return 'Charged on bill $invoice ($total).';
+  }
 
   @override
   String get checkAgain => 'Check again';
 
   @override
   String get checkAndSavePrescription => 'Check safety and save prescription';
+
+  @override
+  String get checkDispenseLines => 'Check these lines before dispensing';
+
+  @override
+  String get checkPatientBeforeDose =>
+      'Check the patient\'s name and ID, the medicine, dose and route against the patient before you confirm.';
 
   @override
   String checkTheseFields(String fields) {
@@ -732,13 +820,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get completeConsultationTitle => 'Complete this consultation?';
 
   @override
+  String get completeTask => 'Complete';
+
+  @override
+  String get completeTaskTitle => 'Mark this task complete?';
+
+  @override
   String get completedToday => 'Completed today';
+
+  @override
+  String get confirm => 'Confirm';
 
   @override
   String get confirmBooking => 'Confirm booking';
 
   @override
+  String get confirmDispenseTitle => 'Dispense these medicines?';
+
+  @override
+  String get confirmGiveTitle => 'Record this dose as given?';
+
+  @override
+  String get confirmHoldTitle => 'Hold this dose?';
+
+  @override
+  String get confirmMissedTitle => 'Record this dose as missed?';
+
+  @override
   String get confirmPassword => 'Confirm password';
+
+  @override
+  String get confirmRefuseTitle => 'Record that the patient refused this dose?';
 
   @override
   String get consultationIntro =>
@@ -776,6 +888,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dateOfBirth => 'Date of birth';
+
+  @override
+  String get department => 'Department';
 
   @override
   String get departments => 'Departments';
@@ -848,6 +963,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diagnosisType => 'Type';
 
   @override
+  String get dispense => 'Dispense';
+
+  @override
+  String dispenseNoBatch(String medicine) {
+    return '$medicine: choose a stock batch';
+  }
+
+  @override
+  String dispenseNoReason(String medicine) {
+    return '$medicine: give the reason for the substitute';
+  }
+
+  @override
+  String get dispenseNothingChosen =>
+      'Enter a quantity for at least one medicine.';
+
+  @override
+  String get dispenseOutcomeUnknown =>
+      'The hospital system could not be reached, so it is not known whether the medicines were issued. The prescription has been reloaded: check the dispensing history before trying again.';
+
+  @override
+  String get dispenseRefused =>
+      'The hospital system refused this dispense (stock, quantity, expiry or substitute check). Nothing was issued; the stock has been reloaded.';
+
+  @override
+  String dispenseTooMany(String medicine, int count) {
+    return '$medicine: at most $count can still be issued';
+  }
+
+  @override
+  String get dispensedInFull =>
+      'Dispensed in full. Stock was updated by the hospital system.';
+
+  @override
+  String get dispensedInPart =>
+      'Part of the prescription was dispensed; the rest can be given later.';
+
+  @override
+  String get dispensingHistory => 'Dispensing history';
+
+  @override
   String get doctor => 'Doctor';
 
   @override
@@ -885,7 +1041,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dosage => 'Dosage';
 
   @override
+  String get doseDue => 'Due';
+
+  @override
+  String doseDueAt(String time) {
+    return 'Due $time';
+  }
+
+  @override
+  String get doseExcluded => 'Excluded by doctor';
+
+  @override
+  String get doseGiven => 'Given';
+
+  @override
+  String get doseHeld => 'Held';
+
+  @override
+  String get doseMissed => 'Missed';
+
+  @override
+  String get doseNotRecorded =>
+      'This dose was not recorded: it was already recorded (perhaps by another nurse) or the doctor\'s order is no longer in force. The list has been refreshed.';
+
+  @override
+  String get doseOutcomeUnknown =>
+      'The hospital system could not be reached, so it is not known whether the dose was recorded. The list has been refreshed: check it before trying again.';
+
+  @override
+  String doseOverdueAt(String time) {
+    return 'Overdue since $time';
+  }
+
+  @override
+  String doseRecorded(String medicine, String status, String time) {
+    return '$medicine: $status at $time, confirmed by the hospital system.';
+  }
+
+  @override
+  String get doseRefused => 'Refused';
+
+  @override
+  String get doseVomited => 'Vomited';
+
+  @override
+  String get dosesDue => 'Doses due';
+
+  @override
+  String get dosesOverdue => 'Overdue';
+
+  @override
   String get draft => 'Draft';
+
+  @override
+  String get drugSchedule => 'Drug schedule';
 
   @override
   String get duration => 'Duration';
@@ -988,6 +1197,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get expectedAround => 'Expected around';
+
+  @override
+  String get expiredInStock => 'Expired';
+
+  @override
+  String expiresOn(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String expiringSoonCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count batches in stock expire within 30 days',
+      one: '1 batch in stock expires within 30 days',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get expiryDate => 'Expiry date';
 
   @override
   String get familyChoosePatient => 'Whose records do you want to view?';
@@ -1123,6 +1354,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get icd10Search => 'Search ICD-10 (optional)';
+
+  @override
+  String get inStock => 'In stock';
+
+  @override
+  String inStockCount(int count, String unit) {
+    return '$count $unit in stock';
+  }
+
+  @override
+  String get inStockMedicines => 'In stock';
 
   @override
   String get instructions => 'Instructions';
@@ -1474,7 +1716,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lookupAndLogin => 'Lookup & Login';
 
   @override
+  String get lowStock => 'Low stock';
+
+  @override
+  String get manufacturer => 'Manufacturer';
+
+  @override
+  String get markGiven => 'Given';
+
+  @override
+  String get markHeld => 'Hold';
+
+  @override
+  String get markMissed => 'Missed';
+
+  @override
   String get markReadFailed => 'Could not mark as read';
+
+  @override
+  String get markRefused => 'Refused';
+
+  @override
+  String get medicationAdministration => 'Medication administration';
+
+  @override
+  String get medicationOrdersByDoctor =>
+      'Medication orders are written by the doctor. Nurses record the doses given under them.';
 
   @override
   String get medicationSafetyAlerts => 'Medication safety alerts';
@@ -1509,6 +1776,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get medicineStock => 'Medicines';
+
+  @override
   String get medicines => 'Medicines';
 
   @override
@@ -1529,10 +1799,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get mrp => 'MRP';
+
+  @override
   String get myDoctorProfile => 'My doctor profile';
 
   @override
   String get myHospitals => 'My hospitals';
+
+  @override
+  String get myNurseProfile => 'My nurse profile';
 
   @override
   String get myProfile => 'My profile';
@@ -1649,6 +1925,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noAccessTitle => 'You don\'t have access';
 
   @override
+  String get noActiveStay => 'No current admission or open visit';
+
+  @override
   String get noActiveToken => 'No active token';
 
   @override
@@ -1681,11 +1960,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noDiagnosesYet => 'No diagnoses yet';
 
   @override
+  String get noDispensingYet => 'Nothing dispensed yet';
+
+  @override
   String get noDoctorInbox =>
       'Doctor notifications are not available: the hospital system has no inbox for staff yet.';
 
   @override
   String get noDocumentsYet => 'No documents yet';
+
+  @override
+  String get noDosesDue => 'No doses due';
+
+  @override
+  String get noDutyToday => 'No duty assigned for today';
+
+  @override
+  String get noEncounterForVitals =>
+      'Vitals are recorded on an admission or an open OPD visit; this patient has neither.';
 
   @override
   String get noFreeSlots => 'No free time on this day. Try another date.';
@@ -1711,6 +2003,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Reports for tests in progress appear once they are released.';
 
   @override
+  String get noMedicationOrders => 'No active medication orders';
+
+  @override
+  String get noMedicinesFound => 'No medicines found';
+
+  @override
   String get noMedicinesListed => 'No medicines listed';
 
   @override
@@ -1718,6 +2016,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noNotifications => 'No notifications';
+
+  @override
+  String get noOpenTasks => 'No open tasks';
 
   @override
   String get noOtherDevices => 'No signed-in devices.';
@@ -1743,11 +2044,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noPrescriptionsForVisit => 'No prescription on this visit yet';
 
   @override
+  String get noPrescriptionsInQueue => 'No prescriptions here';
+
+  @override
   String get noPrescriptionsYet => 'No prescriptions yet';
 
   @override
   String get noPrescriptionsYetHint =>
       'Prescriptions from your visits will appear here.';
+
+  @override
+  String get noReadingsYet => 'No readings recorded yet';
 
   @override
   String get noResultValues => 'No values in this report';
@@ -1756,10 +2063,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noShowTitle => 'Mark as no-show?';
 
   @override
+  String get noStaffInbox =>
+      'Notifications are not available: the hospital system has no inbox for staff yet.';
+
+  @override
+  String get noStockMovements => 'No stock movements yet';
+
+  @override
   String get noTokenServed => 'No token being served';
 
   @override
   String get noUpcomingAppointments => 'No upcoming appointments';
+
+  @override
+  String get noUsableBatch =>
+      'No unexpired batch of this medicine is in stock.';
 
   @override
   String get noVisitsToShow => 'No visits to show';
@@ -1773,6 +2091,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noVitalsYet => 'No vitals recorded on this visit';
+
+  @override
+  String get noWardPatients => 'No patients on your duty';
+
+  @override
+  String get noWardPatientsHint =>
+      'Patients appear here when they are in a ward you are on duty in, or assigned to you for today\'s shift.';
 
   @override
   String get nobodyCalled => 'Nobody called';
@@ -1810,6 +2135,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'You are not a member of any hospital yet.';
 
   @override
+  String get notScheduled => 'Not scheduled';
+
+  @override
   String get notSignedInSignIn => 'Not signed in · Sign in';
 
   @override
@@ -1843,6 +2171,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notePresentIllness => 'History of present illness';
 
   @override
+  String get noteSaved => 'Note saved by the hospital system.';
+
+  @override
+  String get noteText => 'Note';
+
+  @override
+  String get noteTextRequired => 'Write the note first.';
+
+  @override
+  String noteTooLong(int count) {
+    return 'Keep the note under $count characters.';
+  }
+
+  @override
+  String get noteType => 'Note type';
+
+  @override
+  String get noteTypeCommunication => 'Communication';
+
+  @override
+  String get noteTypeEducation => 'Patient education';
+
+  @override
+  String get noteTypeHandoff => 'Shift handoff';
+
+  @override
+  String get noteTypeIncident => 'Incident report';
+
+  @override
+  String get noteTypeProgress => 'Progress note';
+
+  @override
+  String get notesAreFinal =>
+      'Saved notes cannot be edited. To correct one, add a new note.';
+
+  @override
+  String get nothingLeftToDispense =>
+      'Nothing is left to dispense on this prescription.';
+
+  @override
   String get nothingNeedsAttention => 'Nothing needs attention';
 
   @override
@@ -1865,6 +2233,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get nurseProfileMissing =>
+      'No nurse profile is linked to your login at this hospital. Ask the hospital Admin to link it.';
+
+  @override
+  String get nursingNotes => 'Nursing notes';
+
+  @override
+  String get onThisStay => 'This admission';
+
+  @override
+  String opdVisitOn(String date) {
+    return 'OPD visit · $date';
+  }
+
+  @override
   String get open => 'Open';
 
   @override
@@ -1875,6 +2258,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get openPatientRecord => 'Open patient record';
+
+  @override
+  String get openTasks => 'Open tasks';
 
   @override
   String get openVisits => 'Open visits';
@@ -1902,6 +2288,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String otpSentTo(String phone) {
     return 'Enter the 6-digit OTP sent to $phone';
   }
+
+  @override
+  String get outOfStock => 'Out of stock';
 
   @override
   String get outstandingBalance => 'Outstanding balance';
@@ -1986,6 +2375,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Patients see their own appointments, prescriptions, reports and bills.';
 
   @override
+  String get patientsInCare => 'Patients in care';
+
+  @override
   String get payAtHospital => 'Bills are paid at the hospital';
 
   @override
@@ -2006,6 +2398,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paymentUpi => 'UPI';
+
+  @override
+  String get pendingPrescriptions => 'Prescriptions to dispense';
+
+  @override
+  String get pendingTasks => 'Pending tasks';
+
+  @override
+  String get pharmacyActivity => 'Activity';
+
+  @override
+  String get pharmacyIntro =>
+      'Prescriptions to dispense, medicine stock and recent activity at this hospital.';
 
   @override
   String get pickDate => 'Pick a date';
@@ -2039,7 +2444,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prescribeAnyway => 'Prescribe anyway';
 
   @override
+  String prescribedIssuedLeft(int prescribed, int issued, int left) {
+    return 'Prescribed $prescribed · Issued $issued · Left $left';
+  }
+
+  @override
   String get prescription => 'Prescription';
+
+  @override
+  String get prescriptionCancelledNoDispense =>
+      'This prescription was cancelled; it cannot be dispensed.';
+
+  @override
+  String prescriptionCode(int id) {
+    return 'RX-$id';
+  }
 
   @override
   String get prescriptionFreeTextNote =>
@@ -2048,6 +2467,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get prescriptionMaybeSaved =>
       'This prescription may already be saved. Check the list below before saving again.';
+
+  @override
+  String get prescriptionNeedsVerification =>
+      'This paper prescription must be verified by a second pharmacist or an Admin before it is dispensed.';
+
+  @override
+  String get prescriptionQueue => 'Prescriptions';
 
   @override
   String prescriptionSaved(String id) {
@@ -2059,6 +2485,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get priority => 'Priority';
+
+  @override
+  String get priorityRoutine => 'Routine';
+
+  @override
+  String get priorityStat => 'STAT';
 
   @override
   String get profileChangesAtHospital =>
@@ -2073,7 +2505,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get qualification => 'Qualification';
+
+  @override
   String get quantity => 'Quantity';
+
+  @override
+  String get quantityNow => 'Quantity to issue now';
 
   @override
   String get queueCall => 'Call';
@@ -2131,16 +2569,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reasonForVisit => 'Reason for visit';
 
   @override
+  String get reasonRequired => 'Reason (required)';
+
+  @override
   String get recentConsultations => 'Recent consultations';
+
+  @override
+  String get recentDispensing => 'Recent dispensing';
 
   @override
   String get recentLabReports => 'Recent lab reports';
 
   @override
+  String get recentNursingActivity => 'Recent nursing activity';
+
+  @override
   String get recentPrescriptions => 'Recent prescriptions';
 
   @override
+  String get recentStockMovements => 'Recent stock movements';
+
+  @override
   String get recentlyRegistered => 'Recently registered patients';
+
+  @override
+  String get recordOn => 'Record on';
 
   @override
   String get recordSignedNoChange =>
@@ -2184,6 +2637,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get removeMedicine => 'Remove medicine';
+
+  @override
+  String get reorderLevel => 'Reorder level';
 
   @override
   String get reportNotes => 'Report notes';
@@ -2283,16 +2739,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roleReceptionist => 'Receptionist';
 
   @override
+  String roomNumber(String room) {
+    return 'Room $room';
+  }
+
+  @override
+  String get route => 'Route';
+
+  @override
+  String get saveNote => 'Save note';
+
+  @override
   String get saveNoteDraft => 'Save note as draft';
 
   @override
   String get saveVitals => 'Save vitals';
 
   @override
+  String get scheduledFor => 'Scheduled for';
+
+  @override
   String get searchByNameOrCity => 'Search by name or city';
 
   @override
   String get searchHospitals => 'Search hospitals';
+
+  @override
+  String get searchMedicinesHint => 'Search medicines by name';
 
   @override
   String get searchPages => 'Search pages';
@@ -2302,6 +2775,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchPatientsHint => 'Name, mobile number or UHID';
+
+  @override
+  String get searchPrescriptionsHint => 'RX number, patient name or UHID';
+
+  @override
+  String get searchWardPatients => 'Search by name, ward or bed';
 
   @override
   String get selectDoctor => 'Select doctor';
@@ -2344,6 +2823,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings => 'Settings';
+
+  @override
+  String get shiftEvening => 'Evening';
+
+  @override
+  String get shiftMorning => 'Morning';
+
+  @override
+  String get shiftNight => 'Night';
+
+  @override
+  String showingFirstOf(int shown, int total) {
+    return 'Showing the first $shown of $total. Search to narrow the list.';
+  }
 
   @override
   String get signIn => 'Sign in';
@@ -2444,10 +2937,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startConsultation => 'Start consultation';
 
   @override
+  String get startTask => 'Start';
+
+  @override
   String get status => 'Status';
 
   @override
   String get statusAcknowledged => 'Acknowledged';
+
+  @override
+  String get statusAdmitted => 'Admitted';
 
   @override
   String get statusCalled => 'Called';
@@ -2465,10 +2964,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusConfirmed => 'Confirmed';
 
   @override
+  String get statusDeferred => 'Deferred';
+
+  @override
+  String get statusDischargeInitiated => 'Discharge initiated';
+
+  @override
+  String get statusDischarged => 'Discharged';
+
+  @override
   String get statusDispensed => 'Dispensed';
 
   @override
   String get statusInConsultation => 'In consultation';
+
+  @override
+  String get statusInProgress => 'In progress';
 
   @override
   String get statusNoShow => 'No show';
@@ -2523,6 +3034,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stepSelectHospitalText => 'Pick where you want to be seen.';
+
+  @override
+  String get stockAdjust => 'Adjusted';
+
+  @override
+  String get stockBatch => 'Stock batch';
+
+  @override
+  String get stockChangedByStore =>
+      'Stock is read-only here. It changes only when medicines are dispensed or received, or when the store (Admin, Hospital Manager or Inventory Staff) corrects it.';
+
+  @override
+  String get stockIn => 'In';
+
+  @override
+  String get stockMovements => 'Stock movements';
+
+  @override
+  String get stockOut => 'Out';
+
+  @override
+  String get substitute => 'Substitute';
+
+  @override
+  String substituteFor(String medicine) {
+    return 'instead of $medicine';
+  }
+
+  @override
+  String get substituteReason => 'Why is a substitute given?';
+
+  @override
+  String get supplier => 'Supplier';
 
   @override
   String get switchingHospitalNote =>
@@ -2580,6 +3124,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timeLabel => 'Time';
 
   @override
+  String get toDispense => 'To dispense';
+
+  @override
   String get todayAtAGlance => 'Today at a glance';
 
   @override
@@ -2587,6 +3134,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todaysPatientFlow => 'Today\'s patient flow';
+
+  @override
+  String get todaysShift => 'Today\'s duty';
 
   @override
   String get tokenCalled => 'Your token has been called';
@@ -2616,6 +3166,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tokenOrPatientId => 'Token Number / Patient ID';
 
   @override
+  String get totalMedicines => 'Medicine batches';
+
+  @override
   String get tryAgain => 'Try again';
 
   @override
@@ -2625,6 +3178,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String typeToSearch(int count) {
     return 'Type at least $count letters to search';
   }
+
+  @override
+  String get unitPrice => 'Unit price';
 
   @override
   String get unread => 'Unread';
@@ -2694,6 +3250,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get visits => 'Visits';
 
   @override
+  String get vitalBloodPressure => 'Blood pressure';
+
+  @override
   String get vitalBloodSugar => 'Blood sugar';
 
   @override
@@ -2746,6 +3305,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get waitingPatients => 'Waiting';
+
+  @override
+  String get wardAndBed => 'Ward and bed';
+
+  @override
+  String get wardAttention => 'Needs attention on the ward';
+
+  @override
+  String get wardPatients => 'Ward patients';
+
+  @override
+  String get wardPatientsIntro =>
+      'Patients of your duty today: in your wards, or assigned to you.';
 
   @override
   String get weWillSendCode => 'We\'ll send a 6-digit verification code';

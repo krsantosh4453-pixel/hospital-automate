@@ -230,6 +230,30 @@ abstract class AppLocalizations {
   /// **'Add at least one medicine.'**
   String get addOneMedicine;
 
+  /// No description provided for @admissionAndVisits.
+  ///
+  /// In en, this message translates to:
+  /// **'Admission and visits'**
+  String get admissionAndVisits;
+
+  /// No description provided for @admissionReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for admission'**
+  String get admissionReason;
+
+  /// No description provided for @admittedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Admitted on'**
+  String get admittedOn;
+
+  /// No description provided for @admittingDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Admitting doctor'**
+  String get admittingDoctor;
+
   /// No description provided for @ageLabel.
   ///
   /// In en, this message translates to:
@@ -241,6 +265,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{age} y'**
   String ageYears(String age);
+
+  /// No description provided for @alreadyDispensed.
+  ///
+  /// In en, this message translates to:
+  /// **'This prescription has already been dispensed.'**
+  String get alreadyDispensed;
 
   /// No description provided for @amountPaid.
   ///
@@ -302,11 +332,29 @@ abstract class AppLocalizations {
   /// **'Your bookings at the selected hospital.'**
   String get appointmentsIntro;
 
+  /// No description provided for @assignedForShift.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned to you · {shift}'**
+  String assignedForShift(String shift);
+
+  /// No description provided for @assignedToMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned to me'**
+  String get assignedToMe;
+
   /// No description provided for @atLeast8Characters.
   ///
   /// In en, this message translates to:
   /// **'At least 8 characters.'**
   String get atLeast8Characters;
+
+  /// No description provided for @atMost.
+  ///
+  /// In en, this message translates to:
+  /// **'At most {count}'**
+  String atMost(int count);
 
   /// No description provided for @attentionBilling.
   ///
@@ -542,6 +590,54 @@ abstract class AppLocalizations {
   /// **'This account cannot use the mobile app. Use the web app.'**
   String get authUnsupportedAccount;
 
+  /// No description provided for @authorNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Author not recorded'**
+  String get authorNotRecorded;
+
+  /// No description provided for @availabilityDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Fully issued'**
+  String get availabilityDone;
+
+  /// No description provided for @availabilityInStock.
+  ///
+  /// In en, this message translates to:
+  /// **'In stock'**
+  String get availabilityInStock;
+
+  /// No description provided for @availabilityNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in stock'**
+  String get availabilityNone;
+
+  /// No description provided for @availabilityShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough stock'**
+  String get availabilityShort;
+
+  /// No description provided for @availabilitySplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs several batches'**
+  String get availabilitySplit;
+
+  /// No description provided for @awaitingBed.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting bed'**
+  String get awaitingBed;
+
+  /// No description provided for @awaitingVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting verification'**
+  String get awaitingVerification;
+
   /// No description provided for @back.
   ///
   /// In en, this message translates to:
@@ -577,6 +673,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Balance due'**
   String get balanceDue;
+
+  /// No description provided for @batch.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch'**
+  String get batch;
+
+  /// No description provided for @batchCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch {batch}'**
+  String batchCode(String batch);
+
+  /// No description provided for @bedNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Bed {bed}'**
+  String bedNumber(String bed);
 
   /// No description provided for @bedsOccupiedOf.
   ///
@@ -1159,6 +1273,12 @@ abstract class AppLocalizations {
   /// **'This time is no longer available. Please choose another time.'**
   String get bookingSlotUnavailable;
 
+  /// No description provided for @bpNeedsBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter both systolic and diastolic blood pressure, or neither.'**
+  String get bpNeedsBoth;
+
   /// No description provided for @calledPatients.
   ///
   /// In en, this message translates to:
@@ -1171,11 +1291,29 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get cancel;
 
+  /// No description provided for @careTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Care tasks'**
+  String get careTasks;
+
+  /// No description provided for @category.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get category;
+
   /// No description provided for @changeNumber.
   ///
   /// In en, this message translates to:
   /// **'Change number'**
   String get changeNumber;
+
+  /// No description provided for @chargedOnBill.
+  ///
+  /// In en, this message translates to:
+  /// **'Charged on bill {invoice} ({total}).'**
+  String chargedOnBill(String invoice, String total);
 
   /// No description provided for @checkAgain.
   ///
@@ -1188,6 +1326,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Check safety and save prescription'**
   String get checkAndSavePrescription;
+
+  /// No description provided for @checkDispenseLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Check these lines before dispensing'**
+  String get checkDispenseLines;
+
+  /// No description provided for @checkPatientBeforeDose.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the patient\'s name and ID, the medicine, dose and route against the patient before you confirm.'**
+  String get checkPatientBeforeDose;
 
   /// No description provided for @checkTheseFields.
   ///
@@ -1285,11 +1435,29 @@ abstract class AppLocalizations {
   /// **'Complete this consultation?'**
   String get completeConsultationTitle;
 
+  /// No description provided for @completeTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete'**
+  String get completeTask;
+
+  /// No description provided for @completeTaskTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark this task complete?'**
+  String get completeTaskTitle;
+
   /// No description provided for @completedToday.
   ///
   /// In en, this message translates to:
   /// **'Completed today'**
   String get completedToday;
+
+  /// No description provided for @confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirm;
 
   /// No description provided for @confirmBooking.
   ///
@@ -1297,11 +1465,41 @@ abstract class AppLocalizations {
   /// **'Confirm booking'**
   String get confirmBooking;
 
+  /// No description provided for @confirmDispenseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispense these medicines?'**
+  String get confirmDispenseTitle;
+
+  /// No description provided for @confirmGiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record this dose as given?'**
+  String get confirmGiveTitle;
+
+  /// No description provided for @confirmHoldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold this dose?'**
+  String get confirmHoldTitle;
+
+  /// No description provided for @confirmMissedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record this dose as missed?'**
+  String get confirmMissedTitle;
+
   /// No description provided for @confirmPassword.
   ///
   /// In en, this message translates to:
   /// **'Confirm password'**
   String get confirmPassword;
+
+  /// No description provided for @confirmRefuseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record that the patient refused this dose?'**
+  String get confirmRefuseTitle;
 
   /// No description provided for @consultationIntro.
   ///
@@ -1368,6 +1566,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Date of birth'**
   String get dateOfBirth;
+
+  /// No description provided for @department.
+  ///
+  /// In en, this message translates to:
+  /// **'Department'**
+  String get department;
 
   /// No description provided for @departments.
   ///
@@ -1507,6 +1711,66 @@ abstract class AppLocalizations {
   /// **'Type'**
   String get diagnosisType;
 
+  /// No description provided for @dispense.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispense'**
+  String get dispense;
+
+  /// No description provided for @dispenseNoBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'{medicine}: choose a stock batch'**
+  String dispenseNoBatch(String medicine);
+
+  /// No description provided for @dispenseNoReason.
+  ///
+  /// In en, this message translates to:
+  /// **'{medicine}: give the reason for the substitute'**
+  String dispenseNoReason(String medicine);
+
+  /// No description provided for @dispenseNothingChosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a quantity for at least one medicine.'**
+  String get dispenseNothingChosen;
+
+  /// No description provided for @dispenseOutcomeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The hospital system could not be reached, so it is not known whether the medicines were issued. The prescription has been reloaded: check the dispensing history before trying again.'**
+  String get dispenseOutcomeUnknown;
+
+  /// No description provided for @dispenseRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The hospital system refused this dispense (stock, quantity, expiry or substitute check). Nothing was issued; the stock has been reloaded.'**
+  String get dispenseRefused;
+
+  /// No description provided for @dispenseTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{medicine}: at most {count} can still be issued'**
+  String dispenseTooMany(String medicine, int count);
+
+  /// No description provided for @dispensedInFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispensed in full. Stock was updated by the hospital system.'**
+  String get dispensedInFull;
+
+  /// No description provided for @dispensedInPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Part of the prescription was dispensed; the rest can be given later.'**
+  String get dispensedInPart;
+
+  /// No description provided for @dispensingHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispensing history'**
+  String get dispensingHistory;
+
   /// No description provided for @doctor.
   ///
   /// In en, this message translates to:
@@ -1567,11 +1831,101 @@ abstract class AppLocalizations {
   /// **'Dosage'**
   String get dosage;
 
+  /// No description provided for @doseDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Due'**
+  String get doseDue;
+
+  /// No description provided for @doseDueAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Due {time}'**
+  String doseDueAt(String time);
+
+  /// No description provided for @doseExcluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Excluded by doctor'**
+  String get doseExcluded;
+
+  /// No description provided for @doseGiven.
+  ///
+  /// In en, this message translates to:
+  /// **'Given'**
+  String get doseGiven;
+
+  /// No description provided for @doseHeld.
+  ///
+  /// In en, this message translates to:
+  /// **'Held'**
+  String get doseHeld;
+
+  /// No description provided for @doseMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed'**
+  String get doseMissed;
+
+  /// No description provided for @doseNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'This dose was not recorded: it was already recorded (perhaps by another nurse) or the doctor\'s order is no longer in force. The list has been refreshed.'**
+  String get doseNotRecorded;
+
+  /// No description provided for @doseOutcomeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The hospital system could not be reached, so it is not known whether the dose was recorded. The list has been refreshed: check it before trying again.'**
+  String get doseOutcomeUnknown;
+
+  /// No description provided for @doseOverdueAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue since {time}'**
+  String doseOverdueAt(String time);
+
+  /// No description provided for @doseRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'{medicine}: {status} at {time}, confirmed by the hospital system.'**
+  String doseRecorded(String medicine, String status, String time);
+
+  /// No description provided for @doseRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'Refused'**
+  String get doseRefused;
+
+  /// No description provided for @doseVomited.
+  ///
+  /// In en, this message translates to:
+  /// **'Vomited'**
+  String get doseVomited;
+
+  /// No description provided for @dosesDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Doses due'**
+  String get dosesDue;
+
+  /// No description provided for @dosesOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get dosesOverdue;
+
   /// No description provided for @draft.
   ///
   /// In en, this message translates to:
   /// **'Draft'**
   String get draft;
+
+  /// No description provided for @drugSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Drug schedule'**
+  String get drugSchedule;
 
   /// No description provided for @duration.
   ///
@@ -1746,6 +2100,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Expected around'**
   String get expectedAround;
+
+  /// No description provided for @expiredInStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get expiredInStock;
+
+  /// No description provided for @expiresOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {date}'**
+  String expiresOn(String date);
+
+  /// No description provided for @expiringSoonCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 batch in stock expires within 30 days} other{{count} batches in stock expire within 30 days}}'**
+  String expiringSoonCount(int count);
+
+  /// No description provided for @expiryDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Expiry date'**
+  String get expiryDate;
 
   /// No description provided for @familyChoosePatient.
   ///
@@ -1998,6 +2376,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search ICD-10 (optional)'**
   String get icd10Search;
+
+  /// No description provided for @inStock.
+  ///
+  /// In en, this message translates to:
+  /// **'In stock'**
+  String get inStock;
+
+  /// No description provided for @inStockCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} {unit} in stock'**
+  String inStockCount(int count, String unit);
+
+  /// No description provided for @inStockMedicines.
+  ///
+  /// In en, this message translates to:
+  /// **'In stock'**
+  String get inStockMedicines;
 
   /// No description provided for @instructions.
   ///
@@ -2629,11 +3025,59 @@ abstract class AppLocalizations {
   /// **'Lookup & Login'**
   String get lookupAndLogin;
 
+  /// No description provided for @lowStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Low stock'**
+  String get lowStock;
+
+  /// No description provided for @manufacturer.
+  ///
+  /// In en, this message translates to:
+  /// **'Manufacturer'**
+  String get manufacturer;
+
+  /// No description provided for @markGiven.
+  ///
+  /// In en, this message translates to:
+  /// **'Given'**
+  String get markGiven;
+
+  /// No description provided for @markHeld.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold'**
+  String get markHeld;
+
+  /// No description provided for @markMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed'**
+  String get markMissed;
+
   /// No description provided for @markReadFailed.
   ///
   /// In en, this message translates to:
   /// **'Could not mark as read'**
   String get markReadFailed;
+
+  /// No description provided for @markRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'Refused'**
+  String get markRefused;
+
+  /// No description provided for @medicationAdministration.
+  ///
+  /// In en, this message translates to:
+  /// **'Medication administration'**
+  String get medicationAdministration;
+
+  /// No description provided for @medicationOrdersByDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Medication orders are written by the doctor. Nurses record the doses given under them.'**
+  String get medicationOrdersByDoctor;
 
   /// No description provided for @medicationSafetyAlerts.
   ///
@@ -2671,6 +3115,12 @@ abstract class AppLocalizations {
   /// **'Medicine {number}: quantity must be at least 1.'**
   String medicineQuantityInvalid(int number);
 
+  /// No description provided for @medicineStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicines'**
+  String get medicineStock;
+
   /// No description provided for @medicines.
   ///
   /// In en, this message translates to:
@@ -2701,6 +3151,12 @@ abstract class AppLocalizations {
   /// **'{module} is not in the mobile app yet'**
   String moduleNotOnMobileTitle(String module);
 
+  /// No description provided for @mrp.
+  ///
+  /// In en, this message translates to:
+  /// **'MRP'**
+  String get mrp;
+
   /// No description provided for @myDoctorProfile.
   ///
   /// In en, this message translates to:
@@ -2712,6 +3168,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'My hospitals'**
   String get myHospitals;
+
+  /// No description provided for @myNurseProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'My nurse profile'**
+  String get myNurseProfile;
 
   /// No description provided for @myProfile.
   ///
@@ -2941,6 +3403,12 @@ abstract class AppLocalizations {
   /// **'You don\'t have access'**
   String get noAccessTitle;
 
+  /// No description provided for @noActiveStay.
+  ///
+  /// In en, this message translates to:
+  /// **'No current admission or open visit'**
+  String get noActiveStay;
+
   /// No description provided for @noActiveToken.
   ///
   /// In en, this message translates to:
@@ -3001,6 +3469,12 @@ abstract class AppLocalizations {
   /// **'No diagnoses yet'**
   String get noDiagnosesYet;
 
+  /// No description provided for @noDispensingYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing dispensed yet'**
+  String get noDispensingYet;
+
   /// No description provided for @noDoctorInbox.
   ///
   /// In en, this message translates to:
@@ -3012,6 +3486,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No documents yet'**
   String get noDocumentsYet;
+
+  /// No description provided for @noDosesDue.
+  ///
+  /// In en, this message translates to:
+  /// **'No doses due'**
+  String get noDosesDue;
+
+  /// No description provided for @noDutyToday.
+  ///
+  /// In en, this message translates to:
+  /// **'No duty assigned for today'**
+  String get noDutyToday;
+
+  /// No description provided for @noEncounterForVitals.
+  ///
+  /// In en, this message translates to:
+  /// **'Vitals are recorded on an admission or an open OPD visit; this patient has neither.'**
+  String get noEncounterForVitals;
 
   /// No description provided for @noFreeSlots.
   ///
@@ -3055,6 +3547,18 @@ abstract class AppLocalizations {
   /// **'Reports for tests in progress appear once they are released.'**
   String get noLabReportsYetHint;
 
+  /// No description provided for @noMedicationOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'No active medication orders'**
+  String get noMedicationOrders;
+
+  /// No description provided for @noMedicinesFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No medicines found'**
+  String get noMedicinesFound;
+
   /// No description provided for @noMedicinesListed.
   ///
   /// In en, this message translates to:
@@ -3072,6 +3576,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No notifications'**
   String get noNotifications;
+
+  /// No description provided for @noOpenTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'No open tasks'**
+  String get noOpenTasks;
 
   /// No description provided for @noOtherDevices.
   ///
@@ -3115,6 +3625,12 @@ abstract class AppLocalizations {
   /// **'No prescription on this visit yet'**
   String get noPrescriptionsForVisit;
 
+  /// No description provided for @noPrescriptionsInQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'No prescriptions here'**
+  String get noPrescriptionsInQueue;
+
   /// No description provided for @noPrescriptionsYet.
   ///
   /// In en, this message translates to:
@@ -3126,6 +3642,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Prescriptions from your visits will appear here.'**
   String get noPrescriptionsYetHint;
+
+  /// No description provided for @noReadingsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No readings recorded yet'**
+  String get noReadingsYet;
 
   /// No description provided for @noResultValues.
   ///
@@ -3139,6 +3661,18 @@ abstract class AppLocalizations {
   /// **'Mark as no-show?'**
   String get noShowTitle;
 
+  /// No description provided for @noStaffInbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are not available: the hospital system has no inbox for staff yet.'**
+  String get noStaffInbox;
+
+  /// No description provided for @noStockMovements.
+  ///
+  /// In en, this message translates to:
+  /// **'No stock movements yet'**
+  String get noStockMovements;
+
   /// No description provided for @noTokenServed.
   ///
   /// In en, this message translates to:
@@ -3150,6 +3684,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No upcoming appointments'**
   String get noUpcomingAppointments;
+
+  /// No description provided for @noUsableBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No unexpired batch of this medicine is in stock.'**
+  String get noUsableBatch;
 
   /// No description provided for @noVisitsToShow.
   ///
@@ -3174,6 +3714,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No vitals recorded on this visit'**
   String get noVitalsYet;
+
+  /// No description provided for @noWardPatients.
+  ///
+  /// In en, this message translates to:
+  /// **'No patients on your duty'**
+  String get noWardPatients;
+
+  /// No description provided for @noWardPatientsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Patients appear here when they are in a ward you are on duty in, or assigned to you for today\'s shift.'**
+  String get noWardPatientsHint;
 
   /// No description provided for @nobodyCalled.
   ///
@@ -3234,6 +3786,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You are not a member of any hospital yet.'**
   String get notMemberOfAnyHospital;
+
+  /// No description provided for @notScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not scheduled'**
+  String get notScheduled;
 
   /// No description provided for @notSignedInSignIn.
   ///
@@ -3301,6 +3859,78 @@ abstract class AppLocalizations {
   /// **'History of present illness'**
   String get notePresentIllness;
 
+  /// No description provided for @noteSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Note saved by the hospital system.'**
+  String get noteSaved;
+
+  /// No description provided for @noteText.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get noteText;
+
+  /// No description provided for @noteTextRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Write the note first.'**
+  String get noteTextRequired;
+
+  /// No description provided for @noteTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the note under {count} characters.'**
+  String noteTooLong(int count);
+
+  /// No description provided for @noteType.
+  ///
+  /// In en, this message translates to:
+  /// **'Note type'**
+  String get noteType;
+
+  /// No description provided for @noteTypeCommunication.
+  ///
+  /// In en, this message translates to:
+  /// **'Communication'**
+  String get noteTypeCommunication;
+
+  /// No description provided for @noteTypeEducation.
+  ///
+  /// In en, this message translates to:
+  /// **'Patient education'**
+  String get noteTypeEducation;
+
+  /// No description provided for @noteTypeHandoff.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift handoff'**
+  String get noteTypeHandoff;
+
+  /// No description provided for @noteTypeIncident.
+  ///
+  /// In en, this message translates to:
+  /// **'Incident report'**
+  String get noteTypeIncident;
+
+  /// No description provided for @noteTypeProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress note'**
+  String get noteTypeProgress;
+
+  /// No description provided for @notesAreFinal.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved notes cannot be edited. To correct one, add a new note.'**
+  String get notesAreFinal;
+
+  /// No description provided for @nothingLeftToDispense.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is left to dispense on this prescription.'**
+  String get nothingLeftToDispense;
+
   /// No description provided for @nothingNeedsAttention.
   ///
   /// In en, this message translates to:
@@ -3337,6 +3967,30 @@ abstract class AppLocalizations {
   /// **'Now serving token {token}'**
   String nowServingToken(String token);
 
+  /// No description provided for @nurseProfileMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No nurse profile is linked to your login at this hospital. Ask the hospital Admin to link it.'**
+  String get nurseProfileMissing;
+
+  /// No description provided for @nursingNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Nursing notes'**
+  String get nursingNotes;
+
+  /// No description provided for @onThisStay.
+  ///
+  /// In en, this message translates to:
+  /// **'This admission'**
+  String get onThisStay;
+
+  /// No description provided for @opdVisitOn.
+  ///
+  /// In en, this message translates to:
+  /// **'OPD visit · {date}'**
+  String opdVisitOn(String date);
+
   /// No description provided for @open.
   ///
   /// In en, this message translates to:
@@ -3360,6 +4014,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open patient record'**
   String get openPatientRecord;
+
+  /// No description provided for @openTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Open tasks'**
+  String get openTasks;
 
   /// No description provided for @openVisits.
   ///
@@ -3408,6 +4068,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter the 6-digit OTP sent to {phone}'**
   String otpSentTo(String phone);
+
+  /// No description provided for @outOfStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of stock'**
+  String get outOfStock;
 
   /// No description provided for @outstandingBalance.
   ///
@@ -3559,6 +4225,12 @@ abstract class AppLocalizations {
   /// **'Patients see their own appointments, prescriptions, reports and bills.'**
   String get patientSignInIntro;
 
+  /// No description provided for @patientsInCare.
+  ///
+  /// In en, this message translates to:
+  /// **'Patients in care'**
+  String get patientsInCare;
+
   /// No description provided for @payAtHospital.
   ///
   /// In en, this message translates to:
@@ -3600,6 +4272,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'UPI'**
   String get paymentUpi;
+
+  /// No description provided for @pendingPrescriptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescriptions to dispense'**
+  String get pendingPrescriptions;
+
+  /// No description provided for @pendingTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending tasks'**
+  String get pendingTasks;
+
+  /// No description provided for @pharmacyActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get pharmacyActivity;
+
+  /// No description provided for @pharmacyIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescriptions to dispense, medicine stock and recent activity at this hospital.'**
+  String get pharmacyIntro;
 
   /// No description provided for @pickDate.
   ///
@@ -3655,11 +4351,29 @@ abstract class AppLocalizations {
   /// **'Prescribe anyway'**
   String get prescribeAnyway;
 
+  /// No description provided for @prescribedIssuedLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescribed {prescribed} · Issued {issued} · Left {left}'**
+  String prescribedIssuedLeft(int prescribed, int issued, int left);
+
   /// No description provided for @prescription.
   ///
   /// In en, this message translates to:
   /// **'Prescription'**
   String get prescription;
+
+  /// No description provided for @prescriptionCancelledNoDispense.
+  ///
+  /// In en, this message translates to:
+  /// **'This prescription was cancelled; it cannot be dispensed.'**
+  String get prescriptionCancelledNoDispense;
+
+  /// No description provided for @prescriptionCode.
+  ///
+  /// In en, this message translates to:
+  /// **'RX-{id}'**
+  String prescriptionCode(int id);
 
   /// No description provided for @prescriptionFreeTextNote.
   ///
@@ -3672,6 +4386,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This prescription may already be saved. Check the list below before saving again.'**
   String get prescriptionMaybeSaved;
+
+  /// No description provided for @prescriptionNeedsVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'This paper prescription must be verified by a second pharmacist or an Admin before it is dispensed.'**
+  String get prescriptionNeedsVerification;
+
+  /// No description provided for @prescriptionQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescriptions'**
+  String get prescriptionQueue;
 
   /// No description provided for @prescriptionSaved.
   ///
@@ -3691,6 +4417,18 @@ abstract class AppLocalizations {
   /// **'Priority'**
   String get priority;
 
+  /// No description provided for @priorityRoutine.
+  ///
+  /// In en, this message translates to:
+  /// **'Routine'**
+  String get priorityRoutine;
+
+  /// No description provided for @priorityStat.
+  ///
+  /// In en, this message translates to:
+  /// **'STAT'**
+  String get priorityStat;
+
   /// No description provided for @profileChangesAtHospital.
   ///
   /// In en, this message translates to:
@@ -3709,11 +4447,23 @@ abstract class AppLocalizations {
   /// **'Profile menu for {name}'**
   String profileMenuFor(String name);
 
+  /// No description provided for @qualification.
+  ///
+  /// In en, this message translates to:
+  /// **'Qualification'**
+  String get qualification;
+
   /// No description provided for @quantity.
   ///
   /// In en, this message translates to:
   /// **'Quantity'**
   String get quantity;
+
+  /// No description provided for @quantityNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity to issue now'**
+  String get quantityNow;
 
   /// No description provided for @queueCall.
   ///
@@ -3799,11 +4549,23 @@ abstract class AppLocalizations {
   /// **'Reason for visit'**
   String get reasonForVisit;
 
+  /// No description provided for @reasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (required)'**
+  String get reasonRequired;
+
   /// No description provided for @recentConsultations.
   ///
   /// In en, this message translates to:
   /// **'Recent consultations'**
   String get recentConsultations;
+
+  /// No description provided for @recentDispensing.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent dispensing'**
+  String get recentDispensing;
 
   /// No description provided for @recentLabReports.
   ///
@@ -3811,17 +4573,35 @@ abstract class AppLocalizations {
   /// **'Recent lab reports'**
   String get recentLabReports;
 
+  /// No description provided for @recentNursingActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent nursing activity'**
+  String get recentNursingActivity;
+
   /// No description provided for @recentPrescriptions.
   ///
   /// In en, this message translates to:
   /// **'Recent prescriptions'**
   String get recentPrescriptions;
 
+  /// No description provided for @recentStockMovements.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent stock movements'**
+  String get recentStockMovements;
+
   /// No description provided for @recentlyRegistered.
   ///
   /// In en, this message translates to:
   /// **'Recently registered patients'**
   String get recentlyRegistered;
+
+  /// No description provided for @recordOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Record on'**
+  String get recordOn;
 
   /// No description provided for @recordSignedNoChange.
   ///
@@ -3900,6 +4680,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove medicine'**
   String get removeMedicine;
+
+  /// No description provided for @reorderLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder level'**
+  String get reorderLevel;
 
   /// No description provided for @reportNotes.
   ///
@@ -4087,6 +4873,24 @@ abstract class AppLocalizations {
   /// **'Receptionist'**
   String get roleReceptionist;
 
+  /// No description provided for @roomNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Room {room}'**
+  String roomNumber(String room);
+
+  /// No description provided for @route.
+  ///
+  /// In en, this message translates to:
+  /// **'Route'**
+  String get route;
+
+  /// No description provided for @saveNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Save note'**
+  String get saveNote;
+
   /// No description provided for @saveNoteDraft.
   ///
   /// In en, this message translates to:
@@ -4099,6 +4903,12 @@ abstract class AppLocalizations {
   /// **'Save vitals'**
   String get saveVitals;
 
+  /// No description provided for @scheduledFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled for'**
+  String get scheduledFor;
+
   /// No description provided for @searchByNameOrCity.
   ///
   /// In en, this message translates to:
@@ -4110,6 +4920,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search hospitals'**
   String get searchHospitals;
+
+  /// No description provided for @searchMedicinesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search medicines by name'**
+  String get searchMedicinesHint;
 
   /// No description provided for @searchPages.
   ///
@@ -4128,6 +4944,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Name, mobile number or UHID'**
   String get searchPatientsHint;
+
+  /// No description provided for @searchPrescriptionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'RX number, patient name or UHID'**
+  String get searchPrescriptionsHint;
+
+  /// No description provided for @searchWardPatients.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name, ward or bed'**
+  String get searchWardPatients;
 
   /// No description provided for @selectDoctor.
   ///
@@ -4206,6 +5034,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings'**
   String get settings;
+
+  /// No description provided for @shiftEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Evening'**
+  String get shiftEvening;
+
+  /// No description provided for @shiftMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning'**
+  String get shiftMorning;
+
+  /// No description provided for @shiftNight.
+  ///
+  /// In en, this message translates to:
+  /// **'Night'**
+  String get shiftNight;
+
+  /// No description provided for @showingFirstOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first {shown} of {total}. Search to narrow the list.'**
+  String showingFirstOf(int shown, int total);
 
   /// No description provided for @signIn.
   ///
@@ -4381,6 +5233,12 @@ abstract class AppLocalizations {
   /// **'Start consultation'**
   String get startConsultation;
 
+  /// No description provided for @startTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get startTask;
+
   /// No description provided for @status.
   ///
   /// In en, this message translates to:
@@ -4392,6 +5250,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Acknowledged'**
   String get statusAcknowledged;
+
+  /// No description provided for @statusAdmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Admitted'**
+  String get statusAdmitted;
 
   /// No description provided for @statusCalled.
   ///
@@ -4423,6 +5287,24 @@ abstract class AppLocalizations {
   /// **'Confirmed'**
   String get statusConfirmed;
 
+  /// No description provided for @statusDeferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Deferred'**
+  String get statusDeferred;
+
+  /// No description provided for @statusDischargeInitiated.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge initiated'**
+  String get statusDischargeInitiated;
+
+  /// No description provided for @statusDischarged.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharged'**
+  String get statusDischarged;
+
   /// No description provided for @statusDispensed.
   ///
   /// In en, this message translates to:
@@ -4434,6 +5316,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In consultation'**
   String get statusInConsultation;
+
+  /// No description provided for @statusInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get statusInProgress;
 
   /// No description provided for @statusNoShow.
   ///
@@ -4543,6 +5431,66 @@ abstract class AppLocalizations {
   /// **'Pick where you want to be seen.'**
   String get stepSelectHospitalText;
 
+  /// No description provided for @stockAdjust.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjusted'**
+  String get stockAdjust;
+
+  /// No description provided for @stockBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock batch'**
+  String get stockBatch;
+
+  /// No description provided for @stockChangedByStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock is read-only here. It changes only when medicines are dispensed or received, or when the store (Admin, Hospital Manager or Inventory Staff) corrects it.'**
+  String get stockChangedByStore;
+
+  /// No description provided for @stockIn.
+  ///
+  /// In en, this message translates to:
+  /// **'In'**
+  String get stockIn;
+
+  /// No description provided for @stockMovements.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock movements'**
+  String get stockMovements;
+
+  /// No description provided for @stockOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Out'**
+  String get stockOut;
+
+  /// No description provided for @substitute.
+  ///
+  /// In en, this message translates to:
+  /// **'Substitute'**
+  String get substitute;
+
+  /// No description provided for @substituteFor.
+  ///
+  /// In en, this message translates to:
+  /// **'instead of {medicine}'**
+  String substituteFor(String medicine);
+
+  /// No description provided for @substituteReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Why is a substitute given?'**
+  String get substituteReason;
+
+  /// No description provided for @supplier.
+  ///
+  /// In en, this message translates to:
+  /// **'Supplier'**
+  String get supplier;
+
   /// No description provided for @switchingHospitalNote.
   ///
   /// In en, this message translates to:
@@ -4651,6 +5599,12 @@ abstract class AppLocalizations {
   /// **'Time'**
   String get timeLabel;
 
+  /// No description provided for @toDispense.
+  ///
+  /// In en, this message translates to:
+  /// **'To dispense'**
+  String get toDispense;
+
   /// No description provided for @todayAtAGlance.
   ///
   /// In en, this message translates to:
@@ -4668,6 +5622,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Today\'s patient flow'**
   String get todaysPatientFlow;
+
+  /// No description provided for @todaysShift.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s duty'**
+  String get todaysShift;
 
   /// No description provided for @tokenCalled.
   ///
@@ -4717,6 +5677,12 @@ abstract class AppLocalizations {
   /// **'Token Number / Patient ID'**
   String get tokenOrPatientId;
 
+  /// No description provided for @totalMedicines.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicine batches'**
+  String get totalMedicines;
+
   /// No description provided for @tryAgain.
   ///
   /// In en, this message translates to:
@@ -4734,6 +5700,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Type at least {count} letters to search'**
   String typeToSearch(int count);
+
+  /// No description provided for @unitPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit price'**
+  String get unitPrice;
 
   /// No description provided for @unread.
   ///
@@ -4843,6 +5815,12 @@ abstract class AppLocalizations {
   /// **'Visits'**
   String get visits;
 
+  /// No description provided for @vitalBloodPressure.
+  ///
+  /// In en, this message translates to:
+  /// **'Blood pressure'**
+  String get vitalBloodPressure;
+
   /// No description provided for @vitalBloodSugar.
   ///
   /// In en, this message translates to:
@@ -4950,6 +5928,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Waiting'**
   String get waitingPatients;
+
+  /// No description provided for @wardAndBed.
+  ///
+  /// In en, this message translates to:
+  /// **'Ward and bed'**
+  String get wardAndBed;
+
+  /// No description provided for @wardAttention.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs attention on the ward'**
+  String get wardAttention;
+
+  /// No description provided for @wardPatients.
+  ///
+  /// In en, this message translates to:
+  /// **'Ward patients'**
+  String get wardPatients;
+
+  /// No description provided for @wardPatientsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Patients of your duty today: in your wards, or assigned to you.'**
+  String get wardPatientsIntro;
 
   /// No description provided for @weWillSendCode.
   ///

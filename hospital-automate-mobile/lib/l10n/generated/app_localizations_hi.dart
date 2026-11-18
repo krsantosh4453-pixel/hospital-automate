@@ -78,12 +78,27 @@ class AppLocalizationsHi extends AppLocalizations {
   String get addOneMedicine => 'कम से कम एक दवा जोड़ें।';
 
   @override
+  String get admissionAndVisits => 'भर्ती और विज़िट';
+
+  @override
+  String get admissionReason => 'भर्ती का कारण';
+
+  @override
+  String get admittedOn => 'भर्ती की तारीख';
+
+  @override
+  String get admittingDoctor => 'भर्ती करने वाले डॉक्टर';
+
+  @override
   String get ageLabel => 'आयु';
 
   @override
   String ageYears(String age) {
     return '$age y';
   }
+
+  @override
+  String get alreadyDispensed => 'यह पर्चा पहले ही दिया जा चुका है।';
 
   @override
   String get amountPaid => 'भुगतान किया';
@@ -118,7 +133,20 @@ class AppLocalizationsHi extends AppLocalizations {
   String get appointmentsIntro => 'चुने गए अस्पताल में आपकी बुकिंग।';
 
   @override
+  String assignedForShift(String shift) {
+    return 'आपको सौंपा गया · $shift';
+  }
+
+  @override
+  String get assignedToMe => 'मुझे सौंपे गए';
+
+  @override
   String get atLeast8Characters => 'कम से कम 8 अक्षर।';
+
+  @override
+  String atMost(int count) {
+    return 'अधिकतम $count';
+  }
 
   @override
   String attentionBilling(int count) {
@@ -301,6 +329,30 @@ class AppLocalizationsHi extends AppLocalizations {
       'यह खाता मोबाइल ऐप में नहीं चल सकता। वेब ऐप का उपयोग करें।';
 
   @override
+  String get authorNotRecorded => 'लेखक दर्ज नहीं';
+
+  @override
+  String get availabilityDone => 'पूरा दिया गया';
+
+  @override
+  String get availabilityInStock => 'स्टॉक में';
+
+  @override
+  String get availabilityNone => 'स्टॉक में नहीं';
+
+  @override
+  String get availabilityShort => 'पर्याप्त स्टॉक नहीं';
+
+  @override
+  String get availabilitySplit => 'कई बैच चाहिए';
+
+  @override
+  String get awaitingBed => 'बेड की प्रतीक्षा';
+
+  @override
+  String get awaitingVerification => 'सत्यापन बाकी';
+
+  @override
   String get back => 'वापस';
 
   @override
@@ -317,6 +369,19 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get balanceDue => 'बकाया';
+
+  @override
+  String get batch => 'बैच';
+
+  @override
+  String batchCode(String batch) {
+    return 'बैच $batch';
+  }
+
+  @override
+  String bedNumber(String bed) {
+    return 'बेड $bed';
+  }
 
   @override
   String bedsOccupiedOf(String occupied, String total) {
@@ -658,19 +723,41 @@ class AppLocalizationsHi extends AppLocalizations {
       'यह समय अब उपलब्ध नहीं है। कृपया दूसरा समय चुनें।';
 
   @override
+  String get bpNeedsBoth =>
+      'सिस्टोलिक और डायस्टोलिक दोनों रक्तचाप भरें, या कोई नहीं।';
+
+  @override
   String get calledPatients => 'बुलाए गए';
 
   @override
   String get cancel => 'रद्द करें';
 
   @override
+  String get careTasks => 'देखभाल कार्य';
+
+  @override
+  String get category => 'श्रेणी';
+
+  @override
   String get changeNumber => 'नंबर बदलें';
+
+  @override
+  String chargedOnBill(String invoice, String total) {
+    return 'बिल $invoice में जोड़ा गया ($total)।';
+  }
 
   @override
   String get checkAgain => 'फिर से जाँचें';
 
   @override
   String get checkAndSavePrescription => 'सुरक्षा जाँचें और पर्चा सहेजें';
+
+  @override
+  String get checkDispenseLines => 'देने से पहले ये पंक्तियाँ जाँचें';
+
+  @override
+  String get checkPatientBeforeDose =>
+      'पुष्टि से पहले मरीज़ का नाम और आईडी, दवा, खुराक और मार्ग मरीज़ से मिलाएँ।';
 
   @override
   String checkTheseFields(String fields) {
@@ -726,13 +813,38 @@ class AppLocalizationsHi extends AppLocalizations {
   String get completeConsultationTitle => 'यह परामर्श पूरा करें?';
 
   @override
+  String get completeTask => 'पूरा करें';
+
+  @override
+  String get completeTaskTitle => 'क्या यह कार्य पूरा चिह्नित करें?';
+
+  @override
   String get completedToday => 'आज पूरे हुए';
+
+  @override
+  String get confirm => 'पुष्टि करें';
 
   @override
   String get confirmBooking => 'बुकिंग पक्की करें';
 
   @override
+  String get confirmDispenseTitle => 'क्या ये दवाएँ दें?';
+
+  @override
+  String get confirmGiveTitle => 'क्या यह खुराक दी गई दर्ज करें?';
+
+  @override
+  String get confirmHoldTitle => 'क्या यह खुराक रोकें?';
+
+  @override
+  String get confirmMissedTitle => 'क्या यह खुराक छूटी दर्ज करें?';
+
+  @override
   String get confirmPassword => 'पासवर्ड की पुष्टि करें';
+
+  @override
+  String get confirmRefuseTitle =>
+      'क्या दर्ज करें कि मरीज़ ने यह खुराक मना की?';
 
   @override
   String get consultationIntro =>
@@ -770,6 +882,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get dateOfBirth => 'जन्म तिथि';
+
+  @override
+  String get department => 'विभाग';
 
   @override
   String get departments => 'विभाग';
@@ -842,6 +957,46 @@ class AppLocalizationsHi extends AppLocalizations {
   String get diagnosisType => 'प्रकार';
 
   @override
+  String get dispense => 'दवा दें';
+
+  @override
+  String dispenseNoBatch(String medicine) {
+    return '$medicine: स्टॉक बैच चुनें';
+  }
+
+  @override
+  String dispenseNoReason(String medicine) {
+    return '$medicine: विकल्प देने का कारण लिखें';
+  }
+
+  @override
+  String get dispenseNothingChosen => 'कम से कम एक दवा की मात्रा भरें।';
+
+  @override
+  String get dispenseOutcomeUnknown =>
+      'अस्पताल सिस्टम से संपर्क नहीं हुआ, इसलिए पता नहीं कि दवाएँ दी गईं या नहीं। पर्चा फिर से लोड किया गया है: दोबारा कोशिश से पहले वितरण इतिहास देखें।';
+
+  @override
+  String get dispenseRefused =>
+      'अस्पताल सिस्टम ने यह वितरण अस्वीकार किया (स्टॉक, मात्रा, समाप्ति या विकल्प जाँच)। कुछ नहीं दिया गया; स्टॉक फिर से लोड किया गया है।';
+
+  @override
+  String dispenseTooMany(String medicine, int count) {
+    return '$medicine: अधिकतम $count ही दी जा सकती है';
+  }
+
+  @override
+  String get dispensedInFull =>
+      'पूरा दिया गया। स्टॉक अस्पताल सिस्टम ने अपडेट किया।';
+
+  @override
+  String get dispensedInPart =>
+      'पर्चे का कुछ हिस्सा दिया गया; बाकी बाद में दिया जा सकता है।';
+
+  @override
+  String get dispensingHistory => 'वितरण इतिहास';
+
+  @override
   String get doctor => 'डॉक्टर';
 
   @override
@@ -878,7 +1033,60 @@ class AppLocalizationsHi extends AppLocalizations {
   String get dosage => 'खुराक';
 
   @override
+  String get doseDue => 'बाकी';
+
+  @override
+  String doseDueAt(String time) {
+    return 'देय $time';
+  }
+
+  @override
+  String get doseExcluded => 'डॉक्टर ने हटाई';
+
+  @override
+  String get doseGiven => 'दी गई';
+
+  @override
+  String get doseHeld => 'रोकी गई';
+
+  @override
+  String get doseMissed => 'छूटी';
+
+  @override
+  String get doseNotRecorded =>
+      'यह खुराक दर्ज नहीं हुई: यह पहले ही दर्ज थी (शायद किसी और नर्स ने) या डॉक्टर का आदेश अब लागू नहीं है। सूची ताज़ा की गई है।';
+
+  @override
+  String get doseOutcomeUnknown =>
+      'अस्पताल सिस्टम से संपर्क नहीं हुआ, इसलिए पता नहीं कि खुराक दर्ज हुई या नहीं। सूची ताज़ा की गई है: दोबारा कोशिश से पहले जाँचें।';
+
+  @override
+  String doseOverdueAt(String time) {
+    return '$time से देर';
+  }
+
+  @override
+  String doseRecorded(String medicine, String status, String time) {
+    return '$medicine: $time पर $status, अस्पताल सिस्टम ने पुष्टि की।';
+  }
+
+  @override
+  String get doseRefused => 'मना की';
+
+  @override
+  String get doseVomited => 'उल्टी हुई';
+
+  @override
+  String get dosesDue => 'बाकी खुराकें';
+
+  @override
+  String get dosesOverdue => 'देर से';
+
+  @override
   String get draft => 'मसौदा';
+
+  @override
+  String get drugSchedule => 'दवा अनुसूची';
 
   @override
   String get duration => 'अवधि';
@@ -980,6 +1188,28 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get expectedAround => 'लगभग समय';
+
+  @override
+  String get expiredInStock => 'समाप्त';
+
+  @override
+  String expiresOn(String date) {
+    return 'समाप्ति $date';
+  }
+
+  @override
+  String expiringSoonCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'स्टॉक के $count बैच 30 दिन में समाप्त होंगे',
+      one: 'स्टॉक का 1 बैच 30 दिन में समाप्त होगा',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get expiryDate => 'समाप्ति तिथि';
 
   @override
   String get familyChoosePatient => 'आप किसके रिकॉर्ड देखना चाहते हैं?';
@@ -1115,6 +1345,17 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get icd10Search => 'आईसीडी-10 खोजें (वैकल्पिक)';
+
+  @override
+  String get inStock => 'स्टॉक में';
+
+  @override
+  String inStockCount(int count, String unit) {
+    return 'स्टॉक में $count $unit';
+  }
+
+  @override
+  String get inStockMedicines => 'स्टॉक में';
 
   @override
   String get instructions => 'निर्देश';
@@ -1466,7 +1707,32 @@ class AppLocalizationsHi extends AppLocalizations {
   String get lookupAndLogin => 'खोजें और लॉगिन करें';
 
   @override
+  String get lowStock => 'कम स्टॉक';
+
+  @override
+  String get manufacturer => 'निर्माता';
+
+  @override
+  String get markGiven => 'दी गई';
+
+  @override
+  String get markHeld => 'रोकें';
+
+  @override
+  String get markMissed => 'छूटी';
+
+  @override
   String get markReadFailed => 'पढ़ा हुआ चिह्नित नहीं हो सका';
+
+  @override
+  String get markRefused => 'मना की';
+
+  @override
+  String get medicationAdministration => 'दवा देना';
+
+  @override
+  String get medicationOrdersByDoctor =>
+      'दवा के आदेश डॉक्टर लिखते हैं। नर्स उनके तहत दी गई खुराकें दर्ज करती हैं।';
 
   @override
   String get medicationSafetyAlerts => 'दवा सुरक्षा चेतावनियाँ';
@@ -1501,6 +1767,9 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
+  String get medicineStock => 'दवाएँ';
+
+  @override
   String get medicines => 'दवाएँ';
 
   @override
@@ -1521,10 +1790,16 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
+  String get mrp => 'एमआरपी';
+
+  @override
   String get myDoctorProfile => 'मेरी डॉक्टर प्रोफ़ाइल';
 
   @override
   String get myHospitals => 'मेरे अस्पताल';
+
+  @override
+  String get myNurseProfile => 'मेरी नर्स प्रोफ़ाइल';
 
   @override
   String get myProfile => 'मेरी प्रोफ़ाइल';
@@ -1641,6 +1916,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get noAccessTitle => 'आपको पहुँच नहीं है';
 
   @override
+  String get noActiveStay => 'कोई मौजूदा भर्ती या खुली विज़िट नहीं';
+
+  @override
   String get noActiveToken => 'कोई सक्रिय टोकन नहीं';
 
   @override
@@ -1673,11 +1951,24 @@ class AppLocalizationsHi extends AppLocalizations {
   String get noDiagnosesYet => 'अभी कोई निदान नहीं';
 
   @override
+  String get noDispensingYet => 'अभी कुछ नहीं दिया गया';
+
+  @override
   String get noDoctorInbox =>
       'डॉक्टर सूचनाएँ उपलब्ध नहीं हैं: अस्पताल प्रणाली में अभी स्टाफ़ के लिए इनबॉक्स नहीं है।';
 
   @override
   String get noDocumentsYet => 'अभी कोई दस्तावेज़ नहीं';
+
+  @override
+  String get noDosesDue => 'कोई खुराक बाकी नहीं';
+
+  @override
+  String get noDutyToday => 'आज कोई ड्यूटी नहीं सौंपी गई';
+
+  @override
+  String get noEncounterForVitals =>
+      'वाइटल्स भर्ती या खुली ओपीडी विज़िट पर दर्ज होते हैं; इस मरीज़ के पास कोई नहीं है।';
 
   @override
   String get noFreeSlots => 'इस दिन कोई खाली समय नहीं। दूसरी तारीख आज़माएँ।';
@@ -1703,6 +1994,12 @@ class AppLocalizationsHi extends AppLocalizations {
       'जाँच जारी होने के बाद उनकी रिपोर्ट यहाँ दिखेगी।';
 
   @override
+  String get noMedicationOrders => 'कोई सक्रिय दवा आदेश नहीं';
+
+  @override
+  String get noMedicinesFound => 'कोई दवा नहीं मिली';
+
+  @override
   String get noMedicinesListed => 'कोई दवा दर्ज नहीं';
 
   @override
@@ -1710,6 +2007,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get noNotifications => 'कोई सूचना नहीं';
+
+  @override
+  String get noOpenTasks => 'कोई खुला कार्य नहीं';
 
   @override
   String get noOtherDevices => 'कोई साइन-इन डिवाइस नहीं।';
@@ -1735,10 +2035,16 @@ class AppLocalizationsHi extends AppLocalizations {
   String get noPrescriptionsForVisit => 'इस विज़िट पर अभी कोई पर्चा नहीं';
 
   @override
+  String get noPrescriptionsInQueue => 'यहाँ कोई पर्चा नहीं';
+
+  @override
   String get noPrescriptionsYet => 'अभी कोई पर्चा नहीं';
 
   @override
   String get noPrescriptionsYetHint => 'आपकी विज़िट के पर्चे यहाँ दिखेंगे।';
+
+  @override
+  String get noReadingsYet => 'अभी कोई रीडिंग दर्ज नहीं';
 
   @override
   String get noResultValues => 'इस रिपोर्ट में कोई मान नहीं';
@@ -1747,10 +2053,20 @@ class AppLocalizationsHi extends AppLocalizations {
   String get noShowTitle => 'नहीं आए के रूप में दर्ज करें?';
 
   @override
+  String get noStaffInbox =>
+      'सूचनाएँ उपलब्ध नहीं हैं: अस्पताल सिस्टम में अभी स्टाफ़ के लिए इनबॉक्स नहीं है।';
+
+  @override
+  String get noStockMovements => 'अभी कोई स्टॉक गतिविधि नहीं';
+
+  @override
   String get noTokenServed => 'अभी कोई टोकन नहीं चल रहा';
 
   @override
   String get noUpcomingAppointments => 'कोई आगामी अपॉइंटमेंट नहीं';
+
+  @override
+  String get noUsableBatch => 'इस दवा का कोई अनसमाप्त बैच स्टॉक में नहीं है।';
 
   @override
   String get noVisitsToShow => 'दिखाने के लिए कोई विज़िट नहीं';
@@ -1764,6 +2080,13 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get noVitalsYet => 'इस विज़िट पर कोई वाइटल्स दर्ज नहीं';
+
+  @override
+  String get noWardPatients => 'आपकी ड्यूटी में कोई मरीज़ नहीं';
+
+  @override
+  String get noWardPatientsHint =>
+      'मरीज़ यहाँ तब दिखते हैं जब वे आपकी ड्यूटी वाले वार्ड में हों, या आज की शिफ़्ट के लिए आपको सौंपे गए हों।';
 
   @override
   String get nobodyCalled => 'कोई नहीं बुलाया गया';
@@ -1800,6 +2123,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get notMemberOfAnyHospital => 'आप अभी किसी अस्पताल के सदस्य नहीं हैं।';
 
   @override
+  String get notScheduled => 'अनुसूचित नहीं';
+
+  @override
   String get notSignedInSignIn => 'साइन इन नहीं · साइन इन करें';
 
   @override
@@ -1833,6 +2159,45 @@ class AppLocalizationsHi extends AppLocalizations {
   String get notePresentIllness => 'वर्तमान बीमारी का इतिहास';
 
   @override
+  String get noteSaved => 'नोट अस्पताल सिस्टम ने सहेजा।';
+
+  @override
+  String get noteText => 'नोट';
+
+  @override
+  String get noteTextRequired => 'पहले नोट लिखें।';
+
+  @override
+  String noteTooLong(int count) {
+    return 'नोट $count अक्षरों से कम रखें।';
+  }
+
+  @override
+  String get noteType => 'नोट का प्रकार';
+
+  @override
+  String get noteTypeCommunication => 'संवाद';
+
+  @override
+  String get noteTypeEducation => 'मरीज़ शिक्षा';
+
+  @override
+  String get noteTypeHandoff => 'शिफ़्ट हैंडओवर';
+
+  @override
+  String get noteTypeIncident => 'घटना रिपोर्ट';
+
+  @override
+  String get noteTypeProgress => 'प्रगति नोट';
+
+  @override
+  String get notesAreFinal =>
+      'सहेजे गए नोट बदले नहीं जा सकते। सुधार के लिए नया नोट जोड़ें।';
+
+  @override
+  String get nothingLeftToDispense => 'इस पर्चे पर देने को कुछ बाकी नहीं है।';
+
+  @override
   String get nothingNeedsAttention => 'अभी कुछ ध्यान देने योग्य नहीं';
 
   @override
@@ -1855,6 +2220,21 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
+  String get nurseProfileMissing =>
+      'इस अस्पताल में आपके लॉगिन से कोई नर्स प्रोफ़ाइल जुड़ी नहीं है। अस्पताल एडमिन से जोड़ने को कहें।';
+
+  @override
+  String get nursingNotes => 'नर्सिंग नोट्स';
+
+  @override
+  String get onThisStay => 'यह भर्ती';
+
+  @override
+  String opdVisitOn(String date) {
+    return 'ओपीडी विज़िट · $date';
+  }
+
+  @override
   String get open => 'खोलें';
 
   @override
@@ -1865,6 +2245,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get openPatientRecord => 'मरीज़ का रिकॉर्ड खोलें';
+
+  @override
+  String get openTasks => 'खुले कार्य';
 
   @override
   String get openVisits => 'खुली विज़िट';
@@ -1892,6 +2275,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String otpSentTo(String phone) {
     return '$phone पर भेजा गया 6 अंकों का OTP दर्ज करें';
   }
+
+  @override
+  String get outOfStock => 'स्टॉक खत्म';
 
   @override
   String get outstandingBalance => 'बकाया राशि';
@@ -1975,6 +2361,9 @@ class AppLocalizationsHi extends AppLocalizations {
       'मरीज़ अपनी अपॉइंटमेंट, पर्चे, रिपोर्ट और बिल देखते हैं।';
 
   @override
+  String get patientsInCare => 'देखभाल में मरीज़';
+
+  @override
   String get payAtHospital => 'बिल का भुगतान अस्पताल में होता है';
 
   @override
@@ -1995,6 +2384,19 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get paymentUpi => 'UPI';
+
+  @override
+  String get pendingPrescriptions => 'देने वाले पर्चे';
+
+  @override
+  String get pendingTasks => 'बाकी कार्य';
+
+  @override
+  String get pharmacyActivity => 'गतिविधि';
+
+  @override
+  String get pharmacyIntro =>
+      'इस अस्पताल के देने वाले पर्चे, दवा स्टॉक और हाल की गतिविधि।';
 
   @override
   String get pickDate => 'तारीख चुनें';
@@ -2028,7 +2430,21 @@ class AppLocalizationsHi extends AppLocalizations {
   String get prescribeAnyway => 'फिर भी लिखें';
 
   @override
+  String prescribedIssuedLeft(int prescribed, int issued, int left) {
+    return 'लिखी $prescribed · दी $issued · बाकी $left';
+  }
+
+  @override
   String get prescription => 'पर्चा';
+
+  @override
+  String get prescriptionCancelledNoDispense =>
+      'यह पर्चा रद्द किया गया; इसे नहीं दिया जा सकता।';
+
+  @override
+  String prescriptionCode(int id) {
+    return 'RX-$id';
+  }
 
   @override
   String get prescriptionFreeTextNote =>
@@ -2037,6 +2453,13 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get prescriptionMaybeSaved =>
       'यह पर्चा शायद पहले ही सहेजा जा चुका है। दोबारा सहेजने से पहले नीचे की सूची देखें।';
+
+  @override
+  String get prescriptionNeedsVerification =>
+      'यह कागज़ी पर्चा देने से पहले दूसरे फ़ार्मासिस्ट या एडमिन द्वारा सत्यापित होना चाहिए।';
+
+  @override
+  String get prescriptionQueue => 'पर्चे';
 
   @override
   String prescriptionSaved(String id) {
@@ -2048,6 +2471,12 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get priority => 'प्राथमिकता';
+
+  @override
+  String get priorityRoutine => 'सामान्य';
+
+  @override
+  String get priorityStat => 'तुरंत';
 
   @override
   String get profileChangesAtHospital =>
@@ -2062,7 +2491,13 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
+  String get qualification => 'योग्यता';
+
+  @override
   String get quantity => 'मात्रा';
+
+  @override
+  String get quantityNow => 'अभी देने की मात्रा';
 
   @override
   String get queueCall => 'बुलाएँ';
@@ -2120,16 +2555,31 @@ class AppLocalizationsHi extends AppLocalizations {
   String get reasonForVisit => 'आने का कारण';
 
   @override
+  String get reasonRequired => 'कारण (आवश्यक)';
+
+  @override
   String get recentConsultations => 'हाल के परामर्श';
+
+  @override
+  String get recentDispensing => 'हाल में दी गई दवाएँ';
 
   @override
   String get recentLabReports => 'हाल की लैब रिपोर्ट';
 
   @override
+  String get recentNursingActivity => 'हाल की नर्सिंग गतिविधि';
+
+  @override
   String get recentPrescriptions => 'हाल के पर्चे';
 
   @override
+  String get recentStockMovements => 'हाल की स्टॉक गतिविधि';
+
+  @override
   String get recentlyRegistered => 'हाल में पंजीकृत मरीज़';
+
+  @override
+  String get recordOn => 'इस पर दर्ज करें';
 
   @override
   String get recordSignedNoChange =>
@@ -2172,6 +2622,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get removeMedicine => 'दवा हटाएँ';
+
+  @override
+  String get reorderLevel => 'पुनः ऑर्डर स्तर';
 
   @override
   String get reportNotes => 'रिपोर्ट टिप्पणी';
@@ -2271,16 +2724,33 @@ class AppLocalizationsHi extends AppLocalizations {
   String get roleReceptionist => 'रिसेप्शनिस्ट';
 
   @override
+  String roomNumber(String room) {
+    return 'कमरा $room';
+  }
+
+  @override
+  String get route => 'मार्ग';
+
+  @override
+  String get saveNote => 'नोट सहेजें';
+
+  @override
   String get saveNoteDraft => 'नोट मसौदे के रूप में सहेजें';
 
   @override
   String get saveVitals => 'वाइटल्स सहेजें';
 
   @override
+  String get scheduledFor => 'निर्धारित समय';
+
+  @override
   String get searchByNameOrCity => 'नाम या शहर से खोजें';
 
   @override
   String get searchHospitals => 'अस्पताल खोजें';
+
+  @override
+  String get searchMedicinesHint => 'नाम से दवा खोजें';
 
   @override
   String get searchPages => 'पेज खोजें';
@@ -2290,6 +2760,12 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get searchPatientsHint => 'नाम, मोबाइल नंबर या यूएचआईडी';
+
+  @override
+  String get searchPrescriptionsHint => 'RX नंबर, मरीज़ का नाम या UHID';
+
+  @override
+  String get searchWardPatients => 'नाम, वार्ड या बेड से खोजें';
 
   @override
   String get selectDoctor => 'डॉक्टर चुनें';
@@ -2332,6 +2808,20 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get settings => 'सेटिंग्स';
+
+  @override
+  String get shiftEvening => 'शाम';
+
+  @override
+  String get shiftMorning => 'सुबह';
+
+  @override
+  String get shiftNight => 'रात';
+
+  @override
+  String showingFirstOf(int shown, int total) {
+    return '$total में से पहले $shown दिखाए गए हैं। सूची छोटी करने के लिए खोजें।';
+  }
 
   @override
   String get signIn => 'साइन इन करें';
@@ -2431,10 +2921,16 @@ class AppLocalizationsHi extends AppLocalizations {
   String get startConsultation => 'परामर्श शुरू करें';
 
   @override
+  String get startTask => 'शुरू करें';
+
+  @override
   String get status => 'स्थिति';
 
   @override
   String get statusAcknowledged => 'पुष्टि की';
+
+  @override
+  String get statusAdmitted => 'भर्ती';
 
   @override
   String get statusCalled => 'बुलाया गया';
@@ -2452,10 +2948,22 @@ class AppLocalizationsHi extends AppLocalizations {
   String get statusConfirmed => 'पुष्ट';
 
   @override
+  String get statusDeferred => 'टाला गया';
+
+  @override
+  String get statusDischargeInitiated => 'डिस्चार्ज शुरू';
+
+  @override
+  String get statusDischarged => 'डिस्चार्ज';
+
+  @override
   String get statusDispensed => 'दवा दी गई';
 
   @override
   String get statusInConsultation => 'परामर्श में';
+
+  @override
+  String get statusInProgress => 'जारी';
 
   @override
   String get statusNoShow => 'नहीं आए';
@@ -2510,6 +3018,39 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get stepSelectHospitalText => 'Pick where you want to be seen.';
+
+  @override
+  String get stockAdjust => 'समायोजित';
+
+  @override
+  String get stockBatch => 'स्टॉक बैच';
+
+  @override
+  String get stockChangedByStore =>
+      'यहाँ स्टॉक केवल देखा जा सकता है। यह केवल दवा देने या आने पर, या स्टोर (एडमिन, हॉस्पिटल मैनेजर या इन्वेंटरी स्टाफ़) के सुधार से बदलता है।';
+
+  @override
+  String get stockIn => 'आया';
+
+  @override
+  String get stockMovements => 'स्टॉक गतिविधि';
+
+  @override
+  String get stockOut => 'गया';
+
+  @override
+  String get substitute => 'विकल्प';
+
+  @override
+  String substituteFor(String medicine) {
+    return '$medicine के बदले';
+  }
+
+  @override
+  String get substituteReason => 'विकल्प क्यों दिया जा रहा है?';
+
+  @override
+  String get supplier => 'आपूर्तिकर्ता';
 
   @override
   String get switchingHospitalNote =>
@@ -2567,6 +3108,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get timeLabel => 'समय';
 
   @override
+  String get toDispense => 'देना है';
+
+  @override
   String get todayAtAGlance => 'आज एक नज़र में';
 
   @override
@@ -2574,6 +3118,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get todaysPatientFlow => 'आज के मरीज़';
+
+  @override
+  String get todaysShift => 'आज की ड्यूटी';
 
   @override
   String get tokenCalled => 'आपका टोकन बुलाया गया है';
@@ -2603,6 +3150,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get tokenOrPatientId => 'टोकन नंबर / मरीज़ ID';
 
   @override
+  String get totalMedicines => 'दवा बैच';
+
+  @override
   String get tryAgain => 'फिर से कोशिश करें';
 
   @override
@@ -2612,6 +3162,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String typeToSearch(int count) {
     return 'खोजने के लिए कम से कम $count अक्षर लिखें';
   }
+
+  @override
+  String get unitPrice => 'इकाई मूल्य';
 
   @override
   String get unread => 'अपठित';
@@ -2681,6 +3234,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get visits => 'विज़िट';
 
   @override
+  String get vitalBloodPressure => 'रक्तचाप';
+
+  @override
   String get vitalBloodSugar => 'ब्लड शुगर';
 
   @override
@@ -2733,6 +3289,19 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get waitingPatients => 'प्रतीक्षा में';
+
+  @override
+  String get wardAndBed => 'वार्ड और बेड';
+
+  @override
+  String get wardAttention => 'वार्ड में ध्यान देने योग्य';
+
+  @override
+  String get wardPatients => 'वार्ड के मरीज़';
+
+  @override
+  String get wardPatientsIntro =>
+      'आज आपकी ड्यूटी के मरीज़: आपके वार्ड में, या आपको सौंपे गए।';
 
   @override
   String get weWillSendCode => 'हम 6 अंकों का सत्यापन कोड भेजेंगे';

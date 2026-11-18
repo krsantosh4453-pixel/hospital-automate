@@ -21,6 +21,13 @@ import '../../features/doctor/ui/doctor_ui.dart';
 import '../../features/doctor/ui/patient_records_screens.dart';
 import '../../features/doctor/ui/queue_board_screen.dart';
 import '../../features/navigation/app_shell.dart';
+import '../../features/nursing/ui/nursing_ui.dart';
+import '../../features/nursing/ui/ward_patient_screen.dart';
+import '../../features/nursing/ui/ward_patients_screen.dart';
+import '../../features/pharmacy/ui/dispense_screen.dart';
+import '../../features/pharmacy/ui/medicine_screen.dart';
+import '../../features/pharmacy/ui/pharmacy_screen.dart';
+import '../../features/pharmacy/ui/pharmacy_ui.dart';
 import '../../features/navigation/nav_config.dart';
 import '../../features/patient/ui/account_screens.dart';
 import '../../features/patient/ui/appointments_screen.dart';
@@ -98,6 +105,35 @@ GoRouter buildAppRouter({
       kind: MoneyEntryKind.refund,
     ),
   };
+  // Nursing pages for the Nurse role, pharmacy pages for Pharmacist and
+  // Compounder. Other roles keep ModuleScreen there.
+  final nurseScreens = <String, Widget Function(GoRouterState)>{
+    NursingRoutes.ward: (_) => const WardPatientsScreen(),
+    '${NursingRoutes.ward}/patients/:id': (state) =>
+        WardPatientScreen(patientId: _idOf(state)),
+  };
+  final pharmacyScreens = <String, Widget Function(GoRouterState)>{
+    PharmacyRoutes.home: (_) => const PharmacyScreen(),
+    '${PharmacyRoutes.home}/prescriptions/:id': (state) =>
+        DispenseScreen(prescriptionId: _idOf(state)),
+    '${PharmacyRoutes.home}/medicines/:id': (state) =>
+        MedicineScreen(medicineId: _idOf(state)),
+  };
+  GoRoute rolePage(
+    String path,
+    bool Function(SessionState) allowed,
+    Widget Function(GoRouterState) build,
+  ) => GoRoute(
+    path: path,
+    pageBuilder: (_, state) {
+      final location = state.uri.path;
+      final item = findNavMatch(location)?.item;
+      final Widget child = allowed(session.state) || item == null
+          ? PatientPage(location: location, child: build(state))
+          : ModuleScreen(item: item, location: location);
+      return _page(state, child);
+    },
+  );
   GoRoute doctorPage(String path, Widget Function(GoRouterState) build) =>
       GoRoute(
         path: path,
@@ -146,6 +182,10 @@ GoRouter buildAppRouter({
             patientPage(entry.key, entry.value),
           for (final entry in doctorScreens.entries)
             doctorPage(entry.key, entry.value),
+          for (final entry in nurseScreens.entries)
+            rolePage(entry.key, isNurse, entry.value),
+          for (final entry in pharmacyScreens.entries)
+            rolePage(entry.key, isPharmacyStaff, entry.value),
           for (final entry in deskScreens.entries)
             GoRoute(
               path: entry.key,
@@ -162,6 +202,8 @@ GoRouter buildAppRouter({
               if (!ownScreens.contains(item.path) &&
                   !patientScreens.containsKey(item.path) &&
                   !doctorScreens.containsKey(item.path) &&
+                  !nurseScreens.containsKey(item.path) &&
+                  !pharmacyScreens.containsKey(item.path) &&
                   !deskScreens.containsKey(item.path))
                 page(
                   item.path,

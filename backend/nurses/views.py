@@ -34,6 +34,45 @@ from .serializers import (
 
 
 NO_ORDER = "No active doctor's order for this medicine. Ask the doctor to order or restart it."
+NOT_YOUR_PROFILE = "Recorded under your own nurse profile; another nurse cannot be named."
+
+
+def own_nurse_profile(user, hospital_id):
+    """The requester's own Nurse profile at ``hospital_id``, or None."""
+    if hospital_id is None:
+        return None
+    return Nurse.objects.filter(user=user, hospital_id=hospital_id).first()
+
+
+def recording_nurse(user, hospital_id, named, field):
+    """
+    The nurse a record is written under: always the requester's own profile
+    (None for a doctor or an unlinked login). Naming any other nurse is
+    refused, so a record never shows someone else as its author.
+    """
+    own = own_nurse_profile(user, hospital_id)
+    named_id = getattr(named, "pk", named)
+    if named_id not in (None, "") and (own is None or str(own.pk) != str(named_id)):
+        raise ValidationError({field: NOT_YOUR_PROFILE})
+    return own
+
+
+class OwnNurseRecordMixin:
+    """Nursing notes and assessments carry their author's own nurse profile."""
+
+    def perform_create(self, serializer):
+        extra = self._check_tenancy(serializer.validated_data)
+        hospital = serializer.validated_data.get("hospital") or extra.get("hospital")
+        nurse = recording_nurse(self.request.user, getattr(hospital, "pk", hospital),
+                                serializer.validated_data.get("nurse"), "nurse")
+        instance = serializer.save(nurse=nurse, **extra)
+        self._audit("create", instance)
+
+    def perform_update(self, serializer):
+        named = serializer.validated_data.get("nurse", serializer.instance.nurse)
+        if getattr(named, "pk", named) != serializer.instance.nurse_id:
+            raise ValidationError({"nurse": "The author of a nursing record cannot be changed."})
+        super().perform_update(serializer)
 
 
 def audit_dose(request, admin):
@@ -71,7 +110,7 @@ class NurseViewSet(HospitalScopedViewSet):
         return queryset
 
 
-class NursingAssessmentViewSet(HospitalScopedViewSet):
+class NursingAssessmentViewSet(OwnNurseRecordMixin, HospitalScopedViewSet):
     queryset = NursingAssessment.objects.select_related("hospital", "patient", "admission", "nurse")
     serializer_class = NursingAssessmentSerializer
     permission_classes = [IsNurse | IsDoctor]
@@ -90,7 +129,7 @@ class NursingAssessmentViewSet(HospitalScopedViewSet):
         return qs
 
 
-class NursingNoteViewSet(HospitalScopedViewSet):
+class NursingNoteViewSet(OwnNurseRecordMixin, HospitalScopedViewSet):
     queryset = NursingNote.objects.select_related("hospital", "patient", "admission", "nurse")
     serializer_class = NursingNoteSerializer
     permission_classes = [IsNurse | IsDoctor]
@@ -162,7 +201,8 @@ class CareTaskViewSet(HospitalScopedViewSet):
             )
         task.status = "Completed"
         task.completed_at = timezone.now()
-        task.completed_by_id = request.data.get("completed_by")
+        task.completed_by = recording_nurse(request.user, task.hospital_id,
+                                            request.data.get("completed_by"), "completed_by")
         task.notes = request.data.get("notes", task.notes)
         task.save()
         return Response(CareTaskSerializer(task).data)
@@ -369,19 +409,24 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         )
 
     def _nurse(self, request, admin):
-        """Optional nurse profile named in the request; must work at this hospital."""
-        nurse_id = request.data.get("administered_by")
-        if not nurse_id:
-            return None
-        nurse = Nurse.objects.filter(pk=nurse_id, hospital_id=admin.mar.hospital_id).first()
-        if nurse is None:
-            raise ValidationError({"administered_by": "Nurse not found at this hospital."})
-        return nurse
+        """The requester's own nurse profile; naming another nurse is refused."""
+        return recording_nurse(request.user, admin.mar.hospital_id,
+                               request.data.get("administered_by"), "administered_by")
+
+    def _locked_dose(self):
+        """
+        This URL's dose, row-locked until the request's transaction ends, so
+        two nurses recording the same dose at once cannot both pass the
+        "still Scheduled" check: the second sees the first one's outcome.
+        """
+        dose = self.get_object()
+        return MARAdministration.objects.select_for_update(of=("self",)).select_related("mar").get(pk=dose.pk)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def exclude(self, request, pk=None):
         """Administration Excluded: a doctor's decision not to give this dose."""
-        admin = self.get_object()
+        admin = self._locked_dose()
         if admin.status != MARAdministration.SCHEDULED:
             return Response({"detail": f"Already {admin.status.lower()}."}, status=status.HTTP_400_BAD_REQUEST)
         reason = str(request.data.get("reason") or "").strip()
@@ -396,9 +441,10 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         return Response(MARAdministrationSerializer(admin).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def administer(self, request, pk=None):
         """Record medication administration."""
-        admin = self.get_object()
+        admin = self._locked_dose()
 
         if admin.status != MARAdministration.SCHEDULED:
             return Response(
@@ -422,9 +468,10 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         return Response(MARAdministrationSerializer(admin).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def hold(self, request, pk=None):
         """Hold medication."""
-        admin = self.get_object()
+        admin = self._locked_dose()
 
         if admin.status != MARAdministration.SCHEDULED:
             return Response(
@@ -444,9 +491,10 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         return Response(MARAdministrationSerializer(admin).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def refuse(self, request, pk=None):
         """Patient refused medication."""
-        admin = self.get_object()
+        admin = self._locked_dose()
 
         if admin.status != MARAdministration.SCHEDULED:
             return Response(
@@ -466,9 +514,10 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
         return Response(MARAdministrationSerializer(admin).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def mark_missed(self, request, pk=None):
         """Mark as missed."""
-        admin = self.get_object()
+        admin = self._locked_dose()
 
         if admin.status != MARAdministration.SCHEDULED:
             return Response(

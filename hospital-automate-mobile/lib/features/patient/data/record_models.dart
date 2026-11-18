@@ -3,11 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'json_read.dart';
 
 /// One medicine line (PrescriptionItemSerializer). Written by the doctor;
-/// the app only displays it.
+/// the app never changes it. [id] and [dispensedQuantity] are for the
+/// pharmacy, which issues lines against the item id.
 @immutable
 class PrescriptionItem {
   const PrescriptionItem({
     required this.name,
+    this.id,
+    this.dispensedQuantity,
     this.dosage,
     this.frequency,
     this.duration,
@@ -17,7 +20,9 @@ class PrescriptionItem {
 
   factory PrescriptionItem.fromJson(Map<String, Object?> json) =>
       PrescriptionItem(
+        id: readInt(json['id']),
         name: readText(json['name']) ?? '',
+        dispensedQuantity: readInt(json['dispensed_quantity']),
         dosage: readText(json['dosage']),
         frequency: readText(json['frequency']),
         duration: readText(json['duration']),
@@ -25,12 +30,22 @@ class PrescriptionItem {
         instructions: readText(json['instructions']),
       );
 
+  final int? id;
   final String name;
   final String? dosage;
   final String? frequency;
   final String? duration;
   final int? quantity;
   final String? instructions;
+
+  /// Issued so far by the pharmacy (server-counted from its sales).
+  final int? dispensedQuantity;
+
+  /// Still to be issued: prescribed minus dispensed, never below zero.
+  int get remaining {
+    final owed = (quantity ?? 0) - (dispensedQuantity ?? 0);
+    return owed < 0 ? 0 : owed;
+  }
 }
 
 /// `GET clinical/prescriptions/` (PrescriptionSerializer). The serializer has
@@ -48,6 +63,7 @@ class Prescription {
     this.items = const [],
     this.patientId,
     this.patientName,
+    this.patientUhid,
     this.visitId,
   });
 
@@ -56,6 +72,7 @@ class Prescription {
     status: readText(json['status']) ?? '',
     patientId: readInt(json['patient']),
     patientName: readText(json['patient_name']),
+    patientUhid: readText(json['patient_uhid']),
     visitId: readInt(json['visit']),
     createdAt: readDateTime(json['created_at']),
     dispensedAt: readDateTime(json['dispensed_at']),
@@ -77,6 +94,9 @@ class Prescription {
   /// Staff-side links; a patient sees only their own prescriptions.
   final int? patientId;
   final String? patientName;
+
+  /// UHID at the prescription's own hospital (shown in the pharmacy queue).
+  final String? patientUhid;
   final int? visitId;
   final String status;
   final DateTime? createdAt;
