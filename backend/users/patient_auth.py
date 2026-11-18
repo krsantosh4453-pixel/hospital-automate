@@ -133,8 +133,21 @@ def verify_patient_otp(phone, otp):
     if not normalized or len(code) != 6:
         return None, "Invalid OTP."
 
+    # Our own expiry and attempt cap, independent of the SMS provider's limits.
+    record = (
+        OTPVerification.objects.filter(phone=normalized, channel="sms", is_verified=False)
+        .order_by("-created_at")
+        .first()
+    )
+    if record is None or record.expires_at < timezone.now():
+        return None, "Invalid or expired OTP."
+    if record.attempts >= OTP_ATTEMPT_LIMIT:
+        return None, "Too many OTP requests. Please try again later."
+
     result = SMSService().verify_otp(normalized, code)
     if not result.ok:
+        record.attempts += 1
+        record.save(update_fields=["attempts"])
         return None, result.message
 
     patients = linked_patients_for_phone(normalized)

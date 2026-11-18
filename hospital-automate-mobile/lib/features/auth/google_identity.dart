@@ -30,7 +30,7 @@ class GoogleSignInFailure implements Exception {
 abstract final class GoogleConfig {
   static const _override = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
   static const _webClientId =
-      '1199500530711-s1ti1g061cno8d3tk2759hqrgitdect.apps.googleusercontent.com';
+      '119950053071-f93kl31rlntoo9jq35bgtc69rcqtrti5.apps.googleusercontent.com';
 
   static String get serverClientId =>
       _override.isEmpty ? _webClientId : _override;
