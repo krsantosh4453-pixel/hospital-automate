@@ -1,17 +1,35 @@
-# Production docker-compose
-
+# Production / staging docker-compose
+#
 # Every Django process (web, worker, beat) loads the same production settings,
-# so they share one env file. Copy .env.production.example to .env.production
-# and fill it in; never commit the filled-in file.
+# so they share one env file. Copy .env.production.example to .env.production,
+# fill it in, keep it out of git, and pass the same file for interpolation:
+#
+#   docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+#
+# Without --env-file, Compose interpolates ${...} from a file named .env and
+# the required values below stop it with an error instead of starting with
+# blank passwords. See docs/STAGING_DEPLOYMENT.md.
+
+x-logging: &default-logging
+  # Docker's json-file driver never rotates by default and fills the disk.
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 x-django-env: &django-env
   DJANGO_ENV: production
-  DATABASE_URL: postgres://${POSTGRES_USER:-hms_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hms_prod}
-  REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+  DATABASE_URL: postgres://${POSTGRES_USER:-hms_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-hms_prod}
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
   CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
   CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/0
   BACKUP_STORAGE_PATH: /backups
 
 x-django-service: &django-service
+  # One image for web, worker and beat, so they can never run different code.
+  # Tag each release (HMS_RELEASE=<git sha>) and keep the previous tag: rolling
+  # back is `HMS_RELEASE=<previous> ... up -d --no-build` (STAGING_DEPLOYMENT.md).
+  image: hms-backend:${HMS_RELEASE:-latest}
   build:
     context: .
     dockerfile: backend/Dockerfile
@@ -26,6 +44,7 @@ x-django-service: &django-service
     redis:
       condition: service_healthy
   restart: unless-stopped
+  logging: *default-logging
 
 services:
   # PostgreSQL Database
@@ -35,18 +54,23 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-hms_prod}
       POSTGRES_USER: ${POSTGRES_USER:-hms_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
       - ./backups:/backups
+    # Loopback only, for host-side tools. Choose another host port when the
+    # host already runs its own PostgreSQL on 5432.
     ports:
-      - "127.0.0.1:5432:5432"  # Only accessible locally
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hms_user} -d ${POSTGRES_DB:-hms_prod}"]
       interval: 30s
       timeout: 10s
       retries: 5
+    # Docker's default 10 s ends in SIGKILL and crash recovery on next start.
+    stop_grace_period: 60s
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -54,21 +78,26 @@ services:
         reservations:
           memory: 512M
 
-  # Redis
+  # Redis: cache, sessions, Celery broker and results
   redis:
     image: redis:7-alpine
     container_name: hms-redis-prod
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
+    # volatile-lru: under memory pressure only keys with a TTL (cache, sessions,
+    # task results) are evicted. allkeys-lru could evict queued Celery tasks.
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    environment:
+      # redis-cli reads the password from here (health check below).
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
     volumes:
       - redis_prod_data:/data
-    ports:
-      - "127.0.0.1:6379:6379"  # Only accessible locally
+    # No host port: only the containers on this network talk to Redis.
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -76,7 +105,7 @@ services:
         reservations:
           memory: 256M
 
-  # Backend (Django + Gunicorn)
+  # Backend (Django + Gunicorn). The only container that migrates.
   backend:
     <<: *django-service
     container_name: hms-backend-prod
@@ -87,6 +116,7 @@ services:
       --worker-class gthread
       --threads ${GUNICORN_THREADS:-2}
       --timeout ${GUNICORN_TIMEOUT:-60}
+      --graceful-timeout 30
       --keep-alive 5
       --max-requests 1000
       --max-requests-jitter 100
@@ -105,13 +135,17 @@ services:
       - app_logs:/app/logs
       - ./backups:/backups
     ports:
-      - "127.0.0.1:8000:8000"  # Only accessible locally (via nginx)
+      - "127.0.0.1:${BACKEND_HOST_PORT:-8000}:8000"  # loopback only; the public path is nginx
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/ready/"]
+      # Django refuses Host: localhost (not in ALLOWED_HOSTS), so the probe sends
+      # the first allowed host from the container's own environment.
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null -H \"Host: $${ALLOWED_HOSTS%%,*}\" http://localhost:8000/health/ready/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      # The first start runs every migration before gunicorn listens.
+      start_period: 180s
+    stop_grace_period: 40s
     deploy:
       resources:
         limits:
@@ -130,6 +164,14 @@ services:
       --prefetch-multiplier=1
       --max-tasks-per-child=1000
       -Q default,notifications,reports,ai_processing,audit,maintenance
+    # Start only after the backend has migrated and answers /health/ready/.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     # The image's HTTP health check is for gunicorn; a worker answers pings instead.
     healthcheck:
       test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout 10"]
@@ -155,6 +197,14 @@ services:
       celery -A config beat
       --loglevel=info
       --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    # DatabaseScheduler reads tables that the backend's migrate creates.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     # Beat serves nothing to probe; restart: unless-stopped covers crashes.
     healthcheck:
       disable: true
@@ -169,6 +219,7 @@ services:
 
   # Frontend (Nginx serving static React app)
   frontend:
+    image: hms-frontend:${HMS_RELEASE:-latest}
     build:
       context: .
       dockerfile: Dockerfile.frontend
@@ -179,6 +230,7 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -186,24 +238,36 @@ services:
         reservations:
           memory: 64M
 
-  # Nginx Reverse Proxy (separate from frontend for SSL termination)
+  # Nginx Reverse Proxy (TLS termination, security headers, rate limits)
   nginx:
     image: nginx:alpine
     container_name: hms-nginx-prod
+    environment:
+      # server_name and the HTTP->HTTPS redirect target (nginx-entrypoint.sh).
+      DOMAIN_NAME: ${DOMAIN_NAME:?DOMAIN_NAME is required (the public host name)}
     ports:
-      - "80:80"
-      - "443:443"
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
     volumes:
       - ./nginx.conf.template:/etc/nginx/nginx.conf.template:ro
       - ./nginx-entrypoint.sh:/entrypoint.sh:ro
       - ./ssl:/etc/nginx/ssl:ro
+      # certbot --webroot writes ACME challenges here (docs/STAGING_DEPLOYMENT.md).
+      - ./certbot:/var/www/certbot:ro
       - staticfiles:/var/www/static:ro
       - media:/var/www/media:ro
     entrypoint: ["/entrypoint.sh"]
     depends_on:
       - backend
       - frontend
+    healthcheck:
+      # /nginx-health answers only to 127.0.0.1 (nginx.conf.template).
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1/nginx-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:

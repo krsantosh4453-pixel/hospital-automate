@@ -37,16 +37,21 @@ fi
 # share this entrypoint and must not race each other on schema changes.
 if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     echo "Running migrations..."
-    python manage.py migrate --noinput
+    # Web requests keep their 30 s statement_timeout; a migration that builds
+    # an index on a large table must not be killed half-way, so lift it here.
+    DB_STATEMENT_TIMEOUT_MS=0 python manage.py migrate --noinput
     python manage.py load_icd10 --if-empty
     echo "Collecting static files..."
     python manage.py collectstatic --noinput
-fi
 
-# Create superuser if needed
-if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
-    echo "Creating superuser..."
-    python manage.py createsuperuser --noinput --username "$DJANGO_SUPERUSER_USERNAME" --email "$DJANGO_SUPERUSER_EMAIL" || echo "Superuser not created (it may already exist)."
+    # Optional first superuser. Only the migrating container tries, so the
+    # worker and beat neither race it nor run before the tables exist.
+    if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+        echo "Creating superuser..."
+        python manage.py createsuperuser --noinput --username "$DJANGO_SUPERUSER_USERNAME" --email "$DJANGO_SUPERUSER_EMAIL" || echo "Superuser not created (it may already exist)."
+    fi
+else
+    echo "RUN_MIGRATIONS is not true: skipping migrate and collectstatic in this container."
 fi
 
 # Execute the main command

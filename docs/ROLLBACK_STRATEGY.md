@@ -1,8 +1,9 @@
 # Deployment Rollback Strategy - Hospital Management System
 
-> **Read with DEPLOYMENT.md (2026-10-25).** The supported deployment is Docker Compose; `kubectl` commands
-> here apply only if you move to Kubernetes. Run `scripts/backup.py` from the host with PostgreSQL 16 client
-> tools and `cryptography` installed. The backend image contains neither `pg_dump` nor `cryptography`.
+> **Read with STAGING_DEPLOYMENT.md §9 and §13 (2026-11-18), which hold the rehearsed Docker Compose rollback
+> and restore steps.** The supported deployment is Docker Compose; `kubectl` commands here apply only if you
+> move to Kubernetes. Backups: `scripts/deploy/backup.sh` (needs only Docker). `backend/scripts/backup.py` reads
+> the same files but needs PostgreSQL 16 client tools and `cryptography` on the host.
 > The backup → verify → restore cycle was verified on PostgreSQL 16 (TEST_REPORT.md).
 
 ## Overview

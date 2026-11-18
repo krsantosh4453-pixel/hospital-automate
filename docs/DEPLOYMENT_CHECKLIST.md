@@ -7,6 +7,7 @@ Use this with `DEPLOYMENT.md` (how to do each step) and `SECURITY_AUDIT_CHECKLIS
 - [x] R-01 (tokens in `localStorage`): done on 2026-10-26, now httpOnly cookies + CSRF.
 - [ ] Decide R-03 (patient and clinical hard deletes) in `DEFECT_REGISTER.md`; it is a policy decision.
 - [x] Local rehearsal of §2–3 on Docker (Colima, self-signed TLS) on 2026-10-26. It found and fixed 9 deployment defects. Still repeat it on the real staging server with a real domain and certificate.
+- [x] Second local rehearsal on 2026-11-18 (synthetic secrets, private test CA): the deployment defects in `STAGING_DEPLOYMENT_REPORT_2026-11-18.md` fixed; backups, restore, rollback and recovery rehearsed. The step-by-step staging procedure and its checklist are now `STAGING_DEPLOYMENT.md` §14. The real-host rehearsal is still open.
 - [ ] Fill the blank Twilio and SMTP values, then run §3's sign-in and notification checks (point 2 is blocked until then).
 - Review packs for the §4 sign-offs: `CLINICAL_SAFETY_REVIEW_PACK.md`, `PRIVACY_AND_PENTEST_PACK.md`.
 - [ ] If the repository will be shared, purge `backend/db.sqlite3` from git history (R-02) and rotate anything it held.

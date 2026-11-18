@@ -257,7 +257,11 @@ jobs:
       - name: Validate compose files
         run: |
           touch .env.production
-          POSTGRES_PASSWORD=ci REDIS_PASSWORD=ci docker compose -f docker-compose.prod.yml config -q
+          POSTGRES_PASSWORD=ci REDIS_PASSWORD=ci DOMAIN_NAME=ci.example.test docker compose -f docker-compose.prod.yml config -q
+          # Required values must stop Compose instead of defaulting to blank.
+          if POSTGRES_PASSWORD=ci DOMAIN_NAME=ci.example.test docker compose -f docker-compose.prod.yml config -q 2>/dev/null; then
+            echo "docker-compose.prod.yml accepted a blank REDIS_PASSWORD" && exit 1
+          fi
           docker compose -f docker-compose.dev.yml config -q
 
       - name: Set up Docker Buildx
