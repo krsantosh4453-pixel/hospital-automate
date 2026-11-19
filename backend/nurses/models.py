@@ -307,15 +307,17 @@ class MAR(EnteredInError):
         related_name="mar_records",
         db_index=True
     )
+    # PROTECT (H-03): removing a prescription line must never erase the
+    # medication order and the doses recorded under it.
     prescription = models.ForeignKey(
         "clinical.Prescription",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="mar_records",
         db_index=True
     )
     prescription_item = models.ForeignKey(
         "clinical.PrescriptionItem",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="mar_records",
         db_index=True
     )

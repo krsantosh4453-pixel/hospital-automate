@@ -1,6 +1,8 @@
 # Clinical Safety Review Pack
 
-For a clinical safety officer, senior doctor and pharmacist. Prepared 2026-10-26 from the code and its tests; updated 2026-11-03 (sections 7 and 8 are new). **Engineering cannot sign this off:** each section ends with questions only a clinician can answer, and a signature line.
+For a clinical safety officer, senior doctor and pharmacist. Prepared 2026-10-26 from the code and its tests; updated 2026-11-03 (sections 7 and 8 are new) and 2026-11-19 (sections 10–12, the approval checklist and the hazard register). **Engineering cannot sign this off:** each section ends with questions only a clinician can answer, and a signature line.
+
+Read with: `CLINICAL_HAZARD_REGISTER.md` (rated hazards and residual risks) and `CLINICAL_WORKFLOW_VALIDATION_2026-11-19.md` (workflow test report and regression evidence).
 
 How to use it:
 
@@ -33,12 +35,21 @@ Test names point to `backend/security_tests/`.
 - A dose cannot be marked Administered by editing its status field directly.
 - **Excluding** a dose (e.g. NPO) requires a reason.
 - **PRN** doses can only be recorded against a PRN order, and are recorded as administered at that moment with notes.
-- Frequency parsing understands `QnH`, `BID`, `TID` and otherwise defaults to once daily. **Unusual frequencies are not rejected.**
+- Frequencies (since 2026-11-19, hazard H-01): only a fixed vocabulary is accepted, and anything else is **refused** when the doctor saves the order. Until then, unknown frequencies, including BD, TDS, `1-0-1` and WEEKLY, were silently scheduled once daily. The vocabulary:
+  - OD/BD/TDS/QDS/HS and BID/TID/QID;
+  - Q*n*H or "every *n* hours" (1–168);
+  - the `1-0-1` pattern (scheduled at equal intervals);
+  - EOD, WEEKLY;
+  - STAT/ONCE (one dose only);
+  - PRN/SOS (never scheduled).
+- A dose can be recorded as given from 60 minutes before its time (`MAR_EARLY_ADMINISTRATION_MINUTES`), and cannot be marked missed before it is due (H-02).
 - Engineering note: one older MAR model test (`nurses/tests.py`) is permanently skipped ("Requires Prescription/PrescriptionItem setup"). The behaviour above is covered by `test_mar_safety`, which runs.
 
 **Questions for the reviewer:**
 
-- Is defaulting unknown frequencies to once daily acceptable, or must they be refused?
+- Approve the frequency vocabulary above. Is equal-interval scheduling of `1-0-1` acceptable, or must doses follow fixed ward times (e.g. 08:00 / 20:00)?
+- Is 60 minutes the right early-administration window?
+- Must PRN orders carry a minimum interval and a maximum per 24 hours (H-10)?
 - Is a reason needed for "missed" or "refused" doses as well as exclusions?
 - Is a second-nurse check required for high-alert drugs (insulin, opioids)? None exists.
 
@@ -165,19 +176,92 @@ Test names point to `backend/security_tests/`.
 - Who reviews `clinical.prescription.safety_override` audit entries, and how often?
 - Which licensed drug database should replace or extend this list (Phase B)?
 
+## 10. Defects fixed on 2026-11-19 (for confirmation)
+
+Found while preparing this pack. Each one has a test that failed before the fix and passes after it (`CLINICAL_WORKFLOW_VALIDATION_2026-11-19.md`, section 4). Details and ratings are in `CLINICAL_HAZARD_REGISTER.md`.
+
+| Hazard | What was wrong | What it does now |
+|---|---|---|
+| H-01 | MAR scheduled BD, TDS, `1-0-1`, EOD and **WEEKLY** once daily, repeated STAT doses daily, scheduled SOS doses, and hung on Q0H. | Exact vocabulary; anything else refused (section 1). |
+| H-02 | A future dose could be recorded as given or missed. | Given from 60 minutes before its time; missed only once due. |
+| H-03 | Editing a prescription **erased** its MAR orders and every recorded dose. | A prescription with MAR orders cannot be edited: stop the orders and write a new one. Links are protected. |
+| H-04 | A verified paper prescription could be changed and dispensed without a new check. | Any change sends it back for verification by someone else. |
+| H-05 | Allergies recorded by brand name were never matched; unreadable allergies passed silently. | Brands are matched through the catalogue; an unreadable allergy shows "not checked — check it yourself". |
+| H-06 | AI-scribe audio could be uploaded and transcribed without the patient's consent. | Refused until consent is recorded. |
+| H-07 | AI-draft rejections were not in the audit log; two approvals at once could write two notes. | Rejections audited; approval locked. |
+| H-23 | A MAR start time typed as 08:00 was taken as UTC (13:30 at the hospital). | Hospital clock. |
+
+**Questions:**
+
+- Confirm each new behaviour, especially that **H-03** (stop and re-order instead of editing) fits the ward workflow.
+- **Before deployment:** existing MAR orders may have been scheduled at the wrong rate by the old logic. Who reviews the list produced in section 5 of the validation report?
+
+## 11. Image prediction (CNN): not built
+
+There is no image model, dataset or approved use case. The feature reports "blocked" in the app and API, and nothing was built, simulated or enabled. Section 7 of the validation report lists what is required first:
+- intended use;
+- a validated local dataset;
+- evaluation, including false-negative and false-positive analysis;
+- CDSCO medical-device status;
+- ethics committee approval;
+- monitoring.
+
+**Acknowledgement:** image prediction stays disabled until a separate validation and authorisation is signed.
+
+| Acknowledged by (name, role) | Signature | Date |
+|---|---|---|
+| | | |
+
+## 12. AI scribe safety summary
+
+All of these are enforced in the server, with tests (validation report section 6):
+- the output is a draft;
+- it is never approved automatically;
+- only the consulting doctor, linked to a doctor profile, can approve it;
+- approval, rejection and edits are audited;
+- consent is required before recording, upload and transcription;
+- transcripts and review history cannot be edited;
+- mock providers are refused in production, and a provider failure writes nothing.
+
+**Not verified:** accuracy of any real provider (H-16).
+
+## Clinical approval checklist (before any real patient use)
+
+Each line is ticked by the named role, not by engineering.
+
+| # | Item | Owner | Done (initials, date) |
+|---|---|---|---|
+| 1 | Every hazard in `CLINICAL_HAZARD_REGISTER.md` reviewed, re-rated if needed, and accepted or sent back | Clinical safety officer | |
+| 2 | Decision recorded on H-08 (no dose-range checking): a licensed drug database, or written acceptance with pharmacist review of IPD orders | P&T committee | |
+| 3 | Starter interaction rules and allergy classes approved or amended (section 9) | P&T committee | |
+| 4 | MAR frequency vocabulary, early-administration window and PRN limits approved (section 1) | Nursing lead + P&T | |
+| 5 | Existing MAR orders checked after deploying the H-01 fix (validation report section 5) | Ward doctors | |
+| 6 | Laboratory reference ranges and the critical-value call procedure in place (H-14) | Lab director | |
+| 7 | Discharge checklist items that must block discharge decided (section 3) | Medical director | |
+| 8 | AI scribe provider chosen and accuracy checked on synthetic or consented recordings; audio retention period set (section 4) | Medical director + DPO | |
+| 9 | Break-glass and family-access rules decided (sections 7 and 8) | Clinical safety officer | |
+| 10 | Each workflow tried in staging with synthetic patients by its user group (doctor, nurse, pharmacist, lab, ER, billing) | Department leads | |
+| 11 | Paper fallback procedure for downtime and for ER actions not built (H-18) | Medical director | |
+| 12 | Image prediction acknowledged as disabled (section 11) | Medical director | |
+
 ## Sign-off
 
-| Area | Approved as is / Changes required | Reviewer | Date |
-|---|---|---|---|
-| MAR | | | |
-| Laboratory | | | |
-| Discharge | | | |
-| AI scribe | | | |
-| Pharmacy / blood bank | | | |
-| Emergency | | | |
-| Break-glass access | | | |
-| Family / caregiver access | | | |
-| Medication safety rules (section 9) | | | |
+Sign only after trying the workflow in staging with synthetic patients. Engineering does not sign this table.
+
+| Area | Approved as is / Changes required | Reviewer (name, role, registration no.) | Signature | Date |
+|---|---|---|---|---|
+| MAR (incl. section 10 changes) | | | | |
+| Laboratory | | | | |
+| Discharge | | | | |
+| AI scribe | | | | |
+| Pharmacy / blood bank | | | | |
+| Emergency | | | | |
+| Break-glass access | | | | |
+| Family / caregiver access | | | | |
+| Medication safety rules (section 9) | | | | |
+| Prescription changes and paper re-verification (section 10) | | | | |
+| Hazard register (all hazards) | | | | |
+| Image prediction disabled (section 11) | | | | |
 
 ## Changes since 2026-11-03 for the clinical safety officer (added 2026-11-08)
 

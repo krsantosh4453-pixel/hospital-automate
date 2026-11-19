@@ -478,9 +478,18 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "items": "Medicine has already been issued for this prescription; write a new one instead."
             })
-
+        if items_data is not None and self._has_medication_orders(instance):
+            # H-03: replacing the lines deleted the MAR orders and every recorded dose.
+            raise serializers.ValidationError({
+                "items": "Nurses' medication orders (MAR) come from this prescription's medicines. Stop those "
+                         "medication orders on the IPD page and write a new prescription; the administration "
+                         "record is kept."
+            })
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        # After the fields, so a status sent with the new medicines cannot keep it verified.
+        if items_data is not None and instance.source == Prescription.Source.PAPER:
+            self._send_back_for_verification(instance)
         instance.save()
 
         if items_data is not None:
@@ -492,6 +501,27 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             self._audit_override(instance)
 
         return instance
+
+    @staticmethod
+    def _has_medication_orders(prescription):
+        from nurses.models import MAR
+
+        # Every order, including ones marked entered in error: their dose history is kept too.
+        orders = getattr(MAR, "all_objects", MAR.objects)
+        return orders.filter(prescription=prescription).exists()
+
+    def _send_back_for_verification(self, prescription):
+        """
+        H-04: changed medicines on a paper transcription need a second person's
+        check again. The editor becomes the transcriber, so they cannot verify it.
+        """
+        if prescription.status == "Cancelled":
+            return
+        request = self.context.get("request")
+        prescription.status = Prescription.PENDING_VERIFICATION
+        prescription.verified_by = None
+        prescription.verified_at = None
+        prescription.transcribed_by = getattr(request, "user", None) or prescription.transcribed_by
 
 class PrescriptionTranscriptionSerializer(PrescriptionSerializer):
     """

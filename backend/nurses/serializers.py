@@ -235,6 +235,16 @@ class MARSerializer(serializers.ModelSerializer):
         user = obj.ordered_by
         return (user.get_full_name() or user.username) if user else ""
 
+    def validate_frequency(self, value):
+        # H-01: refused here, so the doctor fixes it before any dose is scheduled.
+        from .frequency import FrequencyError, parse_frequency
+
+        try:
+            parse_frequency(value)
+        except FrequencyError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return value.strip()
+
     def validate(self, attrs):
         # The order must come from that patient's own prescription.
         get = lambda name: attrs.get(name, getattr(self.instance, name, None))  # noqa: E731

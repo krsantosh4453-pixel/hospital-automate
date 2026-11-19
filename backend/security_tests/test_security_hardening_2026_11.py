@@ -283,6 +283,10 @@ class AudioUploadValidationTests(TestCase):
         self.assertEqual(created.status_code, 201, created.content)
         self.session_id = created.json()["id"]
         self.base = f"/api/ai/consultation-sessions/{self.session_id}"
+        # Uploads need the patient's recorded consent (H-06, 2026-11-19), so the
+        # refusals below come from the audio checks, not from missing consent.
+        consented = self.client.post(f"{self.base}/start_recording/", {"patient_consent": True}, format="json")
+        self.assertEqual(consented.status_code, 200, consented.content)
 
     def _upload(self, name, data, content_type):
         audio = SimpleUploadedFile(name, data, content_type=content_type)

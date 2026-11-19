@@ -39,6 +39,7 @@ This directory contains the complete documentation for the Hospital Management S
 1. Read [User Guide](USER_GUIDE.md) for role-based workflows
 2. Check [Module Status](MODULE_STATUS.md) for feature availability
 3. Review [AI/ML Status](AI_ML_STATUS.md) for AI capabilities
+4. For clinical safety sign-off: [Clinical Safety Review Pack](CLINICAL_SAFETY_REVIEW_PACK.md), [Clinical Hazard Register](CLINICAL_HAZARD_REGISTER.md) and [Clinical Workflow Validation](CLINICAL_WORKFLOW_VALIDATION_2026-11-19.md)
 
 ## Version Information
 

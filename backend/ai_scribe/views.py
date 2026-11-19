@@ -101,6 +101,20 @@ def _not_consulting_doctor(request, session):
     return Response({"error": NOT_CONSULTING_DOCTOR}, status=status.HTTP_403_FORBIDDEN)
 
 
+NO_CONSENT = ("Record the patient's consent to audio recording (Start recording) before audio is "
+              "uploaded or transcribed.")
+
+
+def _no_recording_consent(session):
+    """
+    H-06: patient audio is stored and sent to the speech-to-text provider only
+    after the patient's recorded consent. A refusal, or None when consented.
+    """
+    if session.recording_consent_at:
+        return None
+    return Response({"error": NO_CONSENT}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class ConsultationSessionViewSet(HospitalScopedViewSet):
     """
     API for managing AI consultation sessions.
@@ -207,6 +221,10 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
         if denied:
             return denied
 
+        no_consent = _no_recording_consent(session)
+        if no_consent:
+            return no_consent
+
         audio_file = request.FILES.get("audio_file")
         if not audio_file:
             return Response(
@@ -235,6 +253,10 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
         denied = _not_consulting_doctor(request, session)
         if denied:
             return denied
+
+        no_consent = _no_recording_consent(session)
+        if no_consent:
+            return no_consent
 
         if not session.audio_file:
             return Response(
@@ -510,6 +532,12 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
+            # Two approvals at once must not write two clinical notes.
+            draft = AIConsultationDraft.objects.select_for_update().select_related(
+                "consultation__visit", "consultation__hospital").get(pk=draft.pk)
+            if not draft.can_approve():
+                return Response({"error": f"Draft cannot be approved in status: {draft.status}"},
+                                status=status.HTTP_400_BAD_REQUEST)
             # Create final clinical note
             from clinical.models import ClinicalNote
 
@@ -591,6 +619,9 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
             ai_value=draft.structured_extraction,
             notes=draft.review_notes,
         )
+        # Rejections go to the audit log as approvals do.
+        record_audit(request, "ai.draft.rejected", draft, hospital=draft.consultation.hospital_id,
+                     details={"version": draft.version, "notes": draft.review_notes})
 
         return Response(self.get_serializer(draft).data)
 

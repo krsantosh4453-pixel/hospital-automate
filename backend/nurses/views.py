@@ -2,14 +2,16 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from datetime import datetime, timedelta
 
 from audit.services import record_audit
-from config.hospital_time import hospital_today
+from config.hospital_time import hospital_now, hospital_today
 from users.viewsets import HospitalScopedViewSet
+from .frequency import ONCE, PRN, FrequencyError, parse_frequency
 from users.permissions import IsAdmin, IsHospitalManager, IsNurse, IsDoctor
 from .models import (
     Nurse,
@@ -35,6 +37,31 @@ from .serializers import (
 
 NO_ORDER = "No active doctor's order for this medicine. Ask the doctor to order or restart it."
 NOT_YOUR_PROFILE = "Recorded under your own nurse profile; another nurse cannot be named."
+# H-02: how long before its scheduled time a dose may be recorded as given.
+# Pending clinical sign-off of the value (CLINICAL_SAFETY_REVIEW_PACK.md section 1).
+DEFAULT_EARLY_WINDOW_MINUTES = 60
+
+
+def early_window():
+    return timedelta(minutes=getattr(settings, "MAR_EARLY_ADMINISTRATION_MINUTES", DEFAULT_EARLY_WINDOW_MINUTES))
+
+
+def is_prn(frequency_text):
+    try:
+        return parse_frequency(frequency_text).kind == PRN
+    except FrequencyError:
+        return False
+
+
+def not_yet_due(admin, now, window):
+    """A refusal when ``admin`` is more than ``window`` before its time, else None."""
+    if admin.scheduled_time <= now + window:
+        return None
+    due = admin.scheduled_time.astimezone(hospital_now().tzinfo).strftime("%d %b %H:%M")
+    return Response({"detail": f"This dose is due at {due}. It can be recorded from "
+                               f"{int(window.total_seconds() // 60)} minutes before then; if it is needed "
+                               f"earlier, the doctor changes the order."},
+                    status=status.HTTP_400_BAD_REQUEST)
 
 
 def own_nurse_profile(user, hospital_id):
@@ -265,9 +292,19 @@ class MARViewSet(HospitalScopedViewSet):
         return qs
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def generate_schedule(self, request, pk=None):
         """Generate MAR administration schedule based on frequency."""
         mar = self.get_object()
+        if not mar.is_active or mar.entered_in_error_at is not None:
+            return Response({"detail": NO_ORDER}, status=status.HTTP_400_BAD_REQUEST)
+        # H-01: a frequency is understood exactly or refused, never guessed.
+        try:
+            frequency = parse_frequency(mar.frequency)
+        except FrequencyError as exc:
+            return Response({"detail": f"Frequency: {exc}"}, status=status.HTTP_400_BAD_REQUEST)
+        if frequency.kind == PRN:
+            return Response({"detail": "PRN medications do not have fixed schedules."})
 
         # Replace only future doses nobody has acted on; recorded outcomes stay.
         MARAdministration.objects.filter(
@@ -276,8 +313,6 @@ class MARViewSet(HospitalScopedViewSet):
             status=MARAdministration.SCHEDULED,
         ).delete()
 
-        # Parse frequency (e.g., "Q8H", "BID", "TID", "QID", "Daily", "PRN")
-        frequency = mar.frequency.upper()
         start_date = request.data.get("start_date")
         if start_date:
             try:
@@ -286,7 +321,8 @@ class MARViewSet(HospitalScopedViewSet):
                 return Response({"start_date": "Use ISO format, e.g. 2026-10-24T08:00."},
                                 status=status.HTTP_400_BAD_REQUEST)
             if timezone.is_naive(start_dt):
-                start_dt = timezone.make_aware(start_dt)
+                # A time typed without a zone is the hospital's clock, not the server's UTC.
+                start_dt = timezone.make_aware(start_dt, hospital_now().tzinfo)
         else:
             start_dt = timezone.now()
 
@@ -294,36 +330,20 @@ class MARViewSet(HospitalScopedViewSet):
         if not end_date:
             end_date = start_dt.date() + timedelta(days=7)
 
-        administrations = []
-        current_dt = start_dt
-
-        # Simple frequency parsing
-        interval_hours = 24
-        if "Q" in frequency and "H" in frequency:
-            # Q8H, Q6H, etc.
-            import re
-            match = re.search(r"Q(\d+)H", frequency)
-            if match:
-                interval_hours = int(match.group(1))
-        elif "BID" in frequency:
-            interval_hours = 12
-        elif "TID" in frequency:
-            interval_hours = 8
-        elif "QID" in frequency:
-            interval_hours = 6
-        elif "DAILY" in frequency or "OD" in frequency:
-            interval_hours = 24
-        elif "PRN" in frequency:
-            # PRN - as needed, no fixed schedule
-            return Response({"detail": "PRN medications do not have fixed schedules."})
-
-        while current_dt.date() <= end_date:
-            MARAdministration.objects.get_or_create(
-                mar=mar,
-                scheduled_time=current_dt,
-                defaults={"status": MARAdministration.SCHEDULED}
-            )
-            current_dt += timedelta(hours=interval_hours)
+        if frequency.kind == ONCE:
+            # A single (STAT) dose: once anything is recorded for it, no second one is scheduled.
+            if not mar.administrations.exists():
+                MARAdministration.objects.create(mar=mar, scheduled_time=start_dt,
+                                                 status=MARAdministration.SCHEDULED)
+        else:
+            current_dt = start_dt
+            while current_dt.date() <= end_date:
+                MARAdministration.objects.get_or_create(
+                    mar=mar,
+                    scheduled_time=current_dt,
+                    defaults={"status": MARAdministration.SCHEDULED}
+                )
+                current_dt += timedelta(hours=frequency.interval_hours)
 
         # Return upcoming administrations
         upcoming = mar.administrations.filter(
@@ -337,7 +357,7 @@ class MARViewSet(HospitalScopedViewSet):
     def prn(self, request, pk=None):
         """Record an as-needed (PRN) dose given now."""
         mar = self.get_object()
-        if "PRN" not in mar.frequency.upper():
+        if not is_prn(mar.frequency):
             return Response({"detail": "This order is not PRN; use the scheduled doses."},
                             status=status.HTTP_400_BAD_REQUEST)
         if not mar.in_force(hospital_today()):
@@ -453,6 +473,9 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
             )
         if not admin.mar.in_force(hospital_today()):
             return Response({"detail": NO_ORDER}, status=status.HTTP_400_BAD_REQUEST)
+        too_early = not_yet_due(admin, timezone.now(), early_window())
+        if too_early:
+            return too_early
 
         admin.administered_time = timezone.now()
         admin.administered_by = self._nurse(request, admin)
@@ -524,6 +547,10 @@ class MARAdministrationViewSet(HospitalScopedViewSet):
                 {"detail": f"Cannot mark missed - already {admin.status.lower()}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # A dose cannot be missed before it is due.
+        not_due = not_yet_due(admin, timezone.now(), timedelta(0))
+        if not_due:
+            return not_due
 
         admin.status = "Missed"
         admin.notes = request.data.get("notes", "Missed dose")
