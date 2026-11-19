@@ -446,8 +446,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your sign-in step expired. Enter your password again.';
 
   @override
-  String get authEmailExists =>
-      'An account already exists with this email. Sign in instead.';
+  String get authRegistrationUnavailable =>
+      'We could not create an account with these details. If you already have an account, sign in or reset your password.';
 
   @override
   String get authEmailNotVerified =>
@@ -531,10 +531,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authPasswordTooShort => 'Password must be at least 8 characters.';
-
-  @override
-  String get authPhoneExists =>
-      'An account already exists with this mobile number. Sign in instead.';
 
   @override
   String get authResetCodeInvalid => 'The code is not correct or has expired.';

@@ -15,6 +15,7 @@ import 'core/security/token_store.dart';
 import 'features/auth/auth_repository.dart';
 import 'features/auth/auth_service.dart';
 import 'features/auth/google_identity.dart';
+import 'features/ai/data/scribe_recorder.dart';
 import 'features/billing/data/billing_repository.dart';
 import 'features/dashboard/dashboard_repository.dart';
 import 'features/laboratory/data/lab_repository.dart';
@@ -39,7 +40,15 @@ Future<void> main() async {
     initial: await _savedLanguage(languagePreference),
   );
   final store = SecureTokenStore();
+  // Before anything reads the Keychain: a reinstall starts signed out.
+  await forgetSessionFromPreviousInstall(
+    store,
+    SharedPreferencesInstallMarker(),
+  );
   final session = SessionController(tokenStore: store);
+  // Consultation audio never outlives an upload, a crash or a sign-out.
+  unawaited(_sweepRecordings());
+  session.onSignOut(_sweepRecordings);
   final api = ApiClient(
     config: config,
     accessToken: session.accessToken,
@@ -97,5 +106,14 @@ Future<AppLanguage> _savedLanguage(LanguagePreference preference) async {
     return await preference.read();
   } on Exception {
     return AppLanguage.en;
+  }
+}
+
+Future<void> _sweepRecordings() async {
+  try {
+    await deleteLeftoverRecordingsInTemp();
+  } on Exception catch (_) {
+    // Best effort: a file that cannot be listed or deleted now is retried at
+    // the next start-up or sign-out.
   }
 }

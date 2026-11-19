@@ -70,3 +70,26 @@ class DeviceScribeRecorder implements ScribeRecorder {
   @override
   Future<void> dispose() => _recorder.dispose();
 }
+
+final _recordingName = RegExp(r'^scribe-\d+\.m4a$');
+
+/// Deletes consultation recordings left in [dir] by a recording that never
+/// reached its upload (the app was killed or crashed). Run at start-up and
+/// at sign-out; returns how many files were removed.
+Future<int> deleteLeftoverRecordings(Directory dir) async {
+  if (!await dir.exists()) return 0;
+  var removed = 0;
+  await for (final entity in dir.list(followLinks: false)) {
+    final name = entity.uri.pathSegments.last;
+    if (entity is File && _recordingName.hasMatch(name)) {
+      await entity.delete();
+      removed++;
+    }
+  }
+  return removed;
+}
+
+/// [deleteLeftoverRecordings] in the app's temporary directory, where
+/// [DeviceScribeRecorder] records.
+Future<int> deleteLeftoverRecordingsInTemp() async =>
+    deleteLeftoverRecordings(await getTemporaryDirectory());

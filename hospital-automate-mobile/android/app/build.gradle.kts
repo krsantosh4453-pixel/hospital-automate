@@ -60,6 +60,16 @@ android {
 
     buildTypes {
         release {
+            // R8: shrink, optimise and obfuscate the Java/Kotlin layer and drop
+            // unused resources. Dart code is obfuscated separately with
+            // `flutter build apk --obfuscate --split-debug-info=<dir>` (keep the
+            // symbols dir private; it de-obfuscates crash stack traces).
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = when {
                 hasUploadKey -> signingConfigs.getByName("release")
                 allowDebugReleaseSigning -> signingConfigs.getByName("debug")

@@ -9,6 +9,7 @@ import 'core/routing/app_router.dart';
 import 'core/routing/app_routes.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/ui/session_gate.dart';
+import 'core/security/privacy_cover.dart';
 
 /// The application: HMS theme, English/Hindi, and the routed shell.
 class HmsApp extends StatefulWidget {
@@ -62,8 +63,10 @@ class _HmsAppState extends State<HmsApp> {
           ],
           routerConfig: _router,
           // Resuming a stored session, or offline while checking it.
-          builder: (context, child) =>
-              SessionGate(child: child ?? const SizedBox.shrink()),
+          // PrivacyCover: no patient data in the app-switcher snapshot.
+          builder: (context, child) => PrivacyCover(
+            child: SessionGate(child: child ?? const SizedBox.shrink()),
+          ),
         ),
       ),
     );

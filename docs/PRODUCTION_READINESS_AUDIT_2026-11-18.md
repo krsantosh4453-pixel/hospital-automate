@@ -71,6 +71,8 @@ Legend: **VERIFIED** = an automated test or a run in this audit proves it. **TES
 
 ### Open (not fixed; none Critical or High)
 
+> **Update 2026-11-19:** S-L1 to S-L8 and the mobile items below are fixed, with regression tests. Status and evidence: [SECURITY_HARDENING_2026-11-19.md](SECURITY_HARDENING_2026-11-19.md). DPDP preparation: [DPDP_ASSESSMENT_PREP_2026-11-19.md](DPDP_ASSESSMENT_PREP_2026-11-19.md).
+
 From the backend review:
 - **S-L1:** patient password sign-in has a per-address rate limit (5/min) but no per-account lockout.
 - **S-L2:** the staff lockout key is the typed identifier, so a username and an email for the same account have separate counters.

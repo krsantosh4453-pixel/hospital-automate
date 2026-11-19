@@ -204,6 +204,9 @@ def _get_staff_data(user):
     }
 
 
+LOCKED_OUT_MESSAGE = "Too many failed sign-in attempts. Try again in 15 minutes or reset your password."
+
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def staff_login(request):
@@ -220,9 +223,13 @@ def staff_login(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    if security.is_locked_out(username):
+    # S-L2: count failures per account, not per typed identifier, so the
+    # username and the email of one account share a single budget.
+    lockout_keys = security.staff_login_keys(username)
+    if security.any_locked_out(lockout_keys):
+        record_audit(request, "auth.staff_login.locked", details={"username": str(username)[:150]})
         return Response(
-            {"error": "Too many failed sign-in attempts. Try again in 15 minutes or reset your password."},
+            {"error": LOCKED_OUT_MESSAGE},
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
@@ -230,7 +237,7 @@ def staff_login(request):
     user = authenticate(request, username=username, password=password)
 
     if user is None:
-        security.record_failure(username)
+        security.record_failures(lockout_keys)
         record_audit(request, "auth.staff_login.failed", details={"username": str(username)[:150]})
         return Response(
             {"error": "Invalid credentials."},
@@ -257,7 +264,7 @@ def staff_login(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    security.clear_failures(username)
+    security.clear_login_failures(username, user)
     record_audit(request, "auth.staff_login.success", user=user)
 
     # Generate JWT tokens
@@ -287,16 +294,20 @@ def staff_login_start_otp(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    if security.is_locked_out(username):
+    # S-L2: count failures per account, not per typed identifier, so the
+    # username and the email of one account share a single budget.
+    lockout_keys = security.staff_login_keys(username)
+    if security.any_locked_out(lockout_keys):
+        record_audit(request, "auth.staff_login.locked", details={"username": str(username)[:150]})
         return Response(
-            {"error": "Too many failed sign-in attempts. Try again in 15 minutes or reset your password."},
+            {"error": LOCKED_OUT_MESSAGE},
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
     user = authenticate(request, username=username, password=password)
 
     if user is None:
-        security.record_failure(username)
+        security.record_failures(lockout_keys)
         record_audit(request, "auth.staff_login.failed", details={"username": str(username)[:150]})
         return Response(
             {"error": "Invalid credentials."},
@@ -315,7 +326,7 @@ def staff_login_start_otp(request):
             {"error": "Not authorized as staff."},
             status=status.HTTP_403_FORBIDDEN
         )
-    security.clear_failures(username)
+    security.clear_login_failures(username, user)
 
     # otp_unavailable tells the sign-in page to fall back to the password
     # login, which itself refuses when STAFF_LOGIN_REQUIRE_OTP is on.
@@ -638,6 +649,12 @@ def _unique_username(email, phone):
     return username
 
 
+REGISTRATION_UNAVAILABLE = (
+    "We could not create an account with these details. If you already have an account, "
+    "sign in or reset your password."
+)
+
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_account(request):
@@ -707,16 +724,16 @@ def register_account(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    if email and User.objects.filter(email__iexact=email).exists():
-        return Response(
-            {"error": "Account already exists with this email."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
+    # S-L4: one message whichever detail is taken, so the form no longer says
+    # whether a given email or a given mobile number has an account. The route
+    # is also rate limited per address (config.middleware.ratelimit).
     normalized_phone = normalize_phone(phone)
-    if Patient.objects.filter(phone__endswith=normalized_phone).exists():
+    if (
+        (email and User.objects.filter(email__iexact=email).exists())
+        or Patient.objects.filter(phone__endswith=normalized_phone).exists()
+    ):
         return Response(
-            {"error": "Account already exists with this mobile number."},
+            {"error": REGISTRATION_UNAVAILABLE},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -957,12 +974,25 @@ def patient_email_otp_verify(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def patient_email_login(request):
+    # S-L1: a per-account lockout on top of the per-address rate limit, so
+    # many addresses cannot keep guessing one patient's password.
+    email = str(request.data.get("email") or "").strip().lower()
+    lockout_keys = security.login_keys(
+        f"patient-email:{email}",
+        User.objects.filter(email__iexact=email).only("pk", "date_joined") if email else (),
+    )
+    if security.any_locked_out(lockout_keys):
+        record_audit(request, "auth.patient_login.locked", details={"method": "email"})
+        return Response({"error": LOCKED_OUT_MESSAGE}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     patient, error, http_status = authenticate_patient_email(
-        request.data.get("email"),
+        email,
         request.data.get("password") or "",
     )
     if patient is None:
+        if http_status == status.HTTP_401_UNAUTHORIZED:
+            security.record_failures(lockout_keys)
         return Response({"error": error}, status=http_status)
+    security.clear_login_failures(f"patient-email:{email}", patient.user)
     refused = _refuse_staff_on_patient_login(patient.user)
     if refused:
         return refused
@@ -975,15 +1005,28 @@ def patient_email_login(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def patient_token_login(request):
-    patient = authenticate_patient_identifier(
-        request.data.get("identifier") or request.data.get("token") or request.data.get("patient_id"),
-        request.data.get("password") or "",
+    from .patient_auth import patients_for_identifier
+
+    identifier = str(
+        request.data.get("identifier") or request.data.get("token") or request.data.get("patient_id") or ""
+    ).strip()
+    # S-L1: one mobile number can match several family accounts; each of them
+    # is charged for a wrong password, and any locked one stops the attempt.
+    lockout_keys = security.login_keys(
+        f"patient-id:{identifier}",
+        [p.user for p in patients_for_identifier(identifier) if p.user_id],
     )
+    if security.any_locked_out(lockout_keys):
+        record_audit(request, "auth.patient_login.locked", details={"method": "identifier"})
+        return Response({"error": LOCKED_OUT_MESSAGE}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    patient = authenticate_patient_identifier(identifier, request.data.get("password") or "")
     if patient is None or patient.user is None:
+        security.record_failures(lockout_keys)
         return Response(
             {"error": "Invalid patient credentials."},
             status=status.HTTP_401_UNAUTHORIZED,
         )
+    security.clear_login_failures(f"patient-id:{identifier}", patient.user)
     refused = _refuse_staff_on_patient_login(patient.user)
     if refused:
         return refused
@@ -1091,7 +1134,8 @@ def staff_password_reset_confirm(request):
     user.set_password(new_password)
     user.save(update_fields=["password"])
     revoke_all_sessions(user, "password reset")
-    security.clear_failures(identifier)
+    # A new password ends any lockout of this account, whichever identifier it hit.
+    security.clear_login_failures(identifier, user)
     security.clear_failures(f"reset:{identifier}")
     record_audit(request, "auth.password_reset.completed", user=user)
     return Response({"message": "Password updated. Sign in with your new password."})

@@ -28,6 +28,8 @@ from security_tests.test_tenant_isolation import make_staff, put_in_care
 from users.models import StaffRole
 
 FAKE_KEY = "sk-test-not-a-real-key"
+# A real M4A header (ftyp box): uploads are checked by content, not just type (S-L6).
+M4A_BYTES = b"\x00\x00\x00\x18ftypM4A \x00\x00\x00\x00synthetic-audio"
 MEDIA = tempfile.mkdtemp(prefix="hms-ai-wf-")
 
 
@@ -191,7 +193,7 @@ class ScribeWorkflowTests(TestCase):
         self.assertEqual(resp.status_code, 201, resp.content)
         base = f"/api/ai/consultation-sessions/{resp.json()['id']}"
         self.client.post(f"{base}/start_recording/", {"patient_consent": True}, format="json")
-        audio = SimpleUploadedFile("c.m4a", b"synthetic-audio", content_type="audio/mp4")
+        audio = SimpleUploadedFile("c.m4a", M4A_BYTES, content_type="audio/mp4")
         self.client.post(f"{base}/stop_recording/", {"audio_file": audio}, format="multipart")
         resp = self.client.post(f"{base}/transcribe/", {}, format="json")
         self.assertEqual(resp.status_code, 200, resp.content)
@@ -277,7 +279,7 @@ class ScribeWorkflowTests(TestCase):
         }, format="json")
         base = f"/api/ai/consultation-sessions/{resp.json()['id']}"
         self.client.post(f"{base}/start_recording/", {"patient_consent": True}, format="json")
-        audio = SimpleUploadedFile("c.m4a", b"synthetic-audio", content_type="audio/mp4")
+        audio = SimpleUploadedFile("c.m4a", M4A_BYTES, content_type="audio/mp4")
         self.client.post(f"{base}/stop_recording/", {"audio_file": audio}, format="multipart")
 
         with self.captureOnCommitCallbacks(execute=True):

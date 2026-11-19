@@ -830,11 +830,11 @@ abstract class AppLocalizations {
   /// **'Your sign-in step expired. Enter your password again.'**
   String get authChallengeExpired;
 
-  /// No description provided for @authEmailExists.
+  /// No description provided for @authRegistrationUnavailable.
   ///
   /// In en, this message translates to:
-  /// **'An account already exists with this email. Sign in instead.'**
-  String get authEmailExists;
+  /// **'We could not create an account with these details. If you already have an account, sign in or reset your password.'**
+  String get authRegistrationUnavailable;
 
   /// No description provided for @authEmailNotVerified.
   ///
@@ -973,12 +973,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Password must be at least 8 characters.'**
   String get authPasswordTooShort;
-
-  /// No description provided for @authPhoneExists.
-  ///
-  /// In en, this message translates to:
-  /// **'An account already exists with this mobile number. Sign in instead.'**
-  String get authPhoneExists;
 
   /// No description provided for @authResetCodeInvalid.
   ///

@@ -154,7 +154,7 @@ class AIScribeSafetyTests(TestCase):
         session_id = self._session()
         base = f"/api/ai/consultation-sessions/{session_id}"
         self.client.post(f"{base}/start_recording/", {"patient_consent": True}, format="json")
-        audio = SimpleUploadedFile("c.webm", b"synthetic", content_type="audio/webm")
+        audio = SimpleUploadedFile("c.webm", b"\x1aE\xdf\xa3synthetic", content_type="audio/webm")
         self.client.post(f"{base}/stop_recording/", {"audio_file": audio}, format="multipart")
         with mock.patch.dict("os.environ", {}, clear=False):
             resp = self.client.post(f"{base}/transcribe/", {}, format="json")

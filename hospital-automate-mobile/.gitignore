@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Per-deployment Google Sign-In client for iOS (see the .example file).
+ios/Flutter/GoogleSignIn.xcconfig

@@ -38,7 +38,7 @@ from .serializers import (
 )
 
 from audit.services import record_audit
-from . import tasks
+from . import audio_validation, tasks
 from .services import languages, pipeline
 
 logger = logging.getLogger(__name__)
@@ -62,10 +62,17 @@ def _audio_error(audio_file):
     """Return an error message for an unacceptable upload, else None."""
     if audio_file.size > MAX_AUDIO_BYTES:
         return "Audio file too large. Maximum 100MB."
-    content_type = (audio_file.content_type or "").split(";")[0].strip()
+    content_type = audio_validation.declared_type(audio_file)
     if content_type not in ALLOWED_AUDIO_TYPES:
         return f"Unsupported audio format. Allowed: {', '.join(ALLOWED_AUDIO_TYPES)}"
-    return None
+    # S-L6: the bytes must be that audio container, not just claim to be.
+    return audio_validation.container_error(audio_file)
+
+
+def _accept_audio(session, audio_file):
+    """Attach a checked upload under a server-chosen name (never the client's)."""
+    audio_file.name = audio_validation.safe_name(audio_file, f"consultation-{session.pk}")
+    session.audio_file = audio_file
 
 
 def _wants_async(request):
@@ -167,7 +174,7 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
             error = _audio_error(audio_file)
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
-            session.audio_file = audio_file
+            _accept_audio(session, audio_file)
         if audio_duration:
             try:
                 session.audio_duration_seconds = int(audio_duration)
@@ -211,8 +218,8 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
         if error:
             return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
-        session.audio_file = audio_file
-        session.audio_format = audio_file.content_type.split("/")[-1]
+        _accept_audio(session, audio_file)
+        session.audio_format = audio_validation.declared_type(audio_file).split("/")[-1]
         session.save(update_fields=["audio_file", "audio_format"])
 
         return Response(self.get_serializer(session).data)
@@ -655,18 +662,28 @@ class DoctorReviewViewSet(HospitalScopedViewSet):
         return qs
 
 
+# S-L8 (2026-11-18): extraction schemas and prompt templates are platform-wide
+# rows (no hospital). Any doctor of any hospital could POST, edit or delete
+# them, changing configuration for every tenant. The scribe pipeline does not
+# read them (its prompts and schema live in ai_scribe/services), so the API is
+# read-only; platform superusers manage the rows in the Django admin, where
+# changes are logged.
 class ClinicalExtractionSchemaViewSet(HospitalScopedViewSet):
-    """API for managing clinical extraction schemas"""
+    """Read-only list of clinical extraction schemas (platform reference data)."""
     queryset = ClinicalExtractionSchema.objects.filter(is_active=True)
     serializer_class = ClinicalExtractionSchemaSerializer
     permission_classes = [IsDoctor]
+    http_method_names = ["get", "head", "options"]
+    tenant_global = True
 
 
 class AIPromptTemplateViewSet(HospitalScopedViewSet):
-    """API for managing AI prompt templates"""
+    """Read-only list of AI prompt templates (platform reference data)."""
     queryset = AIPromptTemplate.objects.filter(is_active=True).select_related("schema_version")
     serializer_class = AIPromptTemplateSerializer
     permission_classes = [IsDoctor]
+    http_method_names = ["get", "head", "options"]
+    tenant_global = True
 
 
 CNN_UNAVAILABLE = (

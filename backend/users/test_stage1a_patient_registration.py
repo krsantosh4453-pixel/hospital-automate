@@ -16,6 +16,7 @@ from rest_framework.test import APIClient
 from notifications.models import OTPVerification
 from patients.models import Patient
 from users.patient_auth import hash_email_otp, verify_email_otp
+from users.views import REGISTRATION_UNAVAILABLE
 
 User = get_user_model()
 
@@ -69,7 +70,7 @@ class PatientRegistrationTests(TestCase):
             format="json",
         )
         self.assertEqual(duplicate_email.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(duplicate_email.data["error"], "Account already exists with this email.")
+        self.assertEqual(duplicate_email.data["error"], REGISTRATION_UNAVAILABLE)
 
         duplicate_phone = self.client.post(
             "/api/auth/register/",
@@ -77,7 +78,7 @@ class PatientRegistrationTests(TestCase):
             format="json",
         )
         self.assertEqual(duplicate_phone.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(duplicate_phone.data["error"], "Account already exists with this mobile number.")
+        self.assertEqual(duplicate_phone.data["error"], REGISTRATION_UNAVAILABLE)
         self.assertEqual(Patient.objects.filter(phone="9811111111").count(), 1)
 
     def test_invalid_password_is_rejected(self):

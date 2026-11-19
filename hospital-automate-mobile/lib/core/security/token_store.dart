@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// The JWT pair the backend issues at sign-in (`access` 15 min, `refresh` 7 days).
 @immutable
@@ -135,4 +136,36 @@ class InMemoryTokenStore implements TokenStore {
     _tokens = null;
     _hospitalId = null;
   }
+}
+
+/// Whether this installation has started before. Kept in SharedPreferences,
+/// which, unlike the iOS Keychain, is deleted together with the app.
+abstract interface class InstallMarker {
+  Future<bool> isSet();
+  Future<void> set();
+}
+
+class SharedPreferencesInstallMarker implements InstallMarker {
+  static const _key = 'hms.installed';
+
+  @override
+  Future<bool> isSet() async =>
+      (await SharedPreferences.getInstance()).getBool(_key) ?? false;
+
+  @override
+  Future<void> set() async =>
+      (await SharedPreferences.getInstance()).setBool(_key, true);
+}
+
+/// iOS keeps Keychain items after the app is deleted, so a reinstall (or
+/// the next owner of a reset-but-restored phone) would resume the previous
+/// person's session. On an installation's first start, stored tokens and
+/// the chosen hospital are forgotten before anything reads them.
+Future<void> forgetSessionFromPreviousInstall(
+  TokenStore store,
+  InstallMarker marker,
+) async {
+  if (await marker.isSet()) return;
+  await store.clear();
+  await marker.set();
 }

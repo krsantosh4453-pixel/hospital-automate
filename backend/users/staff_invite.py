@@ -153,6 +153,33 @@ def _ensure_doctor_profile(user, hospital_id, name, phone, email, department, sp
     )
 
 
+EMAIL_NOT_INVITABLE = (
+    "This email cannot be used for a new staff invitation. Ask the person for another email address."
+)
+
+
+def _readmit_legacy_profile(request, profile, hospital_id):
+    """
+    S-L7: an account from the old open staff sign-up (is_active_staff=False)
+    was registered by whoever typed this email, with a password of their
+    choosing; the email was never proved. Admitting it as-is would hand this
+    hospital's staff access to that password holder. Instead the old password
+    is discarded and every session ended, so only the person who opens the
+    invitation link (emailed to this address, or shared by the inviter) can
+    set one.
+    """
+    from .tokens import revoke_all_sessions
+
+    user = profile.user
+    user.set_unusable_password()
+    user.save(update_fields=["password"])
+    revoke_all_sessions(user, "legacy staff profile re-admitted by invitation")
+    profile.is_active_staff = True
+    profile.save(update_fields=["is_active_staff"])
+    record_audit(request, "users.staff.legacy_readmitted", profile, hospital=hospital_id,
+                 details={"user": user.pk})
+
+
 class StaffInviteView(APIView):
     """
     POST /api/users/invite/ {name, phone, email?, role, department?}
@@ -173,20 +200,23 @@ class StaffInviteView(APIView):
         if existing is not None:
             profile = StaffProfile.objects.filter(user=existing).first()
             if profile is None:
-                raise ValidationError({"email": "This email belongs to a patient account. Use another email."})
+                # S-L4: the same reply as for any other unusable email, so an
+                # inviter cannot learn that this address is a patient's.
+                raise ValidationError({"email": EMAIL_NOT_INVITABLE})
             if StaffHospitalMembership.objects.filter(staff=profile, hospital_id=hospital_id).exists():
                 raise ValidationError({"email": "This person is already staff at this hospital."})
-            if (not existing.has_usable_password()
-                    and StaffHospitalMembership.objects.filter(staff=profile).exclude(hospital_id=hospital_id).exists()):
+            elsewhere = StaffHospitalMembership.objects.filter(staff=profile).exclude(hospital_id=hospital_id).exists()
+            if not existing.has_usable_password() and elsewhere:
                 # A set-password link for this account would let this hospital's
                 # admin take over a pending invitation from another hospital.
-                raise ValidationError({"email": "This person has a pending invitation from another hospital. "
-                                                "Add them after they have set their password from it."})
+                raise ValidationError({"email": EMAIL_NOT_INVITABLE})
             if not profile.is_active_staff:
-                # An account from the old open staff sign-up: this invitation admits it.
-                profile.is_active_staff = True
-                profile.save(update_fields=["is_active_staff"])
-            invited = not existing.has_usable_password()
+                if elsewhere:
+                    # S-L7: a staff account another hospital holds is not this
+                    # hospital's to reactivate.
+                    raise ValidationError({"email": EMAIL_NOT_INVITABLE})
+                _readmit_legacy_profile(request, profile, hospital_id)
+            invited = not profile.user.has_usable_password()
         else:
             first, _, last = name.partition(" ")
             user = User(username=_unique_username(email, phone), email=email,

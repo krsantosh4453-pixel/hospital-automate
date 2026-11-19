@@ -445,7 +445,8 @@ class AppLocalizationsHi extends AppLocalizations {
       'साइन इन का चरण समाप्त हो गया। फिर से पासवर्ड दर्ज करें।';
 
   @override
-  String get authEmailExists => 'इस ईमेल से खाता पहले से है। साइन इन करें।';
+  String get authRegistrationUnavailable =>
+      'इन विवरणों से खाता नहीं बन सका। यदि आपका खाता पहले से है, तो साइन इन करें या पासवर्ड रीसेट करें।';
 
   @override
   String get authEmailNotVerified =>
@@ -528,10 +529,6 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get authPasswordTooShort =>
       'पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।';
-
-  @override
-  String get authPhoneExists =>
-      'इस मोबाइल नंबर से खाता पहले से है। साइन इन करें।';
 
   @override
   String get authResetCodeInvalid =>

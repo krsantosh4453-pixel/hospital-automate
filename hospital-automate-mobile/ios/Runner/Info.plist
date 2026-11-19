@@ -10,6 +10,24 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Hospital Management</string>
+	<!-- Google Sign-In (google_sign_in 7.x): this deployment's iOS OAuth client
+	     and its reversed id as a URL scheme, from ios/Flutter/GoogleSignIn.xcconfig
+	     (copy GoogleSignIn.xcconfig.example). Pass the same id to Dart with
+	     dart-define GOOGLE_IOS_CLIENT_ID; without it the app hides Google
+	     sign-in on iOS rather than letting the SDK raise. -->
+	<key>GIDClientID</key>
+	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(GOOGLE_IOS_REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<!-- Plain http:// only to localhost and the local network (dev runserver). -->
