@@ -6,7 +6,8 @@ This directory contains the complete documentation for the Hospital Management S
 
 | Document | Purpose |
 |----------|---------|
-| [Production readiness audit 2026-11-18](PRODUCTION_READINESS_AUDIT_2026-11-18.md) | **Current status:** release decision, security fixes, test evidence, open items (supersedes the 2026-11-03 release-candidate audit) |
+| [Final production acceptance 2026-11-19](FINAL_PRODUCTION_ACCEPTANCE_REPORT.md) | **Current status:** release decision (staging only), mobile live tests, Android/iOS release status, bundle size, load and concurrency results |
+| [Production readiness audit 2026-11-18](PRODUCTION_READINESS_AUDIT_2026-11-18.md) | Previous status: security fixes, test evidence, open items (supersedes the 2026-11-03 release-candidate audit) |
 | [Environment](ENVIRONMENT.md) | Environment variables, configuration, and secrets management for all deployment environments |
 | [Architecture](ARCHITECTURE.md) | System architecture: frontend, backend, database, authentication, authorization, and deployment |
 | [Database](DATABASE.md) | Database schema: models, relationships, indexes, and constraints |

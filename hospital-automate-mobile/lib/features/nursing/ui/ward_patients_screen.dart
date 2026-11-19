@@ -75,8 +75,7 @@ List<WardPatient> wardPatients(
 bool matchesWardFilter(WardPatient p, WardFilter filter) => switch (filter) {
   WardFilter.all => true,
   WardFilter.admitted => p.admission?.status == 'Admitted',
-  WardFilter.dischargeInitiated =>
-    p.admission?.status == 'Discharge Initiated',
+  WardFilter.dischargeInitiated => p.admission?.status == 'Discharge Initiated',
   WardFilter.awaitingBed => p.admission?.awaitingBed ?? false,
   WardFilter.assigned => p.assignedShift != null,
 };
@@ -219,8 +218,10 @@ class _WardPatientRow extends StatelessWidget {
         ? null
         : a.awaitingBed
         ? t.awaitingBed
-        : [?a.wardName, if (a.bedNumber != null) t.bedNumber(a.bedNumber!)]
-              .join(' · ');
+        : [
+            ?a.wardName,
+            if (a.bedNumber != null) t.bedNumber(a.bedNumber!),
+          ].join(' · ');
     return InkWell(
       onTap: () => context.go(NursingRoutes.patient(patient.patientId)),
       child: Padding(

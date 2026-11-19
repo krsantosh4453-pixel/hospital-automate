@@ -107,8 +107,7 @@ class _ScribeStatusCard extends StatelessWidget {
             engineLabel(t, engine),
             style: AppTypography.body(weight: FontWeight.w600),
           ),
-          if (engine.mock)
-            Text(t.aiMockEngine, style: AppTypography.caption()),
+          if (engine.mock) Text(t.aiMockEngine, style: AppTypography.caption()),
         ],
       ),
     );
@@ -201,9 +200,7 @@ class _SessionsCard extends StatelessWidget {
                         children: [
                           Text(
                             s.patientName ?? t.patientLabel,
-                            style: AppTypography.body(
-                              weight: FontWeight.w600,
-                            ),
+                            style: AppTypography.body(weight: FontWeight.w600),
                           ),
                           Text(
                             [

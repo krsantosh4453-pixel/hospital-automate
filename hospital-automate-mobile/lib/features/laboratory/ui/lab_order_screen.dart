@@ -287,17 +287,17 @@ class _SampleCard extends StatelessWidget {
               DetailRow(label: t.labSampleNumber, value: sample.sampleId),
               DetailRow(label: t.labSampleType, value: sample.sampleType),
               DetailRow(label: t.labContainerType, value: sample.containerType),
-              DetailRow(
-                label: t.labCollectedBy,
-                value: sample.collectedByName,
-              ),
+              DetailRow(label: t.labCollectedBy, value: sample.collectedByName),
               DetailRow(
                 label: t.labCollectedAt,
                 value: formatDateTime(t, sample.collectedAt),
               ),
               DetailRow(label: t.labCollectionNotes, value: sample.notes),
               if (trip != null) ...[
-                DetailRow(label: t.labDispatchedBy, value: trip.dispatchedByName),
+                DetailRow(
+                  label: t.labDispatchedBy,
+                  value: trip.dispatchedByName,
+                ),
                 DetailRow(label: t.labReceivedBy, value: trip.receivedByName),
                 DetailRow(label: t.labExternalLab, value: trip.externalLab),
                 DetailRow(label: t.labDispatchNotes, value: trip.notes),
@@ -363,10 +363,7 @@ class _ResultCard extends StatelessWidget {
                   label: t.labEnteredAt,
                   value: formatDateTime(t, result.enteredAt),
                 ),
-                DetailRow(
-                  label: t.labVerifiedBy,
-                  value: result.verifiedByName,
-                ),
+                DetailRow(label: t.labVerifiedBy, value: result.verifiedByName),
               ],
             ),
         ],

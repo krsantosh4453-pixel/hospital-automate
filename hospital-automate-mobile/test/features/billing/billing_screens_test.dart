@@ -361,9 +361,7 @@ void main() {
       await pumpBilling(tester, '/billing/new', repository: repo);
       await tapVisible(tester, find.byKey(const Key('invoice-submit')));
       expect(
-        find.text(
-          'Choose the patient by searching their name, phone or UHID.',
-        ),
+        find.text('Choose the patient by searching their name, phone or UHID.'),
         findsOneWidget,
       );
 

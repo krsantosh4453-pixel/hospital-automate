@@ -9,7 +9,8 @@ import '../../../shared/widgets/hms_card.dart';
 import '../../../shared/widgets/hms_dialog.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../shared/widgets/tone.dart';
-import '../../doctor/ui/consultation_sections.dart' show ClinicalField, formError;
+import '../../doctor/ui/consultation_sections.dart'
+    show ClinicalField, formError;
 import '../../doctor/ui/doctor_ui.dart' show clinicalErrorMessage;
 import '../../patient/record_loader.dart';
 import '../../patient/ui/patient_ui.dart';
@@ -260,7 +261,10 @@ class _WardTasksSectionState extends State<WardTasksSection> {
             loader: _loader,
             skeletons: 1,
             builder: (context, tasks) {
-              final open = [for (final task in tasks) if (task.isOpen) task];
+              final open = [
+                for (final task in tasks)
+                  if (task.isOpen) task,
+              ];
               if (open.isEmpty) {
                 return HmsEmptyState(compact: true, title: t.noOpenTasks);
               }

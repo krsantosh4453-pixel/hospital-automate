@@ -140,7 +140,10 @@ class _LabNewOrderScreenState extends State<LabNewOrderScreen> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('1. ${t.patientLabel}', style: Theme.of(context).textTheme.titleSmall),
+        Text(
+          '1. ${t.patientLabel}',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
         const SizedBox(height: AppSpacing.x2),
         RecordPicker<PatientSummary>(
           hint: t.labPatientSearchHint,
@@ -151,9 +154,15 @@ class _LabNewOrderScreenState extends State<LabNewOrderScreen> {
           onSelected: (p) => setState(() => _patient = p),
         ),
         const SizedBox(height: AppSpacing.x4),
-        Text('2. ${t.labTestName}', style: Theme.of(context).textTheme.titleSmall),
+        Text(
+          '2. ${t.labTestName}',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
         const SizedBox(height: AppSpacing.x2),
-        Text(t.labCommonTestsNote, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          t.labCommonTestsNote,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         const SizedBox(height: AppSpacing.x2),
         Wrap(
           spacing: AppSpacing.x2,
@@ -181,7 +190,9 @@ class _LabNewOrderScreenState extends State<LabNewOrderScreen> {
           children: [
             for (final p in labPriorities)
               ChoiceChip(
-                label: Text(p == 'Urgent' ? t.statusUrgent : t.labPriorityNormal),
+                label: Text(
+                  p == 'Urgent' ? t.statusUrgent : t.labPriorityNormal,
+                ),
                 selected: _priority == p,
                 onSelected: (_) => setState(() => _priority = p),
               ),
@@ -215,7 +226,9 @@ class _LabNewOrderScreenState extends State<LabNewOrderScreen> {
             DetailRow(label: t.labTestName, value: _testName.text.trim()),
             DetailRow(
               label: t.priority,
-              value: _priority == 'Urgent' ? t.statusUrgent : t.labPriorityNormal,
+              value: _priority == 'Urgent'
+                  ? t.statusUrgent
+                  : t.labPriorityNormal,
             ),
             DetailRow(
               label: t.hospital,
@@ -255,9 +268,5 @@ class _LabNewOrderScreenState extends State<LabNewOrderScreen> {
 }
 
 /// UHID, age and gender: what tells two same-name patients apart.
-String patientSubtitle(PatientSummary p) => [
-  ?p.uhid,
-  if (p.age != null) '${p.age}',
-  ?p.gender,
-  ?p.phone,
-].join(' · ');
+String patientSubtitle(PatientSummary p) =>
+    [?p.uhid, if (p.age != null) '${p.age}', ?p.gender, ?p.phone].join(' · ');

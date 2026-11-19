@@ -367,7 +367,10 @@ class MedicineRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(m.name, style: AppTypography.body(weight: FontWeight.w600)),
+                  Text(
+                    m.name,
+                    style: AppTypography.body(weight: FontWeight.w600),
+                  ),
                   Text(
                     [
                       if (m.batch != null) t.batchCode(m.batch!),

@@ -281,9 +281,8 @@ class _SectionView extends StatelessWidget {
                 if (lines.isEmpty)
                   Text(
                     t.aiNotRecorded,
-                    style: AppTypography.body(
-                      color: AppColors.ink500,
-                    ).copyWith(fontStyle: FontStyle.italic),
+                    style: AppTypography.body(color: AppColors.ink500)
+                        .copyWith(fontStyle: FontStyle.italic),
                   )
                 else
                   for (final line in lines)

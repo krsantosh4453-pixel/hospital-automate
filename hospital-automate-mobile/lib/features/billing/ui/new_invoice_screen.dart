@@ -338,11 +338,10 @@ class _NewInvoiceScreenState extends State<NewInvoiceScreen> {
     );
   }
 
-  static String _presetLabel(AppLocalizations t, ChargeSource s) =>
-      switch (s) {
-        ChargeSource.consultation => t.billingChargeConsultation,
-        ChargeSource.laboratory => t.billingChargeLaboratory,
-        ChargeSource.pharmacy => t.billingChargePharmacy,
-        ChargeSource.other => t.billingChargeOther,
-      };
+  static String _presetLabel(AppLocalizations t, ChargeSource s) => switch (s) {
+    ChargeSource.consultation => t.billingChargeConsultation,
+    ChargeSource.laboratory => t.billingChargeLaboratory,
+    ChargeSource.pharmacy => t.billingChargePharmacy,
+    ChargeSource.other => t.billingChargeOther,
+  };
 }

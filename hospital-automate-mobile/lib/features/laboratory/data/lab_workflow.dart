@@ -87,9 +87,8 @@ LabStep? nextLabStep(String status) => switch (status) {
 };
 
 /// Position of [status] in [LabStatus.stages]; -1 when cancelled or unknown.
-int labStageIndex(String status) => status == LabStatus.samplePending
-    ? 0
-    : LabStatus.stages.indexOf(status);
+int labStageIndex(String status) =>
+    status == LabStatus.samplePending ? 0 : LabStatus.stages.indexOf(status);
 
 /// Worklist groups shown as filter chips. Every status falls in exactly one.
 enum LabQueue {

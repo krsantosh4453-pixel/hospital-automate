@@ -48,8 +48,7 @@ class FakeNursingRepository implements NursingRepository {
   final List<Map<String, String>> savedWardVitals = [];
   final List<Map<VitalField, String>> savedVisitVitals = [];
   final List<({String type, String text, int? admissionId})> savedNotes = [];
-  final List<({int dose, DoseAction action, String reason})> recordedDoses =
-      [];
+  final List<({int dose, DoseAction action, String reason})> recordedDoses = [];
   final List<int> completedTasks = [];
 
   Future<T> _read<T>(T value) async {
@@ -184,7 +183,10 @@ class FakeNursingRepository implements NursingRepository {
   Future<CareTask> completeTask(int id, {String notes = ''}) async {
     completedTasks.add(id);
     await _write();
-    taskRows = [for (final t in taskRows) if (t.id != id) t];
+    taskRows = [
+      for (final t in taskRows)
+        if (t.id != id) t,
+    ];
     return CareTask(
       id: id,
       type: 'Other',

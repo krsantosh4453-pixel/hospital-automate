@@ -90,12 +90,21 @@ class _MedicineScreenState extends State<MedicineScreen> {
                         label: t.inStock,
                         value: t.inStockCount(m.quantity, m.unit ?? ''),
                       ),
-                      DetailRow(label: t.reorderLevel, value: m.reorderLevel?.toString()),
+                      DetailRow(
+                        label: t.reorderLevel,
+                        value: m.reorderLevel?.toString(),
+                      ),
                       DetailRow(label: t.batch, value: m.batch),
-                      DetailRow(label: t.expiryDate, value: formatDay(t, m.expiryDate)),
+                      DetailRow(
+                        label: t.expiryDate,
+                        value: formatDay(t, m.expiryDate),
+                      ),
                       DetailRow(label: t.manufacturer, value: m.manufacturer),
                       DetailRow(label: t.category, value: m.category),
-                      DetailRow(label: t.unitPrice, value: formatRupees(m.price)),
+                      DetailRow(
+                        label: t.unitPrice,
+                        value: formatRupees(m.price),
+                      ),
                       DetailRow(label: t.mrp, value: formatRupees(m.mrp)),
                       DetailRow(
                         label: t.drugSchedule,
@@ -126,7 +135,8 @@ class _MedicineScreenState extends State<MedicineScreen> {
                       else
                         HmsDividedColumn(
                           children: [
-                            for (final row in ledger) MovementRow(movement: row),
+                            for (final row in ledger)
+                              MovementRow(movement: row),
                           ],
                         ),
                     ],

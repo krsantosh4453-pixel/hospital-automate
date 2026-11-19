@@ -52,8 +52,23 @@ const rx = Prescription(
 );
 
 final stock = [
-  Medicine(id: 1, name: 'Paracip 500', quantity: 50, batch: 'PB1', expiryDate: DateTime(2030, 1, 1), genericName: 'Paracetamol', reorderLevel: 10),
-  const Medicine(id: 5, name: 'Calpol 500', quantity: 30, batch: 'CB1', genericName: 'Paracetamol', reorderLevel: 10),
+  Medicine(
+    id: 1,
+    name: 'Paracip 500',
+    quantity: 50,
+    batch: 'PB1',
+    expiryDate: DateTime(2030, 1, 1),
+    genericName: 'Paracetamol',
+    reorderLevel: 10,
+  ),
+  const Medicine(
+    id: 5,
+    name: 'Calpol 500',
+    quantity: 30,
+    batch: 'CB1',
+    genericName: 'Paracetamol',
+    reorderLevel: 10,
+  ),
 ];
 
 FakePharmacyRepository pharmacyRepo() => FakePharmacyRepository(
@@ -98,7 +113,9 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
 
 void main() {
   group('pharmacy home', () {
-    testWidgets('shows server stock counts and the pending queue', (tester) async {
+    testWidgets('shows server stock counts and the pending queue', (
+      tester,
+    ) async {
       await pumpPharmacy(tester, '/');
       expect(find.text('Medicine batches'), findsOneWidget);
       expect(find.text('40'), findsOneWidget);
@@ -107,9 +124,11 @@ void main() {
       expect(find.textContaining('expires within 30 days'), findsOneWidget);
     });
 
-    testWidgets('a failing part shows "not available", the rest still shows',
-        (tester) async {
-      final repo = pharmacyRepo()..readError = const ApiException(kind: ApiErrorKind.server);
+    testWidgets('a failing part shows "not available", the rest still shows', (
+      tester,
+    ) async {
+      final repo = pharmacyRepo()
+        ..readError = const ApiException(kind: ApiErrorKind.server);
       await pumpPharmacy(tester, '/', repository: repo);
       expect(find.text('Medicine batches'), findsOneWidget);
       expect(find.text('Not available right now'), findsWidgets);
@@ -122,20 +141,34 @@ void main() {
   });
 
   group('pharmacy page', () {
-    testWidgets('queue lists prescriptions to dispense and opens one',
-        (tester) async {
+    testWidgets('queue lists prescriptions to dispense and opens one', (
+      tester,
+    ) async {
       final repo = await pumpPharmacy(tester, '/pharmacy');
       expect(find.textContaining('RX-3'), findsOneWidget);
-      expect(repo.queueRequests.first, ['Confirmed', 'Pending', 'Partially Dispensed']);
+      expect(repo.queueRequests.first, [
+        'Confirmed',
+        'Pending',
+        'Partially Dispensed',
+      ]);
       await tapVisible(tester, find.textContaining('RX-3'));
       expect(find.text('Paracip 500'), findsWidgets);
       expect(find.text('Prescribed 10 · Issued 0 · Left 10'), findsOneWidget);
     });
 
-    testWidgets('medicines view filters by stock level and is read-only',
-        (tester) async {
+    testWidgets('medicines view filters by stock level and is read-only', (
+      tester,
+    ) async {
       final repo = pharmacyRepo()
-        ..stock = [...stock, const Medicine(id: 9, name: 'Empty Syrup', quantity: 0, reorderLevel: 5)];
+        ..stock = [
+          ...stock,
+          const Medicine(
+            id: 9,
+            name: 'Empty Syrup',
+            quantity: 0,
+            reorderLevel: 5,
+          ),
+        ];
       await pumpPharmacy(tester, '/pharmacy', repository: repo);
       await tapVisible(tester, find.text('Medicines'));
       expect(find.text('Empty Syrup'), findsOneWidget);
@@ -146,82 +179,130 @@ void main() {
     });
 
     testWidgets('a nurse keeps the placeholder at /pharmacy', (tester) async {
-      await pumpPharmacy(tester, '/pharmacy', session: pharmacySession(role: 'Nurse'));
+      await pumpPharmacy(
+        tester,
+        '/pharmacy',
+        session: pharmacySession(role: 'Nurse'),
+      );
       expect(find.textContaining('not in the mobile app yet'), findsOneWidget);
     });
   });
 
   group('dispensing', () {
-    testWidgets('pre-selects a batch, confirms, sends once and shows the result',
-        (tester) async {
-      final repo = pharmacyRepo()..gate = Completer<void>();
-      await pumpPharmacy(tester, '/pharmacy/prescriptions/3', repository: repo);
-      expect(find.textContaining('UH-0042'), findsWidgets);
-      expect(find.text('In stock'), findsWidgets);
+    testWidgets(
+      'pre-selects a batch, confirms, sends once and shows the result',
+      (tester) async {
+        final repo = pharmacyRepo()..gate = Completer<void>();
+        await pumpPharmacy(
+          tester,
+          '/pharmacy/prescriptions/3',
+          repository: repo,
+        );
+        expect(find.textContaining('UH-0042'), findsWidgets);
+        expect(find.text('In stock'), findsWidgets);
 
-      await tapVisible(tester, find.byKey(const Key('dispense')));
-      expect(find.text('Dispense these medicines?'), findsOneWidget);
-      expect(find.textContaining('Paracip 500 × 10 (Batch PB1)'), findsOneWidget);
-      await tester.tap(find.text('Dispense').last); // the dialog's confirm
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.tap(find.byKey(const Key('dispense')), warnIfMissed: false); // again while sending
-      await tester.pump();
-      expect(repo.dispensed, hasLength(1));
-      expect(repo.dispensed.single, {
-        'prescription': 3,
-        'partial': false,
-        'lines': [
-          {'item': 7, 'medicine': 1, 'quantity': 10},
-        ],
-      });
-      repo.gate!.complete();
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Dispensed in full'), findsOneWidget);
-      expect(find.textContaining('INV-TEST-1'), findsOneWidget);
-    });
+        await tapVisible(tester, find.byKey(const Key('dispense')));
+        expect(find.text('Dispense these medicines?'), findsOneWidget);
+        expect(
+          find.textContaining('Paracip 500 × 10 (Batch PB1)'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('Dispense').last); // the dialog's confirm
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.tap(
+          find.byKey(const Key('dispense')),
+          warnIfMissed: false,
+        ); // again while sending
+        await tester.pump();
+        expect(repo.dispensed, hasLength(1));
+        expect(repo.dispensed.single, {
+          'prescription': 3,
+          'partial': false,
+          'lines': [
+            {'item': 7, 'medicine': 1, 'quantity': 10},
+          ],
+        });
+        repo.gate!.complete();
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Dispensed in full'), findsOneWidget);
+        expect(find.textContaining('INV-TEST-1'), findsOneWidget);
+      },
+    );
 
-    testWidgets('more than prescribed is stopped before sending', (tester) async {
+    testWidgets('more than prescribed is stopped before sending', (
+      tester,
+    ) async {
       final repo = await pumpPharmacy(tester, '/pharmacy/prescriptions/3');
       await tester.ensureVisible(find.byKey(const Key('qty-7')));
       await tester.enterText(find.byKey(const Key('qty-7')), '11');
       await tester.pump();
       await tapVisible(tester, find.byKey(const Key('dispense')));
-      expect(find.textContaining('at most 10 can still be issued'), findsOneWidget);
+      expect(
+        find.textContaining('at most 10 can still be issued'),
+        findsOneWidget,
+      );
       expect(repo.dispensed, isEmpty);
     });
 
-    testWidgets('a server refusal is explained and nothing shows as issued',
-        (tester) async {
+    testWidgets('a server refusal is explained and nothing shows as issued', (
+      tester,
+    ) async {
       final repo = pharmacyRepo()
-        ..writeError = const ApiException(kind: ApiErrorKind.conflict, statusCode: 409);
+        ..writeError = const ApiException(
+          kind: ApiErrorKind.conflict,
+          statusCode: 409,
+        );
       await pumpPharmacy(tester, '/pharmacy/prescriptions/3', repository: repo);
       await tapVisible(tester, find.byKey(const Key('dispense')));
       await tapVisible(tester, find.text('Dispense').last);
-      expect(find.text('This prescription has already been dispensed.'), findsOneWidget);
+      expect(
+        find.text('This prescription has already been dispensed.'),
+        findsOneWidget,
+      );
       expect(find.textContaining('Dispensed in full'), findsNothing);
     });
 
-    testWidgets('a paper prescription awaiting verification cannot be dispensed',
-        (tester) async {
-      final repo = pharmacyRepo()
-        ..prescriptionRows = const [
-          Prescription(id: 3, status: 'Pending Verification', items: [PrescriptionItem(id: 7, name: 'Paracip 500', quantity: 10)]),
-        ];
-      await pumpPharmacy(tester, '/pharmacy/prescriptions/3', repository: repo);
-      expect(find.textContaining('must be verified by a second pharmacist'), findsOneWidget);
-      expect(find.byKey(const Key('dispense')), findsNothing);
-    });
+    testWidgets(
+      'a paper prescription awaiting verification cannot be dispensed',
+      (tester) async {
+        final repo = pharmacyRepo()
+          ..prescriptionRows = const [
+            Prescription(
+              id: 3,
+              status: 'Pending Verification',
+              items: [
+                PrescriptionItem(id: 7, name: 'Paracip 500', quantity: 10),
+              ],
+            ),
+          ];
+        await pumpPharmacy(
+          tester,
+          '/pharmacy/prescriptions/3',
+          repository: repo,
+        );
+        expect(
+          find.textContaining('must be verified by a second pharmacist'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('dispense')), findsNothing);
+      },
+    );
 
-    testWidgets('only a pharmacist is offered a same-salt substitute',
-        (tester) async {
+    testWidgets('only a pharmacist is offered a same-salt substitute', (
+      tester,
+    ) async {
       await pumpPharmacy(tester, '/pharmacy/prescriptions/3');
       await tapVisible(tester, find.byKey(const Key('batch-7')));
       expect(find.textContaining('Substitute: Calpol 500'), findsWidgets);
       await tester.tapAt(Offset.zero);
       await tester.pumpAndSettle();
 
-      await pumpPharmacy(tester, '/pharmacy/prescriptions/3', session: pharmacySession(role: 'Compounder'));
+      await pumpPharmacy(
+        tester,
+        '/pharmacy/prescriptions/3',
+        session: pharmacySession(role: 'Compounder'),
+      );
       await tapVisible(tester, find.byKey(const Key('batch-7')));
       expect(find.textContaining('Substitute: Calpol 500'), findsNothing);
     });

@@ -11,19 +11,18 @@ import 'package:hms_mobile/features/patient/data/record_models.dart';
 import '../../support/test_app.dart';
 
 // Synthetic data only.
-SessionState roleSession(String role, Set<String> permissions) =>
-    SessionState(
-      user: const SessionUser(displayName: 'staff.test'),
-      hospitals: [
-        HospitalContext(
-          id: 7,
-          name: 'Test General Hospital',
-          role: role,
-          permissions: permissions,
-        ),
-      ],
-      activeHospitalId: 7,
-    );
+SessionState roleSession(String role, Set<String> permissions) => SessionState(
+  user: const SessionUser(displayName: 'staff.test'),
+  hospitals: [
+    HospitalContext(
+      id: 7,
+      name: 'Test General Hospital',
+      role: role,
+      permissions: permissions,
+    ),
+  ],
+  activeHospitalId: 7,
+);
 
 const labVAE = {'Laboratory.View', 'Laboratory.Add', 'Laboratory.Edit'};
 
@@ -113,25 +112,31 @@ void main() {
       }
     });
 
-    test('lab staff may run every step; a nurse only collects and dispatches',
-        () {
-      final lab = roleSession('Lab Staff', labVAE);
-      final nurse =
-          roleSession('Nurse', {'Laboratory.View', 'Laboratory.Edit'});
-      for (final step in LabStep.values) {
-        expect(mayRunLabStep(lab, step), isTrue, reason: step.name);
-      }
-      expect(mayRunLabStep(nurse, LabStep.collect), isTrue);
-      expect(mayRunLabStep(nurse, LabStep.dispatch), isTrue);
-      expect(mayRunLabStep(nurse, LabStep.enterResult), isFalse);
-      expect(mayRunLabStep(nurse, LabStep.verify), isFalse);
-      expect(mayRunLabStep(nurse, LabStep.release), isFalse);
-      expect(mayOrderLabTests(nurse), isFalse); // view + edit only
-    });
+    test(
+      'lab staff may run every step; a nurse only collects and dispatches',
+      () {
+        final lab = roleSession('Lab Staff', labVAE);
+        final nurse = roleSession('Nurse', {
+          'Laboratory.View',
+          'Laboratory.Edit',
+        });
+        for (final step in LabStep.values) {
+          expect(mayRunLabStep(lab, step), isTrue, reason: step.name);
+        }
+        expect(mayRunLabStep(nurse, LabStep.collect), isTrue);
+        expect(mayRunLabStep(nurse, LabStep.dispatch), isTrue);
+        expect(mayRunLabStep(nurse, LabStep.enterResult), isFalse);
+        expect(mayRunLabStep(nurse, LabStep.verify), isFalse);
+        expect(mayRunLabStep(nurse, LabStep.release), isFalse);
+        expect(mayOrderLabTests(nurse), isFalse); // view + edit only
+      },
+    );
 
     test('doctors, managers and patients are offered no lab step', () {
-      final doctor =
-          roleSession('Doctor', {'Laboratory.View', 'Laboratory.Add'});
+      final doctor = roleSession('Doctor', {
+        'Laboratory.View',
+        'Laboratory.Add',
+      });
       final manager = roleSession('Hospital Manager', {'Laboratory.View'});
       for (final step in LabStep.values) {
         expect(mayRunLabStep(doctor, step), isFalse);
@@ -149,14 +154,16 @@ void main() {
       expect(mayRunLabStep(restricted, LabStep.collect), isFalse);
     });
 
-    test('verified, released or cancelled orders are never offered a cancel',
-        () {
-      final lab = roleSession('Lab Staff', labVAE);
-      expect(mayCancelLabOrder(lab, 'Processing'), isTrue);
-      for (final status in ['Verified', 'Released', 'Cancelled']) {
-        expect(mayCancelLabOrder(lab, status), isFalse, reason: status);
-      }
-    });
+    test(
+      'verified, released or cancelled orders are never offered a cancel',
+      () {
+        final lab = roleSession('Lab Staff', labVAE);
+        expect(mayCancelLabOrder(lab, 'Processing'), isTrue);
+        for (final status in ['Verified', 'Released', 'Cancelled']) {
+          expect(mayCancelLabOrder(lab, status), isFalse, reason: status);
+        }
+      },
+    );
   });
 
   group('model', () {
@@ -195,36 +202,38 @@ void main() {
   });
 
   group('repository', () {
-    test('a step posts to its own action and returns the updated test',
-        () async {
-      final setup = labRepo({
-        '/api/v1/laboratory/5/collect_sample/': (
-          {
-            'lab_test': {...labTestJson, 'status': 'Collected'},
-            'sample_collection': {'sample_id': 'S1'},
-          },
-          201,
-        ),
-      });
-      final updated = await setup.repo.advance(
-        5,
-        LabStep.collect,
-        const SampleCollectionInput(
-          sampleType: 'Urine',
-          containerType: 'Urine Container',
-          sampleId: ' BAR-9 ',
-        ).toJson(),
-      );
-      expect(updated.status, 'Collected');
-      final request = setup.adapter.requests.single;
-      expect(request.method, 'POST');
-      expect(request.headers['X-Hospital-ID'], '7');
-      expect(request.data, {
-        'sample_type': 'Urine',
-        'container_type': 'Urine Container',
-        'sample_id': 'BAR-9',
-      });
-    });
+    test(
+      'a step posts to its own action and returns the updated test',
+      () async {
+        final setup = labRepo({
+          '/api/v1/laboratory/5/collect_sample/': (
+            {
+              'lab_test': {...labTestJson, 'status': 'Collected'},
+              'sample_collection': {'sample_id': 'S1'},
+            },
+            201,
+          ),
+        });
+        final updated = await setup.repo.advance(
+          5,
+          LabStep.collect,
+          const SampleCollectionInput(
+            sampleType: 'Urine',
+            containerType: 'Urine Container',
+            sampleId: ' BAR-9 ',
+          ).toJson(),
+        );
+        expect(updated.status, 'Collected');
+        final request = setup.adapter.requests.single;
+        expect(request.method, 'POST');
+        expect(request.headers['X-Hospital-ID'], '7');
+        expect(request.data, {
+          'sample_type': 'Urine',
+          'container_type': 'Urine Container',
+          'sample_id': 'BAR-9',
+        });
+      },
+    );
 
     test('start_processing answers with the test itself', () async {
       final setup = labRepo({
@@ -259,26 +268,28 @@ void main() {
       );
     });
 
-    test('a new order sends the hospital, patient, name and priority',
-        () async {
-      final setup = labRepo({
-        '/api/v1/laboratory/': ({...labTestJson, 'status': 'Ordered'}, 201),
-      });
-      await setup.repo.createOrder(
-        const LabOrderDraft(
-          hospitalId: 7,
-          patientId: 41,
-          testName: '  Lipid Profile ',
-          priority: 'Urgent',
-        ),
-      );
-      expect(setup.adapter.requests.single.data, {
-        'hospital': 7,
-        'patient': 41,
-        'name': 'Lipid Profile',
-        'priority': 'Urgent',
-      });
-    });
+    test(
+      'a new order sends the hospital, patient, name and priority',
+      () async {
+        final setup = labRepo({
+          '/api/v1/laboratory/': ({...labTestJson, 'status': 'Ordered'}, 201),
+        });
+        await setup.repo.createOrder(
+          const LabOrderDraft(
+            hospitalId: 7,
+            patientId: 41,
+            testName: '  Lipid Profile ',
+            priority: 'Urgent',
+          ),
+        );
+        expect(setup.adapter.requests.single.data, {
+          'hospital': 7,
+          'patient': 41,
+          'name': 'Lipid Profile',
+          'priority': 'Urgent',
+        });
+      },
+    );
 
     test('patient lookup uses the minimal lookup endpoint', () async {
       final setup = labRepo({

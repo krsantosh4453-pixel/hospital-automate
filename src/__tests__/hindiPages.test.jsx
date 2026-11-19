@@ -1,17 +1,21 @@
 import React, { act } from "react"
 import { createRoot } from "react-dom/client"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeAll, describe, expect, it } from "vitest"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { LanguageProvider } from "../assets/context/LanguageProvider.jsx"
 import { Button, PageHeader, Select, StatusBadge, TableWrap } from "../components/ui"
 import StatCard from "../components/StatCard.jsx"
 import HI_PAGES from "../assets/i18n/hiPages.js"
+import { loadHindiPages } from "../assets/i18n/loadHindiPages.js"
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 describe("Hindi page text (A17)", () => {
   let root
   let host
+
+  // The page dictionary is loaded on demand; once loaded it renders at once.
+  beforeAll(() => loadHindiPages())
 
   const render = (element) => {
     localStorage.setItem("hms_language", "hi")

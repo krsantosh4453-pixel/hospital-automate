@@ -58,7 +58,12 @@ class _WardMedicationSectionState extends State<WardMedicationSection> {
   Future<void> _record(Dose dose, DoseAction action) async {
     if (_sending.contains(dose.id)) return;
     final t = context.l10n;
-    final reason = await confirmDose(context, ward: _w, dose: dose, action: action);
+    final reason = await confirmDose(
+      context,
+      ward: _w,
+      dose: dose,
+      action: action,
+    );
     if (reason == null || !mounted) return;
     setState(() {
       _sending.add(dose.id);
@@ -66,7 +71,11 @@ class _WardMedicationSectionState extends State<WardMedicationSection> {
       _done = null;
     });
     try {
-      final saved = await _w.repository.recordDose(dose.id, action, reason: reason);
+      final saved = await _w.repository.recordDose(
+        dose.id,
+        action,
+        reason: reason,
+      );
       if (mounted) {
         setState(
           () => _done = t.doseRecorded(
@@ -108,7 +117,10 @@ class _WardMedicationSectionState extends State<WardMedicationSection> {
             loader: _loader,
             skeletons: 1,
             builder: (context, orders) {
-              final active = [for (final o in orders) if (o.isActive) o];
+              final active = [
+                for (final o in orders)
+                  if (o.isActive) o,
+              ];
               if (active.isEmpty) {
                 return HmsEmptyState(
                   compact: true,
@@ -148,18 +160,24 @@ class _OrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.l10n;
-    final due = [for (final d in order.doses) if (d.isDue) d]
-      ..sort(
-        (a, b) => (a.scheduledAt ?? DateTime(0)).compareTo(
-          b.scheduledAt ?? DateTime(0),
-        ),
-      );
-    final recorded = [for (final d in order.doses) if (!d.isDue) d]
-      ..sort(
-        (a, b) => (b.recordedAt ?? DateTime(0)).compareTo(
-          a.recordedAt ?? DateTime(0),
-        ),
-      );
+    final due =
+        [
+          for (final d in order.doses)
+            if (d.isDue) d,
+        ]..sort(
+          (a, b) => (a.scheduledAt ?? DateTime(0)).compareTo(
+            b.scheduledAt ?? DateTime(0),
+          ),
+        );
+    final recorded =
+        [
+          for (final d in order.doses)
+            if (!d.isDue) d,
+        ]..sort(
+          (a, b) => (b.recordedAt ?? DateTime(0)).compareTo(
+            a.recordedAt ?? DateTime(0),
+          ),
+        );
     return Padding(
       padding: AppSpacing.cardRow,
       child: Column(

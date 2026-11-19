@@ -91,10 +91,12 @@ class _DispenseScreenState extends State<DispenseScreen> {
     final rx = await _repo.prescription(widget.prescriptionId);
     final results = await Future.wait<Object?>([
       loadStockFor(_repo, rx),
-      _repo.sales(prescriptionId: rx.id).then<List<PharmacySale>?>(
-        (rows) => rows,
-        onError: (Object _) => null,
-      ),
+      _repo
+          .sales(prescriptionId: rx.id)
+          .then<List<PharmacySale>?>(
+            (rows) => rows,
+            onError: (Object _) => null,
+          ),
     ]);
     return DispenseData(
       prescription: rx,
@@ -226,7 +228,8 @@ class _DispenseScreenState extends State<DispenseScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         PageHeader(
-          title: '${t.prescriptionCode(rx.id)} · ${rx.patientName ?? t.patientLabel}',
+          title:
+              '${t.prescriptionCode(rx.id)} · ${rx.patientName ?? t.patientLabel}',
           description: [
             if (rx.patientUhid != null) '${t.patientId}: ${rx.patientUhid}',
             ?rx.doctorName,
@@ -240,18 +243,22 @@ class _DispenseScreenState extends State<DispenseScreen> {
         ),
         const SizedBox(height: AppSpacing.x4),
         if (rx.status == 'Cancelled')
-          HmsAlert(tone: AlertTone.danger, title: t.prescriptionCancelledNoDispense)
+          HmsAlert(
+            tone: AlertTone.danger,
+            title: t.prescriptionCancelledNoDispense,
+          )
         else if (rx.status == 'Pending Verification')
-          HmsAlert(tone: AlertTone.warning, title: t.prescriptionNeedsVerification)
+          HmsAlert(
+            tone: AlertTone.warning,
+            title: t.prescriptionNeedsVerification,
+          )
         else if (!data.canDispense)
           HmsAlert(tone: AlertTone.info, title: t.nothingLeftToDispense),
         if (_result != null) ...[
           const SizedBox(height: AppSpacing.x3),
           HmsAlert(
             tone: AlertTone.success,
-            title: _result!.isComplete
-                ? t.dispensedInFull
-                : t.dispensedInPart,
+            title: _result!.isComplete ? t.dispensedInFull : t.dispensedInPart,
             message: _result!.invoiceNumber == null
                 ? null
                 : t.chargedOnBill(
@@ -283,9 +290,8 @@ class _DispenseScreenState extends State<DispenseScreen> {
             line: item.id == null ? null : _lines[item.id!],
             editable: editable && item.id != null && item.remaining > 0,
             allowSubstitutes: maySubstitute(session),
-            onChanged: (line) => setState(
-              () => _lines = {..._lines, item.id!: line},
-            ),
+            onChanged: (line) =>
+                setState(() => _lines = {..._lines, item.id!: line}),
           ),
           const SizedBox(height: AppSpacing.x3),
         ],
@@ -303,7 +309,10 @@ class _DispenseScreenState extends State<DispenseScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              HmsCardHeader(title: t.dispensingHistory, icon: LucideIcons.history),
+              HmsCardHeader(
+                title: t.dispensingHistory,
+                icon: LucideIcons.history,
+              ),
               if (data.sales == null)
                 HmsEmptyState(compact: true, title: t.notAvailableNow)
               else if (data.sales!.isEmpty)

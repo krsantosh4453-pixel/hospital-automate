@@ -111,7 +111,11 @@ class _MoneyEntryScreenState extends State<MoneyEntryScreen> {
           ? t.billingConfirmRefundTitle
           : t.billingConfirmPaymentTitle,
       message: _refund
-          ? t.billingConfirmRefund(shown, paymentMethodLabel(t, _method), number)
+          ? t.billingConfirmRefund(
+              shown,
+              paymentMethodLabel(t, _method),
+              number,
+            )
           : t.billingConfirmPayment(
               shown,
               paymentMethodLabel(t, _method),
@@ -268,9 +272,7 @@ class _MoneyEntryScreenState extends State<MoneyEntryScreen> {
                   const SizedBox(height: AppSpacing.x3),
                   HmsTextField(
                     key: const Key('money-note'),
-                    label: _refund
-                        ? t.billingRefundReason
-                        : t.billingReference,
+                    label: _refund ? t.billingRefundReason : t.billingReference,
                     hint: _refund ? null : t.billingReferenceHint,
                     required: _refund,
                     controller: _note,

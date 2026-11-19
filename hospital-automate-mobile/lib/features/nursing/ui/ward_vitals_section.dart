@@ -69,8 +69,7 @@ typedef VitalsEntry = ({DateTime? at, String? by, String values});
 ({Map<VitalField, VitalError> fields, bool bpIncomplete, bool empty})
 checkVitals(VitalsTarget target, Map<VitalField, String> values) {
   final errors = {
-    for (final field in target.fields)
-      field: ?field.check(values[field] ?? ''),
+    for (final field in target.fields) field: ?field.check(values[field] ?? ''),
   };
   final filled = [
     for (final field in target.fields)
@@ -262,8 +261,10 @@ class _WardVitalsSectionState extends State<WardVitalsSection> {
                       children: [
                         for (final row in rows)
                           WardRecordRow(
-                            heading: [formatDateTime(t, row.at), ?row.by]
-                                .join(' · '),
+                            heading: [
+                              formatDateTime(t, row.at),
+                              ?row.by,
+                            ].join(' · '),
                             body: row.values,
                           ),
                       ],

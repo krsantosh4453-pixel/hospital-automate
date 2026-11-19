@@ -120,7 +120,8 @@ class ApiPharmacyRepository implements PharmacyRepository {
     );
     final rows = [for (final row in page.rows) StockMovement.fromJson(row)];
     rows.sort(
-      (a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
+      (a, b) =>
+          (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
     );
     return rows;
   }

@@ -124,10 +124,7 @@ class _RecordPickerState<T> extends State<RecordPicker<T>> {
         if (_searching) const LinearProgressIndicator(),
         const SizedBox(height: AppSpacing.x2),
         if (_query.isNotEmpty && _query.length < widget.minChars)
-          Text(
-            t.pickerTypeMore(widget.minChars),
-            style: AppTypography.small(),
-          )
+          Text(t.pickerTypeMore(widget.minChars), style: AppTypography.small())
         else if (_error != null)
           HmsErrorState(error: _error!, onRetry: _run)
         else if (results != null && results.isEmpty)

@@ -55,23 +55,56 @@ void main() {
 
   group('stock batches', () {
     final stock = [
-      batch(1, 'Paracip 500', 50, expiry: DateTime(2027, 6, 1), generic: 'Paracetamol'),
-      batch(2, 'paracip 500 ', 5, expiry: DateTime(2026, 12, 1), generic: 'Paracetamol'),
-      batch(3, 'Paracip 500', 99, expiry: DateTime(2026, 11, 1), generic: 'Paracetamol'),
+      batch(
+        1,
+        'Paracip 500',
+        50,
+        expiry: DateTime(2027, 6, 1),
+        generic: 'Paracetamol',
+      ),
+      batch(
+        2,
+        'paracip 500 ',
+        5,
+        expiry: DateTime(2026, 12, 1),
+        generic: 'Paracetamol',
+      ),
+      batch(
+        3,
+        'Paracip 500',
+        99,
+        expiry: DateTime(2026, 11, 1),
+        generic: 'Paracetamol',
+      ),
       batch(4, 'Paracip 500', 20, generic: 'Paracetamol'),
-      batch(5, 'Calpol 500', 30, expiry: DateTime(2027, 1, 1), generic: 'paracetamol'),
+      batch(
+        5,
+        'Calpol 500',
+        30,
+        expiry: DateTime(2027, 1, 1),
+        generic: 'paracetamol',
+      ),
       batch(6, 'Dolo 650', 30, generic: 'Paracetamol 650'),
     ];
 
     test('usable batches: same name, unexpired, earliest expiry first', () {
-      expect(usableBatches(stock, 'PARACIP 500', today).map((m) => m.id), [2, 1, 4]);
+      expect(usableBatches(stock, 'PARACIP 500', today).map((m) => m.id), [
+        2,
+        1,
+        4,
+      ]);
     });
 
-    test('substitutes share the prescribed salt and exclude the brand itself',
-        () {
-      expect(substituteBatches(stock, 'Paracip 500', today).map((m) => m.id), [5]);
-      expect(substituteBatches(stock, 'Unknown Brand', today), isEmpty);
-    });
+    test(
+      'substitutes share the prescribed salt and exclude the brand itself',
+      () {
+        expect(
+          substituteBatches(stock, 'Paracip 500', today).map((m) => m.id),
+          [5],
+        );
+        expect(substituteBatches(stock, 'Unknown Brand', today), isEmpty);
+      },
+    );
 
     test('availability: in stock, split across batches, short, none, done', () {
       PrescriptionItem item(int qty, {int issued = 0}) => PrescriptionItem(
@@ -91,13 +124,21 @@ void main() {
         ),
         Availability.none,
       );
-      expect(availabilityOf(item(10, issued: 10), stock, today), Availability.done);
+      expect(
+        availabilityOf(item(10, issued: 10), stock, today),
+        Availability.done,
+      );
     });
 
     test('defaults pick the first batch covering what is still owed', () {
       final lines = defaultLines(
         const [
-          PrescriptionItem(id: 7, name: 'Paracip 500', quantity: 10, dispensedQuantity: 4),
+          PrescriptionItem(
+            id: 7,
+            name: 'Paracip 500',
+            quantity: 10,
+            dispensedQuantity: 4,
+          ),
         ],
         stock,
         today,
@@ -109,7 +150,13 @@ void main() {
     test('stock filters follow the KPI rules', () {
       final low = batch(10, 'A', 3);
       final empty = batch(11, 'B', 0);
-      final expired = batch(12, 'C', 4, expiry: DateTime(2026, 1, 1), reorder: 1);
+      final expired = batch(
+        12,
+        'C',
+        4,
+        expiry: DateTime(2026, 1, 1),
+        reorder: 1,
+      );
       expect(matchesStockFilter(low, StockFilter.lowStock, today), isTrue);
       expect(matchesStockFilter(empty, StockFilter.lowStock, today), isFalse);
       expect(matchesStockFilter(empty, StockFilter.outOfStock, today), isTrue);
@@ -118,13 +165,15 @@ void main() {
   });
 
   group('dispense request (web buildDispenseRequest)', () {
-    final stock = [
-      batch(1, 'Paracip 500', 50),
-      batch(5, 'Calpol 500', 30),
-    ];
+    final stock = [batch(1, 'Paracip 500', 50), batch(5, 'Calpol 500', 30)];
     const items = [
       PrescriptionItem(id: 7, name: 'Paracip 500', quantity: 10),
-      PrescriptionItem(id: 8, name: 'Calpol 500', quantity: 5, dispensedQuantity: 5),
+      PrescriptionItem(
+        id: 8,
+        name: 'Calpol 500',
+        quantity: 5,
+        dispensedQuantity: 5,
+      ),
     ];
 
     test('the whole remaining quantity is a full dispense', () {
@@ -170,7 +219,13 @@ void main() {
       expect(over.isValid, isFalse);
       expect(
         over.problems,
-        contains(const DispenseProblem(DispenseProblemKind.tooMany, medicine: 'Paracip 500', limit: 10)),
+        contains(
+          const DispenseProblem(
+            DispenseProblemKind.tooMany,
+            medicine: 'Paracip 500',
+            limit: 10,
+          ),
+        ),
       );
       final noBatch = DispenseRequest.build(
         prescriptionId: 3,
@@ -199,7 +254,13 @@ void main() {
       final given = DispenseRequest.build(
         prescriptionId: 3,
         items: items,
-        lines: {7: const DispenseLine(batchId: 5, quantity: 10, reason: ' brand out ')},
+        lines: {
+          7: const DispenseLine(
+            batchId: 5,
+            quantity: 10,
+            reason: ' brand out ',
+          ),
+        },
         stock: stock,
       );
       expect((given.body?['lines'] as List).single, {
@@ -249,33 +310,57 @@ void main() {
     });
 
     test('dispense errors never show the server text', () {
-      expect(dispenseErrorMessage(t, const ApiException(kind: ApiErrorKind.conflict)), t.alreadyDispensed);
-      expect(dispenseErrorMessage(t, const ApiException(kind: ApiErrorKind.validation)), t.dispenseRefused);
-      expect(dispenseErrorMessage(t, const ApiException(kind: ApiErrorKind.network)), t.dispenseOutcomeUnknown);
+      expect(
+        dispenseErrorMessage(
+          t,
+          const ApiException(kind: ApiErrorKind.conflict),
+        ),
+        t.alreadyDispensed,
+      );
+      expect(
+        dispenseErrorMessage(
+          t,
+          const ApiException(kind: ApiErrorKind.validation),
+        ),
+        t.dispenseRefused,
+      );
+      expect(
+        dispenseErrorMessage(t, const ApiException(kind: ApiErrorKind.network)),
+        t.dispenseOutcomeUnknown,
+      );
     });
   });
 
   group('ApiPharmacyRepository', () {
-    test('the queue asks for its statuses in one request, oldest first', () async {
-      final s = pharmacyRepo({
-        'GET ${base}clinical/prescriptions/': (
-          {'count': 12, 'next': 'more', 'results': [{'id': 1, 'status': 'Confirmed'}]},
-          200,
-        ),
-      });
-      final page = await s.repo.prescriptions(
-        statuses: PharmacyQueue.toDispense,
-        search: ' UH-1 ',
-        oldestFirst: true,
-      );
-      expect(page.count, 12);
-      expect(page.rows.single.id, 1);
-      expect(s.adapter.requests.single.uri.queryParameters, {
-        'status': 'Confirmed,Pending,Partially Dispensed',
-        'search': 'UH-1',
-        'order': 'oldest',
-      });
-    });
+    test(
+      'the queue asks for its statuses in one request, oldest first',
+      () async {
+        final s = pharmacyRepo({
+          'GET ${base}clinical/prescriptions/': (
+            {
+              'count': 12,
+              'next': 'more',
+              'results': [
+                {'id': 1, 'status': 'Confirmed'},
+              ],
+            },
+            200,
+          ),
+        });
+        final page = await s.repo.prescriptions(
+          statuses: PharmacyQueue.toDispense,
+          search: ' UH-1 ',
+          oldestFirst: true,
+        );
+        expect(page.count, 12);
+        expect(page.rows.single.id, 1);
+        expect(s.adapter.requests.single.uri.queryParameters, {
+          'status': 'Confirmed,Pending,Partially Dispensed',
+          'search': 'UH-1',
+          'order': 'oldest',
+        });
+      },
+    );
 
     test('the stock ledger always names the hospital', () async {
       final s = pharmacyRepo({
@@ -285,7 +370,10 @@ void main() {
         ),
       });
       await s.repo.stockMovements(hospitalId: 7, medicineId: 4);
-      expect(s.adapter.requests.single.uri.queryParameters, {'hospital': '7', 'medicine': '4'});
+      expect(s.adapter.requests.single.uri.queryParameters, {
+        'hospital': '7',
+        'medicine': '4',
+      });
     });
 
     test('a dispense posts the built body once, with no retry', () async {
@@ -297,7 +385,13 @@ void main() {
       });
       await expectLater(
         s.repo.dispense({'prescription': 3, 'partial': false, 'lines': []}),
-        throwsA(isA<ApiException>().having((e) => e.kind, 'kind', ApiErrorKind.conflict)),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.kind,
+            'kind',
+            ApiErrorKind.conflict,
+          ),
+        ),
       );
       expect(s.adapter.requests, hasLength(1));
     });
@@ -305,12 +399,26 @@ void main() {
     test('stock counts come from the pharmacy KPI endpoint', () async {
       final s = pharmacyRepo({
         'GET ${base}reports/analytics/pharmacy/': (
-          {'total_medicines': 40, 'low_stock': 3, 'out_of_stock': 2, 'expiring_soon': 1, 'expired': 1},
+          {
+            'total_medicines': 40,
+            'low_stock': 3,
+            'out_of_stock': 2,
+            'expiring_soon': 1,
+            'expired': 1,
+          },
           200,
         ),
       });
       final summary = await s.repo.stockSummary(7);
-      expect([summary.totalMedicines, summary.lowStock, summary.outOfStock, summary.expired], [40, 3, 2, 1]);
+      expect(
+        [
+          summary.totalMedicines,
+          summary.lowStock,
+          summary.outOfStock,
+          summary.expired,
+        ],
+        [40, 3, 2, 1],
+      );
       expect(s.adapter.requests.single.uri.queryParameters['hospital'], '7');
     });
   });

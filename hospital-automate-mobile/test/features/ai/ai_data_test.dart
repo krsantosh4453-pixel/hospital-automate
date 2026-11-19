@@ -135,9 +135,8 @@ void main() {
           200,
         ),
       );
-      final session = await ApiAiRepository(
-        _client(adapter),
-      ).startRecording(4, patientConsent: true);
+      final session = await ApiAiRepository(_client(adapter))
+          .startRecording(4, patientConsent: true);
       final request = adapter.requests.single;
       expect(request.path, 'ai/consultation-sessions/4/start_recording/');
       expect(_body(request), {'patient_consent': true});
@@ -155,9 +154,8 @@ void main() {
           200,
         ),
       );
-      final transcript = await ApiAiRepository(
-        _client(adapter),
-      ).transcribe(4, language: 'hinglish');
+      final transcript = await ApiAiRepository(_client(adapter))
+          .transcribe(4, language: 'hinglish');
       final request = adapter.requests.single;
       expect(request.path, 'ai/consultation-sessions/4/transcribe/');
       expect(_body(request), {'async': true, 'language': 'hinglish'});
@@ -204,9 +202,7 @@ void main() {
       );
       await expectLater(
         ApiAiRepository(_client(adapter)).generate(21),
-        throwsA(
-          isA<ApiException>().having((e) => e.statusCode, 'status', 503),
-        ),
+        throwsA(isA<ApiException>().having((e) => e.statusCode, 'status', 503)),
       );
     });
 

@@ -40,7 +40,8 @@ class _ScribeData {
 
   /// Only the visit's own doctor may use the scribe (the server checks too).
   bool get isOwnDoctor =>
-      doctor != null && (visit.doctorId == null || visit.doctorId == doctor!.id);
+      doctor != null &&
+      (visit.doctorId == null || visit.doctorId == doctor!.id);
   ScribeDraft? get latestDraft => drafts.isEmpty ? null : drafts.first;
 
   /// The server is still transcribing or drafting (queued work).

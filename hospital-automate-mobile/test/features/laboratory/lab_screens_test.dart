@@ -22,10 +22,8 @@ const labStaffPermissions = {
 };
 
 SessionState labStaff() => roleSession('Lab Staff', labStaffPermissions);
-SessionState labManager() => roleSession('Hospital Manager', {
-  'Dashboard.View',
-  'Laboratory.View',
-});
+SessionState labManager() =>
+    roleSession('Hospital Manager', {'Dashboard.View', 'Laboratory.View'});
 
 final labStats = DashboardStats.fromJson(const {
   'statistics': {
@@ -174,7 +172,10 @@ void main() {
       expect(sent.body['sample_id'], 'BAR-0042');
       // Shown as the server now has it (read back after the step).
       expect(find.text('Sample collected'), findsWidgets);
-      expect(find.textContaining('saved by the hospital system'), findsOneWidget);
+      expect(
+        find.textContaining('saved by the hospital system'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('verifying asks first and sends nothing when backed out', (
@@ -309,7 +310,10 @@ void main() {
         warnIfMissed: false,
       );
       await tester.pumpAndSettle();
-      expect(repo.created, isEmpty); // the failed one never counted, none resent
+      expect(
+        repo.created,
+        isEmpty,
+      ); // the failed one never counted, none resent
     });
 
     testWidgets('a nurse cannot place orders', (tester) async {
@@ -319,7 +323,10 @@ void main() {
         session: roleSession('Nurse', {'Laboratory.View', 'Laboratory.Edit'}),
       );
       expect(find.byKey(const Key('lab-order-review')), findsNothing);
-      expect(find.textContaining('cannot place laboratory orders'), findsOneWidget);
+      expect(
+        find.textContaining('cannot place laboratory orders'),
+        findsOneWidget,
+      );
     });
   });
 }

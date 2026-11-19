@@ -95,11 +95,7 @@ class _DispenseLineCardState extends State<DispenseLineCard> {
             ],
           ),
           Text(
-            [
-              ?item.dosage,
-              ?item.frequency,
-              ?item.duration,
-            ].join(' · '),
+            [?item.dosage, ?item.frequency, ?item.duration].join(' · '),
             style: AppTypography.small(),
           ),
           if (item.instructions != null)
@@ -126,7 +122,9 @@ class _DispenseLineCardState extends State<DispenseLineCard> {
                 for (final m in substitutes)
                   DropdownMenuItem(
                     value: m.id,
-                    child: Text('${t.substitute}: ${m.name} · ${_batchText(t, m)}'),
+                    child: Text(
+                      '${t.substitute}: ${m.name} · ${_batchText(t, m)}',
+                    ),
                   ),
               ],
               onChanged: (id) => widget.onChanged(_line.copyWith(batchId: id)),

@@ -69,17 +69,19 @@ void main() {
       expect([a.wardName, a.roomNumber, a.bedNumber], ['Ward A', '2', 'B4']);
     });
 
-    test('an admission with no bed is awaiting one; discharged is not in ward',
-        () {
-      expect(
-        Admission.fromJson({'id': 1, 'status': 'Admitted'}).awaitingBed,
-        isTrue,
-      );
-      expect(
-        Admission.fromJson({'id': 1, 'status': 'Discharged'}).inWard,
-        isFalse,
-      );
-    });
+    test(
+      'an admission with no bed is awaiting one; discharged is not in ward',
+      () {
+        expect(
+          Admission.fromJson({'id': 1, 'status': 'Admitted'}).awaitingBed,
+          isTrue,
+        );
+        expect(
+          Admission.fromJson({'id': 1, 'status': 'Discharged'}).inWard,
+          isFalse,
+        );
+      },
+    );
 
     test('a dose keeps the doctor\'s dose, route and the server flags', () {
       final d = Dose.fromJson({
@@ -146,17 +148,24 @@ void main() {
       expect(wardVitalsJson({VitalField.systolicBp: '120'}), isNull);
     });
 
-    test('checkVitals applies server limits, blood pressure pairs and empties',
-        () {
-      const stay = AdmissionTarget(Admission(id: 1, status: 'Admitted'));
-      final over = checkVitals(stay, {VitalField.spo2: '101'});
-      expect(over.fields[VitalField.spo2], VitalError.tooHigh);
-      expect(checkVitals(stay, {VitalField.diastolicBp: '80'}).bpIncomplete,
-          isTrue);
-      expect(checkVitals(stay, {}).empty, isTrue);
-      final ok = checkVitals(stay, {VitalField.heartRate: '72'});
-      expect([ok.fields.isEmpty, ok.bpIncomplete, ok.empty], [true, false, false]);
-    });
+    test(
+      'checkVitals applies server limits, blood pressure pairs and empties',
+      () {
+        const stay = AdmissionTarget(Admission(id: 1, status: 'Admitted'));
+        final over = checkVitals(stay, {VitalField.spo2: '101'});
+        expect(over.fields[VitalField.spo2], VitalError.tooHigh);
+        expect(
+          checkVitals(stay, {VitalField.diastolicBp: '80'}).bpIncomplete,
+          isTrue,
+        );
+        expect(checkVitals(stay, {}).empty, isTrue);
+        final ok = checkVitals(stay, {VitalField.heartRate: '72'});
+        expect(
+          [ok.fields.isEmpty, ok.bpIncomplete, ok.empty],
+          [true, false, false],
+        );
+      },
+    );
 
     test('a stay offers only the web fields; a visit offers all', () {
       const stay = AdmissionTarget(Admission(id: 1, status: 'Admitted'));
@@ -204,11 +213,15 @@ void main() {
     test('filters and search match what the server sent', () {
       final rows = wardPatients([stay, waiting], [duty]);
       expect(
-        rows.where((r) => matchesWardFilter(r, WardFilter.awaitingBed)).map((r) => r.name),
+        rows
+            .where((r) => matchesWardFilter(r, WardFilter.awaitingBed))
+            .map((r) => r.name),
         ['Amy Test'],
       );
       expect(
-        rows.where((r) => matchesWardFilter(r, WardFilter.assigned)).map((r) => r.name),
+        rows
+            .where((r) => matchesWardFilter(r, WardFilter.assigned))
+            .map((r) => r.name),
         ['Zed Test'],
       );
       expect(rows.where((r) => matchesWardSearch(r, 'b4')).length, 1);
@@ -220,7 +233,10 @@ void main() {
   group('notes and errors', () {
     test('a note needs text and a sane length', () {
       expect(checkNote(t, '   '), t.noteTextRequired);
-      expect(checkNote(t, 'x' * (maxNoteLength + 1)), t.noteTooLong(maxNoteLength));
+      expect(
+        checkNote(t, 'x' * (maxNoteLength + 1)),
+        t.noteTooLong(maxNoteLength),
+      );
       expect(checkNote(t, 'Patient comfortable.'), isNull);
     });
 
@@ -259,7 +275,10 @@ void main() {
 
     test('ward vitals are a Focused assessment on the stay', () async {
       final s = nursingRepo({
-        'POST ${base}nurses/assessments/': ({'id': 1, 'assessment_type': 'Focused'}, 201),
+        'POST ${base}nurses/assessments/': (
+          {'id': 1, 'assessment_type': 'Focused'},
+          201,
+        ),
       });
       await s.repo.addWardVitals(
         hospitalId: 7,
@@ -278,7 +297,10 @@ void main() {
 
     test('a note never names a nurse: the server sets the author', () async {
       final s = nursingRepo({
-        'POST ${base}nurses/notes/': ({'id': 1, 'note_type': 'Progress', 'note': 'x'}, 201),
+        'POST ${base}nurses/notes/': (
+          {'id': 1, 'note_type': 'Progress', 'note': 'x'},
+          201,
+        ),
       });
       await s.repo.addNote(
         hospitalId: 7,
@@ -327,7 +349,11 @@ void main() {
       await expectLater(
         s.repo.recordDose(9, DoseAction.administer),
         throwsA(
-          isA<ApiException>().having((e) => e.kind, 'kind', ApiErrorKind.validation),
+          isA<ApiException>().having(
+            (e) => e.kind,
+            'kind',
+            ApiErrorKind.validation,
+          ),
         ),
       );
     });

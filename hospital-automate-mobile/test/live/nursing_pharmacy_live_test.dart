@@ -76,7 +76,11 @@ void main() {
 
   Future<int> signIn(String username, DeviceInfo device, String role) async {
     final auth = ApiAuthRepository(api);
-    token = (await auth.staffPasswordLogin(username, _password!, device)).access;
+    token = (await auth.staffPasswordLogin(
+      username,
+      _password!,
+      device,
+    )).access;
     final contexts = await auth.meContexts();
     expect(contexts.accountType, AccountType.staff);
     final context = contexts.hospitals.single;
@@ -91,7 +95,10 @@ void main() {
     test('1. signs in, finds own profile and today\'s ward duty', () async {
       final userId = await signIn('demo.nurse', _nurseDevice, 'Nurse');
       me = (await nursing.myProfile(hospitalId: hospitalId!, userId: userId))!;
-      final duties = await nursing.wardDuties(nurseId: me.id, day: DateTime.now());
+      final duties = await nursing.wardDuties(
+        nurseId: me.id,
+        day: DateTime.now(),
+      );
       expect(duties.map((d) => d.wardName), contains('Ward A'));
     }, skip: skip);
 
@@ -125,7 +132,9 @@ void main() {
       expect(note.nurseName, me.name, reason: 'the server sets the author');
       final assessments = await nursing.assessments(seedId('patient'));
       expect(
-        assessments.any((a) => a.vitals['bp'] == '118/76' && a.nurseName == me.name),
+        assessments.any(
+          (a) => a.vitals['bp'] == '118/76' && a.nurseName == me.name,
+        ),
         isTrue,
       );
       final notes = await nursing.notes(patientId: seedId('patient'));
@@ -133,7 +142,10 @@ void main() {
     }, skip: skip);
 
     test('4. gives the due dose once; a second attempt is refused', () async {
-      final given = await nursing.recordDose(seedId('dose'), DoseAction.administer);
+      final given = await nursing.recordDose(
+        seedId('dose'),
+        DoseAction.administer,
+      );
       expect(given.status, 'Administered');
       expect(given.givenByName, me.name);
       await expectLater(
@@ -148,7 +160,9 @@ void main() {
       await signIn('demo.pharmacist', _pharmacyDevice, 'Pharmacist');
       final summary = await pharmacy.stockSummary(hospitalId!);
       expect(summary.totalMedicines, greaterThan(0));
-      final queue = await pharmacy.prescriptions(statuses: ['Confirmed', 'Pending', 'Partially Dispensed']);
+      final queue = await pharmacy.prescriptions(
+        statuses: ['Confirmed', 'Pending', 'Partially Dispensed'],
+      );
       expect(queue.rows.map((rx) => rx.id), contains(seedId('prescription')));
     }, skip: skip);
 
@@ -159,7 +173,9 @@ void main() {
       final request = DispenseRequest.build(
         prescriptionId: rx.id,
         items: rx.items,
-        lines: {item.id!: DispenseLine(batchId: before.id, quantity: item.remaining)},
+        lines: {
+          item.id!: DispenseLine(batchId: before.id, quantity: item.remaining),
+        },
         stock: [before],
       );
       expect(request.isValid, isTrue);
@@ -169,10 +185,16 @@ void main() {
       expect(after.quantity, before.quantity - item.remaining);
       final sales = await pharmacy.sales(prescriptionId: rx.id);
       expect(sales.single.quantity, item.remaining);
-      final ledger = await pharmacy.stockMovements(hospitalId: hospitalId!, medicineId: before.id);
+      final ledger = await pharmacy.stockMovements(
+        hospitalId: hospitalId!,
+        medicineId: before.id,
+      );
       expect(ledger.first.type, 'OUT');
       // The same prescription cannot be dispensed twice.
-      await expectLater(pharmacy.dispense(request.body!), _apiError(ApiErrorKind.conflict));
+      await expectLater(
+        pharmacy.dispense(request.body!),
+        _apiError(ApiErrorKind.conflict),
+      );
     }, skip: skip);
   });
 }

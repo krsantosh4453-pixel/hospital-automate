@@ -74,7 +74,9 @@ MedicationOrder orderWith(List<Dose> doses) => MedicationOrder(
 FakeNursingRepository wardRepo() => FakeNursingRepository(
   patients: const [testPatient],
   admissionRows: const [stay],
-  orderRows: [orderWith([dueDose])],
+  orderRows: [
+    orderWith([dueDose]),
+  ],
 );
 
 Future<FakeNursingRepository> pumpNurse(
@@ -113,15 +115,21 @@ Future<void> enter(WidgetTester tester, Finder field, String text) async {
 
 void main() {
   group('nurse home', () {
-    testWidgets('shows the profile, today\'s duty and what needs attention',
-        (tester) async {
+    testWidgets('shows the profile, today\'s duty and what needs attention', (
+      tester,
+    ) async {
       await pumpNurse(
         tester,
         '/',
         repository: FakeNursingRepository(
           admissionRows: const [
             stay,
-            Admission(id: 4, status: 'Admitted', patientId: 12, patientName: 'Test Bedless Patient'),
+            Admission(
+              id: 4,
+              status: 'Admitted',
+              patientId: 12,
+              patientName: 'Test Bedless Patient',
+            ),
           ],
           wardDutyRows: const [
             DutyAssignment(id: 1, shift: 'Morning', wardName: 'Ward A'),
@@ -153,15 +161,31 @@ void main() {
       expect(find.text('My nurse profile'), findsOneWidget);
       expect(find.text('Test Nurse'), findsWidgets);
       expect(find.text('Morning · Ward A'), findsOneWidget);
-      expect(find.text('Needs attention on the ward', skipOffstage: false), findsOneWidget);
-      expect(find.textContaining('Synthetic Ceftriaxone', skipOffstage: false), findsOneWidget);
-      expect(find.textContaining('Test Bedless Patient', skipOffstage: false), findsOneWidget);
-      expect(find.textContaining('Synthetic hourly vitals', skipOffstage: false), findsWidgets);
-      expect(find.textContaining('no inbox for staff', skipOffstage: false), findsOneWidget);
+      expect(
+        find.text('Needs attention on the ward', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Synthetic Ceftriaxone', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Test Bedless Patient', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Synthetic hourly vitals', skipOffstage: false),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining('no inbox for staff', skipOffstage: false),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('a missing nurse profile is said plainly, not invented',
-        (tester) async {
+    testWidgets('a missing nurse profile is said plainly, not invented', (
+      tester,
+    ) async {
       final repo = FakeNursingRepository()..profile = null;
       await pumpNurse(tester, '/', repository: repo);
       expect(find.textContaining('No nurse profile is linked'), findsOneWidget);
@@ -179,18 +203,29 @@ void main() {
   });
 
   group('ward patients', () {
-    testWidgets('lists stays and assignments, searches and filters',
-        (tester) async {
+    testWidgets('lists stays and assignments, searches and filters', (
+      tester,
+    ) async {
       await pumpNurse(
         tester,
         '/nurses',
         repository: FakeNursingRepository(
           admissionRows: const [
             stay,
-            Admission(id: 4, status: 'Admitted', patientId: 12, patientName: 'Test Bedless Patient'),
+            Admission(
+              id: 4,
+              status: 'Admitted',
+              patientId: 12,
+              patientName: 'Test Bedless Patient',
+            ),
           ],
           patientDutyRows: const [
-            DutyAssignment(id: 1, shift: 'Night', patientId: 13, patientName: 'Test Assigned Patient'),
+            DutyAssignment(
+              id: 1,
+              shift: 'Night',
+              patientId: 13,
+              patientName: 'Test Assigned Patient',
+            ),
           ],
         ),
       );
@@ -198,7 +233,10 @@ void main() {
       expect(find.text('Test Bedless Patient'), findsOneWidget);
       expect(find.text('Test Assigned Patient'), findsOneWidget);
 
-      await tapVisible(tester, find.widgetWithText(ChoiceChip, 'Assigned to me'));
+      await tapVisible(
+        tester,
+        find.widgetWithText(ChoiceChip, 'Assigned to me'),
+      );
       expect(find.text('Test Ward Patient'), findsNothing);
       expect(find.text('Test Assigned Patient'), findsOneWidget);
 
@@ -209,8 +247,9 @@ void main() {
       expect(find.text('Test Bedless Patient'), findsNothing);
     });
 
-    testWidgets('an empty duty explains where patients come from',
-        (tester) async {
+    testWidgets('an empty duty explains where patients come from', (
+      tester,
+    ) async {
       await pumpNurse(tester, '/nurses', repository: FakeNursingRepository());
       expect(find.text('No patients on your duty'), findsOneWidget);
     });
@@ -227,29 +266,50 @@ void main() {
       expect(find.text('Test Ward Patient'), findsOneWidget);
     });
 
-    testWidgets('a receptionist keeps the placeholder at /nurses',
-        (tester) async {
-      await pumpNurse(tester, '/nurses', session: nurseSession(role: 'Receptionist'));
+    testWidgets('a receptionist keeps the placeholder at /nurses', (
+      tester,
+    ) async {
+      await pumpNurse(
+        tester,
+        '/nurses',
+        session: nurseSession(role: 'Receptionist'),
+      );
       expect(find.textContaining('not in the mobile app yet'), findsOneWidget);
     });
   });
 
   group('ward record', () {
-    testWidgets('shows identity and stay; saves vitals on the stay once',
-        (tester) async {
+    testWidgets('shows identity and stay; saves vitals on the stay once', (
+      tester,
+    ) async {
       final repo = await pumpNurse(tester, '/nurses/patients/11');
       expect(find.text('Test Ward Patient'), findsWidgets);
       expect(find.textContaining('UH-0011'), findsWidgets);
       expect(find.text('Ward A · Bed B4'), findsOneWidget);
 
       // Validation: half a blood pressure is refused before sending.
-      await enter(tester, find.byKey(const ValueKey('ward-vital-systolic_bp')), '120');
+      await enter(
+        tester,
+        find.byKey(const ValueKey('ward-vital-systolic_bp')),
+        '120',
+      );
       await tapVisible(tester, find.byKey(const Key('save-ward-vitals')));
-      expect(find.textContaining('both systolic and diastolic'), findsOneWidget);
+      expect(
+        find.textContaining('both systolic and diastolic'),
+        findsOneWidget,
+      );
       expect(repo.savedWardVitals, isEmpty);
 
-      await enter(tester, find.byKey(const ValueKey('ward-vital-diastolic_bp')), '80');
-      await enter(tester, find.byKey(const ValueKey('ward-vital-heart_rate')), '72');
+      await enter(
+        tester,
+        find.byKey(const ValueKey('ward-vital-diastolic_bp')),
+        '80',
+      );
+      await enter(
+        tester,
+        find.byKey(const ValueKey('ward-vital-heart_rate')),
+        '72',
+      );
       repo.gate = Completer<void>();
       final save = find.byKey(const Key('save-ward-vitals'));
       await tester.ensureVisible(save);
@@ -273,14 +333,18 @@ void main() {
       expect(repo.savedWardVitals, isEmpty);
     });
 
-    testWidgets('a note is saved and appears; notes are never editable',
-        (tester) async {
+    testWidgets('a note is saved and appears; notes are never editable', (
+      tester,
+    ) async {
       final repo = await pumpNurse(tester, '/nurses/patients/11');
       await tapVisible(tester, find.byKey(const Key('save-nursing-note')));
       expect(find.text('Write the note first.'), findsOneWidget);
       await enter(
         tester,
-        find.descendant(of: find.byKey(const Key('note-text')), matching: find.byType(TextField)),
+        find.descendant(
+          of: find.byKey(const Key('note-text')),
+          matching: find.byType(TextField),
+        ),
         'Synthetic: comfortable, no pain.',
       );
       await tapVisible(tester, find.byKey(const Key('save-nursing-note')));
@@ -290,58 +354,83 @@ void main() {
       expect(find.textContaining('cannot be edited'), findsOneWidget);
     });
 
-    testWidgets('a dose is confirmed against the patient, then shown as given',
-        (tester) async {
-      final repo = await pumpNurse(tester, '/nurses/patients/11');
-      await tapVisible(tester, find.byKey(const Key('dose-9-administer')));
-      expect(find.text('Record this dose as given?'), findsOneWidget);
-      expect(find.textContaining('UH-0011'), findsWidgets);
-      expect(find.text('500 mg'), findsWidgets);
+    testWidgets(
+      'a dose is confirmed against the patient, then shown as given',
+      (tester) async {
+        final repo = await pumpNurse(tester, '/nurses/patients/11');
+        await tapVisible(tester, find.byKey(const Key('dose-9-administer')));
+        expect(find.text('Record this dose as given?'), findsOneWidget);
+        expect(find.textContaining('UH-0011'), findsWidgets);
+        expect(find.text('500 mg'), findsWidgets);
 
-      await tapVisible(tester, find.text('Cancel'));
-      expect(repo.recordedDoses, isEmpty);
+        await tapVisible(tester, find.text('Cancel'));
+        expect(repo.recordedDoses, isEmpty);
 
-      await tapVisible(tester, find.byKey(const Key('dose-9-administer')));
-      await tapVisible(tester, find.byKey(const Key('confirm-dose')));
-      expect(repo.recordedDoses.single.action.name, 'administer');
-      expect(find.textContaining('confirmed by the hospital system'), findsOneWidget);
-      expect(find.byKey(const Key('dose-9-administer')), findsNothing);
-    });
+        await tapVisible(tester, find.byKey(const Key('dose-9-administer')));
+        await tapVisible(tester, find.byKey(const Key('confirm-dose')));
+        expect(repo.recordedDoses.single.action.name, 'administer');
+        expect(
+          find.textContaining('confirmed by the hospital system'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('dose-9-administer')), findsNothing);
+      },
+    );
 
     testWidgets('holding a dose needs a reason', (tester) async {
       final repo = await pumpNurse(tester, '/nurses/patients/11');
       await tapVisible(tester, find.byKey(const Key('dose-9-hold')));
-      final confirm = tester.widget<Widget>(find.byKey(const Key('confirm-dose')));
+      final confirm = tester.widget<Widget>(
+        find.byKey(const Key('confirm-dose')),
+      );
       expect(confirm, isNotNull);
-      await tester.tap(find.byKey(const Key('confirm-dose')), warnIfMissed: false);
+      await tester.tap(
+        find.byKey(const Key('confirm-dose')),
+        warnIfMissed: false,
+      );
       await tester.pumpAndSettle();
       expect(repo.recordedDoses, isEmpty);
-      await tester.enterText(find.byKey(const Key('dose-reason')), 'Nil by mouth');
+      await tester.enterText(
+        find.byKey(const Key('dose-reason')),
+        'Nil by mouth',
+      );
       await tester.pump();
       await tapVisible(tester, find.byKey(const Key('confirm-dose')));
       expect(repo.recordedDoses.single.reason, 'Nil by mouth');
     });
 
-    testWidgets('a dose refused by the server is not shown as given',
-        (tester) async {
+    testWidgets('a dose refused by the server is not shown as given', (
+      tester,
+    ) async {
       final repo = wardRepo()
-        ..writeError = const ApiException(kind: ApiErrorKind.validation, statusCode: 400);
+        ..writeError = const ApiException(
+          kind: ApiErrorKind.validation,
+          statusCode: 400,
+        );
       await pumpNurse(tester, '/nurses/patients/11', repository: repo);
       await tapVisible(tester, find.byKey(const Key('dose-9-administer')));
       await tapVisible(tester, find.byKey(const Key('confirm-dose')));
       expect(find.textContaining('This dose was not recorded'), findsOneWidget);
       expect(find.byKey(const Key('dose-9-administer')), findsOneWidget);
-      expect(find.textContaining('confirmed by the hospital system'), findsNothing);
+      expect(
+        find.textContaining('confirmed by the hospital system'),
+        findsNothing,
+      );
     });
 
-    testWidgets('a patient outside the nurse\'s care shows the server refusal',
-        (tester) async {
-      final repo = wardRepo()
-        ..readError = const ApiException(kind: ApiErrorKind.notFound, statusCode: 404);
-      await pumpNurse(tester, '/nurses/patients/11', repository: repo);
-      expect(find.text('Try again'), findsOneWidget);
-      expect(find.text('Test Ward Patient'), findsNothing);
-    });
+    testWidgets(
+      'a patient outside the nurse\'s care shows the server refusal',
+      (tester) async {
+        final repo = wardRepo()
+          ..readError = const ApiException(
+            kind: ApiErrorKind.notFound,
+            statusCode: 404,
+          );
+        await pumpNurse(tester, '/nurses/patients/11', repository: repo);
+        expect(find.text('Try again'), findsOneWidget);
+        expect(find.text('Test Ward Patient'), findsNothing);
+      },
+    );
 
     testWidgets('fits a small phone without overflow', (tester) async {
       await pumpApp(

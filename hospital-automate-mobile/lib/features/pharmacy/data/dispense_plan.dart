@@ -198,11 +198,7 @@ class DispenseRequest {
     }
     if (problems.isNotEmpty) return DispenseRequest._(problems: problems);
     return DispenseRequest._(
-      body: {
-        'prescription': prescriptionId,
-        'partial': partial,
-        'lines': body,
-      },
+      body: {'prescription': prescriptionId, 'partial': partial, 'lines': body},
     );
   }
 }

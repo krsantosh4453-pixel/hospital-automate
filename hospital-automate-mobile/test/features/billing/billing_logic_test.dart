@@ -156,22 +156,26 @@ void main() {
       expect(mayRefund(staff, open), isTrue);
     });
 
-    test('no money moves on a cancelled or settled bill, or for other roles',
-        () {
-      final staff = roleSession('Billing Staff', billingVAE);
-      final cancelled =
-          Invoice.fromJson({...invoiceJson, 'status': 'Cancelled'});
-      final settled = Invoice.fromJson({
-        ...invoiceJson,
-        'status': 'Paid',
-        'balance_due': '0.00',
-      });
-      expect(mayCollectPayment(staff, cancelled), isFalse);
-      expect(mayCollectPayment(staff, settled), isFalse);
-      final nurse = roleSession('Nurse', {'Billing.View', 'Billing.Add'});
-      expect(mayCollectPayment(nurse, open), isFalse);
-      expect(mayCreateInvoices(patientSession()), isFalse);
-    });
+    test(
+      'no money moves on a cancelled or settled bill, or for other roles',
+      () {
+        final staff = roleSession('Billing Staff', billingVAE);
+        final cancelled = Invoice.fromJson({
+          ...invoiceJson,
+          'status': 'Cancelled',
+        });
+        final settled = Invoice.fromJson({
+          ...invoiceJson,
+          'status': 'Paid',
+          'balance_due': '0.00',
+        });
+        expect(mayCollectPayment(staff, cancelled), isFalse);
+        expect(mayCollectPayment(staff, settled), isFalse);
+        final nurse = roleSession('Nurse', {'Billing.View', 'Billing.Add'});
+        expect(mayCollectPayment(nurse, open), isFalse);
+        expect(mayCreateInvoices(patientSession()), isFalse);
+      },
+    );
   });
 
   group('repository', () {
@@ -210,30 +214,32 @@ void main() {
       });
     });
 
-    test('a refund goes to the invoice refund action with its reason',
-        () async {
-      final setup = billingRepo({
-        '/api/v1/billing/invoices/12/refund/': (
-          {'kind': 'refund', 'amount': '50.00', 'receipt_number': 'RFND-1'},
-          201,
-        ),
-      });
-      await setup.repo.refund(
-        const RefundRequest(
-          invoiceId: 12,
-          amount: '50.00',
-          reason: ' Duplicate charge ',
-          method: 'Cash',
-        ),
-        'key-r',
-      );
-      expect(setup.adapter.requests.single.data, {
-        'amount': '50.00',
-        'reason': 'Duplicate charge',
-        'payment_method': 'Cash',
-        'idempotency_key': 'key-r',
-      });
-    });
+    test(
+      'a refund goes to the invoice refund action with its reason',
+      () async {
+        final setup = billingRepo({
+          '/api/v1/billing/invoices/12/refund/': (
+            {'kind': 'refund', 'amount': '50.00', 'receipt_number': 'RFND-1'},
+            201,
+          ),
+        });
+        await setup.repo.refund(
+          const RefundRequest(
+            invoiceId: 12,
+            amount: '50.00',
+            reason: ' Duplicate charge ',
+            method: 'Cash',
+          ),
+          'key-r',
+        );
+        expect(setup.adapter.requests.single.data, {
+          'amount': '50.00',
+          'reason': 'Duplicate charge',
+          'payment_method': 'Cash',
+          'idempotency_key': 'key-r',
+        });
+      },
+    );
 
     test('a new invoice sends lines only, never totals or status', () async {
       final setup = billingRepo({
@@ -298,11 +304,21 @@ void main() {
 
     test('the server text is never shown; the field decides the message', () {
       expect(
-        billingErrorMessage(t, refused({'amount': ['x']})),
+        billingErrorMessage(
+          t,
+          refused({
+            'amount': ['x'],
+          }),
+        ),
         t.billingAmountRefused,
       );
       expect(
-        billingErrorMessage(t, refused({'invoice': ['x']})),
+        billingErrorMessage(
+          t,
+          refused({
+            'invoice': ['x'],
+          }),
+        ),
         t.billingInvoiceClosed,
       );
       expect(billingErrorMessage(t, refused({})), t.billingRefused);

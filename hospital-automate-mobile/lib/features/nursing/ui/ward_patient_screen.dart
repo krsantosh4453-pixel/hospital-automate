@@ -173,7 +173,10 @@ class _StayCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          HmsCardHeader(title: t.admissionAndVisits, icon: LucideIcons.bedDouble),
+          HmsCardHeader(
+            title: t.admissionAndVisits,
+            icon: LucideIcons.bedDouble,
+          ),
           if (stay == null && ward.openVisits.isEmpty)
             HmsEmptyState(compact: true, title: t.noActiveStay)
           else
@@ -196,7 +199,10 @@ class _StayCard extends StatelessWidget {
                               t.bedNumber(stay.bedNumber!),
                           ].join(' · '),
                   ),
-                  DetailRow(label: t.admittedOn, value: formatDateTime(t, stay.admittedAt)),
+                  DetailRow(
+                    label: t.admittedOn,
+                    value: formatDateTime(t, stay.admittedAt),
+                  ),
                   DetailRow(label: t.admittingDoctor, value: stay.doctorName),
                   DetailRow(label: t.admissionReason, value: stay.reason),
                 ],

@@ -118,11 +118,7 @@ class ApiNursingRepository implements NursingRepository {
     for (final row in await getAllRows(
       _api,
       'nurses/patient-assignments/',
-      query: {
-        'nurse': nurseId,
-        'shift_date': isoDay(day),
-        'is_active': 'true',
-      },
+      query: {'nurse': nurseId, 'shift_date': isoDay(day), 'is_active': 'true'},
     ))
       DutyAssignment.patient(row),
   ];

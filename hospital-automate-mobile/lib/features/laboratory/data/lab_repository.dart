@@ -84,11 +84,7 @@ class ApiLabRepository implements LabRepository {
 
   @override
   Future<List<LabTest>> orders({String? status}) async => [
-    for (final row in await getAllRows(
-      _api,
-      _base,
-      query: {'status': ?status},
-    ))
+    for (final row in await getAllRows(_api, _base, query: {'status': ?status}))
       LabTest.fromJson(row),
   ];
 
@@ -115,11 +111,7 @@ class ApiLabRepository implements LabRepository {
     int id,
     LabStep step, [
     Map<String, Object?> body = const {},
-  ]) => _api.post(
-    '$_base$id/${step.action}/',
-    body: body,
-    decode: _labTestOf,
-  );
+  ]) => _api.post('$_base$id/${step.action}/', body: body, decode: _labTestOf);
 
   @override
   Future<LabTest> cancel(int id) => _api.post(

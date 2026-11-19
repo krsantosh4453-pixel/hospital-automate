@@ -256,10 +256,7 @@ void main() {
 
       final stats = await ApiDashboardRepository(api).fetch(hospitalId!);
       expect(stats.count('billing', 'partial'), greaterThanOrEqualTo(1));
-      expect(
-        stats.money('billing', 'outstanding'),
-        greaterThanOrEqualTo(910),
-      );
+      expect(stats.money('billing', 'outstanding'), greaterThanOrEqualTo(910));
 
       await billing.recordPayment(
         PaymentRequest(invoiceId: invoiceId, amount: '910.00', method: 'Card'),

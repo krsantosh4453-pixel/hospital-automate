@@ -89,10 +89,7 @@ void main() {
   test('2. consent is required, then the consultation is recorded', () async {
     final userId = await signIn('demo.doctor1');
     final visit = await doctors.visit(visitId);
-    final me = await doctors.myProfile(
-      hospitalId: hospitalId!,
-      userId: userId,
-    );
+    final me = await doctors.myProfile(hospitalId: hospitalId!, userId: userId);
     session = await ai.createSession(
       visitId: visit.id,
       hospitalId: hospitalId!,
@@ -107,8 +104,15 @@ void main() {
     session = await ai.startRecording(session.id, patientConsent: true);
     expect(session.isRecording, isTrue);
 
+    // A real M4A header (ftyp box): the server checks the bytes, not just
+    // the declared type (S-L6). The rest is synthetic.
     final file = File('${tmp.path}/consultation.m4a')
-      ..writeAsBytesSync(utf8.encode('synthetic-audio-bytes'));
+      ..writeAsBytesSync([
+        ...[0, 0, 0, 0x18],
+        ...utf8.encode('ftypM4A '),
+        ...[0, 0, 0, 0],
+        ...utf8.encode('synthetic-audio'),
+      ]);
     session = await ai.stopRecording(
       session.id,
       ScribeAudio(path: file.path, duration: const Duration(seconds: 30)),

@@ -111,14 +111,10 @@ GoRouter buildAppRouter({
     BillingRoutes.newInvoice: (_) => const NewInvoiceScreen(),
     '${BillingRoutes.desk}/invoices/:id': (state) =>
         InvoiceScreen(invoiceId: _idOf(state)),
-    '${BillingRoutes.desk}/invoices/:id/pay': (state) => MoneyEntryScreen(
-      invoiceId: _idOf(state),
-      kind: MoneyEntryKind.payment,
-    ),
-    '${BillingRoutes.desk}/invoices/:id/refund': (state) => MoneyEntryScreen(
-      invoiceId: _idOf(state),
-      kind: MoneyEntryKind.refund,
-    ),
+    '${BillingRoutes.desk}/invoices/:id/pay': (state) =>
+        MoneyEntryScreen(invoiceId: _idOf(state), kind: MoneyEntryKind.payment),
+    '${BillingRoutes.desk}/invoices/:id/refund': (state) =>
+        MoneyEntryScreen(invoiceId: _idOf(state), kind: MoneyEntryKind.refund),
   };
   // Nursing pages for the Nurse role, pharmacy pages for Pharmacist and
   // Compounder. Other roles keep ModuleScreen there.
