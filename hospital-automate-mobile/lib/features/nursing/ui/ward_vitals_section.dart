@@ -109,14 +109,18 @@ class _WardVitalsSectionState extends State<WardVitalsSection> {
   String? _error;
   String? _saved;
 
+  // BUG-08: the first load starts in initState, where reading an inherited
+  // widget (context.l10n) throws in debug builds and the panel showed
+  // "Something went wrong" until Try again. Labels are read after the fetch.
   Future<List<VitalsEntry>> _history() async {
-    final t = context.l10n;
     final target = _target;
     switch (target) {
       case null:
         return const [];
       case AdmissionTarget(:final admission):
         final rows = await _w.repository.assessments(_w.patient.id);
+        if (!mounted) return const [];
+        final t = context.l10n;
         return [
           for (final a in rows)
             if (a.hasVitals && a.admissionId == admission.id)
@@ -131,6 +135,8 @@ class _WardVitalsSectionState extends State<WardVitalsSection> {
         ];
       case VisitTarget(:final visit):
         final rows = await _w.repository.visitVitals(visit.id);
+        if (!mounted) return const [];
+        final t = context.l10n;
         return [
           for (final r in rows)
             (

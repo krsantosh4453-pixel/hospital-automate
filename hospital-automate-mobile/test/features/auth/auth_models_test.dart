@@ -167,4 +167,35 @@ void main() {
       );
     });
   });
+
+  group('BUG-11 patient UHID', () {
+    SessionUser parse(List<Object?> hospitals) => patientUserFromJson({
+      'patient': {'id': 6, 'name': 'Synthetic Patient'},
+      'hospitals': hospitals,
+    }, AccountType.patient);
+
+    test(
+      'the profile uses the UHID of the selected hospital, never the db id',
+      () {
+        final user = parse([
+          {'id': 1, 'name': 'Demo City Hospital', 'uhid': 'DCH-2026-000001'},
+          {'id': 2, 'name': 'Other Hospital', 'uhid': 'OH-2026-000004'},
+        ]);
+        expect(user.patient!.uhidFor(2), 'OH-2026-000004');
+        expect(user.patient!.uhidFor(1), 'DCH-2026-000001');
+        expect(user.patient!.uhidFor(9), isNull);
+      },
+    );
+
+    test('a single registration is shown without a selected hospital', () {
+      final user = parse([
+        {'id': 1, 'name': 'Demo City Hospital', 'uhid': 'DCH-2026-000001'},
+      ]);
+      expect(user.patient!.uhidFor(null), 'DCH-2026-000001');
+    });
+
+    test('no registration shows nothing rather than the record id', () {
+      expect(parse(const []).patient!.uhidFor(null), isNull);
+    });
+  });
 }

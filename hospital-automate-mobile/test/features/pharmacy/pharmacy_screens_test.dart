@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hms_mobile/core/theme/app_colors.dart';
 import 'package:hms_mobile/core/localization/locale_controller.dart';
 import 'package:hms_mobile/core/network/api_exception.dart';
 import 'package:hms_mobile/core/security/session_controller.dart';
@@ -229,6 +230,15 @@ void main() {
         expect(find.textContaining('INV-TEST-1'), findsOneWidget);
       },
     );
+
+    testWidgets('the "At most" hint is readable on the card (finding 2)', (
+      tester,
+    ) async {
+      await pumpPharmacy(tester, '/pharmacy/prescriptions/3');
+      final field = tester.widget<TextField>(find.byKey(const Key('qty-7')));
+      expect(field.decoration!.helperText, startsWith('At most'));
+      expect(field.decoration!.helperStyle!.color, AppColors.onCard);
+    });
 
     testWidgets('more than prescribed is stopped before sending', (
       tester,

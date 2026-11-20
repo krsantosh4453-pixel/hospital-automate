@@ -105,6 +105,21 @@ class FakeAuthRepository implements AuthRepository {
     return value();
   }
 
+  /// Default: codes available, so the existing code-first flow runs.
+  StaffLoginOptions loginOptions = const StaffLoginOptions(
+    otpRequired: false,
+    otpAvailable: true,
+  );
+  Object? loginOptionsError;
+  int loginOptionsCalls = 0;
+
+  @override
+  Future<StaffLoginOptions> staffLoginOptions() async {
+    loginOptionsCalls++;
+    if (loginOptionsError != null) throw loginOptionsError!;
+    return loginOptions;
+  }
+
   @override
   Future<StaffOtpChallenge> staffStartOtp(
     String username,
@@ -182,17 +197,37 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> verifyEmailOtp(String email, String otp) =>
       _answer('verifyEmailOtp', null, () {});
 
+  /// The registrations sent, in order.
+  final List<PatientRegistration> registrations = [];
+
   @override
-  Future<RegistrationResult> registerPatient(
-    PatientRegistration registration,
-  ) => _answer(
-    'registerPatient',
-    null,
-    () => RegistrationResult(
-      email: registration.email,
-      delivery: const OtpDelivery(channel: 'console'),
-    ),
-  );
+  Future<RegistrationResult> registerPatient(PatientRegistration registration) {
+    registrations.add(registration);
+    return _answer(
+      'registerPatient',
+      null,
+      () => RegistrationResult(
+        email: registration.email,
+        delivery: const OtpDelivery(channel: 'console'),
+      ),
+    );
+  }
+
+  /// Hospitals offered at sign-up and for joining (synthetic).
+  List<PublicHospital> publicHospitals = const [
+    PublicHospital(id: 1, name: 'City Hospital', city: 'Patna'),
+  ];
+
+  /// Hospital ids the patient joined, in order.
+  final List<int> joined = [];
+
+  @override
+  Future<List<PublicHospital>> patientHospitals() =>
+      _answer('patientHospitals', null, () => publicHospitals);
+
+  @override
+  Future<void> joinHospital(int hospitalId) =>
+      _answer('joinHospital', null, () => joined.add(hospitalId));
 
   @override
   Future<OtpDelivery> proxyRequestOtp(String phone) => _answer(
@@ -236,8 +271,13 @@ class FakeAuthRepository implements AuthRepository {
       _answer('refresh', refreshError, nextTokens);
 
   @override
-  Future<void> logout(String refreshToken) =>
-      _answer('logout', logoutError, () {});
+  Future<void> logout(String refreshToken) {
+    onLogout?.call();
+    return _answer('logout', logoutError, () {});
+  }
+
+  /// Runs when logout is called (to look at the session at that moment).
+  void Function()? onLogout;
 
   @override
   Future<void> logoutAll() => _answer('logoutAll', null, () {});

@@ -53,6 +53,7 @@ Future<void> main() async {
     config: config,
     accessToken: session.accessToken,
     hospitalId: () => session.activeHospitalId,
+    blockAuthenticated: () => session.isClosing,
   );
   final auth = AuthService(
     repository: ApiAuthRepository(api),

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../ipd/ui/clinical_work_sections.dart' show FinalBillSection;
+
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -95,6 +98,15 @@ class _BillingScreenState extends State<BillingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (const {
+          'Admin',
+          'Hospital Manager',
+          'Billing Staff',
+          'Receptionist',
+        }.contains(AppScope.of(context).session.state.activeRole)) ...[
+          FinalBillSection(onBilled: _refresh),
+          const SizedBox(height: AppSpacing.x4),
+        ],
         PageHeader(
           title: t.navBilling,
           description: t.billingDeskIntro,

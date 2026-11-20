@@ -74,7 +74,7 @@ class _AppShellState extends State<AppShell> {
           onNavigate: (item) => _go(item.path),
           onSignIn: (staff) =>
               _go(staff ? AppRoutes.staffLogin : AppRoutes.patientLogin),
-          onSignOut: services.auth.signOut,
+          onSignOut: () => _signOut(services),
           onOpenSettings: () => _go(AppRoutes.settings),
           onSelectHospital: services.session.selectHospital,
         );
@@ -129,6 +129,17 @@ class _AppShellState extends State<AppShell> {
         );
       },
     );
+  }
+
+  /// BUG-09: signing out from a deep staff page left the page on screen
+  /// with "Your session has ended". Every sign-out now ends on the start
+  /// page, which offers patient and staff sign-in.
+  Future<void> _signOut(AppServices services) async {
+    try {
+      await services.auth.signOut();
+    } finally {
+      if (mounted) context.go(AppRoutes.home);
+    }
   }
 
   void _go(String path, {bool closeDrawer = false}) {

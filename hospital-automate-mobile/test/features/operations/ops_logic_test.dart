@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:hms_mobile/core/network/api_client.dart';
 import 'package:hms_mobile/core/network/api_exception.dart';
 import 'package:hms_mobile/features/emergency/data/emergency_models.dart';
@@ -465,5 +466,69 @@ void main() {
     final RequestOptions request = c.adapter.requests.single;
     expect(request.headers.containsKey('X-Hospital-ID'), isFalse);
     expect(request.headers['Authorization'], 'Bearer token');
+  });
+
+  group('BUG-10 bed line of a stay', () {
+    final t = AppLocalizationsEn();
+    setUpAll(() => initializeDateFormatting('en'));
+    IpdAdmission stayWith({
+      Map<String, Object?>? current,
+      List<Object?> history = const [],
+    }) => IpdAdmission.fromJson({
+      'id': 3,
+      'status': 'Discharged',
+      'current_bed': current,
+      'bed_allocations': history,
+    });
+    const bed = {
+      'ward_name': 'Ward A',
+      'room_number': '1',
+      'bed_number': 'E2E-2',
+    };
+
+    test(
+      'a discharged stay shows the released bed, not "Waiting for a bed"',
+      () {
+        final stay = stayWith(
+          history: [
+            {
+              ...bed,
+              'id': 1,
+              'is_active': false,
+              'released_at': '2026-11-20T10:00:00+05:30',
+            },
+          ],
+        );
+        expect(stay.releasedBed, isNotNull);
+        expect(bedLabel(t, stay), contains('released'));
+        expect(bedLabel(t, stay), isNot(t.ipdAwaitingBed));
+      },
+    );
+
+    test('a stay with no bed yet still says Waiting for a bed', () {
+      expect(bedLabel(t, stayWith()), t.ipdAwaitingBed);
+    });
+
+    test('the latest released bed is shown after a transfer', () {
+      final stay = stayWith(
+        history: [
+          {
+            'id': 1,
+            'ward_name': 'ICU',
+            'bed_number': 'I1',
+            'is_active': false,
+            'released_at': '2026-11-18T10:00:00Z',
+          },
+          {
+            'id': 2,
+            'ward_name': 'Ward A',
+            'bed_number': 'A9',
+            'is_active': false,
+            'released_at': '2026-11-20T10:00:00Z',
+          },
+        ],
+      );
+      expect(stay.releasedBed!.id, 2);
+    });
   });
 }

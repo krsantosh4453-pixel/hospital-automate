@@ -31,8 +31,18 @@
   "addOneMedicine": "Add at least one medicine.",
   "admissionAndVisits": "Admission and visits",
   "admissionReason": "Reason for admission",
+  "admitAlreadyActive": "This patient already has an active admission here.",
+  "admitBed": "Free bed",
+  "admitConfirm": "Confirm admission",
+  "admitIntro": "Admit this patient under your care. Choose a ward to see its free beds.",
+  "admitNoBedNow": "No bed now (allocate later)",
+  "admitNoFreeBeds": "No free bed in this hospital now. You can admit and allocate a bed later.",
+  "admitPatient": "Admit patient",
+  "admitReason": "Reason for admission",
+  "admitReasonRequired": "Enter the reason for admission.",
   "admittedOn": "Admitted on",
   "admittingDoctor": "Admitting doctor",
+  "admitWard": "Ward",
   "ageLabel": "Age",
   "ageYears": "{age} y",
   "@ageYears": {
@@ -121,6 +131,23 @@
   "aiTranscribe": "Transcribe",
   "aiTranscriptFailed": "Transcription failed. Try again or document manually.",
   "aiWorking": "Working on it… this can take up to a minute. You can leave this page; the result is saved.",
+  "allergiesTitle": "Allergies",
+  "allergyAdd": "Add allergy",
+  "allergyCategory": "Type",
+  "allergyCategoryDrug": "Drug",
+  "allergyCategoryEnvironmental": "Environmental",
+  "allergyCategoryFood": "Food",
+  "allergyCategoryOther": "Other",
+  "allergyMarkNone": "Record: no known allergies",
+  "allergyMarkUnknown": "Record: not known",
+  "allergyName": "Allergic to (medicine, food…)",
+  "allergyNameRequired": "Enter what the patient is allergic to.",
+  "allergyNoneBlocked": "An allergy is on record, so no known allergies cannot be recorded.",
+  "allergyReaction": "Reaction",
+  "allergySeverity": "Severity",
+  "allergyStatusNone": "No known allergies",
+  "allergyStatusRecorded": "Has allergies",
+  "allergyStatusUnknown": "Not known (not asked yet)",
   "alreadyDispensed": "This prescription has already been dispensed.",
   "amountPaid": "Paid",
   "anotherDoctorsVisit": "This is another doctor's visit. You can read it but not add to it.",
@@ -192,6 +219,8 @@
   },
   "authAccountDisabled": "This account is disabled. Contact your hospital administrator.",
   "authChallengeExpired": "Your sign-in step expired. Enter your password again.",
+  "authDobRequired": "Enter your date of birth.",
+  "authHospitalRequired": "Choose the hospital you want to register at.",
   "authRegistrationUnavailable": "We could not create an account with these details. If you already have an account, sign in or reset your password.",
   "authEmailNotVerified": "Your email is not verified yet. Send an email OTP to verify it.",
   "authEmailSendFailed": "The verification email could not be sent. Try again later.",
@@ -467,6 +496,7 @@
   },
   "checking": "Checking…",
   "checkingConnection": "Checking connection…",
+  "chooseDateOfBirth": "Choose date of birth",
   "chooseDoctorFirst": "Choose a doctor to see free times.",
   "clinicalHistory": "Clinical history",
   "clinicalNotes": "Clinical notes",
@@ -544,6 +574,21 @@
   "diagnosisName": "Diagnosis",
   "diagnosisNameRequired": "Enter the diagnosis.",
   "diagnosisType": "Type",
+  "dischargeCondition": "Condition at discharge",
+  "dischargeFinalDiagnosis": "Final diagnosis",
+  "dischargeFinalize": "Finalise summary",
+  "dischargeFinalizeBody": "After this the summary cannot be changed, and the patient sees it in their history.",
+  "dischargeFinalizeTitle": "Finalise the discharge summary?",
+  "dischargeFollowUp": "Follow-up instructions",
+  "dischargeMedications": "Discharge medications",
+  "dischargeNotes": "Hospital course and other notes",
+  "dischargePlanTitle": "Discharge plan",
+  "dischargeSaved": "Saved by the hospital system.",
+  "dischargeSavePlan": "Save plan",
+  "dischargeSaveSummary": "Save summary draft",
+  "dischargeSummaryFinalized": "Finalised by a doctor. It can no longer be changed.",
+  "dischargeSummaryRequired": "Enter the final diagnosis and the condition at discharge.",
+  "dischargeSummaryTitle": "Write the discharge summary",
   "dispense": "Dispense",
   "dispenseNoBatch": "{medicine}: choose a stock batch",
   "@dispenseNoBatch": {
@@ -801,6 +846,15 @@
   "filterPast": "Past",
   "filterToday": "Today",
   "filterUpcoming": "Upcoming",
+  "finalBillBedCharges": "Bed charges from the price list: {amount}",
+  "@finalBillBedCharges": {"placeholders": {"amount": {"type": "String"}}},
+  "finalBillCreate": "Create final bill",
+  "finalBillDays": "Days in hospital: {days}",
+  "@finalBillDays": {"placeholders": {"days": {"type": "String"}}},
+  "finalBillDone": "Final bill created.",
+  "finalBillNoBedPrice": "Bed days cannot be priced yet",
+  "finalBillNone": "No stay is waiting for its final bill.",
+  "finalBillTitle": "Stays awaiting the final bill",
   "fixHighlightedFields": "Fix the highlighted readings.",
   "forgotPassword": "Forgot password?",
   "frequency": "Frequency",
@@ -837,6 +891,10 @@
   "guestEyebrow": "Hospital services",
   "guestTitle": "Your care, organised in one place",
   "haveAccountSignIn": "Already have an account? Sign in",
+  "historyAll": "All",
+  "historyEmpty": "Nothing in your history yet.",
+  "historyIntro": "Visits, diagnoses, prescriptions, reports, vitals, admissions and discharges at your hospitals, newest first.",
+  "historyTitle": "My health history",
   "hospActive": "Active",
   "hospAddress": "Address",
   "hospCode": "Code",
@@ -847,6 +905,7 @@
   "hospGrievanceOfficer": "Grievance officer",
   "hospInactive": "Inactive",
   "hospIntro": "The hospital you are working in now.",
+  "hospitalsUnavailable": "The list of hospitals could not be loaded. Try again.",
   "hospNoWards": "No wards set up yet.",
   "hospNurses": "Nurses",
   "hospPhone": "Phone",
@@ -879,6 +938,17 @@
   "ipdAdmittingDoctor": "Admitting doctor",
   "ipdAllocateBed": "Allocate bed",
   "ipdAvailableBeds": "Free beds",
+  "ipdBedReleased": "Bed {bed} · released {day}",
+  "@ipdBedReleased": {
+    "placeholders": {
+      "bed": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
   "ipdAwaitingBed": "Waiting for a bed",
   "ipdBalanceDue": "Balance due",
   "ipdBedHistory": "Bed history",
@@ -909,7 +979,7 @@
   "ipdDischargeDone": "Discharge completed by the hospital system.",
   "ipdDischargeInitiated": "Discharge started",
   "ipdDischargeReady": "Ready: every discharge step is done.",
-  "ipdDischargeStepsOnWeb": "The plan, checklist, summary and final bill are completed on the web app.",
+  "ipdDischargeStepsOnWeb": "The doctor writes the plan and the summary here; the billing desk creates the final bill.",
   "ipdDischarged": "Discharged",
   "ipdDischargedOn": "Discharged on",
   "ipdFilterCurrent": "In hospital",
@@ -938,6 +1008,8 @@
   "ipdTabBeds": "Beds",
   "ipdTransferBed": "Transfer bed",
   "ipdTransferred": "Transferred",
+  "joinHospital": "Register at this hospital",
+  "joinHospitalIntro": "Choose a hospital to register at. It gives you a patient ID (UHID) there, then you can book.",
   "jumpTo": "Jump to…",
   "jumpToPage": "Jump to a page",
   "knownCondition": "Known condition",
@@ -1079,6 +1151,7 @@
   "labTimeline": "Timeline",
   "labTotalOrders": "Lab orders",
   "labVerifiedBy": "Verified by",
+  "labVerifySameUser": "You entered this result, so a different authorised person must verify it.",
   "labVerifyConfirm": "Verify the result of {test}? Verify only after checking the entered result against the sample and the instrument report.",
   "@labVerifyConfirm": {
     "placeholders": {
@@ -1545,12 +1618,38 @@
   "recentPrescriptions": "Recent prescriptions",
   "recentStockMovements": "Recent stock movements",
   "recentlyRegistered": "Recently registered patients",
+  "receptionAppointmentsIntro": "Bookings at this hospital. Check patients in to give them a queue token.",
+  "receptionCheckedIn": "{name} is checked in. Token #{token}.",
+  "@receptionCheckedIn": {"placeholders": {"name": {"type": "String"}, "token": {"type": "String"}}},
+  "receptionCheckIn": "Check in",
+  "receptionLink": "Register at this hospital",
+  "receptionLinked": "{name} is now registered here. Patient ID: {uhid}",
+  "@receptionLinked": {"placeholders": {"name": {"type": "String"}, "uhid": {"type": "String"}}},
+  "receptionLinkIntro": "For a patient who already has an account, for example from the patient app. Ask for their mobile number and date of birth.",
+  "receptionLinkTitle": "Register an existing patient here",
+  "receptionMultipleMatch": "More than one patient has this mobile number and date of birth. Ask the patient to join from the patient app.",
+  "receptionNoAppointments": "No bookings on this day.",
+  "receptionNoMatch": "No patient has this mobile number and date of birth. Register them as new.",
+  "receptionNoResults": "No patient found.",
+  "receptionPatientsIntro": "Find a patient, register a new one, or register an existing patient at this hospital.",
+  "receptionPhoneInvalid": "Enter the 10-digit mobile number.",
+  "receptionPortalAccount": "This mobile number already has a patient app account. Register that patient here with their date of birth below.",
+  "receptionPossibleDuplicate": "A patient with this mobile number is already registered here. Check the list, or register anyway if this is a different person.",
+  "receptionQueueIntro": "Today's queue at this hospital. Doctors call and see patients from their own queue.",
+  "receptionRegister": "Register patient",
+  "receptionRegisterAnyway": "Register anyway",
+  "receptionRegistered": "{name} is registered. Patient ID: {uhid}",
+  "@receptionRegistered": {"placeholders": {"name": {"type": "String"}, "uhid": {"type": "String"}}},
+  "receptionRegisterTitle": "Register a new patient",
+  "receptionSearch": "Search",
+  "receptionSearchHint": "Name, mobile number or patient ID",
   "recordOn": "Record on",
   "recordSignedNoChange": "This record is signed and cannot be changed. Add a new record instead.",
   "referenceRange": "Reference range",
   "refresh": "Refresh",
   "refreshFailed": "Could not refresh",
   "refund": "Refund",
+  "registerAtHospital": "Hospital to register at",
   "registerIntro": "Staff accounts are created by invitation from your hospital.",
   "registerTitle": "Create your patient account",
   "registeredInTotal": "{count} registered in total",
@@ -1779,6 +1878,7 @@
   "tokenCalledBody": "Please go to the consultation area now.",
   "tokenIdHint": "Use the patient ID from registration together with your account password.",
   "tokenIdIntro": "Enter your token number or hospital patient ID",
+  "tokenInConsultation": "You are with the doctor now. Your consultation is in progress.",
   "tokenLabel": "Token",
   "tokenNext": "You are next. The doctor will see you shortly.",
   "tokenNumber": "Token {number}",
@@ -1845,7 +1945,10 @@
     }
   },
   "visitClosedReadOnly": "This visit is closed. Its records are shown read-only.",
+  "visitNotYourPatient": "Only this visit's doctor can start or complete the consultation.",
+  "visitPatientNotCalled": "This patient has not been called yet. Call them from the Queue first.",
   "visits": "Visits",
+  "visitStatusMovedOn": "This visit has already moved on, so its status was not changed. The page now shows its current status.",
   "vitalBloodPressure": "Blood pressure",
   "vitalBloodSugar": "Blood sugar",
   "vitalDiastolic": "Diastolic BP",
@@ -1867,10 +1970,63 @@
   "waitingPatients": "Waiting",
   "wardAndBed": "Ward and bed",
   "wardAttention": "Needs attention on the ward",
+  "wardOrderAdd": "Order medicine",
+  "wardOrderDose": "Dose (with strength)",
+  "wardOrderEndDate": "Last day (optional)",
+  "wardOrderFieldsRequired": "Choose a medicine and fill in dose, route and frequency.",
+  "wardOrderMedicine": "Medicine (from the patient's prescriptions)",
+  "wardOrderNoMedicines": "No prescribed medicine to order. Write a prescription in the consultation first.",
+  "wardOrderNone": "No medication orders yet.",
+  "wardOrdersIntro": "Orders for the nurses. A dose counts as given only when a nurse records it.",
+  "wardOrdersTitle": "Ward medication orders",
+  "wardOrderStop": "Stop",
+  "wardOrderStopped": "Stopped",
   "wardPatients": "Ward patients",
   "wardPatientsIntro": "Patients of your duty today: in your wards, or assigned to you.",
   "weWillSendCode": "We'll send a 6-digit verification code",
   "welcome": "Welcome",
   "writeInConsultation": "Write in a consultation",
-  "yourMobileNumber": "Your mobile number"
+  "yourMobileNumber": "Your mobile number",
+  "firstDoseLabel": "First dose",
+  "firstDoseNextRound": "Next medication round",
+  "firstDoseNow": "Start now",
+  "firstDoseAt": "Specific time",
+  "firstDosePickTime": "Choose the date and time of the first dose",
+  "firstDoseReviewTitle": "Review the dose schedule",
+  "firstDoseReviewFirst": "First dose: {when}",
+  "@firstDoseReviewFirst": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "firstDoseReviewNext": "Then: {times}",
+  "@firstDoseReviewNext": {
+    "placeholders": {
+      "times": {
+        "type": "String"
+      }
+    }
+  },
+  "firstDoseReviewCount": "{count} doses scheduled",
+  "@firstDoseReviewCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "firstDosePrn": "As needed (PRN): no doses are scheduled. Nurses record each dose when it is given.",
+  "firstDoseChoose": "The first dose cannot be set automatically: this hospital has no medication rounds for this order. Choose Start now or a specific time.",
+  "firstDoseRefused": "This first-dose time cannot be used: it is in the past or outside the order's dates. Choose another time.",
+  "finalBillConfirmTitle": "Create the final bill for {patient}?",
+  "@finalBillConfirmTitle": {
+    "placeholders": {
+      "patient": {
+        "type": "String"
+      }
+    }
+  },
+  "finalBillConfirmBody": "The final bill brings together the bed days above and the charges already captured for this stay. Once created it can be cancelled only by an Admin or Hospital Manager, with a reason."
 }

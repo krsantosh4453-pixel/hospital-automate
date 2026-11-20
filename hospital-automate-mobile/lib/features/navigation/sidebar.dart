@@ -314,7 +314,8 @@ class _SidebarFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final signedIn = session.isStaff;
+    // BUG-09: a signed-in patient was shown "Not signed in".
+    final signedIn = session.isSignedIn;
     final text = signedIn
         ? l10n.signedInAs(session.activeRole ?? session.user!.displayName)
         : l10n.notSignedInSignIn;

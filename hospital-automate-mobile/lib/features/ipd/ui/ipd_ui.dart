@@ -108,6 +108,21 @@ class BedBadge extends StatelessWidget {
   );
 }
 
+/// The bed line of a stay: the bed held now, the bed released at
+/// discharge, or "Waiting for a bed" (BUG-10).
+String bedLabel(AppLocalizations t, IpdAdmission admission) {
+  final bed = admission.currentBed?.place.label;
+  if (bed != null && bed.isNotEmpty) return bed;
+  final released = admission.releasedBed;
+  if (released != null) {
+    return t.ipdBedReleased(
+      released.place.label,
+      formatDay(t, released.releasedAt),
+    );
+  }
+  return t.ipdAwaitingBed;
+}
+
 /// One stay in a list: patient, bed, admission day, doctor and status.
 class AdmissionRow extends StatelessWidget {
   const AdmissionRow({super.key, required this.admission, this.onTap});
@@ -118,9 +133,8 @@ class AdmissionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.l10n;
-    final bed = admission.currentBed?.place.label;
     final subtitle = [
-      bed == null || bed.isEmpty ? t.ipdAwaitingBed : bed,
+      bedLabel(t, admission),
       formatDay(t, admission.admissionDate),
       ?admission.admittingDoctorName,
     ].join(' · ');

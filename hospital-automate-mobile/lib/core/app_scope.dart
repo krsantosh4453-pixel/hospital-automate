@@ -9,10 +9,12 @@ import '../features/dashboard/dashboard_repository.dart';
 import '../features/doctor/data/doctor_repository.dart';
 import '../features/emergency/data/emergency_repository.dart';
 import '../features/hospital/data/hospital_repository.dart';
+import '../features/ipd/data/clinical_work_repository.dart';
 import '../features/ipd/data/ipd_repository.dart';
 import '../features/nursing/data/nursing_repository.dart';
 import '../features/patient/data/patient_repository.dart';
 import '../features/pharmacy/data/pharmacy_repository.dart';
+import '../features/reception/data/reception_repository.dart';
 import 'config/api_config.dart';
 import 'localization/locale_controller.dart';
 import 'network/api_client.dart';
@@ -41,6 +43,8 @@ class AppServices {
     required this.ipd,
     required this.hospital,
     this.aiOverride,
+    this.receptionOverride,
+    this.clinicalWorkOverride,
     this.scribeRecorderFactory,
   });
 
@@ -87,6 +91,22 @@ class AppServices {
   /// AI scribe and AI status pages. Optional so existing wiring in
   /// `main.dart` and tests keeps compiling; the repository holds no state.
   AiRepository get ai => aiOverride ?? ApiAiRepository(api);
+
+  /// Tests pass a fake here; the app uses the API (see [reception]).
+  final ReceptionRepository? receptionOverride;
+
+  /// Front desk writes: register, link and check in (BUG-01). Optional for
+  /// the same reason as [ai]; the repository holds no state.
+  ReceptionRepository get reception =>
+      receptionOverride ?? ApiReceptionRepository(api);
+
+  /// Tests pass a fake here; the app uses the API (see [clinicalWork]).
+  final ClinicalWorkRepository? clinicalWorkOverride;
+
+  /// Allergies, admitting, ward orders, discharge forms, the stay's final
+  /// bill and the patient's history (Prompt 3). Holds no state.
+  ClinicalWorkRepository get clinicalWork =>
+      clinicalWorkOverride ?? ApiClinicalWorkRepository(api);
 
   /// Tests pass a fake microphone here.
   final ScribeRecorder Function()? scribeRecorderFactory;

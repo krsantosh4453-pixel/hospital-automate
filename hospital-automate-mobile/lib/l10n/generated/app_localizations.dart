@@ -242,6 +242,60 @@ abstract class AppLocalizations {
   /// **'Reason for admission'**
   String get admissionReason;
 
+  /// No description provided for @admitAlreadyActive.
+  ///
+  /// In en, this message translates to:
+  /// **'This patient already has an active admission here.'**
+  String get admitAlreadyActive;
+
+  /// No description provided for @admitBed.
+  ///
+  /// In en, this message translates to:
+  /// **'Free bed'**
+  String get admitBed;
+
+  /// No description provided for @admitConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm admission'**
+  String get admitConfirm;
+
+  /// No description provided for @admitIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Admit this patient under your care. Choose a ward to see its free beds.'**
+  String get admitIntro;
+
+  /// No description provided for @admitNoBedNow.
+  ///
+  /// In en, this message translates to:
+  /// **'No bed now (allocate later)'**
+  String get admitNoBedNow;
+
+  /// No description provided for @admitNoFreeBeds.
+  ///
+  /// In en, this message translates to:
+  /// **'No free bed in this hospital now. You can admit and allocate a bed later.'**
+  String get admitNoFreeBeds;
+
+  /// No description provided for @admitPatient.
+  ///
+  /// In en, this message translates to:
+  /// **'Admit patient'**
+  String get admitPatient;
+
+  /// No description provided for @admitReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for admission'**
+  String get admitReason;
+
+  /// No description provided for @admitReasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the reason for admission.'**
+  String get admitReasonRequired;
+
   /// No description provided for @admittedOn.
   ///
   /// In en, this message translates to:
@@ -253,6 +307,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Admitting doctor'**
   String get admittingDoctor;
+
+  /// No description provided for @admitWard.
+  ///
+  /// In en, this message translates to:
+  /// **'Ward'**
+  String get admitWard;
 
   /// No description provided for @ageLabel.
   ///
@@ -698,6 +758,108 @@ abstract class AppLocalizations {
   /// **'Working on it… this can take up to a minute. You can leave this page; the result is saved.'**
   String get aiWorking;
 
+  /// No description provided for @allergiesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergies'**
+  String get allergiesTitle;
+
+  /// No description provided for @allergyAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add allergy'**
+  String get allergyAdd;
+
+  /// No description provided for @allergyCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get allergyCategory;
+
+  /// No description provided for @allergyCategoryDrug.
+  ///
+  /// In en, this message translates to:
+  /// **'Drug'**
+  String get allergyCategoryDrug;
+
+  /// No description provided for @allergyCategoryEnvironmental.
+  ///
+  /// In en, this message translates to:
+  /// **'Environmental'**
+  String get allergyCategoryEnvironmental;
+
+  /// No description provided for @allergyCategoryFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Food'**
+  String get allergyCategoryFood;
+
+  /// No description provided for @allergyCategoryOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get allergyCategoryOther;
+
+  /// No description provided for @allergyMarkNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Record: no known allergies'**
+  String get allergyMarkNone;
+
+  /// No description provided for @allergyMarkUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Record: not known'**
+  String get allergyMarkUnknown;
+
+  /// No description provided for @allergyName.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergic to (medicine, food…)'**
+  String get allergyName;
+
+  /// No description provided for @allergyNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter what the patient is allergic to.'**
+  String get allergyNameRequired;
+
+  /// No description provided for @allergyNoneBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'An allergy is on record, so no known allergies cannot be recorded.'**
+  String get allergyNoneBlocked;
+
+  /// No description provided for @allergyReaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reaction'**
+  String get allergyReaction;
+
+  /// No description provided for @allergySeverity.
+  ///
+  /// In en, this message translates to:
+  /// **'Severity'**
+  String get allergySeverity;
+
+  /// No description provided for @allergyStatusNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No known allergies'**
+  String get allergyStatusNone;
+
+  /// No description provided for @allergyStatusRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Has allergies'**
+  String get allergyStatusRecorded;
+
+  /// No description provided for @allergyStatusUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Not known (not asked yet)'**
+  String get allergyStatusUnknown;
+
   /// No description provided for @alreadyDispensed.
   ///
   /// In en, this message translates to:
@@ -829,6 +991,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your sign-in step expired. Enter your password again.'**
   String get authChallengeExpired;
+
+  /// No description provided for @authDobRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your date of birth.'**
+  String get authDobRequired;
+
+  /// No description provided for @authHospitalRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the hospital you want to register at.'**
+  String get authHospitalRequired;
 
   /// No description provided for @authRegistrationUnavailable.
   ///
@@ -1813,6 +1987,12 @@ abstract class AppLocalizations {
   /// **'Checking connection…'**
   String get checkingConnection;
 
+  /// No description provided for @chooseDateOfBirth.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose date of birth'**
+  String get chooseDateOfBirth;
+
   /// No description provided for @chooseDoctorFirst.
   ///
   /// In en, this message translates to:
@@ -2190,6 +2370,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Type'**
   String get diagnosisType;
+
+  /// No description provided for @dischargeCondition.
+  ///
+  /// In en, this message translates to:
+  /// **'Condition at discharge'**
+  String get dischargeCondition;
+
+  /// No description provided for @dischargeFinalDiagnosis.
+  ///
+  /// In en, this message translates to:
+  /// **'Final diagnosis'**
+  String get dischargeFinalDiagnosis;
+
+  /// No description provided for @dischargeFinalize.
+  ///
+  /// In en, this message translates to:
+  /// **'Finalise summary'**
+  String get dischargeFinalize;
+
+  /// No description provided for @dischargeFinalizeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'After this the summary cannot be changed, and the patient sees it in their history.'**
+  String get dischargeFinalizeBody;
+
+  /// No description provided for @dischargeFinalizeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Finalise the discharge summary?'**
+  String get dischargeFinalizeTitle;
+
+  /// No description provided for @dischargeFollowUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow-up instructions'**
+  String get dischargeFollowUp;
+
+  /// No description provided for @dischargeMedications.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge medications'**
+  String get dischargeMedications;
+
+  /// No description provided for @dischargeNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Hospital course and other notes'**
+  String get dischargeNotes;
+
+  /// No description provided for @dischargePlanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discharge plan'**
+  String get dischargePlanTitle;
+
+  /// No description provided for @dischargeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved by the hospital system.'**
+  String get dischargeSaved;
+
+  /// No description provided for @dischargeSavePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Save plan'**
+  String get dischargeSavePlan;
+
+  /// No description provided for @dischargeSaveSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Save summary draft'**
+  String get dischargeSaveSummary;
+
+  /// No description provided for @dischargeSummaryFinalized.
+  ///
+  /// In en, this message translates to:
+  /// **'Finalised by a doctor. It can no longer be changed.'**
+  String get dischargeSummaryFinalized;
+
+  /// No description provided for @dischargeSummaryRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the final diagnosis and the condition at discharge.'**
+  String get dischargeSummaryRequired;
+
+  /// No description provided for @dischargeSummaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Write the discharge summary'**
+  String get dischargeSummaryTitle;
 
   /// No description provided for @dispense.
   ///
@@ -3175,6 +3445,48 @@ abstract class AppLocalizations {
   /// **'Upcoming'**
   String get filterUpcoming;
 
+  /// No description provided for @finalBillBedCharges.
+  ///
+  /// In en, this message translates to:
+  /// **'Bed charges from the price list: {amount}'**
+  String finalBillBedCharges(String amount);
+
+  /// No description provided for @finalBillCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create final bill'**
+  String get finalBillCreate;
+
+  /// No description provided for @finalBillDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Days in hospital: {days}'**
+  String finalBillDays(String days);
+
+  /// No description provided for @finalBillDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Final bill created.'**
+  String get finalBillDone;
+
+  /// No description provided for @finalBillNoBedPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Bed days cannot be priced yet'**
+  String get finalBillNoBedPrice;
+
+  /// No description provided for @finalBillNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No stay is waiting for its final bill.'**
+  String get finalBillNone;
+
+  /// No description provided for @finalBillTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stays awaiting the final bill'**
+  String get finalBillTitle;
+
   /// No description provided for @fixHighlightedFields.
   ///
   /// In en, this message translates to:
@@ -3331,6 +3643,30 @@ abstract class AppLocalizations {
   /// **'Already have an account? Sign in'**
   String get haveAccountSignIn;
 
+  /// No description provided for @historyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get historyAll;
+
+  /// No description provided for @historyEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in your history yet.'**
+  String get historyEmpty;
+
+  /// No description provided for @historyIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Visits, diagnoses, prescriptions, reports, vitals, admissions and discharges at your hospitals, newest first.'**
+  String get historyIntro;
+
+  /// No description provided for @historyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My health history'**
+  String get historyTitle;
+
   /// No description provided for @hospActive.
   ///
   /// In en, this message translates to:
@@ -3390,6 +3726,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The hospital you are working in now.'**
   String get hospIntro;
+
+  /// No description provided for @hospitalsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The list of hospitals could not be loaded. Try again.'**
+  String get hospitalsUnavailable;
 
   /// No description provided for @hospNoWards.
   ///
@@ -3522,6 +3864,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Free beds'**
   String get ipdAvailableBeds;
+
+  /// No description provided for @ipdBedReleased.
+  ///
+  /// In en, this message translates to:
+  /// **'Bed {bed} · released {day}'**
+  String ipdBedReleased(String bed, String day);
 
   /// No description provided for @ipdAwaitingBed.
   ///
@@ -3664,7 +4012,7 @@ abstract class AppLocalizations {
   /// No description provided for @ipdDischargeStepsOnWeb.
   ///
   /// In en, this message translates to:
-  /// **'The plan, checklist, summary and final bill are completed on the web app.'**
+  /// **'The doctor writes the plan and the summary here; the billing desk creates the final bill.'**
   String get ipdDischargeStepsOnWeb;
 
   /// No description provided for @ipdDischarged.
@@ -3834,6 +4182,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Transferred'**
   String get ipdTransferred;
+
+  /// No description provided for @joinHospital.
+  ///
+  /// In en, this message translates to:
+  /// **'Register at this hospital'**
+  String get joinHospital;
+
+  /// No description provided for @joinHospitalIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a hospital to register at. It gives you a patient ID (UHID) there, then you can book.'**
+  String get joinHospitalIntro;
 
   /// No description provided for @jumpTo.
   ///
@@ -4350,6 +4710,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Verified by'**
   String get labVerifiedBy;
+
+  /// No description provided for @labVerifySameUser.
+  ///
+  /// In en, this message translates to:
+  /// **'You entered this result, so a different authorised person must verify it.'**
+  String get labVerifySameUser;
 
   /// No description provided for @labVerifyConfirm.
   ///
@@ -6043,6 +6409,138 @@ abstract class AppLocalizations {
   /// **'Recently registered patients'**
   String get recentlyRegistered;
 
+  /// No description provided for @receptionAppointmentsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookings at this hospital. Check patients in to give them a queue token.'**
+  String get receptionAppointmentsIntro;
+
+  /// No description provided for @receptionCheckedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is checked in. Token #{token}.'**
+  String receptionCheckedIn(String name, String token);
+
+  /// No description provided for @receptionCheckIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Check in'**
+  String get receptionCheckIn;
+
+  /// No description provided for @receptionLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Register at this hospital'**
+  String get receptionLink;
+
+  /// No description provided for @receptionLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is now registered here. Patient ID: {uhid}'**
+  String receptionLinked(String name, String uhid);
+
+  /// No description provided for @receptionLinkIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'For a patient who already has an account, for example from the patient app. Ask for their mobile number and date of birth.'**
+  String get receptionLinkIntro;
+
+  /// No description provided for @receptionLinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Register an existing patient here'**
+  String get receptionLinkTitle;
+
+  /// No description provided for @receptionMultipleMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'More than one patient has this mobile number and date of birth. Ask the patient to join from the patient app.'**
+  String get receptionMultipleMatch;
+
+  /// No description provided for @receptionNoAppointments.
+  ///
+  /// In en, this message translates to:
+  /// **'No bookings on this day.'**
+  String get receptionNoAppointments;
+
+  /// No description provided for @receptionNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No patient has this mobile number and date of birth. Register them as new.'**
+  String get receptionNoMatch;
+
+  /// No description provided for @receptionNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No patient found.'**
+  String get receptionNoResults;
+
+  /// No description provided for @receptionPatientsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Find a patient, register a new one, or register an existing patient at this hospital.'**
+  String get receptionPatientsIntro;
+
+  /// No description provided for @receptionPhoneInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the 10-digit mobile number.'**
+  String get receptionPhoneInvalid;
+
+  /// No description provided for @receptionPortalAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'This mobile number already has a patient app account. Register that patient here with their date of birth below.'**
+  String get receptionPortalAccount;
+
+  /// No description provided for @receptionPossibleDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'A patient with this mobile number is already registered here. Check the list, or register anyway if this is a different person.'**
+  String get receptionPossibleDuplicate;
+
+  /// No description provided for @receptionQueueIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s queue at this hospital. Doctors call and see patients from their own queue.'**
+  String get receptionQueueIntro;
+
+  /// No description provided for @receptionRegister.
+  ///
+  /// In en, this message translates to:
+  /// **'Register patient'**
+  String get receptionRegister;
+
+  /// No description provided for @receptionRegisterAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Register anyway'**
+  String get receptionRegisterAnyway;
+
+  /// No description provided for @receptionRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is registered. Patient ID: {uhid}'**
+  String receptionRegistered(String name, String uhid);
+
+  /// No description provided for @receptionRegisterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Register a new patient'**
+  String get receptionRegisterTitle;
+
+  /// No description provided for @receptionSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get receptionSearch;
+
+  /// No description provided for @receptionSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Name, mobile number or patient ID'**
+  String get receptionSearchHint;
+
   /// No description provided for @recordOn.
   ///
   /// In en, this message translates to:
@@ -6078,6 +6576,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Refund'**
   String get refund;
+
+  /// No description provided for @registerAtHospital.
+  ///
+  /// In en, this message translates to:
+  /// **'Hospital to register at'**
+  String get registerAtHospital;
 
   /// No description provided for @registerIntro.
   ///
@@ -7135,6 +7639,12 @@ abstract class AppLocalizations {
   /// **'Enter your token number or hospital patient ID'**
   String get tokenIdIntro;
 
+  /// No description provided for @tokenInConsultation.
+  ///
+  /// In en, this message translates to:
+  /// **'You are with the doctor now. Your consultation is in progress.'**
+  String get tokenInConsultation;
+
   /// No description provided for @tokenLabel.
   ///
   /// In en, this message translates to:
@@ -7321,11 +7831,29 @@ abstract class AppLocalizations {
   /// **'This visit is closed. Its records are shown read-only.'**
   String get visitClosedReadOnly;
 
+  /// No description provided for @visitNotYourPatient.
+  ///
+  /// In en, this message translates to:
+  /// **'Only this visit\'s doctor can start or complete the consultation.'**
+  String get visitNotYourPatient;
+
+  /// No description provided for @visitPatientNotCalled.
+  ///
+  /// In en, this message translates to:
+  /// **'This patient has not been called yet. Call them from the Queue first.'**
+  String get visitPatientNotCalled;
+
   /// No description provided for @visits.
   ///
   /// In en, this message translates to:
   /// **'Visits'**
   String get visits;
+
+  /// No description provided for @visitStatusMovedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'This visit has already moved on, so its status was not changed. The page now shows its current status.'**
+  String get visitStatusMovedOn;
 
   /// No description provided for @vitalBloodPressure.
   ///
@@ -7453,6 +7981,72 @@ abstract class AppLocalizations {
   /// **'Needs attention on the ward'**
   String get wardAttention;
 
+  /// No description provided for @wardOrderAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Order medicine'**
+  String get wardOrderAdd;
+
+  /// No description provided for @wardOrderDose.
+  ///
+  /// In en, this message translates to:
+  /// **'Dose (with strength)'**
+  String get wardOrderDose;
+
+  /// No description provided for @wardOrderEndDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Last day (optional)'**
+  String get wardOrderEndDate;
+
+  /// No description provided for @wardOrderFieldsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a medicine and fill in dose, route and frequency.'**
+  String get wardOrderFieldsRequired;
+
+  /// No description provided for @wardOrderMedicine.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicine (from the patient\'s prescriptions)'**
+  String get wardOrderMedicine;
+
+  /// No description provided for @wardOrderNoMedicines.
+  ///
+  /// In en, this message translates to:
+  /// **'No prescribed medicine to order. Write a prescription in the consultation first.'**
+  String get wardOrderNoMedicines;
+
+  /// No description provided for @wardOrderNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No medication orders yet.'**
+  String get wardOrderNone;
+
+  /// No description provided for @wardOrdersIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders for the nurses. A dose counts as given only when a nurse records it.'**
+  String get wardOrdersIntro;
+
+  /// No description provided for @wardOrdersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ward medication orders'**
+  String get wardOrdersTitle;
+
+  /// No description provided for @wardOrderStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get wardOrderStop;
+
+  /// No description provided for @wardOrderStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get wardOrderStopped;
+
   /// No description provided for @wardPatients.
   ///
   /// In en, this message translates to:
@@ -7488,6 +8082,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your mobile number'**
   String get yourMobileNumber;
+
+  /// No description provided for @firstDoseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'First dose'**
+  String get firstDoseLabel;
+
+  /// No description provided for @firstDoseNextRound.
+  ///
+  /// In en, this message translates to:
+  /// **'Next medication round'**
+  String get firstDoseNextRound;
+
+  /// No description provided for @firstDoseNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Start now'**
+  String get firstDoseNow;
+
+  /// No description provided for @firstDoseAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Specific time'**
+  String get firstDoseAt;
+
+  /// No description provided for @firstDosePickTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the date and time of the first dose'**
+  String get firstDosePickTime;
+
+  /// No description provided for @firstDoseReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the dose schedule'**
+  String get firstDoseReviewTitle;
+
+  /// No description provided for @firstDoseReviewFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'First dose: {when}'**
+  String firstDoseReviewFirst(String when);
+
+  /// No description provided for @firstDoseReviewNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Then: {times}'**
+  String firstDoseReviewNext(String times);
+
+  /// No description provided for @firstDoseReviewCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} doses scheduled'**
+  String firstDoseReviewCount(int count);
+
+  /// No description provided for @firstDosePrn.
+  ///
+  /// In en, this message translates to:
+  /// **'As needed (PRN): no doses are scheduled. Nurses record each dose when it is given.'**
+  String get firstDosePrn;
+
+  /// No description provided for @firstDoseChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'The first dose cannot be set automatically: this hospital has no medication rounds for this order. Choose Start now or a specific time.'**
+  String get firstDoseChoose;
+
+  /// No description provided for @firstDoseRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'This first-dose time cannot be used: it is in the past or outside the order\'s dates. Choose another time.'**
+  String get firstDoseRefused;
+
+  /// No description provided for @finalBillConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create the final bill for {patient}?'**
+  String finalBillConfirmTitle(String patient);
+
+  /// No description provided for @finalBillConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The final bill brings together the bed days above and the charges already captured for this stay. Once created it can be cancelled only by an Admin or Hospital Manager, with a reason.'**
+  String get finalBillConfirmBody;
 }
 
 class _AppLocalizationsDelegate

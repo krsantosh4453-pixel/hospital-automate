@@ -1,3 +1,5 @@
+import 'package:hms_mobile/features/patient/data/record_models.dart';
+
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -409,4 +411,32 @@ void main() {
       );
     },
   );
+
+  group('BUG-05 partly dispensed prescriptions', () {
+    Prescription rx(String status) => Prescription.fromJson({
+      'id': 1,
+      'status': status,
+      'items': [
+        {
+          'id': 7,
+          'name': 'Pantoprazole 40mg',
+          'quantity': 10,
+          'dispensed_quantity': 5,
+        },
+      ],
+    });
+
+    test('count as current until fully dispensed', () {
+      expect(rx('Partially Dispensed').isCurrent, isTrue);
+      expect(rx('Confirmed').isCurrent, isTrue);
+      expect(rx('Dispensed').isCurrent, isFalse);
+      expect(rx('Cancelled').isCurrent, isFalse);
+    });
+
+    test('each item knows what is still to be issued', () {
+      final item = rx('Partially Dispensed').items.single;
+      expect(item.dispensedQuantity, 5);
+      expect(item.remaining, 5);
+    });
+  });
 }

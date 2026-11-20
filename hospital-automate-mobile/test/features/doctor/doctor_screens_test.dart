@@ -154,7 +154,9 @@ void main() {
       await pumpDoctor(
         tester,
         '/queue',
-        session: doctorSession(role: 'Receptionist'),
+        // The front desk has its own read-only board here now (BUG-01,
+        // test/features/reception); a nurse still gets the placeholder.
+        session: doctorSession(role: 'Nurse'),
       );
 
       expect(find.text('Now serving (0)'), findsNothing);
@@ -583,6 +585,66 @@ void main() {
 
       expect(repo.visitStatuses, [Visit.completed]);
       expect(find.byKey(const Key('save-vitals')), findsNothing);
+    });
+
+    testWidgets('starting before the patient is called says why (BUG-02)', (
+      tester,
+    ) async {
+      final repo =
+          consultation(
+              visit: const Visit(
+                id: 5,
+                status: Visit.waiting,
+                patientId: 2,
+                patientName: 'Test Patient Two',
+                doctorId: 3,
+                hospitalId: 1,
+                visitType: 'OPD',
+              ),
+            )
+            ..writeError = const ApiException(
+              kind: ApiErrorKind.conflict,
+              statusCode: 409,
+              flags: {'patient_not_called'},
+            );
+      await pumpDoctor(tester, '/consultation/5', repository: repo);
+
+      await tapVisible(tester, find.byKey(const Key('start-visit')));
+
+      expect(repo.visitStatuses, [Visit.inConsultation]);
+      expect(find.textContaining('has not been called yet'), findsOneWidget);
+      expect(find.textContaining('This record is signed'), findsNothing);
+      expect(find.byKey(const Key('start-visit')), findsOneWidget);
+    });
+
+    testWidgets('a visit that moved on is reloaded, not shown as changed', (
+      tester,
+    ) async {
+      final repo = consultation()
+        ..writeError = const ApiException(
+          kind: ApiErrorKind.conflict,
+          statusCode: 409,
+          flags: {'invalid_transition'},
+        );
+      await pumpDoctor(tester, '/consultation/5', repository: repo);
+      // Meanwhile another device completed the visit on the server.
+      repo.visitRows = const [
+        Visit(
+          id: 5,
+          status: Visit.completed,
+          patientId: 2,
+          patientName: 'Test Patient Two',
+          doctorId: 3,
+          hospitalId: 1,
+          visitType: 'OPD',
+        ),
+      ];
+
+      await tapVisible(tester, find.byKey(const Key('complete-visit')));
+      await tapVisible(tester, find.text('Complete consultation').last);
+
+      expect(find.textContaining('already moved on'), findsOneWidget);
+      expect(find.byKey(const Key('complete-visit')), findsNothing);
     });
 
     testWidgets('a lab test is ordered on the visit', (tester) async {

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../ipd/ui/clinical_work_sections.dart' show PatientHistorySection;
+
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -209,6 +212,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         PageHeader(title: t.patientNavRecords, description: t.documentsIntro),
+        if (AppScope.of(context).session.state.user?.patient?.id
+            case final patientId?) ...[
+          const SizedBox(height: AppSpacing.x4),
+          PatientHistorySection(patientId: patientId),
+        ],
         const SizedBox(height: AppSpacing.x4),
         HmsAlert(title: t.documentsViewOnWeb),
         const SizedBox(height: AppSpacing.x4),
@@ -352,7 +360,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   HmsDividedColumn(
                     children: [
-                      DetailRow(label: t.patientId, value: '${p.id}'),
+                      DetailRow(
+                        label: t.patientId,
+                        value: p.uhidFor(active?.id),
+                      ),
                       DetailRow(label: t.gender, value: p.gender),
                       DetailRow(
                         label: t.ageLabel,

@@ -325,6 +325,96 @@ void main() {
       expect(find.textContaining('Blood pressure: 120/80'), findsOneWidget);
     });
 
+    testWidgets(
+      'earlier vitals show on first open, without Try again (BUG-08)',
+      (tester) async {
+        final repo = wardRepo()
+          ..assessmentRows = [
+            NursingAssessment(
+              id: 501,
+              type: NursingAssessment.vitalsType,
+              patientId: testPatient.id,
+              admissionId: stay.id,
+              vitals: const {'pulse': '88'},
+              nurseName: 'Synthetic Nurse',
+              assessedAt: DateTime(2026, 11, 15, 8),
+            ),
+          ];
+        await pumpNurse(tester, '/nurses/patients/11', repository: repo);
+        await tester.pumpAndSettle();
+        expect(find.textContaining('88', skipOffstage: false), findsWidgets);
+        expect(find.text('Something went wrong. Try again.'), findsNothing);
+      },
+    );
+
+    testWidgets('signing out on a ward record opens the start page (BUG-09)', (
+      tester,
+    ) async {
+      await pumpNurse(tester, '/nurses/patients/11');
+      final menu = find.byWidgetPredicate(
+        (w) => w is Tooltip && (w.message ?? '').startsWith('Profile menu for'),
+      );
+      await tester.tap(menu.first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Logout'));
+      await tester.pumpAndSettle();
+      expect(find.text('Your care, organised in one place'), findsOneWidget);
+      expect(
+        find.text('Your session has ended. Please sign in again.'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a typed 37.1 is saved as 37.1 (finding 7)', (tester) async {
+      final repo = await pumpNurse(tester, '/nurses/patients/11');
+      await enter(
+        tester,
+        find.byKey(const ValueKey('ward-vital-temperature')),
+        '37.1',
+      );
+      await tapVisible(tester, find.byKey(const Key('save-ward-vitals')));
+      expect(repo.savedWardVitals.single, {'temperature': '37.1'});
+      expect(find.textContaining('37.1'), findsWidgets);
+    });
+
+    testWidgets(
+      'the MAR names the ordering doctor, never a login (finding 1)',
+      (tester) async {
+        final repo = wardRepo()
+          ..orderRows = [
+            MedicationOrder(
+              id: 2,
+              medicineName: 'Synthetic Paracetamol',
+              isActive: true,
+              dose: '500 mg',
+              route: 'Oral',
+              frequency: 'TID',
+              orderedByName: 'Dr Synthetic Mehta',
+              doses: [dueDose],
+            ),
+            const MedicationOrder(
+              id: 3,
+              medicineName: 'Synthetic Ondansetron',
+              isActive: true,
+              frequency: 'TID',
+            ),
+          ];
+        await pumpNurse(tester, '/nurses/patients/11', repository: repo);
+        expect(
+          find.textContaining(
+            'Ordered by: Dr Synthetic Mehta',
+            skipOffstage: false,
+          ),
+          findsOneWidget,
+        );
+        // An order without a name shows no "Ordered by" line, and no crash.
+        expect(
+          find.textContaining('Ordered by:', skipOffstage: false),
+          findsOneWidget,
+        );
+      },
+    );
+
     testWidgets('server-side limits show next to the field', (tester) async {
       final repo = await pumpNurse(tester, '/nurses/patients/11');
       await enter(tester, find.byKey(const ValueKey('ward-vital-spo2')), '120');

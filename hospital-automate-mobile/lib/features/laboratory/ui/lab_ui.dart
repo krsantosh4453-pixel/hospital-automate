@@ -56,6 +56,11 @@ String labQueueLabel(AppLocalizations t, LabQueue queue) => switch (queue) {
 /// errors is the server refusing the step for the test's current status
 /// (someone else moved it on); the server's own text is never shown.
 String labErrorMessage(AppLocalizations t, Object error) {
+  // Maker-checker (BUG-06): the person who entered a result cannot verify
+  // it. Without this the refusal read as a missing role permission.
+  if (error is ApiException && error.hasFlag('same_user')) {
+    return t.labVerifySameUser;
+  }
   if (error is ApiException &&
       error.kind == ApiErrorKind.validation &&
       error.fieldErrors.isEmpty) {

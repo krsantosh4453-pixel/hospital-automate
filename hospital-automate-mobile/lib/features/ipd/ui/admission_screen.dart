@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+
+import '../../nursing/ui/nursing_ui.dart' show isNurse;
+import '../../doctor/ui/doctor_ui.dart' show isDoctor;
+import 'clinical_work_sections.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/app_scope.dart';
 import '../../../core/localization/l10n.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../shared/widgets/hms_button.dart';
@@ -169,6 +175,28 @@ class _AdmissionScreenState extends State<AdmissionScreen>
                   : null,
             ),
           ),
+          if (isDoctor(AppScope.of(context).session.state) &&
+              admission.status != 'Discharged') ...[
+            const SizedBox(height: AppSpacing.x4),
+            WardOrdersSection(admission: admission, canOrder: canEdit),
+            if (admission.isDischarging && canEdit) ...[
+              const SizedBox(height: AppSpacing.x4),
+              ListenableBuilder(
+                listenable: _summary,
+                builder: (context, _) => DischargeFormsSection(
+                  key: ValueKey(
+                    'discharge-${_summary.data?.id}-${_summary.data?.finalized}',
+                  ),
+                  admission: admission,
+                  summary: _summary.data,
+                  onSaved: reload,
+                ),
+              ),
+            ],
+          ] else if (isNurse(AppScope.of(context).session.state)) ...[
+            const SizedBox(height: AppSpacing.x4),
+            WardOrdersSection(admission: admission, canOrder: false),
+          ],
           const SizedBox(height: AppSpacing.x4),
           _SummaryCard(loader: _summary),
         ],
@@ -230,10 +258,7 @@ class _BedCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           HmsCardHeader(title: t.ipdCurrentBed, icon: LucideIcons.bed),
-          DetailRow(
-            label: t.ipdCurrentBed,
-            value: current == null ? t.ipdAwaitingBed : current.place.label,
-          ),
+          DetailRow(label: t.ipdCurrentBed, value: bedLabel(t, admission)),
           if (current != null)
             DetailRow(
               label: t.ipdSince,
@@ -318,9 +343,12 @@ class _DischargeCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.x1),
               child: Row(
                 children: [
+                  // BUG-10: the theme's dark icon was nearly invisible on
+                  // the teal card.
                   Icon(
                     item.done ? LucideIcons.circleCheck : LucideIcons.circle,
                     size: 16,
+                    color: item.done ? AppColors.onCard : AppColors.onCardMuted,
                   ),
                   const SizedBox(width: AppSpacing.x2),
                   Expanded(

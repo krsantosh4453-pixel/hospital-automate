@@ -84,10 +84,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get admissionReason => 'Reason for admission';
 
   @override
+  String get admitAlreadyActive =>
+      'This patient already has an active admission here.';
+
+  @override
+  String get admitBed => 'Free bed';
+
+  @override
+  String get admitConfirm => 'Confirm admission';
+
+  @override
+  String get admitIntro =>
+      'Admit this patient under your care. Choose a ward to see its free beds.';
+
+  @override
+  String get admitNoBedNow => 'No bed now (allocate later)';
+
+  @override
+  String get admitNoFreeBeds =>
+      'No free bed in this hospital now. You can admit and allocate a bed later.';
+
+  @override
+  String get admitPatient => 'Admit patient';
+
+  @override
+  String get admitReason => 'Reason for admission';
+
+  @override
+  String get admitReasonRequired => 'Enter the reason for admission.';
+
+  @override
   String get admittedOn => 'Admitted on';
 
   @override
   String get admittingDoctor => 'Admitting doctor';
+
+  @override
+  String get admitWard => 'Ward';
 
   @override
   String get ageLabel => 'Age';
@@ -331,6 +364,58 @@ class AppLocalizationsEn extends AppLocalizations {
       'Working on it… this can take up to a minute. You can leave this page; the result is saved.';
 
   @override
+  String get allergiesTitle => 'Allergies';
+
+  @override
+  String get allergyAdd => 'Add allergy';
+
+  @override
+  String get allergyCategory => 'Type';
+
+  @override
+  String get allergyCategoryDrug => 'Drug';
+
+  @override
+  String get allergyCategoryEnvironmental => 'Environmental';
+
+  @override
+  String get allergyCategoryFood => 'Food';
+
+  @override
+  String get allergyCategoryOther => 'Other';
+
+  @override
+  String get allergyMarkNone => 'Record: no known allergies';
+
+  @override
+  String get allergyMarkUnknown => 'Record: not known';
+
+  @override
+  String get allergyName => 'Allergic to (medicine, food…)';
+
+  @override
+  String get allergyNameRequired => 'Enter what the patient is allergic to.';
+
+  @override
+  String get allergyNoneBlocked =>
+      'An allergy is on record, so no known allergies cannot be recorded.';
+
+  @override
+  String get allergyReaction => 'Reaction';
+
+  @override
+  String get allergySeverity => 'Severity';
+
+  @override
+  String get allergyStatusNone => 'No known allergies';
+
+  @override
+  String get allergyStatusRecorded => 'Has allergies';
+
+  @override
+  String get allergyStatusUnknown => 'Not known (not asked yet)';
+
+  @override
   String get alreadyDispensed =>
       'This prescription has already been dispensed.';
 
@@ -444,6 +529,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get authChallengeExpired =>
       'Your sign-in step expired. Enter your password again.';
+
+  @override
+  String get authDobRequired => 'Enter your date of birth.';
+
+  @override
+  String get authHospitalRequired =>
+      'Choose the hospital you want to register at.';
 
   @override
   String get authRegistrationUnavailable =>
@@ -1022,6 +1114,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkingConnection => 'Checking connection…';
 
   @override
+  String get chooseDateOfBirth => 'Choose date of birth';
+
+  @override
   String get chooseDoctorFirst => 'Choose a doctor to see free times.';
 
   @override
@@ -1217,6 +1312,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get diagnosisType => 'Type';
+
+  @override
+  String get dischargeCondition => 'Condition at discharge';
+
+  @override
+  String get dischargeFinalDiagnosis => 'Final diagnosis';
+
+  @override
+  String get dischargeFinalize => 'Finalise summary';
+
+  @override
+  String get dischargeFinalizeBody =>
+      'After this the summary cannot be changed, and the patient sees it in their history.';
+
+  @override
+  String get dischargeFinalizeTitle => 'Finalise the discharge summary?';
+
+  @override
+  String get dischargeFollowUp => 'Follow-up instructions';
+
+  @override
+  String get dischargeMedications => 'Discharge medications';
+
+  @override
+  String get dischargeNotes => 'Hospital course and other notes';
+
+  @override
+  String get dischargePlanTitle => 'Discharge plan';
+
+  @override
+  String get dischargeSaved => 'Saved by the hospital system.';
+
+  @override
+  String get dischargeSavePlan => 'Save plan';
+
+  @override
+  String get dischargeSaveSummary => 'Save summary draft';
+
+  @override
+  String get dischargeSummaryFinalized =>
+      'Finalised by a doctor. It can no longer be changed.';
+
+  @override
+  String get dischargeSummaryRequired =>
+      'Enter the final diagnosis and the condition at discharge.';
+
+  @override
+  String get dischargeSummaryTitle => 'Write the discharge summary';
 
   @override
   String get dispense => 'Dispense';
@@ -1777,6 +1920,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filterUpcoming => 'Upcoming';
 
   @override
+  String finalBillBedCharges(String amount) {
+    return 'Bed charges from the price list: $amount';
+  }
+
+  @override
+  String get finalBillCreate => 'Create final bill';
+
+  @override
+  String finalBillDays(String days) {
+    return 'Days in hospital: $days';
+  }
+
+  @override
+  String get finalBillDone => 'Final bill created.';
+
+  @override
+  String get finalBillNoBedPrice => 'Bed days cannot be priced yet';
+
+  @override
+  String get finalBillNone => 'No stay is waiting for its final bill.';
+
+  @override
+  String get finalBillTitle => 'Stays awaiting the final bill';
+
+  @override
   String get fixHighlightedFields => 'Fix the highlighted readings.';
 
   @override
@@ -1858,6 +2026,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get haveAccountSignIn => 'Already have an account? Sign in';
 
   @override
+  String get historyAll => 'All';
+
+  @override
+  String get historyEmpty => 'Nothing in your history yet.';
+
+  @override
+  String get historyIntro =>
+      'Visits, diagnoses, prescriptions, reports, vitals, admissions and discharges at your hospitals, newest first.';
+
+  @override
+  String get historyTitle => 'My health history';
+
+  @override
   String get hospActive => 'Active';
 
   @override
@@ -1886,6 +2067,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hospIntro => 'The hospital you are working in now.';
+
+  @override
+  String get hospitalsUnavailable =>
+      'The list of hospitals could not be loaded. Try again.';
 
   @override
   String get hospNoWards => 'No wards set up yet.';
@@ -1954,6 +2139,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ipdAvailableBeds => 'Free beds';
+
+  @override
+  String ipdBedReleased(String bed, String day) {
+    return 'Bed $bed · released $day';
+  }
 
   @override
   String get ipdAwaitingBed => 'Waiting for a bed';
@@ -2031,7 +2221,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ipdDischargeStepsOnWeb =>
-      'The plan, checklist, summary and final bill are completed on the web app.';
+      'The doctor writes the plan and the summary here; the billing desk creates the final bill.';
 
   @override
   String get ipdDischarged => 'Discharged';
@@ -2119,6 +2309,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ipdTransferred => 'Transferred';
+
+  @override
+  String get joinHospital => 'Register at this hospital';
+
+  @override
+  String get joinHospitalIntro =>
+      'Choose a hospital to register at. It gives you a patient ID (UHID) there, then you can book.';
 
   @override
   String get jumpTo => 'Jump to…';
@@ -2405,6 +2602,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get labVerifiedBy => 'Verified by';
+
+  @override
+  String get labVerifySameUser =>
+      'You entered this result, so a different authorised person must verify it.';
 
   @override
   String labVerifyConfirm(String test) {
@@ -3351,6 +3552,86 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recentlyRegistered => 'Recently registered patients';
 
   @override
+  String get receptionAppointmentsIntro =>
+      'Bookings at this hospital. Check patients in to give them a queue token.';
+
+  @override
+  String receptionCheckedIn(String name, String token) {
+    return '$name is checked in. Token #$token.';
+  }
+
+  @override
+  String get receptionCheckIn => 'Check in';
+
+  @override
+  String get receptionLink => 'Register at this hospital';
+
+  @override
+  String receptionLinked(String name, String uhid) {
+    return '$name is now registered here. Patient ID: $uhid';
+  }
+
+  @override
+  String get receptionLinkIntro =>
+      'For a patient who already has an account, for example from the patient app. Ask for their mobile number and date of birth.';
+
+  @override
+  String get receptionLinkTitle => 'Register an existing patient here';
+
+  @override
+  String get receptionMultipleMatch =>
+      'More than one patient has this mobile number and date of birth. Ask the patient to join from the patient app.';
+
+  @override
+  String get receptionNoAppointments => 'No bookings on this day.';
+
+  @override
+  String get receptionNoMatch =>
+      'No patient has this mobile number and date of birth. Register them as new.';
+
+  @override
+  String get receptionNoResults => 'No patient found.';
+
+  @override
+  String get receptionPatientsIntro =>
+      'Find a patient, register a new one, or register an existing patient at this hospital.';
+
+  @override
+  String get receptionPhoneInvalid => 'Enter the 10-digit mobile number.';
+
+  @override
+  String get receptionPortalAccount =>
+      'This mobile number already has a patient app account. Register that patient here with their date of birth below.';
+
+  @override
+  String get receptionPossibleDuplicate =>
+      'A patient with this mobile number is already registered here. Check the list, or register anyway if this is a different person.';
+
+  @override
+  String get receptionQueueIntro =>
+      'Today\'s queue at this hospital. Doctors call and see patients from their own queue.';
+
+  @override
+  String get receptionRegister => 'Register patient';
+
+  @override
+  String get receptionRegisterAnyway => 'Register anyway';
+
+  @override
+  String receptionRegistered(String name, String uhid) {
+    return '$name is registered. Patient ID: $uhid';
+  }
+
+  @override
+  String get receptionRegisterTitle => 'Register a new patient';
+
+  @override
+  String get receptionSearch => 'Search';
+
+  @override
+  String get receptionSearchHint => 'Name, mobile number or patient ID';
+
+  @override
   String get recordOn => 'Record on';
 
   @override
@@ -3368,6 +3649,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get refund => 'Refund';
+
+  @override
+  String get registerAtHospital => 'Hospital to register at';
 
   @override
   String get registerIntro =>
@@ -3929,6 +4213,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tokenIdIntro => 'Enter your token number or hospital patient ID';
 
   @override
+  String get tokenInConsultation =>
+      'You are with the doctor now. Your consultation is in progress.';
+
+  @override
   String get tokenLabel => 'Token';
 
   @override
@@ -4039,7 +4327,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'This visit is closed. Its records are shown read-only.';
 
   @override
+  String get visitNotYourPatient =>
+      'Only this visit\'s doctor can start or complete the consultation.';
+
+  @override
+  String get visitPatientNotCalled =>
+      'This patient has not been called yet. Call them from the Queue first.';
+
+  @override
   String get visits => 'Visits';
+
+  @override
+  String get visitStatusMovedOn =>
+      'This visit has already moved on, so its status was not changed. The page now shows its current status.';
 
   @override
   String get vitalBloodPressure => 'Blood pressure';
@@ -4105,6 +4405,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wardAttention => 'Needs attention on the ward';
 
   @override
+  String get wardOrderAdd => 'Order medicine';
+
+  @override
+  String get wardOrderDose => 'Dose (with strength)';
+
+  @override
+  String get wardOrderEndDate => 'Last day (optional)';
+
+  @override
+  String get wardOrderFieldsRequired =>
+      'Choose a medicine and fill in dose, route and frequency.';
+
+  @override
+  String get wardOrderMedicine =>
+      'Medicine (from the patient\'s prescriptions)';
+
+  @override
+  String get wardOrderNoMedicines =>
+      'No prescribed medicine to order. Write a prescription in the consultation first.';
+
+  @override
+  String get wardOrderNone => 'No medication orders yet.';
+
+  @override
+  String get wardOrdersIntro =>
+      'Orders for the nurses. A dose counts as given only when a nurse records it.';
+
+  @override
+  String get wardOrdersTitle => 'Ward medication orders';
+
+  @override
+  String get wardOrderStop => 'Stop';
+
+  @override
+  String get wardOrderStopped => 'Stopped';
+
+  @override
   String get wardPatients => 'Ward patients';
 
   @override
@@ -4122,4 +4459,58 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yourMobileNumber => 'Your mobile number';
+
+  @override
+  String get firstDoseLabel => 'First dose';
+
+  @override
+  String get firstDoseNextRound => 'Next medication round';
+
+  @override
+  String get firstDoseNow => 'Start now';
+
+  @override
+  String get firstDoseAt => 'Specific time';
+
+  @override
+  String get firstDosePickTime => 'Choose the date and time of the first dose';
+
+  @override
+  String get firstDoseReviewTitle => 'Review the dose schedule';
+
+  @override
+  String firstDoseReviewFirst(String when) {
+    return 'First dose: $when';
+  }
+
+  @override
+  String firstDoseReviewNext(String times) {
+    return 'Then: $times';
+  }
+
+  @override
+  String firstDoseReviewCount(int count) {
+    return '$count doses scheduled';
+  }
+
+  @override
+  String get firstDosePrn =>
+      'As needed (PRN): no doses are scheduled. Nurses record each dose when it is given.';
+
+  @override
+  String get firstDoseChoose =>
+      'The first dose cannot be set automatically: this hospital has no medication rounds for this order. Choose Start now or a specific time.';
+
+  @override
+  String get firstDoseRefused =>
+      'This first-dose time cannot be used: it is in the past or outside the order\'s dates. Choose another time.';
+
+  @override
+  String finalBillConfirmTitle(String patient) {
+    return 'Create the final bill for $patient?';
+  }
+
+  @override
+  String get finalBillConfirmBody =>
+      'The final bill brings together the bed days above and the charges already captured for this stay. Once created it can be cancelled only by an Admin or Hospital Manager, with a reason.';
 }

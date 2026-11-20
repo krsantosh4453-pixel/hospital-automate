@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/localization/l10n.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../shared/widgets/hms_card.dart';
@@ -143,6 +144,9 @@ class _DispenseLineCardState extends State<DispenseLineCard> {
               decoration: InputDecoration(
                 labelText: t.quantityNow,
                 helperText: t.atMost(item.remaining),
+                // The hint sits on the teal card, not in the white field:
+                // the theme's dark default was unreadable there.
+                helperStyle: AppTypography.caption(color: AppColors.onCard),
               ),
               onChanged: (text) => widget.onChanged(
                 _line.copyWith(quantity: int.tryParse(text) ?? 0),

@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hms_mobile/features/ipd/data/clinical_work_repository.dart';
+import 'package:hms_mobile/features/reception/data/reception_repository.dart';
 import 'package:hms_mobile/app.dart';
 import 'package:hms_mobile/core/app_scope.dart';
 import 'package:hms_mobile/core/config/api_config.dart';
@@ -112,6 +114,8 @@ AppServices testServices({
   HospitalRepository? hospital,
   GoogleIdentity? google,
   AiRepository? ai,
+  ReceptionRepository? reception,
+  ClinicalWorkRepository? clinicalWork,
   ScribeRecorder Function()? scribeRecorder,
 }) {
   final store = tokenStore ?? InMemoryTokenStore();
@@ -155,6 +159,8 @@ AppServices testServices({
     ipd: ipd ?? FakeIpdRepository(),
     hospital: hospital ?? FakeHospitalRepository(),
     aiOverride: ai ?? FakeAiRepository(),
+    receptionOverride: reception,
+    clinicalWorkOverride: clinicalWork,
     scribeRecorderFactory: scribeRecorder ?? FakeScribeRecorder.new,
   );
 }

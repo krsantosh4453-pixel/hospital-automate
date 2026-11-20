@@ -221,6 +221,28 @@ void main() {
       expect(find.textContaining('refused this step'), findsOneWidget);
     });
 
+    testWidgets('verifying your own result says a second person must verify', (
+      tester,
+    ) async {
+      final repo = FakeLabRepository(tests: sampleOrders())
+        ..failNext = const ApiException(
+          kind: ApiErrorKind.forbidden,
+          statusCode: 403,
+          flags: {'same_user'},
+        );
+      await pumpLab(tester, '/laboratory/6', repository: repo);
+      await tapVisible(tester, find.byKey(const Key('lab-next-step')));
+      await tapVisible(tester, find.text('Verify result').last);
+      expect(
+        find.textContaining('a different authorised person must verify'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Your role does not have access'),
+        findsNothing,
+      );
+    });
+
     testWidgets('a manager is told the step is for other roles', (
       tester,
     ) async {

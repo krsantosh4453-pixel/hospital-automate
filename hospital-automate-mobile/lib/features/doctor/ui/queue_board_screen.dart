@@ -43,10 +43,15 @@ class QueueBoardScreen extends StatefulWidget {
     super.key,
     this.pollInterval = queuePollInterval,
     this.now,
+    this.readOnly = false,
   });
 
   final Duration pollInterval;
   final DateTime Function()? now;
+
+  /// The front desk's view: the same board, without queue moves or links
+  /// into consultations (those are the doctor's).
+  final bool readOnly;
 
   @override
   State<QueueBoardScreen> createState() => _QueueBoardScreenState();
@@ -139,7 +144,9 @@ class _QueueBoardScreenState extends State<QueueBoardScreen> {
       children: [
         PageHeader(
           title: t.navQueue,
-          description: t.doctorQueueIntro,
+          description: widget.readOnly
+              ? t.receptionQueueIntro
+              : t.doctorQueueIntro,
           actions: [
             HmsButton(
               label: t.refresh,
@@ -167,8 +174,12 @@ class _QueueBoardScreenState extends State<QueueBoardScreen> {
         ],
         RecordSection<List<QueueToken>>(
           loader: _loader,
-          builder: (context, tokens) =>
-              _Board(tokens: tokens, busy: _busy, onMove: _move),
+          builder: (context, tokens) => _Board(
+            tokens: tokens,
+            busy: _busy,
+            onMove: _move,
+            readOnly: widget.readOnly,
+          ),
         ),
       ],
     );
@@ -180,8 +191,10 @@ class _Board extends StatelessWidget {
     required this.tokens,
     required this.busy,
     required this.onMove,
+    required this.readOnly,
   });
 
+  final bool readOnly;
   final List<QueueToken> tokens;
   final Set<int> busy;
   final Future<void> Function(QueueToken, QueueAction) onMove;
@@ -213,6 +226,7 @@ class _Board extends StatelessWidget {
                     token: token,
                     busy: busy.contains(token.id),
                     onMove: onMove,
+                    readOnly: readOnly,
                   ),
               ],
             ),
@@ -239,8 +253,10 @@ class _TokenRow extends StatelessWidget {
     required this.token,
     required this.busy,
     required this.onMove,
+    required this.readOnly,
   });
 
+  final bool readOnly;
   final QueueToken token;
   final bool busy;
   final Future<void> Function(QueueToken, QueueAction) onMove;
@@ -288,35 +304,38 @@ class _TokenRow extends StatelessWidget {
               StatusBadge(status: token.status),
             ],
           ),
-          const SizedBox(height: AppSpacing.x2),
-          Wrap(
-            spacing: AppSpacing.x2,
-            runSpacing: AppSpacing.x2,
-            children: [
-              for (final action in actionsFor(token.status))
-                HmsButton(
-                  key: ValueKey('queue-${token.id}-${action.path}'),
-                  label: queueActionLabel(t, action),
-                  size: HmsButtonSize.small,
-                  surface: HmsSurface.card,
-                  variant:
-                      action == QueueAction.skip || action == QueueAction.noShow
-                      ? HmsButtonVariant.secondary
-                      : HmsButtonVariant.primary,
-                  loading: busy,
-                  onPressed: busy ? null : () => onMove(token, action),
-                ),
-              if (token.visitId != null)
-                HmsButton(
-                  label: t.openConsultation,
-                  size: HmsButtonSize.small,
-                  surface: HmsSurface.card,
-                  variant: HmsButtonVariant.ghost,
-                  onPressed: () =>
-                      context.go(DoctorRoutes.visit(token.visitId!)),
-                ),
-            ],
-          ),
+          if (!readOnly) ...[
+            const SizedBox(height: AppSpacing.x2),
+            Wrap(
+              spacing: AppSpacing.x2,
+              runSpacing: AppSpacing.x2,
+              children: [
+                for (final action in actionsFor(token.status))
+                  HmsButton(
+                    key: ValueKey('queue-${token.id}-${action.path}'),
+                    label: queueActionLabel(t, action),
+                    size: HmsButtonSize.small,
+                    surface: HmsSurface.card,
+                    variant:
+                        action == QueueAction.skip ||
+                            action == QueueAction.noShow
+                        ? HmsButtonVariant.secondary
+                        : HmsButtonVariant.primary,
+                    loading: busy,
+                    onPressed: busy ? null : () => onMove(token, action),
+                  ),
+                if (token.visitId != null)
+                  HmsButton(
+                    label: t.openConsultation,
+                    size: HmsButtonSize.small,
+                    surface: HmsSurface.card,
+                    variant: HmsButtonVariant.ghost,
+                    onPressed: () =>
+                        context.go(DoctorRoutes.visit(token.visitId!)),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );

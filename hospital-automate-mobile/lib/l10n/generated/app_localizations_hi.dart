@@ -84,10 +84,43 @@ class AppLocalizationsHi extends AppLocalizations {
   String get admissionReason => 'भर्ती का कारण';
 
   @override
+  String get admitAlreadyActive =>
+      'इस मरीज़ का यहाँ पहले से एक सक्रिय भर्ती है।';
+
+  @override
+  String get admitBed => 'खाली बिस्तर';
+
+  @override
+  String get admitConfirm => 'भर्ती की पुष्टि करें';
+
+  @override
+  String get admitIntro =>
+      'इस मरीज़ को अपनी देखरेख में भर्ती करें। खाली बिस्तर देखने के लिए वार्ड चुनें।';
+
+  @override
+  String get admitNoBedNow => 'अभी बिस्तर नहीं (बाद में दें)';
+
+  @override
+  String get admitNoFreeBeds =>
+      'अभी इस अस्पताल में कोई खाली बिस्तर नहीं। आप भर्ती करके बाद में बिस्तर दे सकते हैं।';
+
+  @override
+  String get admitPatient => 'मरीज़ को भर्ती करें';
+
+  @override
+  String get admitReason => 'भर्ती का कारण';
+
+  @override
+  String get admitReasonRequired => 'भर्ती का कारण दर्ज करें।';
+
+  @override
   String get admittedOn => 'भर्ती की तारीख';
 
   @override
   String get admittingDoctor => 'भर्ती करने वाले डॉक्टर';
+
+  @override
+  String get admitWard => 'वार्ड';
 
   @override
   String get ageLabel => 'आयु';
@@ -331,6 +364,58 @@ class AppLocalizationsHi extends AppLocalizations {
       'काम चल रहा है… इसमें एक मिनट तक लग सकता है। आप यह पेज छोड़ सकते हैं; परिणाम सहेजा जाएगा।';
 
   @override
+  String get allergiesTitle => 'एलर्जी';
+
+  @override
+  String get allergyAdd => 'एलर्जी जोड़ें';
+
+  @override
+  String get allergyCategory => 'प्रकार';
+
+  @override
+  String get allergyCategoryDrug => 'दवा';
+
+  @override
+  String get allergyCategoryEnvironmental => 'पर्यावरणीय';
+
+  @override
+  String get allergyCategoryFood => 'भोजन';
+
+  @override
+  String get allergyCategoryOther => 'अन्य';
+
+  @override
+  String get allergyMarkNone => 'दर्ज करें: कोई ज्ञात एलर्जी नहीं';
+
+  @override
+  String get allergyMarkUnknown => 'दर्ज करें: पता नहीं';
+
+  @override
+  String get allergyName => 'किससे एलर्जी (दवा, भोजन…)';
+
+  @override
+  String get allergyNameRequired => 'मरीज़ को किससे एलर्जी है, दर्ज करें।';
+
+  @override
+  String get allergyNoneBlocked =>
+      'एक एलर्जी दर्ज है, इसलिए \'कोई ज्ञात एलर्जी नहीं\' दर्ज नहीं हो सकता।';
+
+  @override
+  String get allergyReaction => 'प्रतिक्रिया';
+
+  @override
+  String get allergySeverity => 'गंभीरता';
+
+  @override
+  String get allergyStatusNone => 'कोई ज्ञात एलर्जी नहीं';
+
+  @override
+  String get allergyStatusRecorded => 'एलर्जी है';
+
+  @override
+  String get allergyStatusUnknown => 'पता नहीं (अभी पूछा नहीं)';
+
+  @override
   String get alreadyDispensed => 'यह पर्चा पहले ही दिया जा चुका है।';
 
   @override
@@ -443,6 +528,13 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get authChallengeExpired =>
       'साइन इन का चरण समाप्त हो गया। फिर से पासवर्ड दर्ज करें।';
+
+  @override
+  String get authDobRequired => 'अपनी जन्म तिथि दर्ज करें।';
+
+  @override
+  String get authHospitalRequired =>
+      'वह अस्पताल चुनें जहाँ आप पंजीकरण करना चाहते हैं।';
 
   @override
   String get authRegistrationUnavailable =>
@@ -1016,6 +1108,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get checkingConnection => 'कनेक्शन जाँचा जा रहा है…';
 
   @override
+  String get chooseDateOfBirth => 'जन्म तिथि चुनें';
+
+  @override
   String get chooseDoctorFirst => 'खाली समय देखने के लिए डॉक्टर चुनें।';
 
   @override
@@ -1212,6 +1307,54 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get diagnosisType => 'प्रकार';
+
+  @override
+  String get dischargeCondition => 'छुट्टी के समय स्थिति';
+
+  @override
+  String get dischargeFinalDiagnosis => 'अंतिम निदान';
+
+  @override
+  String get dischargeFinalize => 'सारांश अंतिम करें';
+
+  @override
+  String get dischargeFinalizeBody =>
+      'इसके बाद सारांश बदला नहीं जा सकता, और मरीज़ इसे अपने इतिहास में देखेंगे।';
+
+  @override
+  String get dischargeFinalizeTitle => 'छुट्टी सारांश अंतिम करें?';
+
+  @override
+  String get dischargeFollowUp => 'फ़ॉलो-अप निर्देश';
+
+  @override
+  String get dischargeMedications => 'छुट्टी की दवाएँ';
+
+  @override
+  String get dischargeNotes => 'अस्पताल में उपचार और अन्य टिप्पणियाँ';
+
+  @override
+  String get dischargePlanTitle => 'छुट्टी योजना';
+
+  @override
+  String get dischargeSaved => 'अस्पताल प्रणाली ने सहेज लिया।';
+
+  @override
+  String get dischargeSavePlan => 'योजना सहेजें';
+
+  @override
+  String get dischargeSaveSummary => 'सारांश ड्राफ़्ट सहेजें';
+
+  @override
+  String get dischargeSummaryFinalized =>
+      'डॉक्टर ने अंतिम कर दिया। अब बदला नहीं जा सकता।';
+
+  @override
+  String get dischargeSummaryRequired =>
+      'अंतिम निदान और छुट्टी के समय स्थिति दर्ज करें।';
+
+  @override
+  String get dischargeSummaryTitle => 'छुट्टी सारांश लिखें';
 
   @override
   String get dispense => 'दवा दें';
@@ -1769,6 +1912,32 @@ class AppLocalizationsHi extends AppLocalizations {
   String get filterUpcoming => 'आगामी';
 
   @override
+  String finalBillBedCharges(String amount) {
+    return 'मूल्य सूची से बिस्तर शुल्क: $amount';
+  }
+
+  @override
+  String get finalBillCreate => 'अंतिम बिल बनाएँ';
+
+  @override
+  String finalBillDays(String days) {
+    return 'अस्पताल में दिन: $days';
+  }
+
+  @override
+  String get finalBillDone => 'अंतिम बिल बन गया।';
+
+  @override
+  String get finalBillNoBedPrice =>
+      'बिस्तर के दिनों का मूल्य अभी तय नहीं हो सकता';
+
+  @override
+  String get finalBillNone => 'किसी भर्ती का अंतिम बिल बाकी नहीं है।';
+
+  @override
+  String get finalBillTitle => 'अंतिम बिल की प्रतीक्षा में भर्तियाँ';
+
+  @override
   String get fixHighlightedFields => 'चिह्नित मापों को ठीक करें।';
 
   @override
@@ -1850,6 +2019,19 @@ class AppLocalizationsHi extends AppLocalizations {
   String get haveAccountSignIn => 'पहले से खाता है? साइन इन करें';
 
   @override
+  String get historyAll => 'सभी';
+
+  @override
+  String get historyEmpty => 'आपके इतिहास में अभी कुछ नहीं।';
+
+  @override
+  String get historyIntro =>
+      'आपके अस्पतालों की विज़िट, निदान, पर्चे, रिपोर्ट, वाइटल्स, भर्ती और छुट्टी, नवीनतम पहले।';
+
+  @override
+  String get historyTitle => 'मेरा स्वास्थ्य इतिहास';
+
+  @override
   String get hospActive => 'सक्रिय';
 
   @override
@@ -1878,6 +2060,10 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get hospIntro => 'वह अस्पताल जिसमें आप अभी काम कर रहे हैं।';
+
+  @override
+  String get hospitalsUnavailable =>
+      'अस्पतालों की सूची लोड नहीं हो सकी। फिर कोशिश करें।';
 
   @override
   String get hospNoWards => 'अभी कोई वार्ड नहीं बनाया गया है।';
@@ -1946,6 +2132,11 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get ipdAvailableBeds => 'खाली बिस्तर';
+
+  @override
+  String ipdBedReleased(String bed, String day) {
+    return 'बिस्तर $bed · $day को खाली हुआ';
+  }
 
   @override
   String get ipdAwaitingBed => 'बिस्तर का इंतज़ार';
@@ -2023,7 +2214,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get ipdDischargeStepsOnWeb =>
-      'योजना, जाँच-सूची, सारांश और अंतिम बिल वेब ऐप पर पूरे किए जाते हैं।';
+      'डॉक्टर योजना और सारांश यहीं लिखते हैं; बिलिंग डेस्क अंतिम बिल बनाता है।';
 
   @override
   String get ipdDischarged => 'छुट्टी दी गई';
@@ -2111,6 +2302,13 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get ipdTransferred => 'स्थानांतरित';
+
+  @override
+  String get joinHospital => 'इस अस्पताल में पंजीकरण करें';
+
+  @override
+  String get joinHospitalIntro =>
+      'पंजीकरण के लिए अस्पताल चुनें। वहाँ आपको मरीज़ आईडी (UHID) मिलेगी, फिर आप अपॉइंटमेंट बुक कर सकते हैं।';
 
   @override
   String get jumpTo => 'पेज पर जाएँ…';
@@ -2397,6 +2595,10 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get labVerifiedBy => 'सत्यापित किया';
+
+  @override
+  String get labVerifySameUser =>
+      'यह परिणाम आपने दर्ज किया है, इसलिए इसे कोई दूसरा अधिकृत व्यक्ति सत्यापित करेगा।';
 
   @override
   String labVerifyConfirm(String test) {
@@ -3338,6 +3540,86 @@ class AppLocalizationsHi extends AppLocalizations {
   String get recentlyRegistered => 'हाल में पंजीकृत मरीज़';
 
   @override
+  String get receptionAppointmentsIntro =>
+      'इस अस्पताल की बुकिंग। कतार टोकन देने के लिए मरीज़ों को चेक-इन करें।';
+
+  @override
+  String receptionCheckedIn(String name, String token) {
+    return '$name चेक-इन हो गए। टोकन #$token।';
+  }
+
+  @override
+  String get receptionCheckIn => 'चेक-इन';
+
+  @override
+  String get receptionLink => 'इस अस्पताल में पंजीकरण करें';
+
+  @override
+  String receptionLinked(String name, String uhid) {
+    return '$name अब यहाँ पंजीकृत हैं। मरीज़ आईडी: $uhid';
+  }
+
+  @override
+  String get receptionLinkIntro =>
+      'ऐसे मरीज़ के लिए जिनका पहले से खाता है, जैसे मरीज़ ऐप से। उनका मोबाइल नंबर और जन्म तिथि पूछें।';
+
+  @override
+  String get receptionLinkTitle => 'मौजूदा मरीज़ का यहाँ पंजीकरण करें';
+
+  @override
+  String get receptionMultipleMatch =>
+      'इस मोबाइल नंबर और जन्म तिथि से एक से अधिक मरीज़ मिले। मरीज़ से ऐप से जुड़ने को कहें।';
+
+  @override
+  String get receptionNoAppointments => 'इस दिन कोई बुकिंग नहीं।';
+
+  @override
+  String get receptionNoMatch =>
+      'इस मोबाइल नंबर और जन्म तिथि से कोई मरीज़ नहीं मिला। उन्हें नए मरीज़ के रूप में पंजीकृत करें।';
+
+  @override
+  String get receptionNoResults => 'कोई मरीज़ नहीं मिला।';
+
+  @override
+  String get receptionPatientsIntro =>
+      'मरीज़ खोजें, नया मरीज़ पंजीकृत करें, या मौजूदा मरीज़ का इस अस्पताल में पंजीकरण करें।';
+
+  @override
+  String get receptionPhoneInvalid => '10 अंकों का मोबाइल नंबर दर्ज करें।';
+
+  @override
+  String get receptionPortalAccount =>
+      'इस मोबाइल नंबर का पहले से मरीज़ ऐप खाता है। नीचे जन्म तिथि से उसी मरीज़ का यहाँ पंजीकरण करें।';
+
+  @override
+  String get receptionPossibleDuplicate =>
+      'इस मोबाइल नंबर से एक मरीज़ यहाँ पहले से पंजीकृत है। सूची देखें, या अलग व्यक्ति हो तो फिर भी पंजीकृत करें।';
+
+  @override
+  String get receptionQueueIntro =>
+      'इस अस्पताल की आज की कतार। डॉक्टर अपनी कतार से मरीज़ों को बुलाते और देखते हैं।';
+
+  @override
+  String get receptionRegister => 'मरीज़ पंजीकृत करें';
+
+  @override
+  String get receptionRegisterAnyway => 'फिर भी पंजीकृत करें';
+
+  @override
+  String receptionRegistered(String name, String uhid) {
+    return '$name पंजीकृत हो गए। मरीज़ आईडी: $uhid';
+  }
+
+  @override
+  String get receptionRegisterTitle => 'नया मरीज़ पंजीकृत करें';
+
+  @override
+  String get receptionSearch => 'खोजें';
+
+  @override
+  String get receptionSearchHint => 'नाम, मोबाइल नंबर या मरीज़ आईडी';
+
+  @override
   String get recordOn => 'इस पर दर्ज करें';
 
   @override
@@ -3355,6 +3637,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get refund => 'वापसी';
+
+  @override
+  String get registerAtHospital => 'पंजीकरण के लिए अस्पताल';
 
   @override
   String get registerIntro => 'स्टाफ़ खाते अस्पताल के निमंत्रण से बनते हैं।';
@@ -3914,6 +4199,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get tokenIdIntro => 'अपना टोकन नंबर या अस्पताल मरीज़ ID दर्ज करें';
 
   @override
+  String get tokenInConsultation =>
+      'आप अभी डॉक्टर के पास हैं। आपका परामर्श चल रहा है।';
+
+  @override
   String get tokenLabel => 'टोकन';
 
   @override
@@ -4024,7 +4313,19 @@ class AppLocalizationsHi extends AppLocalizations {
       'यह विज़िट बंद है। इसके रिकॉर्ड केवल पढ़ने के लिए हैं।';
 
   @override
+  String get visitNotYourPatient =>
+      'केवल इस विज़िट के डॉक्टर ही परामर्श शुरू या पूरा कर सकते हैं।';
+
+  @override
+  String get visitPatientNotCalled =>
+      'इस मरीज़ को अभी बुलाया नहीं गया है। पहले कतार से बुलाएँ।';
+
+  @override
   String get visits => 'विज़िट';
+
+  @override
+  String get visitStatusMovedOn =>
+      'यह विज़िट पहले ही आगे बढ़ चुकी है, इसलिए स्थिति नहीं बदली। पेज अब इसकी मौजूदा स्थिति दिखाता है।';
 
   @override
   String get vitalBloodPressure => 'रक्तचाप';
@@ -4090,6 +4391,42 @@ class AppLocalizationsHi extends AppLocalizations {
   String get wardAttention => 'वार्ड में ध्यान देने योग्य';
 
   @override
+  String get wardOrderAdd => 'दवा का आदेश दें';
+
+  @override
+  String get wardOrderDose => 'खुराक (शक्ति सहित)';
+
+  @override
+  String get wardOrderEndDate => 'अंतिम दिन (वैकल्पिक)';
+
+  @override
+  String get wardOrderFieldsRequired =>
+      'दवा चुनें और खुराक, मार्ग और आवृत्ति भरें।';
+
+  @override
+  String get wardOrderMedicine => 'दवा (मरीज़ के पर्चों से)';
+
+  @override
+  String get wardOrderNoMedicines =>
+      'आदेश के लिए कोई निर्धारित दवा नहीं। पहले परामर्श में पर्चा लिखें।';
+
+  @override
+  String get wardOrderNone => 'अभी कोई दवा आदेश नहीं।';
+
+  @override
+  String get wardOrdersIntro =>
+      'नर्सों के लिए आदेश। खुराक तभी दी गई मानी जाती है जब नर्स उसे दर्ज करे।';
+
+  @override
+  String get wardOrdersTitle => 'वार्ड दवा आदेश';
+
+  @override
+  String get wardOrderStop => 'रोकें';
+
+  @override
+  String get wardOrderStopped => 'रोका गया';
+
+  @override
   String get wardPatients => 'वार्ड के मरीज़';
 
   @override
@@ -4107,4 +4444,58 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get yourMobileNumber => 'आपका मोबाइल नंबर';
+
+  @override
+  String get firstDoseLabel => 'पहली खुराक';
+
+  @override
+  String get firstDoseNextRound => 'अगला दवा राउंड';
+
+  @override
+  String get firstDoseNow => 'अभी शुरू करें';
+
+  @override
+  String get firstDoseAt => 'निश्चित समय';
+
+  @override
+  String get firstDosePickTime => 'पहली खुराक की तारीख और समय चुनें';
+
+  @override
+  String get firstDoseReviewTitle => 'खुराक का समय देखें';
+
+  @override
+  String firstDoseReviewFirst(String when) {
+    return 'पहली खुराक: $when';
+  }
+
+  @override
+  String firstDoseReviewNext(String times) {
+    return 'फिर: $times';
+  }
+
+  @override
+  String firstDoseReviewCount(int count) {
+    return '$count खुराकें तय';
+  }
+
+  @override
+  String get firstDosePrn =>
+      'ज़रूरत पड़ने पर (PRN): कोई खुराक तय नहीं होती। नर्स हर खुराक देने पर दर्ज करती है।';
+
+  @override
+  String get firstDoseChoose =>
+      'पहली खुराक अपने आप तय नहीं हो सकती: इस अस्पताल में इस आदेश के लिए दवा राउंड तय नहीं हैं। अभी शुरू करें या निश्चित समय चुनें।';
+
+  @override
+  String get firstDoseRefused =>
+      'पहली खुराक का यह समय नहीं चल सकता: यह बीत चुका है या आदेश की तारीखों से बाहर है। दूसरा समय चुनें।';
+
+  @override
+  String finalBillConfirmTitle(String patient) {
+    return '$patient का अंतिम बिल बनाएँ?';
+  }
+
+  @override
+  String get finalBillConfirmBody =>
+      'अंतिम बिल में ऊपर दिए बिस्तर के दिन और इस भर्ती के पहले से दर्ज शुल्क शामिल होते हैं। बनने के बाद इसे केवल एडमिन या हॉस्पिटल मैनेजर कारण देकर रद्द कर सकते हैं।';
 }

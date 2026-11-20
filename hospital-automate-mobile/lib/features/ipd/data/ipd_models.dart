@@ -127,6 +127,19 @@ class IpdAdmission {
   final BedAllocationRecord? currentBed;
   final List<BedAllocationRecord> bedHistory;
 
+  /// The bed held last, once released (a discharged stay): BUG-10 showed
+  /// "Waiting for a bed" for it.
+  BedAllocationRecord? get releasedBed {
+    if (currentBed != null) return null;
+    BedAllocationRecord? last;
+    for (final bed in bedHistory) {
+      final at = bed.releasedAt;
+      if (at == null) continue;
+      if (last == null || at.isAfter(last.releasedAt!)) last = bed;
+    }
+    return last;
+  }
+
   bool get isAdmitted => status == AdmissionStatus.admitted;
   bool get isDischarging => status == AdmissionStatus.dischargeInitiated;
 

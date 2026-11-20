@@ -64,6 +64,7 @@ class ApiClient {
     HttpClientAdapter? adapter,
     ApiLogSink? log,
     Duration timeout = _defaultTimeout,
+    bool Function()? blockAuthenticated,
   }) : dio = Dio(
          BaseOptions(
            baseUrl: '${config.apiBaseUrl}/',
@@ -79,6 +80,7 @@ class ApiClient {
       RequestContextInterceptor(
         accessToken: accessToken,
         hospitalId: hospitalId,
+        blockAuthenticated: blockAuthenticated,
       ),
       _RefreshInterceptor(this),
       SafeLogInterceptor(log ?? (kDebugMode ? _developerLog : null)),
@@ -171,11 +173,18 @@ class RequestContextInterceptor extends Interceptor {
   RequestContextInterceptor({
     required this.accessToken,
     required this.hospitalId,
+    this.blockAuthenticated,
     Random? random,
   }) : _random = random ?? Random.secure();
 
   final AccessTokenReader accessToken;
   final HospitalIdReader hospitalId;
+
+  /// True while a sign-out is in progress (and until the next sign-in):
+  /// signed-in requests are then not sent at all. Final E2E finding 6: the
+  /// open page reloaded during sign-out and sent 1-3 requests that could
+  /// only come back 401.
+  final bool Function()? blockAuthenticated;
   final Random _random;
 
   @override
@@ -184,6 +193,17 @@ class RequestContextInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     options.headers.remove('Authorization');
+    if (options.extra[_anonymousKey] != true &&
+        (blockAuthenticated?.call() ?? false)) {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+          error: const SignedOutRequest(),
+        ),
+      );
+      return;
+    }
     if (options.extra[_anonymousKey] != true) {
       final token = await accessToken();
       if (token != null && token.isNotEmpty) {
@@ -285,4 +305,12 @@ class SafeLogInterceptor extends Interceptor {
       '${options.method} ${options.uri.path} -> $outcome${ms == null ? '' : ' ${ms}ms'} [$requestId]',
     );
   }
+}
+
+/// A signed-in request refused locally because the session is ending.
+class SignedOutRequest implements Exception {
+  const SignedOutRequest();
+
+  @override
+  String toString() => 'The session is ending; the request was not sent.';
 }

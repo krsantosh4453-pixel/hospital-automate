@@ -144,6 +144,16 @@ void main() {
       );
     });
 
+    test('decimal temperatures pass through unchanged (finding 7)', () {
+      for (final typed in ['37.1', '36.9', '38.5', '37']) {
+        expect(VitalField.temperature.check(typed), isNull, reason: typed);
+        expect(
+          wardVitalsJson({VitalField.temperature: typed})!['temperature'],
+          typed,
+        );
+      }
+    });
+
     test('half a blood pressure is refused', () {
       expect(wardVitalsJson({VitalField.systolicBp: '120'}), isNull);
     });

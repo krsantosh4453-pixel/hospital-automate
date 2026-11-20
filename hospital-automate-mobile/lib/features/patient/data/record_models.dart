@@ -86,8 +86,12 @@ class Prescription {
     ],
   );
 
-  /// Statuses the web portal counts as current.
-  static const currentStatuses = {'Confirmed', 'Pending'};
+  /// Statuses counted as current: still (partly) to be collected (BUG-05).
+  static const currentStatuses = {
+    'Confirmed',
+    'Pending',
+    'Partially Dispensed',
+  };
 
   final int id;
 

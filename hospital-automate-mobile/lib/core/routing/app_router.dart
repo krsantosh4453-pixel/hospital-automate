@@ -1,5 +1,11 @@
 import 'package:flutter/widgets.dart';
+
+import '../../features/ipd/ui/clinical_work_sections.dart'
+    show AdmitPatientScreen;
+
 import 'package:go_router/go_router.dart';
+
+import '../../features/reception/ui/reception_screens.dart';
 
 import '../../features/ai/ui/ai_dashboard_screen.dart';
 import '../../features/ai/ui/ai_ui.dart';
@@ -94,6 +100,8 @@ GoRouter buildAppRouter({
     '${DoctorRoutes.consultation}/:visitId': (state) =>
         ConsultationScreen(visitId: _idOf(state, 'visitId')),
     DoctorRoutes.prescriptions: (_) => const DoctorPrescriptionsScreen(),
+    '${IpdRoutes.list}/admit/:patientId': (state) =>
+        AdmitPatientScreen(patientId: _idOf(state, 'patientId')),
     // AI assist: status, the doctor's scribe sessions, one visit's scribe.
     AiRoutes.home: (_) => const AiDashboardScreen(),
     '${AiRoutes.home}/visits/:visitId': (state) =>
@@ -159,14 +167,24 @@ GoRouter buildAppRouter({
       return _page(state, child);
     },
   );
+  // Front desk pages at the same staff paths (BUG-01): find, register and
+  // link patients, check appointments in, and see the queue read-only.
+  final receptionScreens = <String, Widget Function()>{
+    DoctorRoutes.patients: () => const ReceptionPatientsScreen(),
+    DoctorRoutes.appointments: () => const ReceptionAppointmentsScreen(),
+    DoctorRoutes.queue: () => const QueueBoardScreen(readOnly: true),
+  };
   GoRoute doctorPage(String path, Widget Function(GoRouterState) build) =>
       GoRoute(
         path: path,
         pageBuilder: (_, state) {
           final location = state.uri.path;
           final item = findNavMatch(location)?.item;
+          final reception = receptionScreens[path];
           final Widget child = isDoctor(session.state) || item == null
               ? PatientPage(location: location, child: build(state))
+              : isReceptionist(session.state) && reception != null
+              ? PatientPage(location: location, child: reception())
               : ModuleScreen(item: item, location: location);
           return _page(state, child);
         },
