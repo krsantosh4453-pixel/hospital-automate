@@ -12,7 +12,8 @@ import { hospitalToday } from "../../utils/hospitalDate.js"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 const ROUTES = ["Oral", "IV", "IM", "SC", "Topical", "Inhaled", "Rectal", "Other"]
-const EMPTY_FORM = { item: "", dose: "", route: "Oral", frequency: "", end_date: "" }
+// first_dose: the server places the first dose (nurses/scheduling.py) and never in the past.
+const EMPTY_FORM = { item: "", dose: "", route: "Oral", frequency: "", end_date: "", first_dose: "next_round", first_dose_at: "" }
 
 function useAdmissionOrders(admission, hospitalId, open) {
   const [orders, setOrders] = useState([])
@@ -78,13 +79,15 @@ export default function MedicationOrders({ open, onClose, admission, hospitalId,
     setSaving(true)
     setFormError("")
     try {
-      const order = await api.nurses.mar.create({
+      await api.nurses.mar.create({
         patient: admission.patient, admission: admission.id, hospital: hospitalId,
         prescription: item.prescription, prescription_item: item.id, medicine_name: item.name,
         dose: form.dose.trim(), route: form.route, frequency: form.frequency.trim(),
         start_date: hospitalToday(), end_date: form.end_date || null,
+        // Scheduled with the order in one transaction; a refused time leaves no order behind.
+        first_dose: form.first_dose,
+        ...(form.first_dose === "at" ? { first_dose_at: form.first_dose_at } : {}),
       })
-      if (!form.frequency.toUpperCase().includes("PRN")) await api.nurses.mar.generateSchedule(order.id)
       toast.success(t("Medicine ordered. Nurses can now give it."))
       setForm(EMPTY_FORM)
       reload()
@@ -188,6 +191,18 @@ export default function MedicationOrders({ open, onClose, admission, hospitalId,
                 <Field label="Last day (optional)">
                   <Input type="date" value={form.end_date} min={hospitalToday()} onChange={set("end_date")} />
                 </Field>
+                <Field label="First dose" required>
+                  <Select value={form.first_dose} onChange={set("first_dose")}>
+                    <option value="next_round">{t("Next medication round")}</option>
+                    <option value="now">{t("Start now")}</option>
+                    <option value="at">{t("Specific time")}</option>
+                  </Select>
+                </Field>
+                {form.first_dose === "at" && (
+                  <Field label="First dose time" required>
+                    <Input type="datetime-local" value={form.first_dose_at} onChange={set("first_dose_at")} />
+                  </Field>
+                )}
               </div>
               {formError && <Alert tone="danger">{formError}</Alert>}
               <div className="flex justify-end">

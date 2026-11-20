@@ -234,6 +234,8 @@ function Register() {
                   <input
                     id="reg-field-3"
                     type="date"
+                    required
+                    max={new Date().toISOString().slice(0, 10)}
                     className={inputClass}
                     value={form.date_of_birth}
                     onChange={(e) => setField("date_of_birth", e.target.value)}

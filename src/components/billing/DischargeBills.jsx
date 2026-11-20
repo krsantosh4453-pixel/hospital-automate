@@ -5,10 +5,11 @@ import { Alert, Button, Card, CardHeader, Field, Input } from "../ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 // Final bills of inpatient stays being discharged (E12, H8). The server
-// counts the bed days and allows one live final bill per stay; payment is
+// counts the bed days, prices them from the hospital price list (BUG-07: no
+// rate is typed here) and allows one live final bill per stay; payment is
 // then taken on the invoice like any other.
 
-const emptyForm = { dailyRate: "", otherDescription: "", otherAmount: "" }
+const emptyForm = { otherDescription: "", otherAmount: "" }
 
 export default function DischargeBills({ hospitalId, refreshKey, onCreated }) {
   const { t } = useLanguage()
@@ -43,7 +44,7 @@ export default function DischargeBills({ hospitalId, refreshKey, onCreated }) {
     setSaving(row.admission)
     setError("")
     try {
-      await api.ipd.admissions.finalBill(row.admission, { daily_rate: form.dailyRate, items })
+      await api.ipd.admissions.finalBill(row.admission, { items })
       setForms((prev) => ({ ...prev, [row.admission]: emptyForm }))
       setReloadToken((n) => n + 1)
       onCreated?.()
@@ -68,6 +69,7 @@ export default function DischargeBills({ hospitalId, refreshKey, onCreated }) {
         {rows.map((row) => {
           const bill = row.final_invoice
           const form = formFor(row.admission)
+          const beds = row.bed_charges || { lines: [], total: null, error: "" }
           return (
             <li key={row.admission} className="px-5 py-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -82,17 +84,23 @@ export default function DischargeBills({ hospitalId, refreshKey, onCreated }) {
                   {Number(bill.balance_due) > 0 ? t(", ₹{balanceDue} due. Take the payment on the invoice below.", { balanceDue: bill.balance_due }) : t(", paid.")}
                 </p>
               ) : (
-                <form onSubmit={(event) => create(event, row)} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4 sm:items-end">
-                  <Field label="Bed charge per day (₹)" required>
-                    <Input type="number" min="0" step="0.01" inputMode="decimal" value={form.dailyRate} onChange={setField(row.admission, "dailyRate")} />
-                  </Field>
+                <form onSubmit={(event) => create(event, row)} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-end">
+                  <div className="sm:col-span-3 text-sm text-ink-700">
+                    {beds.lines.map((line) => (
+                      <p key={line.description}>{line.description}</p>
+                    ))}
+                    {beds.total !== null && (
+                      <p className="font-medium">{t("Bed charges from the price list")}: ₹{beds.total}</p>
+                    )}
+                    {beds.error && <Alert tone="warning" className="mt-2">{beds.error}</Alert>}
+                  </div>
                   <Field label="Other charges">
                     <Input value={form.otherDescription} onChange={setField(row.admission, "otherDescription")} placeholder={t("e.g. Medicines")} maxLength={200} />
                   </Field>
                   <Field label="Amount (₹)">
-                    <Input type="number" min="0" step="0.01" inputMode="decimal" value={form.otherAmount} onChange={setField(row.admission, "otherAmount")} />
+                    <Input type="number" min="0.01" step="0.01" inputMode="decimal" value={form.otherAmount} onChange={setField(row.admission, "otherAmount")} />
                   </Field>
-                  <Button type="submit" loading={saving === row.admission}>{t("Create final bill")}</Button>
+                  <Button type="submit" loading={saving === row.admission} disabled={Boolean(beds.error)}>{t("Create final bill")}</Button>
                 </form>
               )}
             </li>
