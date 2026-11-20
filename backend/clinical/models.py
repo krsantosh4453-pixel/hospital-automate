@@ -89,6 +89,11 @@ class Allergy(EnteredInError):
     name = models.CharField(max_length=150)
     reaction = models.TextField(blank=True)
     severity = models.CharField(max_length=30, blank=True)
+    # What the patient reacts to (a drug allergy matters for prescribing).
+    category = models.CharField(
+        max_length=20, blank=True, default="",
+        choices=[(v, v) for v in ("Drug", "Food", "Environmental", "Other")],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

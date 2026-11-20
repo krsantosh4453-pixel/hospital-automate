@@ -9,13 +9,15 @@ from rest_framework.exceptions import ValidationError
 
 from doctors.models import Doctor
 
+from audit.services import record_audit
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import (
-    get_linked_patient, get_user_roles, is_active_staff, IsDoctor, IsHospitalManagerReadOnly, IsLabStaff, IsNurse,
-    IsPatientReadOnly,
+    get_linked_patient, get_user_roles, is_active_staff, IsAdmin, IsDoctor, IsHospitalManagerReadOnly, IsLabStaff,
+    IsNurse, IsPatientReadOnly,
 )
 from .models import (
     LabTest,
+    LabVerificationPolicy,
     SampleCollection,
     SampleDispatch,
     LabResult,
@@ -192,91 +194,171 @@ class LabTestViewSet(HospitalScopedViewSet):
 
         return Response(LabTestSerializer(lab_test).data)
 
+    def _locked(self, lab_test):
+        # Lock the test row only: PostgreSQL cannot lock the nullable side of a join.
+        return LabTest.objects.select_for_update(of=("self",)).select_related("visit").get(pk=lab_test.pk)
+
     @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
     def enter_result(self, request, pk=None):
-        """Enter lab result."""
+        """
+        Enter the result once (BUG-06). It then waits for verification by a
+        different user; nobody can overwrite it, and a retry is refused.
+        """
         lab_test = self.get_object()
+        result_text = str(request.data.get("result_text") or "").strip()
+        result_data = request.data.get("result_data") or {}
+        if not isinstance(result_data, dict):
+            return Response({"detail": "result_data must be an object."}, status=status.HTTP_400_BAD_REQUEST)
+        if not result_text and not result_data:
+            return Response({"detail": "Enter the result before saving."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if lab_test.status != "Processing":
-            return Response(
-                {"detail": "Result can only be entered for tests being processed."},
-                status=status.HTTP_400_BAD_REQUEST,
+        with transaction.atomic():
+            lab_test = self._locked(lab_test)
+            if LabResult.objects.filter(lab_test=lab_test).exists():
+                return Response(
+                    {"detail": "A result is already entered for this test. It cannot be overwritten."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            if lab_test.status != "Processing":
+                return Response(
+                    {"detail": "Result can only be entered for tests being processed."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            lab_result = LabResult.objects.create(
+                lab_test=lab_test,
+                result_data=result_data,
+                result_text=result_text,
+                reference_ranges=request.data.get("reference_ranges") or {},
+                abnormal_flags=request.data.get("abnormal_flags") or [],
+                entered_by=request.user,
             )
-
-        lab_result = LabResult.objects.create(
-            lab_test=lab_test,
-            result_data=request.data.get("result_data", {}),
-            result_text=request.data.get("result_text", ""),
-            reference_ranges=request.data.get("reference_ranges", {}),
-            abnormal_flags=request.data.get("abnormal_flags", []),
-            entered_by=request.user,
-            entered_at=timezone.now(),
-        )
-
-        lab_test.status = "Result Entered"
-        lab_test.result = request.data.get("result_text", "")
-        lab_test.save()
+            lab_test.status = "Result Entered"
+            lab_test.result = result_text
+            lab_test.save(update_fields=["status", "result"])
+        record_audit(request, "lab.result.entered", lab_result, hospital=lab_test.hospital_id)
 
         return Response(
             {"lab_test": LabTestSerializer(lab_test).data, "lab_result": LabResultSerializer(lab_result).data},
             status=status.HTTP_201_CREATED,
         )
 
+    @staticmethod
+    def _self_verification_policy(hospital_id):
+        """The hospital's exception policy when it allows self-verification, else None."""
+        return LabVerificationPolicy.objects.filter(hospital_id=hospital_id, allow_self_verification=True).first()
+
     @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
     def verify_result(self, request, pk=None):
-        """Verify lab result."""
+        """
+        Verify a result (BUG-06): a different authorised user from the one who
+        entered it, unless the hospital's policy allows otherwise (then marked
+        and audited). The verifier and time are recorded, and the test is
+        charged from the price list in the same transaction (BUG-07).
+        """
+        from billing.charges import capture_lab_test
+
         lab_test = self.get_object()
-
-        if lab_test.status != "Result Entered":
-            return Response(
-                {"detail": "Result must be entered before verification."},
-                status=status.HTTP_400_BAD_REQUEST,
+        with transaction.atomic():
+            lab_test = self._locked(lab_test)
+            if lab_test.status != "Result Entered":
+                return Response(
+                    {"detail": "Result must be entered before verification."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            lab_result = LabResult.objects.select_for_update().get(lab_test=lab_test)
+            self_verified = lab_result.entered_by_id is not None and lab_result.entered_by_id == request.user.pk
+            policy = self._self_verification_policy(lab_test.hospital_id) if self_verified else None
+            if self_verified and policy is None:
+                return Response(
+                    {"detail": "You entered this result, so a different authorised user must verify it.",
+                     "same_user": True},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            now = timezone.now()
+            lab_result.is_verified = True
+            lab_result.verified_by = request.user
+            lab_result.verified_at = now
+            lab_result.save(update_fields=["is_verified", "verified_by", "verified_at"])
+            ResultVerification.objects.create(
+                lab_result=lab_result,
+                verified_by=request.user,
+                action="Verified",
+                comments=str(request.data.get("comments") or "").strip(),
+                self_verified=self_verified,
             )
+            lab_test.status = "Verified"
+            lab_test.verified_at = now
+            lab_test.save(update_fields=["status", "verified_at"])
+            charge = capture_lab_test(lab_test)
 
-        lab_result = lab_test.lab_result
-        lab_result.is_verified = True
-        lab_result.verified_by = request.user
-        lab_result.verified_at = timezone.now()
-        lab_result.save()
-
-        ResultVerification.objects.create(
-            lab_result=lab_result,
-            verified_by=request.user,
-            action="Verified",
-            comments=request.data.get("comments", ""),
-        )
-
-        lab_test.status = "Verified"
-        lab_test.verified_at = timezone.now()
-        lab_test.save()
-
+        details = {"entered_by": lab_result.entered_by_id, "charged": charge is not None}
+        if self_verified:
+            details["policy_reason"] = policy.reason
+        record_audit(request, "lab.result.self_verified" if self_verified else "lab.result.verified", lab_result,
+                     hospital=lab_test.hospital_id, details=details)
         return Response(
             {"lab_test": LabTestSerializer(lab_test).data, "lab_result": LabResultSerializer(lab_result).data}
         )
 
     @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
     def release_result(self, request, pk=None):
-        """Release result to doctor/patient."""
+        """Release a verified result to the doctor and the patient."""
         lab_test = self.get_object()
-
-        if lab_test.status != "Verified":
-            return Response(
-                {"detail": "Result must be verified before release."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        lab_result = lab_test.lab_result
-        lab_result.is_released = True
-        lab_result.released_at = timezone.now()
-        lab_result.save()
-
-        lab_test.status = "Released"
-        lab_test.released_at = timezone.now()
-        lab_test.save()
+        with transaction.atomic():
+            lab_test = self._locked(lab_test)
+            lab_result = LabResult.objects.select_for_update().filter(lab_test=lab_test).first()
+            if lab_test.status != "Verified" or lab_result is None or not lab_result.is_verified:
+                return Response(
+                    {"detail": "Result must be verified before release."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            now = timezone.now()
+            lab_result.is_released = True
+            lab_result.released_at = now
+            lab_result.save(update_fields=["is_released", "released_at"])
+            lab_test.status = "Released"
+            lab_test.released_at = now
+            lab_test.save(update_fields=["status", "released_at"])
+        record_audit(request, "lab.result.released", lab_result, hospital=lab_test.hospital_id)
 
         return Response(
             {"lab_test": LabTestSerializer(lab_test).data, "lab_result": LabResultSerializer(lab_result).data}
         )
+
+    @action(detail=False, methods=["get", "post"], url_path="verification-policy",
+            permission_classes=[IsLabStaff | IsHospitalManagerReadOnly])
+    def verification_policy(self, request):
+        """
+        BUG-06: the selected hospital's exception to maker-checker. Anyone in
+        the lab may read it; only an Admin changes it, with a reason.
+        POST {allow_self_verification, reason}.
+        """
+        hospital_ids = self.get_acting_hospital_ids()
+        if len(hospital_ids) != 1:
+            raise ValidationError({"hospital": "Select one hospital."})
+        hospital_id = hospital_ids[0]
+        policy = LabVerificationPolicy.objects.filter(hospital_id=hospital_id).first()
+        if request.method == "POST":
+            if not IsAdmin().has_permission(request, self):
+                return Response({"detail": "Only an Admin can change the verification policy."},
+                                status=status.HTTP_403_FORBIDDEN)
+            allow = str(request.data.get("allow_self_verification", "")).lower() in ("true", "1", "yes")
+            reason = str(request.data.get("reason") or "").strip()
+            if allow and len(reason) < 10:
+                raise ValidationError({"reason": "Say why one person may enter and verify results (at least 10 characters)."})
+            policy, _ = LabVerificationPolicy.objects.update_or_create(
+                hospital_id=hospital_id,
+                defaults={"allow_self_verification": allow, "reason": reason, "updated_by": request.user},
+            )
+            record_audit(request, "lab.verification_policy.update", policy, hospital=hospital_id,
+                         details={"allow_self_verification": allow, "reason": reason})
+        return Response({
+            "hospital": hospital_id,
+            "allow_self_verification": bool(policy and policy.allow_self_verification),
+            "reason": policy.reason if policy else "",
+            "updated_by": policy.updated_by_id if policy else None,
+            "updated_at": policy.updated_at if policy else None,
+        })
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
@@ -325,9 +407,15 @@ class SampleDispatchViewSet(HospitalScopedViewSet):
 
 
 class LabResultViewSet(HospitalScopedViewSet):
+    """
+    Read only (BUG-06): a result is written once by enter_result and changed
+    only by verify/release, never by a direct PUT, PATCH or DELETE here.
+    """
+
     queryset = LabResult.objects.all()
     serializer_class = LabResultSerializer
     permission_classes = [IsLabStaff | IsDoctor]
+    http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -338,9 +426,12 @@ class LabResultViewSet(HospitalScopedViewSet):
 
 
 class ResultVerificationViewSet(HospitalScopedViewSet):
+    """Read only (BUG-06): verifications are recorded by verify_result."""
+
     queryset = ResultVerification.objects.all()
     serializer_class = ResultVerificationSerializer
     permission_classes = [IsLabStaff]
+    http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
         qs = super().get_queryset()

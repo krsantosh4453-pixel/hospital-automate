@@ -47,3 +47,41 @@ class QueryBudgetTests(TestCase):
         rows = client.get("/api/billing/invoices/").json()
         rows = rows.get("results", rows)
         self.assertEqual({str(r["balance_due"]) for r in rows}, {"5.00"})
+
+
+class AdmissionListScalingTests(TestCase):
+    """The IPD list (polled by doctors and nurses) must not run a query per stay."""
+
+    def test_admission_list_queries_do_not_grow_with_rows(self):
+        from doctors.models import Doctor
+        from hospital.models import Bed, Room, Ward
+        from ipd.models import Admission, BedAllocation
+
+        hospital = Hospital.objects.create(name="Synthetic IPD Perf", is_active=True)
+        user, _ = make_staff("perf_ipd_admin", hospital, role=StaffRole.ADMIN)
+        doctor = Doctor.objects.create(hospital=hospital, name="Dr Synthetic", specialization="", phone="")
+        room = Room.objects.create(ward=Ward.objects.create(hospital=hospital, name="Ward P"), room_number="P1")
+        client = APIClient()
+        client.force_authenticate(user)
+        client.credentials(HTTP_X_HOSPITAL_ID=str(hospital.id))
+
+        def add(count, start):
+            for i in range(start, start + count):
+                patient = Patient.objects.create(name=f"Synthetic Stay {i}", age=50, gender="Female",
+                                                 phone=f"90002{i:05d}", hospital=hospital)
+                admission = Admission.objects.create(hospital=hospital, patient=patient, admitting_doctor=doctor,
+                                                     status="Admitted", reason="Synthetic")
+                bed = Bed.objects.create(room=room, bed_number=f"P-{i}", status="Occupied")
+                BedAllocation.objects.create(admission=admission, bed=bed, is_active=True)
+
+        def queries():
+            with CaptureQueriesContext(connection) as ctx:
+                response = client.get("/api/ipd/admissions/")
+            self.assertEqual(response.status_code, 200)
+            return len(ctx.captured_queries)
+
+        add(2, 0)
+        queries()  # warm-up: the first request caches per-user lookups
+        few = queries()
+        add(12, 2)
+        self.assertEqual(queries(), few)

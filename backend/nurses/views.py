@@ -4,7 +4,9 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
+
+from doctors.models import Doctor
 from django.utils import timezone
 from datetime import datetime, timedelta
 
@@ -12,6 +14,8 @@ from audit.services import record_audit
 from config.hospital_time import hospital_now, hospital_today
 from users.viewsets import HospitalScopedViewSet
 from .frequency import ONCE, PRN, FrequencyError, parse_frequency
+from . import scheduling
+from .scheduling import AT, ScheduleError
 from users.permissions import IsAdmin, IsHospitalManager, IsNurse, IsDoctor
 from .models import (
     Nurse,
@@ -20,6 +24,7 @@ from .models import (
     CareTask,
     MAR,
     MARAdministration,
+    MedicationRound,
     NurseWardAssignment,
     PatientAssignment,
 )
@@ -30,6 +35,7 @@ from .serializers import (
     CareTaskSerializer,
     MARSerializer,
     MARAdministrationSerializer,
+    MedicationRoundSerializer,
     NurseWardAssignmentSerializer,
     PatientAssignmentSerializer,
 )
@@ -260,10 +266,16 @@ class MARViewSet(HospitalScopedViewSet):
     nurses read them and record doses given under them.
     """
     queryset = MAR.objects.select_related("hospital", "patient", "admission", "prescription", "prescription_item",
-                                          "ordered_by")
+                                          "ordered_by").annotate(
+        # The ordering doctor's profile name at this hospital (MAR "Ordered by").
+        ordered_by_doctor_name=Subquery(
+            Doctor.objects.filter(user=OuterRef("ordered_by"), hospital=OuterRef("hospital"))
+            .values("name")[:1]
+        ),
+    )
     serializer_class = MARSerializer
     permission_classes = [IsNurse | IsDoctor]
-    DOCTOR_ONLY_ACTIONS = {"create", "update", "partial_update", "destroy", "generate_schedule"}
+    DOCTOR_ONLY_ACTIONS = {"create", "update", "partial_update", "destroy", "generate_schedule", "schedule_preview"}
 
     def get_permissions(self):
         if getattr(self, "action", None) in self.DOCTOR_ONLY_ACTIONS:
@@ -272,8 +284,66 @@ class MARViewSet(HospitalScopedViewSet):
 
     def perform_create(self, serializer):
         extra = self._check_tenancy(serializer.validated_data)
-        instance = serializer.save(ordered_by=self.request.user, **extra)
-        self._audit("create", instance)
+        # A first dose sent with the order is scheduled in the same
+        # transaction: a refused time leaves no order without doses behind.
+        wants_schedule = "first_dose" in self.request.data
+        mode = serializer.validated_data.pop("first_dose", None)
+        when = serializer.validated_data.pop("first_dose_at", None)
+        with transaction.atomic():
+            instance = serializer.save(ordered_by=self.request.user, **extra)
+            self._audit("create", instance)
+            if wants_schedule and parse_frequency(instance.frequency).kind != PRN:
+                # A ScheduleError leaves the atomic block, so the order is rolled back;
+                # create() turns it into the same 400 body as generate_schedule.
+                self._schedule(instance, parse_frequency(instance.frequency), mode, when)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            return super().create(request, *args, **kwargs)
+        except ScheduleError as exc:
+            return Response({"first_dose": [str(exc)], "first_dose_required": exc.needs_choice},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    def _schedule(self, mar, frequency, mode, when, start_day=None):
+        """Replace the order's future untouched doses with the schedule from its first dose."""
+        first = scheduling.resolve_first_dose(
+            frequency, mode, when, scheduling.round_times(mar.hospital_id),
+            max(filter(None, [mar.start_date, start_day])) if (mar.start_date or start_day) else None,
+            mar.end_date,
+        )
+        # Only future doses nobody has acted on are replaced; recorded outcomes stay.
+        MARAdministration.objects.filter(mar=mar, is_prn=False, scheduled_time__gt=timezone.now(),
+                                         status=MARAdministration.SCHEDULED).delete()
+        times = scheduling.dose_times(frequency, first.at, mar.end_date)
+        if frequency.kind == ONCE:
+            # A single (STAT) dose: once anything is recorded for it, no second one is scheduled.
+            times = [] if mar.administrations.exists() else times[:1]
+        for when_ in times:
+            MARAdministration.objects.get_or_create(
+                mar=mar, scheduled_time=when_, is_prn=False,
+                defaults={"status": MARAdministration.SCHEDULED},
+            )
+        record_audit(self.request, "nurses.mar.schedule_generated", mar,
+                     details={"first_dose_mode": first.mode, "first_dose": first.at.isoformat(),
+                              "doses": len(times)})
+        return first, times
+
+    @staticmethod
+    def _first_dose_request(data):
+        """(mode, time, earliest day) from the request; the old ``start_date`` still works."""
+        mode = data.get("first_dose") or None
+        when = data.get("first_dose_at") or None
+        start_day = None
+        legacy = data.get("start_date")
+        if mode is None and legacy:
+            text = str(legacy)
+            if "T" in text or " " in text:
+                mode, when = AT, text  # a full date-time is a chosen first dose
+            else:
+                # A bare date used to mean midnight (the overdue defect); it now
+                # only says the doses start on that day.
+                start_day = scheduling.as_day(text)
+        return mode, when, start_day
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -294,8 +364,14 @@ class MARViewSet(HospitalScopedViewSet):
     @action(detail=True, methods=["post"])
     @transaction.atomic
     def generate_schedule(self, request, pk=None):
-        """Generate MAR administration schedule based on frequency."""
+        """
+        Schedule the order's doses. Body: ``first_dose`` (now | at | next_round),
+        ``first_dose_at`` for ``at``; without them the safe default applies (see
+        nurses/scheduling.py). Never schedules a first dose in the past.
+        """
         mar = self.get_object()
+        # Serialise parallel schedule requests for one order.
+        mar = MAR.objects.select_for_update().get(pk=mar.pk)
         if not mar.is_active or mar.entered_in_error_at is not None:
             return Response({"detail": NO_ORDER}, status=status.HTTP_400_BAD_REQUEST)
         # H-01: a frequency is understood exactly or refused, never guessed.
@@ -305,45 +381,13 @@ class MARViewSet(HospitalScopedViewSet):
             return Response({"detail": f"Frequency: {exc}"}, status=status.HTTP_400_BAD_REQUEST)
         if frequency.kind == PRN:
             return Response({"detail": "PRN medications do not have fixed schedules."})
-
-        # Replace only future doses nobody has acted on; recorded outcomes stay.
-        MARAdministration.objects.filter(
-            mar=mar,
-            scheduled_time__gt=timezone.now(),
-            status=MARAdministration.SCHEDULED,
-        ).delete()
-
-        start_date = request.data.get("start_date")
-        if start_date:
-            try:
-                start_dt = datetime.fromisoformat(str(start_date))
-            except ValueError:
-                return Response({"start_date": "Use ISO format, e.g. 2026-10-24T08:00."},
-                                status=status.HTTP_400_BAD_REQUEST)
-            if timezone.is_naive(start_dt):
-                # A time typed without a zone is the hospital's clock, not the server's UTC.
-                start_dt = timezone.make_aware(start_dt, hospital_now().tzinfo)
-        else:
-            start_dt = timezone.now()
-
-        end_date = mar.end_date
-        if not end_date:
-            end_date = start_dt.date() + timedelta(days=7)
-
-        if frequency.kind == ONCE:
-            # A single (STAT) dose: once anything is recorded for it, no second one is scheduled.
-            if not mar.administrations.exists():
-                MARAdministration.objects.create(mar=mar, scheduled_time=start_dt,
-                                                 status=MARAdministration.SCHEDULED)
-        else:
-            current_dt = start_dt
-            while current_dt.date() <= end_date:
-                MARAdministration.objects.get_or_create(
-                    mar=mar,
-                    scheduled_time=current_dt,
-                    defaults={"status": MARAdministration.SCHEDULED}
-                )
-                current_dt += timedelta(hours=frequency.interval_hours)
+        try:
+            mode, when, start_day = self._first_dose_request(request.data)
+            self._schedule(mar, frequency, mode, when, start_day=start_day)
+        except (ScheduleError, ValueError) as exc:
+            return Response({"first_dose": [str(exc)],
+                             "first_dose_required": getattr(exc, "needs_choice", False)},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         # Return upcoming administrations
         upcoming = mar.administrations.filter(
@@ -352,6 +396,43 @@ class MARViewSet(HospitalScopedViewSet):
         ).order_by("scheduled_time")
 
         return Response(MARAdministrationSerializer(upcoming, many=True).data)
+
+    @action(detail=False, methods=["post"], url_path="schedule-preview")
+    def schedule_preview(self, request):
+        """
+        POST {hospital, frequency, start_date?, end_date?, first_dose?, first_dose_at?}:
+        the first dose and the doses after it, without saving anything, so the
+        doctor reviews the schedule before ordering.
+        """
+        data = request.data
+        try:
+            hospital_id = int(data.get("hospital"))
+        except (TypeError, ValueError):
+            return Response({"hospital": ["Required."]}, status=status.HTTP_400_BAD_REQUEST)
+        if hospital_id not in set(self.get_acting_hospital_ids()):
+            return Response({"detail": "You do not have access to this hospital."}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            frequency = parse_frequency(data.get("frequency"))
+        except FrequencyError as exc:
+            return Response({"frequency": [str(exc)]}, status=status.HTTP_400_BAD_REQUEST)
+        rounds = scheduling.round_times(hospital_id)
+        base = {"rounds": [r.strftime("%H:%M") for r in rounds], "prn": frequency.kind == PRN}
+        if frequency.kind == PRN:
+            return Response({**base, "first_dose_mode": None, "first_dose_at": None, "doses": [], "dose_count": 0})
+        try:
+            start_day = scheduling.as_day(data.get("start_date"))
+            end_day = scheduling.as_day(data.get("end_date"))
+            first = scheduling.resolve_first_dose(frequency, data.get("first_dose") or None,
+                                                  data.get("first_dose_at") or None, rounds, start_day, end_day)
+        except (ScheduleError, ValueError) as exc:
+            return Response({**base, "first_dose": [str(exc)],
+                             "first_dose_required": getattr(exc, "needs_choice", False)},
+                            status=status.HTTP_400_BAD_REQUEST)
+        times = scheduling.dose_times(frequency, first.at, end_day)
+        if frequency.kind == ONCE:
+            times = times[:1]
+        return Response({**base, "first_dose_mode": first.mode, "first_dose_at": first.at.isoformat(),
+                         "doses": [t.isoformat() for t in times[:6]], "dose_count": len(times)})
 
     @action(detail=True, methods=["post"])
     def prn(self, request, pk=None):
@@ -641,3 +722,44 @@ class PatientAssignmentViewSet(HospitalScopedViewSet):
             PatientAssignmentSerializer(created, many=True).data,
             status=status.HTTP_201_CREATED
         )
+
+class MedicationRoundViewSet(HospitalScopedViewSet):
+    """
+    A hospital's medication rounds. Ward staff read them; only an Admin or a
+    Hospital Manager adds one or switches it off (rows are never deleted, so
+    the history of which rounds existed stays).
+    """
+    queryset = MedicationRound.objects.select_related("hospital")
+    serializer_class = MedicationRoundSerializer
+    permission_classes = [IsNurse | IsDoctor | IsAdmin | IsHospitalManager]
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    WRITE_ACTIONS = {"create", "partial_update"}
+
+    def get_permissions(self):
+        if getattr(self, "action", None) in self.WRITE_ACTIONS:
+            return [(IsAdmin | IsHospitalManager)()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        hospital_id = self.request.query_params.get("hospital")
+        if hospital_id:
+            qs = qs.filter(hospital_id=hospital_id)
+        if self.request.query_params.get("active") == "true":
+            qs = qs.filter(is_active=True)
+        return qs
+
+    def perform_create(self, serializer):
+        hospital = serializer.validated_data.get("hospital")
+        if hospital is not None and MedicationRound.objects.filter(
+                hospital=hospital, time=serializer.validated_data["time"], is_active=True).exists():
+            raise ValidationError({"time": ["This hospital already has an active round at that time."]})
+        extra = self._check_tenancy(serializer.validated_data)
+        instance = serializer.save(created_by=self.request.user, **extra)
+        self._audit("create", instance)
+
+    def perform_update(self, serializer):
+        # Only switching a round off or on (or relabelling) is allowed; the time is fixed.
+        if "time" in serializer.validated_data or "hospital" in serializer.validated_data:
+            raise ValidationError({"time": ["Add a new round instead of moving one."]})
+        super().perform_update(serializer)

@@ -96,15 +96,16 @@ class MARSchedulingTests(TestCase):
             frequency=frequency, start_date=hospital_today(), end_date=hospital_today() + timedelta(days=days),
         )
 
-    def schedule(self, mar):
-        return self.doctor_api.post(f"/api/nurses/mar/{mar.id}/generate_schedule/", {}, format="json")
+    def schedule(self, mar, **body):
+        return self.doctor_api.post(f"/api/nurses/mar/{mar.id}/generate_schedule/", body, format="json")
 
     def doses(self, mar):
         return MARAdministration.objects.filter(mar=mar).order_by("scheduled_time")
 
     def test_weekly_order_is_not_scheduled_daily(self):
         mar = self.order("WEEKLY")
-        self.assertEqual(self.schedule(mar).status_code, 200)
+        # No rounds configured here, so a weekly order needs an explicit first dose.
+        self.assertEqual(self.schedule(mar, first_dose="now").status_code, 200)
         times = list(self.doses(mar).values_list("scheduled_time", flat=True))
         self.assertEqual(len(times), 3)  # day 0, 7 and 14; daily scheduling gave 15
         self.assertEqual(times[1] - times[0], timedelta(days=7))
@@ -151,8 +152,9 @@ class MARSchedulingTests(TestCase):
 
     def test_start_time_without_a_zone_is_the_hospital_clock(self):
         """A doctor's 08:00 means 08:00 at the hospital (Asia/Kolkata), not 08:00 UTC (13:30 IST)."""
-        mar = self.order("OD", days=1)
-        start = f"{hospital_today().isoformat()}T08:00"
+        mar = self.order("OD", days=2)
+        # Tomorrow: a first dose in the past is refused (first-dose scheduling fix).
+        start = f"{(hospital_today() + timedelta(days=1)).isoformat()}T08:00"
         resp = self.doctor_api.post(f"/api/nurses/mar/{mar.id}/generate_schedule/", {"start_date": start},
                                     format="json")
         self.assertEqual(resp.status_code, 200, resp.content)

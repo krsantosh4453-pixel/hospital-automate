@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from appointments.models import Appointment
+from audit.services import record_audit
 from appointments.slots import lock_doctor
 
 from .models import Visit, QueueToken, DoctorSchedule
@@ -15,8 +16,11 @@ from .serializers import (
     DoctorScheduleSerializer,
 )
 from .services import issue_queue_token_for_appointment
+from .services import visit_lifecycle
 from .services.appointment_status import sync_appointment_status
 from .services.prediction import QueuePredictionService
+from .services.visit_lifecycle import VisitTransitionError, change_visit_status, recalculate_queue_of
+from doctors.models import Doctor
 from notifications.services import (
     get_notification_engine,
     NotificationEvent,
@@ -24,7 +28,7 @@ from notifications.services import (
     NotificationPayload,
 )
 from users.care_scope import doctor_hospital_ids, limit_queue_to_department
-from users.permissions import get_user_hospital_ids
+from users.permissions import get_user_hospital_ids, get_user_roles
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import IsAdmin, IsHospitalManager, IsReceptionist, IsDoctor, IsNurse, IsPatientReadOnly
 from config.hospital_time import hospital_today
@@ -62,6 +66,54 @@ class VisitViewSet(HospitalScopedViewSet):
             queryset = queryset.filter(status=status_filter)
 
         return queryset
+
+    def update(self, request, *args, **kwargs):
+        """
+        A status change moves the visit's queue token and appointment with it
+        (BUG-02), through ``change_visit_status``. Other fields save as before.
+        """
+        visit = self.get_object()
+        target = request.data.get("status")
+        if target is None or target == visit.status:
+            return super().update(request, *args, **kwargs)
+        refusal = self._refuse_status_change(request, visit, target)
+        if refusal is not None:
+            return refusal
+        others = {key: value for key, value in request.data.items() if key != "status"}
+        previous = visit.status
+        try:
+            with transaction.atomic():
+                visit, _ = change_visit_status(visit.pk, target, after_commit=recalculate_queue_of)
+                if others:
+                    serializer = self.get_serializer(visit, data=others, partial=True)
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_update(serializer)
+        except VisitTransitionError as error:
+            code = status.HTTP_400_BAD_REQUEST if error.flag == "invalid_status" else status.HTTP_409_CONFLICT
+            return Response(error.as_body(), status=code)
+        except OperationalError as error:
+            if "database is locked" not in str(error):
+                raise
+            return Response({"detail": QUEUE_CHANGE_IN_PROGRESS}, status=status.HTTP_409_CONFLICT)
+        record_audit(request, "encounters.visit.status_changed", visit,
+                     details={"from": previous, "to": target})
+        return Response(self.get_serializer(Visit.objects.get(pk=visit.pk)).data)
+
+    def _refuse_status_change(self, request, visit, target):
+        """Only the visit's doctor (or an Admin) starts or completes its consultation."""
+        if target not in (visit_lifecycle.IN_CONSULTATION, visit_lifecycle.COMPLETED):
+            return None
+        roles = get_user_roles(request.user, visit.hospital_id)
+        if "Admin" in roles:
+            return None
+        is_doctor = "Doctor" in roles
+        own_visit = visit.doctor_id is None or Doctor.objects.filter(pk=visit.doctor_id, user=request.user).exists()
+        if is_doctor and own_visit:
+            return None
+        return Response(
+            {"detail": "Only the visit's doctor can start or complete the consultation.", "not_visit_doctor": True},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
 
 class QueueTokenViewSet(HospitalScopedViewSet):
@@ -180,6 +232,8 @@ class QueueTokenViewSet(HospitalScopedViewSet):
         sync_appointment_status(token)
 
         if created:
+            record_audit(request, "encounters.queue_token.issued", token,
+                         details={"token": token.token_number, "appointment": token.appointment_id})
             self._send_queue_notification(
                 token,
                 NotificationEvent.QUEUE_TOKEN_CREATED,
@@ -237,6 +291,8 @@ class QueueTokenViewSet(HospitalScopedViewSet):
             # Sent only once the change is committed: a rollback never messages the patient.
             transaction.on_commit(lambda: self._send_status_change_notification(token, old_status, new_status))
 
+        record_audit(self.request, "encounters.queue_token.status_changed", token,
+                     details={"from": old_status, "to": new_status})
         return Response(self.get_serializer(token).data)
 
     def _open_consultation(self, hospital_id, doctor_id, exclude_pk=None):
@@ -399,8 +455,11 @@ class QueueTokenViewSet(HospitalScopedViewSet):
                 {"detail": f"Can only requeue Skipped or No Show tokens, not {token.status}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        previous = token.status
         token.status = QueueToken.Status.WAITING
         token.save()
+        record_audit(request, "encounters.queue_token.status_changed", token,
+                     details={"from": previous, "to": QueueToken.Status.WAITING})
         self._recalculate_estimates(token.hospital_id, token.doctor_id, token.token_date)
 
         self._send_queue_notification(
@@ -504,6 +563,8 @@ class QueueTokenViewSet(HospitalScopedViewSet):
             lambda: self._send_status_change_notification(token, previous, QueueToken.Status.CALLED)
         )
 
+        record_audit(self.request, "encounters.queue_token.status_changed", token,
+                     details={"from": previous, "to": QueueToken.Status.CALLED, "via": "call_next"})
         return Response(self.get_serializer(token).data)
 
     @action(detail=False, methods=["get"], url_path="estimates")

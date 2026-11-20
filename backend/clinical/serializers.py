@@ -94,8 +94,10 @@ class VitalSignSerializer(serializers.ModelSerializer):
         return float(round(Decimal(obj.weight) / (metres * metres), 1))
 
     def get_recorded_by_name(self, obj) -> str:
-        user = obj.recorded_by
-        return (user.get_full_name() or user.username) if user else ""
+        # The recorder as the ward knows them ("Dr Asha Mehta"), not the login.
+        from users.staff_links import staff_display_name
+
+        return staff_display_name(obj.recorded_by, obj.visit.hospital_id if obj.visit_id else None, self.context)
 
     def validate(self, attrs):
         device = attrs.get("oxygen_device", getattr(self.instance, "oxygen_device", ""))
@@ -114,6 +116,7 @@ class AllergySerializer(serializers.ModelSerializer):
             "name",
             "reaction",
             "severity",
+            "category",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]

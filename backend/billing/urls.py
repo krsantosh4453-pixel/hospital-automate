@@ -7,6 +7,7 @@ from .views import (
     InvoiceItemViewSet,
     PaymentViewSet,
     InsuranceClaimViewSet,
+    ServicePriceViewSet,
 )
 
 router = DefaultRouter()
@@ -16,6 +17,7 @@ router.register(r"invoice-items", InvoiceItemViewSet, basename="invoice-item")
 router.register(r"payments", PaymentViewSet, basename="payment")
 router.register(r"advances", AdvanceAccountViewSet, basename="advance")
 router.register(r"insurance-claims", InsuranceClaimViewSet, basename="insurance-claim")
+router.register(r"price-list", ServicePriceViewSet, basename="service-price")
 
 urlpatterns = [
     path("", include(router.urls)),

@@ -22,6 +22,9 @@ class Hospital(models.Model):
     # blocked before the Admin has checked the hospital's current doctors.
     # db_default: rows written by code that predates the column (rolling deploy) still get False.
     require_verified_doctors = models.BooleanField(default=False, db_default=False)
+    # BUG-01: patients may pick this hospital at sign-up or join it from the
+    # patient app (an administrator can turn it off). Only active hospitals.
+    allow_patient_self_registration = models.BooleanField(default=True, db_default=True)
     hospital_type = models.CharField(max_length=20, choices=Type.choices, default=Type.PRIVATE)
     address = models.TextField(blank=True)
     city = models.CharField(max_length=100, blank=True)

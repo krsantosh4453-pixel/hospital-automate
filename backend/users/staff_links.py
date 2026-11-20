@@ -51,3 +51,29 @@ def link_profile_login(attrs, instance, role, profiles_related_name):
             {"user": f"The login must belong to an active {role} of this hospital."}
         )
     return attrs
+
+
+def staff_display_name(user, hospital_id, cache=None):
+    """
+    How staff and patients know ``user`` at ``hospital_id``: the Doctor or
+    Nurse profile name there ("Dr Asha Mehta", "Nurse Priya"), then the
+    account's full name, then the username. ``cache`` (a dict, e.g. a
+    serializer's context) avoids repeating the lookup for every row.
+    """
+    if user is None:
+        return ""
+    key = ("staff_display_name", user.pk, hospital_id)
+    if cache is not None and key in cache:
+        return cache[key]
+    from doctors.models import Doctor
+    from nurses.models import Nurse
+
+    name = ""
+    if hospital_id is not None:
+        name = (Doctor.objects.filter(user=user, hospital_id=hospital_id).values_list("name", flat=True).first()
+                or Nurse.objects.filter(user=user, hospital_id=hospital_id).values_list("name", flat=True).first()
+                or "")
+    name = name.strip() or user.get_full_name() or user.username
+    if cache is not None:
+        cache[key] = name
+    return name

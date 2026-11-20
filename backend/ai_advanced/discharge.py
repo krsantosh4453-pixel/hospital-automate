@@ -132,7 +132,7 @@ def collect_admission_context(admission):
     patient, hospital_id = admission.patient, admission.hospital_id
     plan = DischargePlan.objects.filter(admission=admission).first()
     return {
-        "patient": {"age": patient.age, "gender": patient.gender},
+        "patient": {"age": "Unknown" if patient.age is None else patient.age, "gender": patient.gender},
         "admitted_at": _fmt(admission.admission_date),
         "discharged_at": _fmt(admission.discharge_date),
         "reason_for_admission": admission.reason,

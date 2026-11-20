@@ -360,6 +360,7 @@ def patient_payload(patient):
         "id": patient.id,
         "name": patient.name,
         "age": patient.age,
+        "date_of_birth": str(patient.date_of_birth) if patient.date_of_birth else None,
         "gender": patient.gender,
         "phone": patient.phone,
         "email": user.email if user else "",
@@ -426,7 +427,7 @@ def link_google_patient(user, name, email):
     patient = Patient.objects.create(
         user=user,
         name=(name or email.split("@")[0] or "Patient")[:100],
-        age=1,
+        age=None,  # not known from Google; never a made-up 1 (BUG-04)
         gender="Other",
         phone="",
         doctor="",

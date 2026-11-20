@@ -148,8 +148,10 @@ def home_dashboard(request):
         - _net_received(payment_qs.filter(invoice__in=open_invoice_qs))
     )
 
-    # Queue tokens for today
-    current_token = queue_qs.filter(token_date=today).order_by("-token_number").first()
+    # The token being seen now. It used to be the highest number issued today,
+    # whatever its status, so dashboards said "Now serving" while nobody was
+    # in consultation (BUG-03). 0 means nobody is with a doctor.
+    current_token = today_queue_qs.filter(status="In Consultation").order_by("-consultation_started_at", "-token_number").first()
     current_token_number = current_token.token_number if current_token else 0
     
     # Waiting patients estimate (waiting queue * estimated wait)

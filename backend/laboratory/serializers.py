@@ -74,7 +74,8 @@ class LabResultSerializer(serializers.ModelSerializer):
             "entered_by_name",
             "verified_by_name",
         ]
-        read_only_fields = ["id", "entered_at", "verified_at", "released_at", "entered_by_name", "verified_by_name"]
+        # BUG-06: every field is written by the enter/verify/release actions only.
+        read_only_fields = fields
 
 
 class ResultVerificationSerializer(serializers.ModelSerializer):
@@ -89,9 +90,10 @@ class ResultVerificationSerializer(serializers.ModelSerializer):
             "verified_at",
             "comments",
             "action",
+            "self_verified",
             "verified_by_name",
         ]
-        read_only_fields = ["id", "verified_at", "verified_by_name"]
+        read_only_fields = ["id", "verified_at", "verified_by_name", "self_verified"]
 
 
 class LabTestSerializer(serializers.ModelSerializer):

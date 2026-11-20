@@ -25,6 +25,7 @@ TOKEN_TO_APPOINTMENT = {
 # Token status -> visit status (the one the Consultation screen shows). Earlier
 # token steps leave the visit "Waiting".
 VISIT_CANCELLED = "Cancelled"
+VISIT_COMPLETED = "Completed"
 TOKEN_TO_VISIT = {
     Token.IN_CONSULTATION: "In Consultation",
     Token.COMPLETED: "Completed",
@@ -33,14 +34,22 @@ TOKEN_TO_VISIT = {
 
 
 def sync_appointment_status(token):
-    """Set the token's appointment and visit to the matching status (cancelled ones stay cancelled)."""
+    """Set the token's appointment and visit to the matching status (closed visits stay as they are)."""
     visit_target = TOKEN_TO_VISIT.get(token.status)
     if visit_target and token.visit_id:
-        (
+        # A Completed or Cancelled visit is never reopened or re-closed by a
+        # token: a token wrongly put on an old visit must not undo it (BUG-02).
+        moved = (
             Visit.objects.filter(pk=token.visit_id)
-            .exclude(status__in=[VISIT_CANCELLED, visit_target])
+            .exclude(status__in=[VISIT_CANCELLED, VISIT_COMPLETED, visit_target])
             .update(status=visit_target)
         )
+        if moved and visit_target == VISIT_COMPLETED:
+            # BUG-07: completing the token completes the consultation; charge it.
+            from billing.charges import capture_consultation
+
+            with transaction.atomic():
+                capture_consultation(token.visit_id)
     target = TOKEN_TO_APPOINTMENT.get(token.status)
     if target is None or token.appointment_id is None:
         return

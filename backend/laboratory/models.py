@@ -233,11 +233,37 @@ class ResultVerification(models.Model):
         ]
     )
 
+    # BUG-06: verified by the user who entered the result, allowed only by the
+    # hospital's LabVerificationPolicy and audited as "lab.result.self_verified".
+    self_verified = models.BooleanField(default=False)
+
     def __str__(self):
         return f"Verification for {self.lab_result}"
 
     class Meta:
         ordering = ["-verified_at"]
+
+
+class LabVerificationPolicy(models.Model):
+    """
+    BUG-06: a hospital's exception to maker-checker on laboratory results.
+
+    By default a result is verified by a different user from the one who
+    entered it. A hospital that runs with one technician on a shift may let
+    the same user verify; each such verification is then marked
+    ``self_verified`` and audited. Only an Admin sets this, with a reason.
+    """
+
+    hospital = models.OneToOneField("hospital.Hospital", on_delete=models.CASCADE,
+                                    related_name="lab_verification_policy")
+    allow_self_verification = models.BooleanField(default=False)
+    reason = models.TextField(blank=True, default="")
+    updated_by = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        allowed = "allowed" if self.allow_self_verification else "not allowed"
+        return f"Self-verification {allowed} at {self.hospital_id}"
 
 class ImagingStudy(models.Model):
     """

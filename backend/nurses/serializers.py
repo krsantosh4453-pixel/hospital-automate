@@ -88,6 +88,71 @@ class NursingAssessmentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "assessed_at", "patient_name", "hospital_name", "nurse_name"]
 
+    def validate_vitals(self, value):
+        """
+        Ward vitals ({"bp", "pulse", "respiratory_rate", "temperature",
+        "spo2"}) get the same structural limits as an OPD reading
+        (clinical.models.VitalSign): whole numbers where that model stores
+        integers, at most two decimals for temperature, nothing negative,
+        SpO2 at most 100. No "normal range" is applied. Values are stored as
+        sent, so "37.1" stays "37.1"; an empty value means "not measured".
+        """
+        return check_ward_vitals(value)
+
+
+WARD_VITAL_KEYS = ("bp", "pulse", "respiratory_rate", "temperature", "spo2")
+
+
+def _ward_number(key, raw, whole, max_value=None):
+    from decimal import Decimal, InvalidOperation
+
+    text = str(raw).strip()
+    try:
+        number = Decimal(text)
+    except InvalidOperation:
+        raise serializers.ValidationError({key: "Enter a number."})
+    if not number.is_finite():
+        raise serializers.ValidationError({key: "Enter a number."})
+    if number < 0:
+        raise serializers.ValidationError({key: "Cannot be negative."})
+    if whole and number != number.to_integral_value():
+        raise serializers.ValidationError({key: "Enter a whole number."})
+    if not whole and number.as_tuple().exponent < -2:
+        raise serializers.ValidationError({key: "Use at most two decimals."})
+    if max_value is not None and number > max_value:
+        raise serializers.ValidationError({key: f"Cannot be more than {max_value}."})
+
+
+def check_ward_vitals(value):
+    """The validated ward ``vitals`` JSON (unchanged), or ValidationError."""
+    if value in (None, ""):
+        return {}
+    if not isinstance(value, dict):
+        raise serializers.ValidationError("Vitals must be an object.")
+    unknown = sorted(set(value) - set(WARD_VITAL_KEYS))
+    if unknown:
+        raise serializers.ValidationError(
+            f"Unknown vitals: {', '.join(unknown)}. Use {', '.join(WARD_VITAL_KEYS)}.")
+    for key, raw in value.items():
+        if raw is None or (isinstance(raw, str) and not raw.strip()):
+            continue  # not measured
+        if isinstance(raw, bool) or not isinstance(raw, (str, int, float)):
+            raise serializers.ValidationError({key: "Enter a number."})
+        if key == "bp":
+            parts = str(raw).split("/")
+            if len(parts) != 2 or not all(p.strip() for p in parts):
+                raise serializers.ValidationError({"bp": "Give both numbers, e.g. 120/80."})
+            for part in parts:
+                _ward_number("bp", part, whole=True)
+        elif key == "temperature":
+            # DecimalField(max_digits=5, decimal_places=2) on VitalSign.
+            _ward_number(key, raw, whole=False, max_value=999.99)
+        elif key == "spo2":
+            _ward_number(key, raw, whole=True, max_value=100)
+        else:
+            _ward_number(key, raw, whole=True)
+    return value
+
 
 class NursingNoteSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source="patient.name", read_only=True)
@@ -160,10 +225,11 @@ class MARAdministrationSerializer(serializers.ModelSerializer):
     is_delayed = serializers.SerializerMethodField()
 
     def get_is_delayed(self, obj):
-        """A due dose more than 30 minutes past its scheduled time."""
-        from datetime import timedelta
+        """A due dose past its scheduled time plus the configured grace (default 30 minutes)."""
         from django.utils import timezone
-        return obj.status == "Scheduled" and obj.scheduled_time < timezone.now() - timedelta(minutes=30)
+
+        from .scheduling import overdue_grace
+        return obj.status == "Scheduled" and obj.scheduled_time < timezone.now() - overdue_grace()
 
     class Meta:
         model = MARAdministration
@@ -200,6 +266,10 @@ class MARAdministrationSerializer(serializers.ModelSerializer):
 
 
 class MARSerializer(serializers.ModelSerializer):
+    # Optional on create: schedule the doses with the order (nurses/scheduling.py).
+    first_dose = serializers.ChoiceField(choices=["now", "at", "next_round"], write_only=True, required=False,
+                                         allow_null=True)
+    first_dose_at = serializers.CharField(write_only=True, required=False, allow_blank=True, allow_null=True)
     patient_name = serializers.CharField(source="patient.name", read_only=True)
     hospital_name = serializers.CharField(source="hospital.name", read_only=True)
     administrations = MARAdministrationSerializer(many=True, read_only=True)
@@ -221,19 +291,35 @@ class MARSerializer(serializers.ModelSerializer):
             "start_date",
             "end_date",
             "is_active",
+            "instructions",
             "ordered_by",
             "ordered_by_name",
             "created_at",
             "patient_name",
             "hospital_name",
             "administrations",
+            "first_dose",
+            "first_dose_at",
         ]
         read_only_fields = ["id", "ordered_by", "ordered_by_name", "created_at", "patient_name", "hospital_name",
                             "administrations"]
 
     def get_ordered_by_name(self, obj) -> str:
+        """
+        The ordering doctor as staff and patients know them: the Doctor
+        profile name at the order's hospital ("Dr Asha Mehta"), then the
+        account's full name, then the username (the codebase convention).
+        The list view annotates the profile name to avoid a query per row.
+        """
         user = obj.ordered_by
-        return (user.get_full_name() or user.username) if user else ""
+        if user is None:
+            return ""
+        doctor_name = getattr(obj, "ordered_by_doctor_name", None)
+        if doctor_name is None and not hasattr(obj, "ordered_by_doctor_name"):
+            from users.staff_links import staff_display_name
+
+            return staff_display_name(user, obj.hospital_id, self.context)
+        return (doctor_name or "").strip() or user.get_full_name() or user.username
 
     def validate_frequency(self, value):
         # H-01: refused here, so the doctor fixes it before any dose is scheduled.
@@ -300,3 +386,14 @@ class NurseWardAssignmentSerializer(serializers.ModelSerializer):
             "ward_name",
         ]
         read_only_fields = ["id", "assigned_at", "nurse_name", "ward_name"]
+
+
+class MedicationRoundSerializer(serializers.ModelSerializer):
+    """A hospital's configured medication round (e.g. 08:00 Morning)."""
+
+    class Meta:
+        from .models import MedicationRound
+
+        model = MedicationRound
+        fields = ["id", "hospital", "label", "time", "is_active", "created_at"]
+        read_only_fields = ["id", "created_at"]

@@ -12,6 +12,7 @@ from patients.models import Patient, PatientHospital
 from doctors.models import Doctor
 from ipd.models import Admission, BedAllocation, DischargePlan, DischargeSummary
 from ipd import discharge as discharge_service
+from billing.models import ServicePrice
 from billing.services import record_payment
 
 User = get_user_model()
@@ -192,6 +193,9 @@ class IPDAPITests(TestCase):
             follow_up_arranged=True,
             documents_handed_over=True,
         )
+        # BUG-07: bed days are priced from the price list; the old typed rate must agree with it.
+        ServicePrice.objects.create(hospital=self.hospital_a, category=ServicePrice.Category.BED, code="BED-GEN",
+                                    name="General bed", unit_price="1500.00", effective_from=date.today())
         invoice = discharge_service.create_final_bill(admission, "1500")
         record_payment(invoice, invoice.total_amount)
 

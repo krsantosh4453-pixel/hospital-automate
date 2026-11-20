@@ -55,7 +55,12 @@ class AdmissionSerializer(serializers.ModelSerializer):
             "hospital_name",
             "admitting_doctor_name",
         ]
-        read_only_fields = ["id", "admission_date", "discharge_date", "patient_name", "hospital_name", "admitting_doctor_name", "bed_allocations", "current_bed"]
+        # Prompt 3: status moves only through the workflow actions (allocate,
+        # discharge...), and the admitting doctor is the signed-in doctor; a
+        # client can no longer write "Discharged" past the discharge checks.
+        read_only_fields = ["id", "admission_date", "discharge_date", "patient_name", "hospital_name",
+                            "admitting_doctor_name", "bed_allocations", "current_bed", "status",
+                            "admitting_doctor"]
 
     def validate_hospital(self, value):
         """Ensure user has access to the hospital."""
@@ -86,7 +91,9 @@ class AdmissionSerializer(serializers.ModelSerializer):
         return value
 
     def get_current_bed(self, obj):
-        active = obj.bed_allocations.filter(is_active=True).first()
+        # Read from the prefetched allocations: a .filter() here ran one query
+        # per admission in the list (N+1, found in the final E2E audit).
+        active = next((a for a in obj.bed_allocations.all() if a.is_active), None)
         if active:
             return BedAllocationSerializer(active).data
         return None

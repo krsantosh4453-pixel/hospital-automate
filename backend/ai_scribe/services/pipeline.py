@@ -177,7 +177,7 @@ def run_generation(draft_id):
         result = LLMClinicalService().generate_clinical_draft(
             transcript_text=draft.transcript.text,
             language=draft_language(draft),
-            patient_context={"age": patient.age, "gender": patient.gender},
+            patient_context={"age": "Unknown" if patient.age is None else patient.age, "gender": patient.gender},
             redact_terms=terms,
             redact_names=names,
         )

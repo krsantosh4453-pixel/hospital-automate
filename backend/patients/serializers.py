@@ -5,6 +5,8 @@ from .models import Patient, PatientHospital
 class PatientSerializer(serializers.ModelSerializer):
     # A19: the patient's UHID at the hospital being acted in (blank if none).
     uhid = serializers.SerializerMethodField()
+    # "Has allergies" / "No known allergies" / "Unknown" (Prompt 3).
+    allergy_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Patient
@@ -17,6 +19,7 @@ class PatientSerializer(serializers.ModelSerializer):
             "phone",
             "address",
             "date_of_birth",
+            "allergy_status",
             "doctor",
             "condition",
             "emergency_contact_name",
@@ -40,6 +43,19 @@ class PatientSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "uhid", "created_at", "email_verified", "phone_verified"]
+        # A new patient needs an age or a date of birth (validate); either may
+        # be blank on an older record. Null age = not recorded (BUG-04).
+        extra_kwargs = {"age": {"required": False, "allow_null": True}}
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.date_of_birth:
+            from .models import age_from_dob
+            data["age"] = age_from_dob(instance.date_of_birth)  # today's age, not the age when saved
+        return data
+
+    def get_allergy_status(self, obj) -> str:
+        return obj.effective_allergy_status
 
     def get_uhid(self, obj) -> str:
         hospital = self.context.get("scoped_hospital")
@@ -59,7 +75,9 @@ class PatientSerializer(serializers.ModelSerializer):
         return value.strip()
 
     def validate_age(self, value):
-        if value is None or value < 0 or value > 130:
+        if value is None:
+            return None
+        if value < 0 or value > 130:
             raise serializers.ValidationError(
                 "Age must be between 0 and 130."
             )
@@ -105,6 +123,8 @@ class PatientSerializer(serializers.ModelSerializer):
                 return attrs[field]
             return getattr(self.instance, field, "") if self.instance else ""
 
+        if self.instance is None and attrs.get("age") is None and not attrs.get("date_of_birth"):
+            raise serializers.ValidationError({"age": "Enter the age or the date of birth."})
         if current("emergency_contact_name").strip() and not current("emergency_contact_phone"):
             raise serializers.ValidationError(
                 {"emergency_contact_phone": "Add a phone number for the emergency contact."}

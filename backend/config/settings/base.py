@@ -190,6 +190,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Using Django's default User model (auth.User). StaffProfile extends it via OneToOneField.
 # AUTH_USER_MODEL = 'users.User'  # Not using custom user model
 
+# Password sign-in accepts the username or email in any letter case, with
+# surrounding spaces trimmed (phone keyboards capitalise and add spaces).
+AUTHENTICATION_BACKENDS = ["users.auth_backends.UsernameOrEmailBackend"]
+
 # Public Google OAuth client id. The client secret is never sent to the browser.
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 
@@ -596,6 +600,11 @@ AUDIT_LOG_RETENTION_DAYS = int(os.environ.get('AUDIT_LOG_RETENTION_DAYS', '0'))
 
 # How long a break-glass grant to a patient outside the clinician's care lasts.
 BREAK_GLASS_DURATION_MINUTES = int(os.environ.get('BREAK_GLASS_DURATION_MINUTES', '60'))
+
+# Ward medication: a due dose is shown as overdue only this long after its
+# scheduled time (nurses/scheduling.py). Hospital policy; 30 minutes was the
+# value used before it became configurable.
+MAR_OVERDUE_GRACE_MINUTES = int(os.environ.get('MAR_OVERDUE_GRACE_MINUTES', '30'))
 
 # Celery beat schedule for periodic tasks
 # Only tasks that exist in the codebase are scheduled. Daily report generation

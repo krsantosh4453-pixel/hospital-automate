@@ -5,6 +5,15 @@ from audit.entered_in_error import EnteredInError
 from django.db.models.functions import Lower
 
 
+def age_from_dob(date_of_birth, today=None):
+    """Whole years on ``today`` (the hospital's date by default); 0 for a baby."""
+    from config.hospital_time import hospital_today
+
+    today = today or hospital_today()
+    years = today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
+    return max(years, 0)
+
+
 class Patient(EnteredInError):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -14,11 +23,20 @@ class Patient(EnteredInError):
         related_name="patient_account",
     )
     name = models.CharField(max_length=100, db_index=True)
-    age = models.PositiveIntegerField()
+    # Years, kept in step with ``date_of_birth`` when that is known (save()).
+    # Null means not recorded: self-registered patients used to get 1 (BUG-04).
+    age = models.PositiveIntegerField(null=True, blank=True)
     gender = models.CharField(max_length=20)
     phone = models.CharField(max_length=15, db_index=True)
     address = models.TextField(blank=True, default="")
     date_of_birth = models.DateField(null=True, blank=True)
+    # Prompt 3: whether anyone has asked. "Unknown" (not asked) is never the
+    # same as "No known allergies" (asked: none). With an allergy on record
+    # the patient shows as "Has allergies" (see effective_allergy_status).
+    allergy_status = models.CharField(
+        max_length=30, default="Unknown", db_default="Unknown",
+        choices=[("Unknown", "Unknown"), ("No known allergies", "No known allergies")],
+    )
     email_verified = models.BooleanField(default=False)
     phone_verified = models.BooleanField(default=False)
     doctor = models.CharField(max_length=100, blank=True)
@@ -71,6 +89,23 @@ class Patient(EnteredInError):
 
     def __str__(self):
         return self.name
+
+    HAS_ALLERGIES = "Has allergies"
+
+    @property
+    def effective_allergy_status(self):
+        """"Has allergies" while one is recorded (not entered in error), else what was recorded."""
+        # all() uses a prefetch when the list view made one (no query per patient).
+        return self.HAS_ALLERGIES if self.allergies.all() else self.allergy_status
+
+    def save(self, *args, **kwargs):
+        # The date of birth is the source of truth for age when it is known.
+        if self.date_of_birth:
+            self.age = age_from_dob(self.date_of_birth)
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None and "date_of_birth" in update_fields and "age" not in update_fields:
+                kwargs["update_fields"] = [*update_fields, "age"]
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ["-created_at"]
