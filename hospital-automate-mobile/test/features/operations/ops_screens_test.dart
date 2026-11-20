@@ -358,6 +358,52 @@ void main() {
       expect(find.text('${t.bedAvailable}: 1'), findsOneWidget);
     });
 
+    testWidgets('BUG-10: a discharged row shows the released bed', (
+      tester,
+    ) async {
+      final repo = FakeIpdRepository(
+        admissionList: [
+          IpdAdmission(
+            id: 3,
+            status: AdmissionStatus.discharged,
+            patientName: 'Gone Home',
+            bedHistory: [
+              BedAllocationRecord(
+                id: 9,
+                bedId: 21,
+                isActive: false,
+                releasedAt: DateTime(2026, 11, 20, 10),
+                place: const BedPlace(ward: 'General', room: 'G1', bed: 'G1-2'),
+              ),
+            ],
+          ),
+        ],
+      );
+      await pumpApp(
+        tester,
+        testServices(session: session('Nurse', nursePermissions), ipd: repo),
+        location: '/ipd',
+      );
+      await tapVisible(
+        tester,
+        find.widgetWithText(ChoiceChip, t.ipdDischarged),
+      );
+
+      final row = find.byKey(const ValueKey('admission-3'));
+      expect(row, findsOneWidget);
+      expect(
+        find.descendant(of: row, matching: find.textContaining('released')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.textContaining(t.ipdAwaitingBed),
+        ),
+        findsNothing,
+      );
+    });
+
     testWidgets('complete discharge stays off until the server says ready', (
       tester,
     ) async {
