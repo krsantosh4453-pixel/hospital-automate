@@ -440,6 +440,63 @@ void main() {
       expect(find.textContaining('Given'), findsNothing);
     });
 
+    testWidgets('H-10: limits on a PRN order are sent in minutes', (
+      tester,
+    ) async {
+      final work = await pumpAdmission(tester);
+      await choose(
+        tester,
+        'order-medicine',
+        'Synthetic Pantoprazole 40mg · 40 mg',
+      );
+      // The limit fields appear only for an as-needed frequency.
+      expect(find.byKey(const Key('order-prn-interval')), findsNothing);
+      await typeInto(tester, 'order-frequency', 'SOS');
+      await typeInto(tester, 'order-prn-interval', '1.5');
+      await typeInto(tester, 'order-prn-max', '4');
+      await tapVisible(tester, find.byKey(const Key('order-add')));
+      await tapVisible(tester, find.text('Order medicine').last);
+
+      final draft = work.orderDrafts.single;
+      expect(draft.frequency, 'SOS');
+      expect(draft.prnMinIntervalMinutes, 90);
+      expect(draft.prnMaxDosesPer24h, 4);
+    });
+
+    testWidgets('H-10: an impossible PRN limit is refused before sending', (
+      tester,
+    ) async {
+      final work = await pumpAdmission(tester);
+      await choose(
+        tester,
+        'order-medicine',
+        'Synthetic Pantoprazole 40mg · 40 mg',
+      );
+      await typeInto(tester, 'order-frequency', 'PRN');
+      await typeInto(tester, 'order-prn-max', '60');
+      await tapVisible(tester, find.byKey(const Key('order-add')));
+      expect(
+        find.textContaining('Enter the dose limits as numbers'),
+        findsOneWidget,
+      );
+      expect(work.previewDrafts, isEmpty);
+      expect(work.orderDrafts, isEmpty);
+    });
+
+    testWidgets('H-10: a scheduled order sends no PRN limits', (tester) async {
+      final work = await pumpAdmission(tester);
+      await choose(
+        tester,
+        'order-medicine',
+        'Synthetic Pantoprazole 40mg · 40 mg',
+      );
+      await tapVisible(tester, find.byKey(const Key('order-add')));
+      await tapVisible(tester, find.text('Order medicine').last);
+      final draft = work.orderDrafts.single;
+      expect(draft.prnMinIntervalMinutes, isNull);
+      expect(draft.prnMaxDosesPer24h, isNull);
+    });
+
     testWidgets('a first dose the server cannot place asks for a choice', (
       tester,
     ) async {

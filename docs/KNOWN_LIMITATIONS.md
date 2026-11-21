@@ -11,6 +11,28 @@ State as of 2026-10-25, updated 2026-11-03, branch `ui/redesign-2026-10-25`. Row
 | L4 | No clinical safety review of the workflows | MAR, discharge, lab release, AI-draft, break-glass and family-access rules were designed by engineering only. An engineering pre-review on 2026-11-19 found and fixed 8 defects (H-01…H-07, H-23); 15 hazards stay open (2 rated unacceptable: H-08 dose ranges, H-14 lab critical values) | Sign-off by a clinical safety officer / pharmacist using `CLINICAL_SAFETY_REVIEW_PACK.md` (updated 2026-11-19), `CLINICAL_HAZARD_REGISTER.md` and `CLINICAL_WORKFLOW_VALIDATION_2026-11-19.md` |
 | L5 | No penetration test or DPDP Act privacy assessment | Required for health data in India | Commission both; brief and baseline in `PRIVACY_AND_PENTEST_PACK.md` (updated 2026-11-03) |
 
+## Update 2026-11-21
+
+The open task inventory and the order of the next phases are in [PRODUCTION_READINESS_MASTER_PLAN.md](PRODUCTION_READINESS_MASTER_PLAN.md).
+
+**Laboratory reference ranges (H-14):** results are now flagged by the server against each hospital's own limits, and critical values wait on a worklist until a doctor acknowledges them. Limits on this:
+- No limits ship with the app; each hospital's lab director loads and approves them.
+- There is no screen for managing them yet (API, Admin only).
+- Ranges can be set per sex but not per age.
+- Android result entry is still free text, so results entered on Android are not flagged. Enter results with ranges from the web Laboratory page.
+- The doctor is not phoned or texted.
+
+**PRN dose limits (H-10):** a doctor may give an as-needed order a minimum time between doses and a 24-hour maximum. A dose over either limit is refused. Nurses record PRN doses on the web (IPD → Medicines → Give dose) and on Android (ward record → Give dose). Limits on this:
+- The limits are optional.
+- There is no in-the-moment override; the doctor changes the order instead.
+- Android was checked with widget tests only, not on the emulator.
+
+**Billing (B-1 to B-3):**
+- Consultation, laboratory and bed-day lines can no longer be added by hand from the price list. They are charged automatically, so a hand line would bill them twice.
+- Work done before its price existed, or left on a cancelled bill, is listed and charged once by the unbilled-work sweep (`/api/billing/price-list/unbilled/`, Admin or Hospital Manager to charge). It looks back at most 90 days and uses today's price.
+- The Billing page has a Price list panel, an Unbilled work panel and a price-list picker in Create invoice (2026-11-21). The Android app has none of these.
+- The web form no longer takes typed consultation or lab amounts, and the server refuses those two line names on a new bill. Another client could still type its own wording for a consultation, because a free-text line can't be recognised reliably.
+
 ## Missing features (none MISSING as of 2026-11-05; J6 is PARTIAL, see below)
 
 - **Pharmacy:** drug alerts (F7) are partial: allergy, duplicate-salt and a starter list of 8 interactions, pending Pharmacy & Therapeutics approval; no licensed drug database and no dose-range checks (`CLINICAL_SAFETY_REVIEW_PACK.md` section 9).

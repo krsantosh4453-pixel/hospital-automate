@@ -133,7 +133,7 @@ class LabResultData {
     values: _stringMap(json['result_data']),
     text: readText(json['result_text']),
     referenceRanges: _stringMap(json['reference_ranges']),
-    flags: _stringMap(json['abnormal_flags']),
+    flags: _flags(json),
     releasedAt: readDateTime(json['released_at']),
     enteredAt: readDateTime(json['entered_at']),
     enteredByName: readText(json['entered_by_name']),
@@ -147,7 +147,7 @@ class LabResultData {
   final String? text;
   final Map<String, String> referenceRanges;
 
-  /// Parameter → the laboratory's own flag (e.g. "H", "L"); never interpreted here.
+  /// Parameter → flag: "L"/"H", critical "LL"/"HH", or "A" (abnormal).
   final Map<String, String> flags;
   final DateTime? releasedAt;
 
@@ -159,6 +159,29 @@ class LabResultData {
   final bool isVerified;
 
   bool get isEmpty => values.isEmpty && text == null;
+
+  /// Parameter → flag. The server sends `abnormal_flags` as a list of
+  /// flagged parameter names (shown as "A", abnormal) and, since H-14, the
+  /// computed flag per parameter in `flag_details` ("L", "H", "LL", "HH"),
+  /// which wins. A map (older rows) is read as it is.
+  static Map<String, String> _flags(Map<String, Object?> json) {
+    final raw = json['abnormal_flags'];
+    final flags = <String, String>{
+      ..._stringMap(raw),
+      if (raw is List)
+        for (final name in raw)
+          if (name != null && '$name'.trim().isNotEmpty) '$name': 'A',
+    };
+    final details = json['flag_details'];
+    if (details is List) {
+      for (final detail in details.whereType<Map>()) {
+        final parameter = detail['parameter'];
+        final flag = '${detail['flag'] ?? ''}'.trim();
+        if (parameter != null && flag.isNotEmpty) flags['$parameter'] = flag;
+      }
+    }
+    return Map.unmodifiable(flags);
+  }
 
   static Map<String, String> _stringMap(Object? value) => {
     if (value is Map)

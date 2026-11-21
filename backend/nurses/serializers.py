@@ -292,6 +292,8 @@ class MARSerializer(serializers.ModelSerializer):
             "end_date",
             "is_active",
             "instructions",
+            "prn_min_interval_minutes",
+            "prn_max_doses_per_24h",
             "ordered_by",
             "ordered_by_name",
             "created_at",
@@ -341,7 +343,31 @@ class MARSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"prescription_item": "This medicine is not on that prescription."})
         if admission is not None and patient is not None and admission.patient_id != patient.id:
             raise serializers.ValidationError({"admission": "This admission is for another patient."})
+        self._check_prn_limits(get)
         return attrs
+
+    @staticmethod
+    def _check_prn_limits(get):
+        # H-10: limits belong to as-needed orders only, within sane bounds.
+        from .frequency import PRN, FrequencyError, parse_frequency
+        from .prn_limits import MAX_DOSES_PER_24H, MAX_INTERVAL_MINUTES, MIN_INTERVAL_MINUTES
+
+        interval, max_doses = get("prn_min_interval_minutes"), get("prn_max_doses_per_24h")
+        if interval is None and max_doses is None:
+            return
+        try:
+            prn = parse_frequency(get("frequency")).kind == PRN
+        except FrequencyError:
+            prn = False
+        if not prn:
+            raise serializers.ValidationError(
+                {"prn_min_interval_minutes": "Dose limits apply only to an as-needed (PRN/SOS) order."})
+        if interval is not None and not MIN_INTERVAL_MINUTES <= interval <= MAX_INTERVAL_MINUTES:
+            raise serializers.ValidationError({"prn_min_interval_minutes": (
+                f"Enter {MIN_INTERVAL_MINUTES} to {MAX_INTERVAL_MINUTES} minutes between doses.")})
+        if max_doses is not None and not 1 <= max_doses <= MAX_DOSES_PER_24H:
+            raise serializers.ValidationError(
+                {"prn_max_doses_per_24h": f"Enter 1 to {MAX_DOSES_PER_24H} doses in 24 hours."})
 
 
 class PatientAssignmentSerializer(serializers.ModelSerializer):

@@ -532,4 +532,125 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group('H-10 as-needed (PRN) doses', () {
+    MedicationOrder prnOrder({int? interval = 240, int? max = 3}) =>
+        MedicationOrder(
+          id: 4,
+          medicineName: 'Synthetic Ibuprofen',
+          isActive: true,
+          dose: '400 mg',
+          route: 'Oral',
+          frequency: 'PRN',
+          prnMinIntervalMinutes: interval,
+          prnMaxDosesPer24h: max,
+        );
+
+    FakeNursingRepository prnRepo({int? interval = 240, int? max = 3}) =>
+        FakeNursingRepository(
+          patients: const [testPatient],
+          admissionRows: const [stay],
+          orderRows: [
+            orderWith([dueDose]),
+            prnOrder(interval: interval, max: max),
+          ],
+        );
+
+    testWidgets('a PRN dose is confirmed against the patient and recorded', (
+      tester,
+    ) async {
+      final repo = await pumpNurse(
+        tester,
+        '/nurses/patients/11',
+        repository: prnRepo(),
+      );
+      expect(
+        find.textContaining('At least 4 h between doses · At most 3 doses'),
+        findsOneWidget,
+      );
+      // Only the as-needed order offers Give dose.
+      expect(find.byKey(const Key('prn-4')), findsOneWidget);
+      expect(find.byKey(const Key('prn-2')), findsNothing);
+
+      await tapVisible(tester, find.byKey(const Key('prn-4')));
+      expect(find.text('Give this as-needed dose now?'), findsOneWidget);
+      expect(find.textContaining('UH-0011'), findsWidgets);
+      await tapVisible(tester, find.text('Cancel'));
+      expect(repo.prnDoses, isEmpty);
+
+      await tapVisible(tester, find.byKey(const Key('prn-4')));
+      await tester.enterText(find.byKey(const Key('prn-notes')), 'Pain 6/10');
+      await tapVisible(tester, find.byKey(const Key('confirm-prn')));
+      expect(repo.prnDoses.single, (order: 4, notes: 'Pain 6/10'));
+      expect(
+        find.textContaining('confirmed by the hospital system'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a dose too soon is refused in the order\'s own words', (
+      tester,
+    ) async {
+      final repo = prnRepo()
+        ..writeError = const ApiException(
+          kind: ApiErrorKind.conflict,
+          statusCode: 409,
+          flags: {'prn_min_interval', 'prn_limit'},
+        );
+      await pumpNurse(tester, '/nurses/patients/11', repository: repo);
+      await tapVisible(tester, find.byKey(const Key('prn-4')));
+      await tapVisible(tester, find.byKey(const Key('confirm-prn')));
+      expect(
+        find.textContaining('too soon after the last dose'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('one dose every 4 h'), findsOneWidget);
+      expect(
+        find.textContaining('confirmed by the hospital system'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a dose over the daily maximum is refused', (tester) async {
+      final repo = prnRepo()
+        ..writeError = const ApiException(
+          kind: ApiErrorKind.conflict,
+          statusCode: 409,
+          flags: {'prn_max_per_24h', 'prn_limit'},
+        );
+      await pumpNurse(tester, '/nurses/patients/11', repository: repo);
+      await tapVisible(tester, find.byKey(const Key('prn-4')));
+      await tapVisible(tester, find.byKey(const Key('confirm-prn')));
+      expect(
+        find.textContaining('at most 3 doses in 24 hours'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('an order without limits says so', (tester) async {
+      await pumpNurse(
+        tester,
+        '/nurses/patients/11',
+        repository: prnRepo(interval: null, max: null),
+      );
+      expect(find.text('No dose limits set by the doctor'), findsOneWidget);
+    });
+  });
+
+  group('H-10 PRN helpers', () {
+    test('as-needed words match the server', () {
+      for (final f in ['PRN', 'sos', 'PRN Q6H', 'as needed']) {
+        expect(isPrnFrequency(f), isTrue, reason: f);
+      }
+      for (final f in ['TID', 'Q8H', '', null]) {
+        expect(isPrnFrequency(f), isFalse, reason: '$f');
+      }
+    });
+
+    test('the interval is shown in hours', () {
+      expect(prnIntervalHours(240), '4');
+      expect(prnIntervalHours(90), '1.5');
+      expect(prnIntervalHours(20), '0.33');
+    });
+  });
 }

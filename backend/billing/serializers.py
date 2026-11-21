@@ -20,6 +20,21 @@ from .services import line_subtotal, money, recalculate, refuse_unexplained_zero
 
 FREE_LINE = "Price must be more than ₹0. Free care is recorded as a waiver by an Admin or Hospital Manager."
 
+# B-1: the lines the web invoice form used to type for services that are now
+# charged automatically. A new bill may not add them again by hand.
+AUTOMATIC_FREE_TEXT = {"doctor consultation", "laboratory services"}
+AUTOMATIC_FREE_TEXT_REFUSED = (
+    "Not added: consultations are charged automatically when the visit is completed and laboratory tests when "
+    "the result is verified, so this line would bill them twice. To bill earlier work, an Admin or Hospital "
+    "Manager uses Unbilled work."
+)
+
+
+def refuse_automatic_free_text(items_data):
+    for item in items_data:
+        if item.get("service_price") is None and (item.get("description") or "").strip().lower() in AUTOMATIC_FREE_TEXT:
+            raise serializers.ValidationError({"items_data": AUTOMATIC_FREE_TEXT_REFUSED})
+
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
     """
@@ -332,6 +347,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         if not items_data:
             # BUG-07: an empty bill would read as ₹0 "Paid".
             raise serializers.ValidationError({"items_data": "Add at least one bill line."})
+        refuse_automatic_free_text(items_data)
         with transaction.atomic():
             # P1-05: the hospital's consecutive GST series, locked until this bill is saved.
             validated_data["invoice_number"] = next_invoice_number(validated_data["hospital"])

@@ -8166,6 +8166,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The final bill brings together the bed days above and the charges already captured for this stay. Once created it can be cancelled only by an Admin or Hospital Manager, with a reason.'**
   String get finalBillConfirmBody;
+
+  /// No description provided for @prnGiveDose.
+  ///
+  /// In en, this message translates to:
+  /// **'Give dose'**
+  String get prnGiveDose;
+
+  /// No description provided for @prnAsNeededHint.
+  ///
+  /// In en, this message translates to:
+  /// **'As needed (PRN): give when the patient needs it, within the doctor\'s limits.'**
+  String get prnAsNeededHint;
+
+  /// No description provided for @prnLimitInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'At least {hours} h between doses'**
+  String prnLimitInterval(String hours);
+
+  /// No description provided for @prnLimitDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'At most {count} doses in 24 h'**
+  String prnLimitDaily(int count);
+
+  /// No description provided for @prnNoLimits.
+  ///
+  /// In en, this message translates to:
+  /// **'No dose limits set by the doctor'**
+  String get prnNoLimits;
+
+  /// No description provided for @prnConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Give this as-needed dose now?'**
+  String get prnConfirmTitle;
+
+  /// No description provided for @prnNoteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason or note (optional)'**
+  String get prnNoteLabel;
+
+  /// No description provided for @prnTooSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recorded: too soon after the last dose. This order allows one dose every {hours} h. Ask the doctor if the patient needs it sooner.'**
+  String prnTooSoon(String hours);
+
+  /// No description provided for @prnDailyLimitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recorded: this order allows at most {count} doses in 24 hours, and that many have been given. Ask the doctor before giving more.'**
+  String prnDailyLimitReached(int count);
+
+  /// No description provided for @prnIntervalField.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum hours between doses (optional)'**
+  String get prnIntervalField;
+
+  /// No description provided for @prnMaxDosesField.
+  ///
+  /// In en, this message translates to:
+  /// **'Most doses in 24 hours (optional)'**
+  String get prnMaxDosesField;
+
+  /// No description provided for @prnLimitsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the dose limits as numbers (hours above 0, doses 1 to 48), or leave them empty.'**
+  String get prnLimitsInvalid;
 }
 
 class _AppLocalizationsDelegate

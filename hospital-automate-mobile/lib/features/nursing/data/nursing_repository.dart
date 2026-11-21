@@ -70,6 +70,11 @@ abstract interface class NursingRepository {
   /// Records [action] for a due dose. The server refuses one already
   /// recorded, or one whose order is no longer in force.
   Future<Dose> recordDose(int doseId, DoseAction action, {String reason});
+
+  /// H-10: an as-needed (PRN) dose given now under [orderId]. The server
+  /// refuses (409) a dose inside the order's minimum interval or over its
+  /// 24-hour maximum, flagged `prn_min_interval` / `prn_max_per_24h`.
+  Future<Dose> givePrnDose(int orderId, {String notes});
 }
 
 /// [NursingRepository] over the endpoints the web's Nurses page uses
@@ -259,6 +264,13 @@ class ApiNursingRepository implements NursingRepository {
   }) => _api.post(
     'nurses/mar-administrations/$doseId/${action.path}/',
     body: {if (reason.trim().isNotEmpty) 'reason': reason.trim()},
+    decode: (json) => Dose.fromJson(asMap(json)),
+  );
+
+  @override
+  Future<Dose> givePrnDose(int orderId, {String notes = ''}) => _api.post(
+    'nurses/mar/$orderId/prn/',
+    body: {'notes': notes.trim()},
     decode: (json) => Dose.fromJson(asMap(json)),
   );
 }

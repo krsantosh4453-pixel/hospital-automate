@@ -330,6 +330,10 @@ class MAR(EnteredInError):
     is_active = models.BooleanField(default=True, db_index=True)
     # The doctor's directions for the ward (with food, hold if BP low...).
     instructions = models.TextField(blank=True, default="")
+    # H-10: limits on an as-needed (PRN) order, set by the doctor. Blank means
+    # no limit. Enforced when a PRN dose is recorded (nurses/prn_limits.py).
+    prn_min_interval_minutes = models.PositiveIntegerField(null=True, blank=True)
+    prn_max_doses_per_24h = models.PositiveSmallIntegerField(null=True, blank=True)
     # The doctor whose order this is; nurses give doses only against it.
     ordered_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"

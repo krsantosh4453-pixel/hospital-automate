@@ -439,4 +439,25 @@ void main() {
       expect(item.remaining, 5);
     });
   });
+
+  group('H-14 lab flags', () {
+    test('a flagged-name list and computed flag details are both read', () {
+      final result = LabResultData.fromJson({
+        'result_data': {'Hb': '6', 'ESR': '40', 'K': '4.1'},
+        'abnormal_flags': ['Hb', 'ESR'],
+        'flag_details': [
+          {'parameter': 'Hb', 'flag': 'LL'},
+          {'parameter': 'K', 'flag': ''},
+        ],
+      });
+      expect(result.flags, {'Hb': 'LL', 'ESR': 'A'});
+    });
+
+    test('an older map of flags is still read as it is', () {
+      final result = LabResultData.fromJson({
+        'abnormal_flags': {'Hb': 'L'},
+      });
+      expect(result.flags, {'Hb': 'L'});
+    });
+  });
 }

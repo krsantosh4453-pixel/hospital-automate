@@ -4513,4 +4513,50 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get finalBillConfirmBody =>
       'The final bill brings together the bed days above and the charges already captured for this stay. Once created it can be cancelled only by an Admin or Hospital Manager, with a reason.';
+
+  @override
+  String get prnGiveDose => 'Give dose';
+
+  @override
+  String get prnAsNeededHint =>
+      'As needed (PRN): give when the patient needs it, within the doctor\'s limits.';
+
+  @override
+  String prnLimitInterval(String hours) {
+    return 'At least $hours h between doses';
+  }
+
+  @override
+  String prnLimitDaily(int count) {
+    return 'At most $count doses in 24 h';
+  }
+
+  @override
+  String get prnNoLimits => 'No dose limits set by the doctor';
+
+  @override
+  String get prnConfirmTitle => 'Give this as-needed dose now?';
+
+  @override
+  String get prnNoteLabel => 'Reason or note (optional)';
+
+  @override
+  String prnTooSoon(String hours) {
+    return 'Not recorded: too soon after the last dose. This order allows one dose every $hours h. Ask the doctor if the patient needs it sooner.';
+  }
+
+  @override
+  String prnDailyLimitReached(int count) {
+    return 'Not recorded: this order allows at most $count doses in 24 hours, and that many have been given. Ask the doctor before giving more.';
+  }
+
+  @override
+  String get prnIntervalField => 'Minimum hours between doses (optional)';
+
+  @override
+  String get prnMaxDosesField => 'Most doses in 24 hours (optional)';
+
+  @override
+  String get prnLimitsInvalid =>
+      'Enter the dose limits as numbers (hours above 0, doses 1 to 48), or leave them empty.';
 }

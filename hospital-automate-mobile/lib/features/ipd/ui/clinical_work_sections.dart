@@ -17,6 +17,8 @@ import '../../../shared/widgets/states.dart';
 import '../../../shared/widgets/tone.dart';
 import '../../doctor/data/doctor_models.dart';
 import '../../doctor/ui/doctor_ui.dart' show today;
+import '../../nursing/data/nursing_models.dart'
+    show isPrnFrequency, prnIntervalHours;
 import '../../patient/record_loader.dart';
 import '../../patient/ui/patient_ui.dart';
 import '../data/clinical_work_repository.dart';
@@ -509,6 +511,10 @@ class _WardOrdersSectionState extends State<WardOrdersSection> {
   final _dose = TextEditingController();
   final _frequency = TextEditingController();
   final _instructions = TextEditingController();
+  // H-10: optional limits on an as-needed order, shown only for PRN/SOS.
+  final _prnInterval = TextEditingController();
+  final _prnMax = TextEditingController();
+  bool _prn = false;
   PrescribedMedicine? _medicine;
   String _route = 'Oral';
   DateTime? _endDate;
@@ -524,13 +530,44 @@ class _WardOrdersSectionState extends State<WardOrdersSection> {
     super.initState();
     _orders.load();
     if (widget.canOrder) _medicines.load();
+    _frequency.addListener(_onFrequency);
+  }
+
+  void _onFrequency() {
+    final prn = isPrnFrequency(_frequency.text);
+    if (prn != _prn && mounted) setState(() => _prn = prn);
+  }
+
+  /// The PRN limits typed, or null for a field left empty. Throws
+  /// [FormatException] for a value the server would refuse.
+  ({int? interval, int? max}) _prnLimits() {
+    if (!_prn) return (interval: null, max: null);
+    int? interval;
+    int? max;
+    final hoursText = _prnInterval.text.trim().replaceAll(',', '.');
+    if (hoursText.isNotEmpty) {
+      final hours = double.tryParse(hoursText);
+      if (hours == null || hours <= 0) {
+        throw const FormatException('interval');
+      }
+      interval = (hours * 60).round();
+    }
+    final maxText = _prnMax.text.trim();
+    if (maxText.isNotEmpty) {
+      max = int.tryParse(maxText);
+      if (max == null || max < 1 || max > 48) {
+        throw const FormatException('max');
+      }
+    }
+    return (interval: interval, max: max);
   }
 
   @override
   void dispose() {
     _orders.dispose();
     _medicines.dispose();
-    for (final c in [_dose, _frequency, _instructions]) {
+    _frequency.removeListener(_onFrequency);
+    for (final c in [_dose, _frequency, _instructions, _prnInterval, _prnMax]) {
       c.dispose();
     }
     super.dispose();
@@ -580,6 +617,13 @@ class _WardOrdersSectionState extends State<WardOrdersSection> {
       setState(() => _error = t.firstDosePickTime);
       return;
     }
+    final ({int? interval, int? max}) limits;
+    try {
+      limits = _prnLimits();
+    } on FormatException {
+      setState(() => _error = t.prnLimitsInvalid);
+      return;
+    }
     if (_busy) return;
     setState(() {
       _busy = true;
@@ -595,6 +639,8 @@ class _WardOrdersSectionState extends State<WardOrdersSection> {
       instructions: _instructions.text.trim(),
       firstDose: _firstDose,
       firstDoseAt: _firstDose == FirstDose.at ? _firstDoseAt : null,
+      prnMinIntervalMinutes: limits.interval,
+      prnMaxDosesPer24h: limits.max,
     );
     try {
       // The doctor reviews the schedule before anything is saved.
@@ -625,7 +671,13 @@ class _WardOrdersSectionState extends State<WardOrdersSection> {
         _firstDose = FirstDose.nextRound;
         _firstDoseAt = null;
       });
-      for (final c in [_dose, _frequency, _instructions]) {
+      for (final c in [
+        _dose,
+        _frequency,
+        _instructions,
+        _prnInterval,
+        _prnMax,
+      ]) {
         c.clear();
       }
       await _orders.load();
@@ -719,6 +771,16 @@ class _WardOrdersSectionState extends State<WardOrdersSection> {
                                           o.dose,
                                           o.route,
                                           o.frequency,
+                                          if (o.prnMinIntervalMinutes != null)
+                                            t.prnLimitInterval(
+                                              prnIntervalHours(
+                                                o.prnMinIntervalMinutes!,
+                                              ),
+                                            ),
+                                          if (o.prnMaxDosesPer24h != null)
+                                            t.prnLimitDaily(
+                                              o.prnMaxDosesPer24h!,
+                                            ),
                                           if (o.instructions?.isNotEmpty ??
                                               false)
                                             o.instructions!,
@@ -819,6 +881,24 @@ class _WardOrdersSectionState extends State<WardOrdersSection> {
             controller: _frequency,
             required: true,
           ),
+          if (_prn) ...[
+            _gap(),
+            HmsTextField(
+              key: const Key('order-prn-interval'),
+              label: t.prnIntervalField,
+              controller: _prnInterval,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+            ),
+            _gap(),
+            HmsTextField(
+              key: const Key('order-prn-max'),
+              label: t.prnMaxDosesField,
+              controller: _prnMax,
+              keyboardType: TextInputType.number,
+            ),
+          ],
           _gap(),
           _label(t.firstDoseLabel),
           Wrap(

@@ -15,7 +15,9 @@ from users.permissions import (
     get_linked_patient, get_user_roles, is_active_staff, IsAdmin, IsDoctor, IsHospitalManagerReadOnly, IsLabStaff,
     IsNurse, IsPatientReadOnly,
 )
+from . import flags
 from .models import (
+    LabReferenceRange,
     LabTest,
     LabVerificationPolicy,
     SampleCollection,
@@ -27,6 +29,7 @@ from .models import (
 from .serializers import (
     LabTestSerializer,
     LabTestCreateSerializer,
+    LabReferenceRangeSerializer,
     SampleCollectionSerializer,
     SampleDispatchSerializer,
     LabResultSerializer,
@@ -224,18 +227,27 @@ class LabTestViewSet(HospitalScopedViewSet):
                     {"detail": "Result can only be entered for tests being processed."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            # H-14: the server flags the values against the hospital's ranges.
+            evaluation = flags.evaluate(
+                lab_test.hospital_id, lab_test.name, getattr(lab_test.patient, "gender", ""), result_data,
+                client_ranges=request.data.get("reference_ranges"),
+                client_flags=request.data.get("abnormal_flags"),
+            )
             lab_result = LabResult.objects.create(
                 lab_test=lab_test,
                 result_data=result_data,
                 result_text=result_text,
-                reference_ranges=request.data.get("reference_ranges") or {},
-                abnormal_flags=request.data.get("abnormal_flags") or [],
+                reference_ranges=evaluation.reference_ranges,
+                abnormal_flags=evaluation.abnormal_flags,
+                flag_details=evaluation.details,
+                has_critical=evaluation.has_critical,
                 entered_by=request.user,
             )
             lab_test.status = "Result Entered"
             lab_test.result = result_text
             lab_test.save(update_fields=["status", "result"])
-        record_audit(request, "lab.result.entered", lab_result, hospital=lab_test.hospital_id)
+        record_audit(request, "lab.result.entered", lab_result, hospital=lab_test.hospital_id,
+                     details={"abnormal": lab_result.abnormal_flags, "critical": lab_result.has_critical})
 
         return Response(
             {"lab_test": LabTestSerializer(lab_test).data, "lab_result": LabResultSerializer(lab_result).data},
@@ -296,6 +308,13 @@ class LabTestViewSet(HospitalScopedViewSet):
             details["policy_reason"] = policy.reason
         record_audit(request, "lab.result.self_verified" if self_verified else "lab.result.verified", lab_result,
                      hospital=lab_test.hospital_id, details=details)
+        if lab_result.has_critical:
+            # H-14: a verified critical value waits on the critical-results
+            # worklist until a doctor records that it was acted on.
+            record_audit(request, "lab.result.critical", lab_result, hospital=lab_test.hospital_id,
+                         details={"doctor": lab_test.doctor_id, "patient": lab_test.patient_id,
+                                  "parameters": [d["parameter"] for d in lab_result.flag_details
+                                                 if d["flag"] in flags.CRITICAL_FLAGS]})
         return Response(
             {"lab_test": LabTestSerializer(lab_test).data, "lab_result": LabResultSerializer(lab_result).data}
         )
@@ -324,6 +343,56 @@ class LabTestViewSet(HospitalScopedViewSet):
         return Response(
             {"lab_test": LabTestSerializer(lab_test).data, "lab_result": LabResultSerializer(lab_result).data}
         )
+
+    @action(detail=False, methods=["get"], url_path="critical-results",
+            permission_classes=[IsLabStaff | IsDoctor | IsNurse | IsHospitalManagerReadOnly])
+    def critical_results(self, request):
+        """
+        H-14: verified results with a critical value that no doctor has
+        acknowledged yet, oldest first. Doctors and nurses see only patients in
+        their care (the usual scope); ?mine=1 limits a doctor to tests they ordered.
+        """
+        qs = (self.get_queryset()
+              .filter(status__in=LabTest.DONE_STATUSES, lab_result__has_critical=True,
+                      lab_result__critical_acknowledged_at__isnull=True)
+              .order_by("verified_at"))
+        if request.query_params.get("mine") in ("1", "true", "yes"):
+            qs = qs.filter(doctor__user=request.user)
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            return self.get_paginated_response(LabTestSerializer(page, many=True).data)
+        return Response(LabTestSerializer(qs, many=True).data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsDoctor])
+    def acknowledge_critical(self, request, pk=None):
+        """
+        H-14: a doctor records that a critical value was received and what was
+        done ({note}, required). Once only; the acknowledgement is audited.
+        """
+        note = str(request.data.get("note") or "").strip()
+        if len(note) < 3:
+            return Response({"note": "Write what was done about this critical value."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        lab_test = self.get_object()
+        with transaction.atomic():
+            lab_test = self._locked(lab_test)
+            lab_result = LabResult.objects.select_for_update().filter(lab_test=lab_test).first()
+            if (lab_result is None or not lab_result.has_critical
+                    or lab_test.status not in LabTest.DONE_STATUSES):
+                return Response({"detail": "This test has no verified critical value."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            if lab_result.critical_acknowledged_at is not None:
+                return Response({"detail": "This critical value is already acknowledged."},
+                                status=status.HTTP_409_CONFLICT)
+            lab_result.critical_acknowledged_by = request.user
+            lab_result.critical_acknowledged_at = timezone.now()
+            lab_result.critical_acknowledgement_note = note
+            lab_result.save(update_fields=["critical_acknowledged_by", "critical_acknowledged_at",
+                                           "critical_acknowledgement_note"])
+        record_audit(request, "lab.result.critical_acknowledged", lab_result, hospital=lab_test.hospital_id,
+                     details={"note": note})
+        return Response({"lab_test": LabTestSerializer(lab_test).data,
+                         "lab_result": LabResultSerializer(lab_result).data})
 
     @action(detail=False, methods=["get", "post"], url_path="verification-policy",
             permission_classes=[IsLabStaff | IsHospitalManagerReadOnly])
@@ -375,6 +444,53 @@ class LabTestViewSet(HospitalScopedViewSet):
         lab_test.save()
 
         return Response(LabTestSerializer(lab_test).data)
+
+
+class LabReferenceRangeViewSet(HospitalScopedViewSet):
+    """
+    H-14: the hospital's reference and critical limits. Clinical staff read
+    them; an Admin sets them. A range is never deleted: retiring it
+    (is_active=false) keeps results that copied it explainable.
+
+    ?test= (exact name, any case), ?active=1.
+    """
+
+    queryset = LabReferenceRange.objects.all()
+    serializer_class = LabReferenceRangeSerializer
+    permission_classes = [IsLabStaff | IsDoctor | IsNurse | IsHospitalManagerReadOnly]
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_permissions(self):
+        if getattr(self, "action", None) in ("create", "partial_update"):
+            return [IsAdmin()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        test_name = (self.request.query_params.get("test") or "").strip()
+        if test_name:
+            qs = qs.filter(test_name__iexact=test_name)
+        if self.request.query_params.get("active") in ("1", "true", "yes"):
+            qs = qs.filter(is_active=True)
+        return qs
+
+    def _save(self, save):
+        from django.db import IntegrityError
+
+        try:
+            with transaction.atomic():
+                return save()
+        except IntegrityError:
+            raise ValidationError(
+                "An active range for this test, parameter and sex already exists. Retire it first.")
+
+    def perform_create(self, serializer):
+        extra = self._check_tenancy(serializer.validated_data)
+        instance = self._save(lambda: serializer.save(created_by=self.request.user, **extra))
+        self._audit("create", instance)
+
+    def perform_update(self, serializer):
+        self._save(lambda: super(LabReferenceRangeViewSet, self).perform_update(serializer))
 
 
 class SampleCollectionViewSet(HospitalScopedViewSet):

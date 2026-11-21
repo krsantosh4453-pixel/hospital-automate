@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 
@@ -202,11 +203,75 @@ class LabResult(models.Model):
     is_verified = models.BooleanField(default=False)
     is_released = models.BooleanField(default=False)
 
+    # H-14: computed by the server from the hospital's reference ranges when
+    # the result is entered (laboratory/flags.py), never typed by the client.
+    # One entry per checked parameter: value, range, flag (L/H/LL/HH or "")
+    # and whether it could be checked at all.
+    flag_details = models.JSONField(default=list, blank=True)
+    has_critical = models.BooleanField(default=False, db_index=True)
+    critical_acknowledged_by = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="lab_criticals_acknowledged",
+    )
+    critical_acknowledged_at = models.DateTimeField(null=True, blank=True)
+    critical_acknowledgement_note = models.TextField(blank=True, default="")
+
     def __str__(self):
         return f"Result for {self.lab_test}"
 
     class Meta:
         ordering = ["-entered_at"]
+
+
+class LabReferenceRange(models.Model):
+    """
+    H-14: a hospital's reference and critical limits for one parameter of a
+    test, set by its laboratory (values are the lab director's decision; none
+    ship with the app). Results are flagged against these when entered, and
+    the limits in force are copied onto the result, so a later change never
+    alters a released report.
+    """
+
+    SEX_ANY = ""
+    SEX_CHOICES = [(SEX_ANY, "Any"), ("Male", "Male"), ("Female", "Female")]
+
+    hospital = models.ForeignKey("hospital.Hospital", on_delete=models.CASCADE,
+                                 related_name="lab_reference_ranges")
+    # Matched without regard to case against LabTest.name and the keys of
+    # LabResult.result_data.
+    test_name = models.CharField(max_length=150)
+    parameter = models.CharField(max_length=80)
+    unit = models.CharField(max_length=30, blank=True, default="")
+    sex = models.CharField(max_length=10, choices=SEX_CHOICES, blank=True, default=SEX_ANY)
+    low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    high = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    critical_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    critical_high = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["test_name", "parameter", "sex"]
+        constraints = [
+            models.UniqueConstraint(
+                models.F("hospital"),
+                Lower("test_name"),
+                Lower("parameter"),
+                models.F("sex"),
+                condition=models.Q(is_active=True),
+                name="unique_active_lab_reference_range",
+            ),
+        ]
+        indexes = [models.Index(fields=["hospital", "test_name"])]
+
+    def __str__(self):
+        return f"{self.test_name} / {self.parameter}"
 
 
 class ResultVerification(models.Model):

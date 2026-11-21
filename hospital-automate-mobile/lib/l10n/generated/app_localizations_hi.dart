@@ -4498,4 +4498,50 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get finalBillConfirmBody =>
       'अंतिम बिल में ऊपर दिए बिस्तर के दिन और इस भर्ती के पहले से दर्ज शुल्क शामिल होते हैं। बनने के बाद इसे केवल एडमिन या हॉस्पिटल मैनेजर कारण देकर रद्द कर सकते हैं।';
+
+  @override
+  String get prnGiveDose => 'खुराक दें';
+
+  @override
+  String get prnAsNeededHint =>
+      'ज़रूरत पड़ने पर (PRN): मरीज़ को ज़रूरत हो तब दें, डॉक्टर की सीमा के भीतर।';
+
+  @override
+  String prnLimitInterval(String hours) {
+    return 'खुराकों के बीच कम से कम $hours घंटे';
+  }
+
+  @override
+  String prnLimitDaily(int count) {
+    return '24 घंटे में अधिकतम $count खुराक';
+  }
+
+  @override
+  String get prnNoLimits => 'डॉक्टर ने खुराक की कोई सीमा तय नहीं की';
+
+  @override
+  String get prnConfirmTitle => 'क्या यह ज़रूरत वाली खुराक अभी दें?';
+
+  @override
+  String get prnNoteLabel => 'कारण या टिप्पणी (वैकल्पिक)';
+
+  @override
+  String prnTooSoon(String hours) {
+    return 'दर्ज नहीं हुई: पिछली खुराक के बहुत जल्दी बाद। यह आदेश हर $hours घंटे में एक खुराक की अनुमति देता है। मरीज़ को पहले ज़रूरत हो तो डॉक्टर से पूछें।';
+  }
+
+  @override
+  String prnDailyLimitReached(int count) {
+    return 'दर्ज नहीं हुई: यह आदेश 24 घंटे में अधिकतम $count खुराक की अनुमति देता है, और इतनी दी जा चुकी हैं। और देने से पहले डॉक्टर से पूछें।';
+  }
+
+  @override
+  String get prnIntervalField => 'खुराकों के बीच न्यूनतम घंटे (वैकल्पिक)';
+
+  @override
+  String get prnMaxDosesField => '24 घंटे में अधिकतम खुराक (वैकल्पिक)';
+
+  @override
+  String get prnLimitsInvalid =>
+      'खुराक की सीमा संख्या में लिखें (घंटे 0 से अधिक, खुराक 1 से 48), या खाली छोड़ें।';
 }

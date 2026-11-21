@@ -437,19 +437,32 @@ class MARViewSet(HospitalScopedViewSet):
     @action(detail=True, methods=["post"])
     def prn(self, request, pk=None):
         """Record an as-needed (PRN) dose given now."""
+        from .prn_limits import prn_limit_refusal
+
         mar = self.get_object()
         if not is_prn(mar.frequency):
             return Response({"detail": "This order is not PRN; use the scheduled doses."},
                             status=status.HTTP_400_BAD_REQUEST)
         if not mar.in_force(hospital_today()):
             return Response({"detail": NO_ORDER}, status=status.HTTP_400_BAD_REQUEST)
-        now = timezone.now()
-        admin = MARAdministration.objects.create(
-            mar=mar, scheduled_time=now, administered_time=now, status=MARAdministration.ADMINISTERED,
-            is_prn=True, recorded_by=request.user,
-            dose_given=request.data.get("dose_given", mar.dose), route_given=request.data.get("route_given", mar.route),
-            notes=request.data.get("notes", ""),
-        )
+        with transaction.atomic():
+            # H-10: the order row is locked, so two nurses recording at the
+            # same moment cannot both pass the interval or daily limit.
+            mar = MAR.objects.select_for_update().get(pk=mar.pk)
+            now = timezone.now()
+            refusal = prn_limit_refusal(mar, now)
+            if refusal is None:
+                admin = MARAdministration.objects.create(
+                    mar=mar, scheduled_time=now, administered_time=now, status=MARAdministration.ADMINISTERED,
+                    is_prn=True, recorded_by=request.user,
+                    dose_given=request.data.get("dose_given", mar.dose),
+                    route_given=request.data.get("route_given", mar.route),
+                    notes=request.data.get("notes", ""),
+                )
+        if refusal is not None:
+            record_audit(request, "nurses.mar.prn_refused", mar, hospital=mar.hospital_id,
+                         details={"medicine": mar.medicine_name, "reason": refusal["code"]})
+            return Response(refusal, status=status.HTTP_409_CONFLICT)
         audit_dose(request, admin)
         return Response(MARAdministrationSerializer(admin).data, status=status.HTTP_201_CREATED)
 

@@ -304,7 +304,7 @@ class ServicePriceViewSet(HospitalScopedViewSet):
     http_method_names = ["get", "post", "head", "options"]
 
     def get_permissions(self):
-        if getattr(self, "action", None) in ("create", "retire"):
+        if getattr(self, "action", None) in ("create", "retire", "charge_unbilled"):
             return [PRICING_ROLES()]
         return super().get_permissions()
 
@@ -359,6 +359,52 @@ class ServicePriceViewSet(HospitalScopedViewSet):
         price = price_list.retire(price, end)
         record_audit(request, "billing.price.retire", price, details={"effective_to": str(end)})
         return Response(self.get_serializer(price).data)
+
+    def _sweep_scope(self, request):
+        """B-2: the one acting hospital and the first day swept."""
+        from django.utils.dateparse import parse_date
+
+        from . import unbilled
+
+        hospitals = self.get_acting_hospital_ids()
+        if len(hospitals) != 1:
+            raise ValidationError({"hospital": "Choose one hospital."})
+        raw = request.query_params.get("since") or request.data.get("since")
+        day = parse_date(str(raw)) if raw else None
+        if raw and day is None:
+            raise ValidationError({"since": "Give a date as YYYY-MM-DD."})
+        try:
+            return hospitals[0], unbilled.since_day(day)
+        except ValueError as exc:
+            raise ValidationError({"since": str(exc)}) from exc
+
+    @action(detail=False, methods=["get"])
+    def unbilled(self, request):
+        """
+        B-2: completed consultations and verified laboratory tests with no
+        live charge since ?since= (default 30 days, at most 90), each saying
+        whether it has a price today.
+        """
+        from . import unbilled
+
+        hospital_id, since = self._sweep_scope(request)
+        rows = unbilled.find_unbilled(hospital_id, since)
+        return Response({"since": str(since), "count": len(rows), "results": rows})
+
+    @action(detail=False, methods=["post"], url_path="charge-unbilled")
+    def charge_unbilled(self, request):
+        """
+        B-2: charge the priced rows of ``unbilled`` (Admin or Hospital Manager).
+        Each service is charged once only, through the normal capture.
+        """
+        from . import unbilled
+
+        hospital_id, since = self._sweep_scope(request)
+        charged, unpriced = unbilled.charge_unbilled(hospital_id, since)
+        record_audit(request, "billing.charge.unbilled_swept", None, hospital=hospital_id,
+                     details={"since": str(since), "charged": len(charged), "unpriced": len(unpriced),
+                              "keys": [f"{r['kind']}:{r['id']}" for r in charged]})
+        return Response({"since": str(since), "charged": charged, "unpriced": unpriced})
 
     @action(detail=False, methods=["get"])
     def medicines(self, request):

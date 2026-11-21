@@ -10,12 +10,18 @@ import PatientPicker from "../components/patients/PatientPicker.jsx"
 import { displayPatientId } from "../utils/patientIdentity.js"
 import AdvancePayments from "../components/billing/AdvancePayments.jsx"
 import DischargeBills from "../components/billing/DischargeBills.jsx"
+import PriceList from "../components/billing/PriceList.jsx"
+import PricedServicePicker from "../components/billing/PricedServicePicker.jsx"
+import UnbilledWork from "../components/billing/UnbilledWork.jsx"
+import { itemsData, otherLinesOf, pricedAmount } from "../utils/billingLines.js"
 import { Plus as PlusIcon } from "lucide-react"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 
 // Refunds of advance money are for billing staff and above (the server enforces this).
 const REFUND_ROLES = ["Admin", "Hospital Manager", "Billing Staff"]
+// Prices are added and retired, and unbilled work charged, by these (server-enforced).
+const PRICING_ROLES = ["Admin", "Hospital Manager"]
 
 function Billing() {
   const { t } = useLanguage()
@@ -41,6 +47,14 @@ function Billing() {
   const [showInvoice, setShowInvoice] = useState(false)
 
   const [selectedBill, setSelectedBill] = useState(null)
+
+  // B-4: lines chosen from the price list, and other lines of an edited bill
+  // that the four typed amounts do not cover (kept, never dropped on save).
+  const [pricedLines, setPricedLines] = useState([])
+  const [keptLines, setKeptLines] = useState([])
+  const otherTotal = () =>
+    pricedLines.reduce((sum, line) => sum + pricedAmount(line), 0) +
+    keptLines.reduce((sum, line) => sum + pricedAmount(line), 0)
 
   // One idempotency key per opened form (RL-04): a retry after a lost
   // response re-sends the same key, so the server records the payment once.
@@ -161,6 +175,10 @@ function Billing() {
   // =========================
 
   const calculateTotal = (bill) => {
+
+    // The server's total includes GST on priced lines; the line sum does not.
+    const serverTotal = bill.apiInvoice?.total_amount ?? bill.apiInvoice?.total
+    if (serverTotal !== undefined && serverTotal !== null) return Number(serverTotal)
 
     return Math.max(
       0,
@@ -384,7 +402,7 @@ function Billing() {
 
 
     if (
-      services.length === 0
+      services.length === 0 && pricedLines.length === 0 && keptLines.length === 0
     ) {
 
       toast.warning(
@@ -401,7 +419,7 @@ function Billing() {
           total +
           service.amount,
         0
-      )
+      ) + otherTotal()
 
 
     const discount =
@@ -444,11 +462,7 @@ function Billing() {
       hospital: selectedHospital.id,
       patient: Number(formData.patientRecord),
       discount: discount,
-      items_data: services.map((s) => ({
-        description: s.name,
-        quantity: 1,
-        unit_price: s.amount,
-      })),
+      items_data: itemsData(services, pricedLines, keptLines),
     }
 
     try {
@@ -464,31 +478,8 @@ function Billing() {
         })
       }
 
-      // Reload bills
-      const data = await api.billing.invoices.list(selectedHospital.id)
-      const results = Array.isArray(data) ? data : data?.results || []
-      const mappedBills = results.map((inv) => {
-        const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
-          (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
-        
-        return {
-          id: inv.invoice_number,
-          apiId: inv.id,
-          patient: inv.patient_name || inv.patient?.name || "Unknown",
-          patientId: inv.patient ? displayPatientId({ id: inv.patient, uhid: inv.patient_uhid }) : "",
-          hospitalId: inv.hospital,
-          date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
-          services: inv.items?.map((item) => ({
-            name: item.description,
-            amount: Number(item.subtotal),
-          })) || [],
-          discount: Number(inv.discount || 0),
-          paid: totalPaid,
-          payment: inv.payments?.[0]?.payment_method || "Cash",
-          status: inv.status,
-        }
-      })
-      setBills(mappedBills)
+      // Reload bills through the page loader, which keeps each bill's server record.
+      setBillsReloadToken((n) => n + 1)
 
       resetForm()
       toast.success("Invoice created successfully!")
@@ -541,6 +532,11 @@ function Billing() {
     setSelectedBill(
       bill
     )
+
+    // B-4: priced and other lines of this bill are kept on save.
+    const others = otherLinesOf(bill.apiInvoice?.items)
+    setPricedLines(others.priced)
+    setKeptLines(others.kept)
 
 
     setFormData({
@@ -604,7 +600,7 @@ function Billing() {
 
 
     if (
-      services.length === 0
+      services.length === 0 && pricedLines.length === 0 && keptLines.length === 0
     ) {
 
       toast.warning(
@@ -621,7 +617,7 @@ function Billing() {
           total +
           service.amount,
         0
-      )
+      ) + otherTotal()
 
 
     const discount =
@@ -671,11 +667,7 @@ function Billing() {
     try {
       const payload = { discount: discount }
       if (!hasPayments) {
-        payload.items_data = services.map((s) => ({
-          description: s.name,
-          quantity: 1,
-          unit_price: s.amount,
-        }))
+        payload.items_data = itemsData(services, pricedLines, keptLines)
       }
 
       await api.billing.invoices.update(selectedBill.apiInvoice.id, payload)
@@ -689,31 +681,8 @@ function Billing() {
         })
       }
 
-      // Reload bills
-      const data = await api.billing.invoices.list(selectedHospital.id)
-      const results = Array.isArray(data) ? data : data?.results || []
-      const mappedBills = results.map((inv) => {
-        const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
-          (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
-        
-        return {
-          id: inv.invoice_number,
-          apiId: inv.id,
-          patient: inv.patient_name || inv.patient?.name || "Unknown",
-          patientId: inv.patient ? displayPatientId({ id: inv.patient, uhid: inv.patient_uhid }) : "",
-          hospitalId: inv.hospital,
-          date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
-          services: inv.items?.map((item) => ({
-            name: item.description,
-            amount: Number(item.subtotal),
-          })) || [],
-          discount: Number(inv.discount || 0),
-          paid: totalPaid,
-          payment: inv.payments?.[0]?.payment_method || "Cash",
-          status: inv.status,
-        }
-      })
-      setBills(mappedBills)
+      // Reload bills through the page loader, which keeps each bill's server record.
+      setBillsReloadToken((n) => n + 1)
 
       resetForm()
       toast.success("Invoice updated successfully!")
@@ -756,31 +725,8 @@ function Billing() {
     try {
       await api.billing.invoices.delete(bill.apiInvoice.id)
       
-      // Reload bills
-      const data = await api.billing.invoices.list(selectedHospital.id)
-      const results = Array.isArray(data) ? data : data?.results || []
-      const mappedBills = results.map((inv) => {
-        const totalPaid = inv.total_paid !== undefined ? Number(inv.total_paid) : 
-          (inv.payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0)
-        
-        return {
-          id: inv.invoice_number,
-          apiId: inv.id,
-          patient: inv.patient_name || inv.patient?.name || "Unknown",
-          patientId: inv.patient ? displayPatientId({ id: inv.patient, uhid: inv.patient_uhid }) : "",
-          hospitalId: inv.hospital,
-          date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "",
-          services: inv.items?.map((item) => ({
-            name: item.description,
-            amount: Number(item.subtotal),
-          })) || [],
-          discount: Number(inv.discount || 0),
-          paid: totalPaid,
-          payment: inv.payments?.[0]?.payment_method || "Cash",
-          status: inv.status,
-        }
-      })
-      setBills(mappedBills)
+      // Reload bills through the page loader, which keeps each bill's server record.
+      setBillsReloadToken((n) => n + 1)
 
       toast.success("Invoice deleted successfully!")
     } catch (error) {
@@ -927,6 +873,8 @@ function Billing() {
                 icon={PlusIcon}
                 onClick={() => {
                   setSelectedBill(null)
+                  setPricedLines([])
+                  setKeptLines([])
                   setFormData({ patient: "", patientId: "", patientRecord: "", consultation: "", laboratory: "", pharmacy: "", other: "", discount: "", paid: "", payment: "Cash" })
                   setShowForm(true)
                 }}
@@ -954,6 +902,17 @@ function Billing() {
               hospitalId={selectedHospital.id}
               canRefund={REFUND_ROLES.includes(activeRoleName)}
               onChanged={() => setBillsReloadToken((n) => n + 1)}
+            />
+
+            <UnbilledWork
+              hospitalId={selectedHospital.id}
+              canCharge={PRICING_ROLES.includes(activeRoleName)}
+              onCharged={() => setBillsReloadToken((n) => n + 1)}
+            />
+
+            <PriceList
+              hospitalId={selectedHospital.id}
+              canManage={PRICING_ROLES.includes(activeRoleName)}
             />
 
             {/* =========================
@@ -1455,6 +1414,13 @@ function Billing() {
                 <div className="space-y-3">
 
 
+                  <p className="text-sm text-ink-600">
+                    {t("Consultations, laboratory tests and bed days are billed automatically when the visit is completed, the result is verified or the stay is discharged. Do not add them here.")}
+                  </p>
+
+                  {/* B-1: shown only to keep the lines an older bill already has. */}
+                  {selectedBill && (Number(formData.consultation) > 0 || Number(formData.laboratory) > 0) && (
+                    <>
                   <input
 
                     type="number"
@@ -1499,6 +1465,8 @@ function Billing() {
                     className="hms-input w-full"
 
                   />
+                    </>
+                  )}
 
 
                   <input
@@ -1545,6 +1513,19 @@ function Billing() {
                     className="hms-input w-full"
 
                   />
+
+                  {keptLines.length > 0 && (
+                    <div className="text-sm text-ink-600">
+                      <p className="font-medium">{t("Other lines on this bill (kept as they are)")}</p>
+                      <ul className="list-disc pl-5">
+                        {keptLines.map((line, index) => (
+                          <li key={`${line.description}-${index}`}>{line.description} · ₹{pricedAmount(line).toFixed(2)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <PricedServicePicker hospitalId={selectedHospital?.id} lines={pricedLines} onChange={setPricedLines} />
 
                 </div>
 

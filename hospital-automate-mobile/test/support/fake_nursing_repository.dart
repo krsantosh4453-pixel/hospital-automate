@@ -247,4 +247,43 @@ class FakeNursingRepository implements NursingRepository {
     ];
     return recorded!;
   }
+
+  /// PRN doses given, in order: (order id, notes).
+  final List<({int order, String notes})> prnDoses = [];
+
+  @override
+  Future<Dose> givePrnDose(int orderId, {String notes = ''}) async {
+    prnDoses.add((order: orderId, notes: notes));
+    await _write();
+    final order = orderRows.firstWhere((o) => o.id == orderId);
+    final given = Dose(
+      id: 9000 + prnDoses.length,
+      status: 'Administered',
+      medicineName: order.medicineName,
+      dose: order.dose,
+      route: order.route,
+      scheduledAt: DateTime(2026, 11, 21, 10),
+      recordedAt: DateTime(2026, 11, 21, 10),
+      givenByName: profile?.name,
+      isPrn: true,
+    );
+    orderRows = [
+      for (final o in orderRows)
+        if (o.id == orderId)
+          MedicationOrder(
+            id: o.id,
+            medicineName: o.medicineName,
+            isActive: o.isActive,
+            dose: o.dose,
+            route: o.route,
+            frequency: o.frequency,
+            prnMinIntervalMinutes: o.prnMinIntervalMinutes,
+            prnMaxDosesPer24h: o.prnMaxDosesPer24h,
+            doses: [...o.doses, given],
+          )
+        else
+          o,
+    ];
+    return given;
+  }
 }

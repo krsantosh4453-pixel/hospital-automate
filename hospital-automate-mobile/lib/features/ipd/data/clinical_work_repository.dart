@@ -76,6 +76,8 @@ class MedicationOrder {
     this.endDate,
     this.instructions,
     this.orderedByName,
+    this.prnMinIntervalMinutes,
+    this.prnMaxDosesPer24h,
   });
 
   factory MedicationOrder.fromJson(Map<String, Object?> json) =>
@@ -91,6 +93,8 @@ class MedicationOrder {
         endDate: readDate(json['end_date']),
         instructions: readText(json['instructions']),
         orderedByName: readText(json['ordered_by_name']),
+        prnMinIntervalMinutes: readInt(json['prn_min_interval_minutes']),
+        prnMaxDosesPer24h: readInt(json['prn_max_doses_per_24h']),
       );
 
   final int id;
@@ -104,6 +108,10 @@ class MedicationOrder {
   final DateTime? endDate;
   final String? instructions;
   final String? orderedByName;
+
+  /// H-10: limits on an as-needed order; null means no limit.
+  final int? prnMinIntervalMinutes;
+  final int? prnMaxDosesPer24h;
 }
 
 /// A new ward order from one prescribed medicine.
@@ -119,6 +127,8 @@ class MedicationOrderDraft {
     this.instructions = '',
     this.firstDose,
     this.firstDoseAt,
+    this.prnMinIntervalMinutes,
+    this.prnMaxDosesPer24h,
   });
 
   final PrescribedMedicine medicine;
@@ -135,6 +145,10 @@ class MedicationOrderDraft {
 
   /// The hospital-clock time for [FirstDose.at].
   final DateTime? firstDoseAt;
+
+  /// H-10: optional limits, sent only for an as-needed (PRN/SOS) order.
+  final int? prnMinIntervalMinutes;
+  final int? prnMaxDosesPer24h;
 }
 
 /// How the first dose of a ward order is placed (nurses/scheduling.py).
@@ -462,6 +476,10 @@ class ApiClinicalWorkRepository implements ClinicalWorkRepository {
         'start_date': isoDay(draft.startDate),
         'end_date': draft.endDate == null ? null : isoDay(draft.endDate!),
         'instructions': draft.instructions,
+        if (draft.prnMinIntervalMinutes != null)
+          'prn_min_interval_minutes': draft.prnMinIntervalMinutes,
+        if (draft.prnMaxDosesPer24h != null)
+          'prn_max_doses_per_24h': draft.prnMaxDosesPer24h,
         // The server schedules the doses in the same transaction (PRN gets
         // none). A refused first dose leaves no order behind. Before this the
         // app sent only today's date, which put the first dose at midnight.

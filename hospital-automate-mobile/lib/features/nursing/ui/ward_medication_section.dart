@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/localization/l10n.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../shared/widgets/hms_button.dart';
@@ -23,6 +24,10 @@ import 'ward_widgets.dart';
 /// a dose shows as recorded only after the server confirms it; a dose
 /// already being sent cannot be tapped again; and the server refuses a dose
 /// already recorded (by anyone) or whose order is no longer in force.
+///
+/// As-needed (PRN) orders have no scheduled doses: the nurse gives one with
+/// "Give dose", and the server refuses it inside the doctor's minimum
+/// interval or over the 24-hour maximum (H-10).
 class WardMedicationSection extends StatefulWidget {
   const WardMedicationSection({super.key, required this.ward});
 
@@ -40,6 +45,9 @@ class _WardMedicationSectionState extends State<WardMedicationSection> {
 
   /// Doses whose outcome is being sent; their buttons are disabled.
   final Set<int> _sending = {};
+
+  /// PRN orders whose dose is being sent.
+  final Set<int> _sendingPrn = {};
   String? _error;
   String? _done;
 
@@ -94,6 +102,40 @@ class _WardMedicationSectionState extends State<WardMedicationSection> {
     }
   }
 
+  Future<void> _givePrn(MedicationOrder order) async {
+    if (_sendingPrn.contains(order.id)) return;
+    final t = context.l10n;
+    final notes = await showHmsModal<String>(
+      context,
+      title: t.prnConfirmTitle,
+      description: t.checkPatientBeforeDose,
+      body: _PrnConfirmForm(ward: _w, order: order),
+    );
+    if (notes == null || !mounted) return;
+    setState(() {
+      _sendingPrn.add(order.id);
+      _error = null;
+      _done = null;
+    });
+    try {
+      final saved = await _w.repository.givePrnDose(order.id, notes: notes);
+      if (mounted) {
+        setState(
+          () => _done = t.doseRecorded(
+            saved.medicineName,
+            doseStatusLabel(t, saved.status),
+            formatClock(t, saved.recordedAt),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = prnErrorMessage(t, order, error));
+    } finally {
+      if (mounted) setState(() => _sendingPrn.remove(order.id));
+      await _loader.load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.l10n;
@@ -135,6 +177,8 @@ class _WardMedicationSectionState extends State<WardMedicationSection> {
                       order: order,
                       sending: _sending,
                       onRecord: _record,
+                      prnBusy: _sendingPrn.contains(order.id),
+                      onGivePrn: _givePrn,
                     ),
                 ],
               );
@@ -151,11 +195,15 @@ class _OrderTile extends StatelessWidget {
     required this.order,
     required this.sending,
     required this.onRecord,
+    required this.prnBusy,
+    required this.onGivePrn,
   });
 
   final MedicationOrder order;
   final Set<int> sending;
   final void Function(Dose dose, DoseAction action) onRecord;
+  final bool prnBusy;
+  final void Function(MedicationOrder order) onGivePrn;
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +245,23 @@ class _OrderTile extends StatelessWidget {
               style: AppTypography.caption(),
             ),
           const SizedBox(height: AppSpacing.x2),
-          if (due.isEmpty)
+          if (order.isPrn) ...[
+            Text(t.prnAsNeededHint, style: AppTypography.small()),
+            Text(prnLimitsText(t, order), style: AppTypography.caption()),
+            const SizedBox(height: AppSpacing.x2),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: HmsButton(
+                key: Key('prn-${order.id}'),
+                label: t.prnGiveDose,
+                size: HmsButtonSize.small,
+                surface: HmsSurface.card,
+                loading: prnBusy,
+                onPressed: prnBusy ? null : () => onGivePrn(order),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x2),
+          ] else if (due.isEmpty)
             Text(t.noDosesDue, style: AppTypography.caption())
           else
             for (final dose in due.take(3))
@@ -277,6 +341,105 @@ class _DueDose extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The doctor's limits on a PRN order in one line.
+String prnLimitsText(AppLocalizations t, MedicationOrder order) {
+  final interval = order.prnMinIntervalMinutes;
+  final max = order.prnMaxDosesPer24h;
+  if (interval == null && max == null) return t.prnNoLimits;
+  return [
+    if (interval != null) t.prnLimitInterval(prnIntervalHours(interval)),
+    if (max != null) t.prnLimitDaily(max),
+  ].join(' · ');
+}
+
+/// A refused PRN dose (H-10) in words built from the order's own limits; the
+/// server's sentence is never shown raw.
+String prnErrorMessage(
+  AppLocalizations t,
+  MedicationOrder order,
+  Object error,
+) {
+  if (error is ApiException && error.kind == ApiErrorKind.conflict) {
+    if (error.hasFlag('prn_min_interval')) {
+      return t.prnTooSoon(prnIntervalHours(order.prnMinIntervalMinutes ?? 0));
+    }
+    if (error.hasFlag('prn_max_per_24h')) {
+      return t.prnDailyLimitReached(order.prnMaxDosesPer24h ?? 0);
+    }
+  }
+  return doseErrorMessage(t, error);
+}
+
+class _PrnConfirmForm extends StatefulWidget {
+  const _PrnConfirmForm({required this.ward, required this.order});
+
+  final WardContext ward;
+  final MedicationOrder order;
+
+  @override
+  State<_PrnConfirmForm> createState() => _PrnConfirmFormState();
+}
+
+class _PrnConfirmFormState extends State<_PrnConfirmForm> {
+  final _notes = TextEditingController();
+
+  @override
+  void dispose() {
+    _notes.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.l10n;
+    final order = widget.order;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        HmsCard(
+          child: HmsDividedColumn(
+            children: [
+              DetailRow(label: t.patientLabel, value: widget.ward.identity(t)),
+              DetailRow(label: t.medicineName, value: order.medicineName),
+              DetailRow(label: t.dosage, value: order.dose),
+              DetailRow(label: t.route, value: order.route),
+              DetailRow(label: t.frequency, value: prnLimitsText(t, order)),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.x3),
+        TextField(
+          key: const Key('prn-notes'),
+          controller: _notes,
+          maxLines: 2,
+          decoration: InputDecoration(labelText: t.prnNoteLabel),
+        ),
+        const SizedBox(height: AppSpacing.x4),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: AppSpacing.x2,
+          runSpacing: AppSpacing.x2,
+          children: [
+            HmsButton(
+              label: t.cancel,
+              variant: HmsButtonVariant.secondary,
+              surface: HmsSurface.card,
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            HmsButton(
+              key: const Key('confirm-prn'),
+              label: t.confirm,
+              surface: HmsSurface.card,
+              onPressed: () => Navigator.of(context).pop(_notes.text.trim()),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -18,6 +18,16 @@ from .models import ServicePrice
 
 Category = ServicePrice.Category
 
+# B-1: services charged automatically from the work itself (billing/charges.py,
+# ipd/discharge.py). A hand-added line for one of them would bill it twice.
+AUTOMATIC_CATEGORIES = {
+    Category.CONSULTATION: "a consultation is charged automatically when its visit is completed",
+    Category.LABORATORY: "a laboratory test is charged automatically when its result is verified",
+    Category.BED: "bed days are charged automatically on the final bill of the stay",
+}
+AUTOMATIC_HINT = (" To bill earlier work done before its price existed, an Admin or Hospital Manager uses "
+                  "Unbilled work on the Billing page.")
+
 
 def _same_service(hospital_id, category, applies_to, doctor_id):
     return ServicePrice.objects.filter(
@@ -109,6 +119,10 @@ def price_line(item, hospital_id):
         return item
     if price.hospital_id != hospital_id:
         raise ValidationError({"service_price": "This price belongs to another hospital."})
+    if price.category in AUTOMATIC_CATEGORIES:
+        reason = AUTOMATIC_CATEGORIES[price.category]
+        raise ValidationError({"service_price": f"Not added: {reason}, so this line would bill it twice."
+                                                + AUTOMATIC_HINT})
     today = hospital_today()
     if price.effective_from > today or (price.effective_to is not None and price.effective_to < today):
         raise ValidationError({"service_price": f"{price.name} is not priced for today."})

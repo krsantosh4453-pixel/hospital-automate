@@ -383,6 +383,8 @@ class MedicationOrder {
     this.startDate,
     this.endDate,
     this.orderedByName,
+    this.prnMinIntervalMinutes,
+    this.prnMaxDosesPer24h,
     this.doses = const [],
   });
 
@@ -398,6 +400,8 @@ class MedicationOrder {
         startDate: readDate(json['start_date']),
         endDate: readDate(json['end_date']),
         orderedByName: readText(json['ordered_by_name']),
+        prnMinIntervalMinutes: readInt(json['prn_min_interval_minutes']),
+        prnMaxDosesPer24h: readInt(json['prn_max_doses_per_24h']),
         doses: [
           for (final row in readRows(json['administrations']))
             Dose.fromJson(row),
@@ -414,7 +418,31 @@ class MedicationOrder {
   final DateTime? startDate;
   final DateTime? endDate;
   final String? orderedByName;
+
+  /// H-10: the doctor's limits on an as-needed order; null means no limit.
+  final int? prnMinIntervalMinutes;
+  final int? prnMaxDosesPer24h;
   final List<Dose> doses;
+
+  /// An as-needed order: never scheduled, given with [NursingRepository.givePrnDose].
+  bool get isPrn => isPrnFrequency(frequency);
+}
+
+/// The same words the server reads as "as needed" (nurses/frequency.py).
+final _prnWord = RegExp(
+  r'\b(PRN|SOS|AS NEEDED|AS REQUIRED)\b',
+  caseSensitive: false,
+);
+
+bool isPrnFrequency(String? frequency) =>
+    frequency != null && _prnWord.hasMatch(frequency);
+
+/// [minutes] between PRN doses as hours for display, e.g. 240 → "4", 90 → "1.5".
+String prnIntervalHours(int minutes) {
+  final hours = minutes / 60;
+  return hours == hours.roundToDouble()
+      ? hours.toInt().toString()
+      : hours.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '');
 }
 
 /// The outcomes a nurse may record for a due dose (dose actions in

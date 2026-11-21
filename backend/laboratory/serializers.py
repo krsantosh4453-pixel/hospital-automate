@@ -3,6 +3,7 @@ from .models import (
     LabTest,
     SampleCollection,
     SampleDispatch,
+    LabReferenceRange,
     LabResult,
     ResultVerification,
     ImagingStudy,
@@ -54,6 +55,8 @@ class SampleDispatchSerializer(serializers.ModelSerializer):
 class LabResultSerializer(serializers.ModelSerializer):
     entered_by_name = serializers.CharField(source="entered_by.get_full_name", read_only=True)
     verified_by_name = serializers.CharField(source="verified_by.get_full_name", read_only=True)
+    critical_acknowledged_by_name = serializers.CharField(source="critical_acknowledged_by.get_full_name",
+                                                          read_only=True)
 
     class Meta:
         model = LabResult
@@ -73,9 +76,48 @@ class LabResultSerializer(serializers.ModelSerializer):
             "is_released",
             "entered_by_name",
             "verified_by_name",
+            "flag_details",
+            "has_critical",
+            "critical_acknowledged_by",
+            "critical_acknowledged_by_name",
+            "critical_acknowledged_at",
+            "critical_acknowledgement_note",
         ]
         # BUG-06: every field is written by the enter/verify/release actions only.
         read_only_fields = fields
+
+
+class LabReferenceRangeSerializer(serializers.ModelSerializer):
+    """H-14: one parameter's limits. The limits must be ordered: critical low <= low < high <= critical high."""
+
+    class Meta:
+        model = LabReferenceRange
+        fields = ["id", "hospital", "test_name", "parameter", "unit", "sex", "low", "high",
+                  "critical_low", "critical_high", "is_active", "created_by", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+        extra_kwargs = {"hospital": {"required": False}}
+
+    def validate(self, attrs):
+        def value(name):
+            return attrs[name] if name in attrs else getattr(self.instance, name, None)
+
+        for name in ("test_name", "parameter"):
+            text = str(value(name) or "").strip()
+            if not text:
+                raise serializers.ValidationError({name: "This field is required."})
+            if name in attrs:
+                attrs[name] = text
+        low, high = value("low"), value("high")
+        critical_low, critical_high = value("critical_low"), value("critical_high")
+        if all(v is None for v in (low, high, critical_low, critical_high)):
+            raise serializers.ValidationError("Enter at least one limit.")
+        ordered = [v for v in (critical_low, low, high, critical_high) if v is not None]
+        if ordered != sorted(ordered):
+            raise serializers.ValidationError(
+                "Limits must be in order: critical low, low, high, critical high.")
+        if low is not None and high is not None and low == high:
+            raise serializers.ValidationError({"high": "High must be above low."})
+        return attrs
 
 
 class ResultVerificationSerializer(serializers.ModelSerializer):
