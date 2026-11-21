@@ -1,5 +1,23 @@
 # Load test and rate limits (P1-08)
 
+## Re-run (2026-11-19, final acceptance)
+
+Same machine, gunicorn 26.2.0 with 4 sync workers, throwaway PostgreSQL 17, a local Redis configured like production (`django_redis`, no fail-open), `seed_demo` plus 200 synthetic patients and 30 synthetic portal logins. Details and raw figures: `docs/FINAL_PRODUCTION_ACCEPTANCE_REPORT.md`, section 10.
+
+| Scenario | Result |
+|---|---|
+| Staff mix as below, 50 clients, 60 s, throttles off | **9,975 requests, 166 req/s, 0 errors**; p50 302 ms, p95 372 ms, p99 441 ms, max 622 ms. 1,986 registrations, every UHID unique |
+| 30 portal patients, no think time, 30 s | 18,164 requests, 605 req/s, 0 errors; p95 87 ms |
+| 30 portal patients, 1 s think time, 30 s | 900 requests, 0 errors; p95 23 ms |
+| 20 patients book the same slot at once | 1 booked (201), 19 refused (409 "slot was just booked"); 1 row |
+| 12 dispenses at once against 5 units | 5 dispensed, 7 refused ("Insufficient stock"); stock 0; ledger IN 5 / OUT 5 |
+| 10 bed allocations at once for one bed | 1 allocated, 9 refused (400); one active allocation |
+| Redis stopped for 15 s (production throttles on) | **every API request returned 500** while Redis was down; recovered by itself on the first request after Redis returned |
+| PostgreSQL stopped for 15 s | every API request returned 500; recovered by itself |
+
+Redis is therefore a hard dependency for the whole API in production, not only for caching (finding R-1 in the acceptance report). Keep its restart policy and monitoring in place until that is decided.
+
+
 ## Result (2026-11-08)
 
 | | |

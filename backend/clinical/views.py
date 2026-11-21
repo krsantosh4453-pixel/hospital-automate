@@ -102,6 +102,16 @@ class AllergyViewSet(HospitalScopedViewSet):
             queryset = queryset.filter(patient_id=patient_id)
         return queryset
 
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        # An allergy on record replaces an earlier "No known allergies"; if it
+        # is later entered in error the patient goes back to "Unknown", never
+        # silently to "No known allergies" (Prompt 3).
+        patient = serializer.instance.patient
+        if patient.allergy_status != "Unknown":
+            patient.allergy_status = "Unknown"
+            patient.save(update_fields=["allergy_status"])
+
 
 class ClinicalNoteViewSet(VisitFilterMixin, SignedRecordMixin, HospitalScopedViewSet):
     queryset = ClinicalNote.objects.select_related(

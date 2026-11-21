@@ -74,6 +74,12 @@ class MedicineViewSet(HospitalScopedViewSet):
 
     @transaction.atomic
     def perform_create(self, serializer):
+        # S-L3: new stock always belongs to one hospital. A user in several
+        # hospitals who sends no hospital would otherwise create a row that
+        # no tenant owns.
+        extra = self._check_tenancy(serializer.validated_data)
+        if (serializer.validated_data.get("hospital") or extra.get("hospital")) is None:
+            raise serializers.ValidationError({"hospital": "Choose the hospital this stock belongs to."})
         super().perform_create(serializer)
         medicine = serializer.instance
         if medicine.hospital_id:
@@ -139,11 +145,14 @@ class SaleViewSet(HospitalScopedViewSet):
 
     @staticmethod
     def _check_batch(medicine, hospital):
-        # A sale can never draw stock from another hospital.
-        if (
-            medicine.hospital_id
-            and medicine.hospital_id != hospital.pk
-        ):
+        # A sale can never draw stock from another hospital. Legacy stock
+        # rows with no hospital (S-L3) belong to no tenant, so they are
+        # refused too instead of being dispensable from every hospital.
+        if medicine.hospital_id is None:
+            raise serializers.ValidationError(
+                {"medicine": "This stock item is not assigned to a hospital; assign it before dispensing."}
+            )
+        if medicine.hospital_id != hospital.pk:
             raise serializers.ValidationError(
                 {
                     "medicine": (

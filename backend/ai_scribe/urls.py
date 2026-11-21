@@ -8,6 +8,7 @@ from .views import (
     DoctorReviewViewSet,
     ClinicalExtractionSchemaViewSet,
     AIPromptTemplateViewSet,
+    AICapabilitiesView,
 )
 
 router = DefaultRouter()
@@ -44,5 +45,6 @@ router.register(
 )
 
 urlpatterns = [
+    path("capabilities/", AICapabilitiesView.as_view(), name="ai-capabilities"),
     path("", include(router.urls)),
 ]

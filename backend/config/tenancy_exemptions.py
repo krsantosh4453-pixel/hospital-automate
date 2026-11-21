@@ -36,12 +36,15 @@ TENANCY_EXEMPTIONS = {
     "users.views.patient_email_otp_request": (AUTH, "Patient OTP"),
     "users.views.patient_email_otp_verify": (AUTH, "Patient OTP"),
     "users.views.patient_me": (AUTH, "The signed-in patient's own profile"),
+    "users.views.patient_hospitals": (AUTH, "Public list of hospitals open to patient self-registration (names only)"),
+    "users.views.patient_join_hospital": (AUTH, "The signed-in patient joins an open hospital; checked in patients/self_registration.py"),
     "users.views.patient_otp_request": (AUTH, "Patient OTP"),
     "users.views.patient_otp_verify": (AUTH, "Patient OTP"),
     "users.views.patient_token_login": (AUTH, "Patient sign-in"),
     "users.views.register_account": (AUTH, "Account registration"),
     "users.views.staff_login": (AUTH, "Staff sign-in"),
     "users.views.staff_login_start_otp": (AUTH, "Staff sign-in"),
+    "users.views.staff_login_options": (AUTH, "Public: whether staff sign-in needs or can use a one-time code (two booleans, no account data)"),
     "users.views.staff_logout": (AUTH, "Signs the presented session out"),
     "users.views.staff_me": (AUTH, "The signed-in staff member's own profile and memberships"),
     "users.views.staff_otp_resend": (AUTH, "Staff OTP"),
@@ -103,6 +106,8 @@ TENANCY_EXEMPTIONS = {
     "users.staff_admin.StaffMembershipView": (OWN_CHECKS, "Admin or Manager of the acting hospital"),
     "users.staff_invite.StaffInviteView": (OWN_CHECKS, "Admin or Manager of the acting hospital"),
     "users.staff_invite.StaffInviteResendView": (OWN_CHECKS, "Admin or Manager of the acting hospital"),
+    # Server configuration only (clinical staff); no patient or hospital rows
+    "ai_scribe.views.AICapabilitiesView": (PUBLIC, "Which AI providers/models are configured; no tenant data"),
     # Provider callbacks
     "notifications.views.TwilioStatusView": (WEBHOOK, "Signed by Twilio; one delivery status per call"),
 }

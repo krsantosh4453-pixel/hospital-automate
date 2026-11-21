@@ -81,9 +81,13 @@ class _QueueScreenState extends State<QueueScreen> {
           loader: _loader,
           skeletons: 1,
           builder: (context, tokens) {
+            // A token from an earlier day is no longer a place in a queue.
+            final today = DateUtils.dateOnly(DateTime.now());
             final open = [
               for (final token in tokens)
-                if (token.isOpen) token,
+                if (token.isOpen &&
+                    !(token.tokenDate?.isBefore(today) ?? false))
+                  token,
             ];
             if (open.isEmpty) {
               return HmsCard(
@@ -221,6 +225,10 @@ class QueueTokenCard extends StatelessWidget {
                 'Ready' => HmsAlert(
                   tone: AlertTone.success,
                   title: t.tokenNext,
+                ),
+                'In Consultation' => HmsAlert(
+                  tone: AlertTone.info,
+                  title: t.tokenInConsultation,
                 ),
                 _ => Text(
                   t.estimatesAreApproximate,

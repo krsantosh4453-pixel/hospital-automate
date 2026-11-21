@@ -61,6 +61,42 @@ void main() {
     );
   });
 
+  test(
+    'sends no signed-in request while the session is closing (finding 6)',
+    () async {
+      var closing = true;
+      adapter = FakeAdapter((_) async => jsonBody('{"ok": true}', 200));
+      final api = ApiClient(
+        config: testConfig,
+        accessToken: () async => 'secret-access-token',
+        hospitalId: () => 7,
+        adapter: adapter,
+        blockAuthenticated: () => closing,
+      );
+
+      await expectLater(
+        api.get('patients/', decode: (json) => json),
+        throwsA(isA<ApiException>()),
+      );
+      expect(adapter.requests, isEmpty); // never reached the network
+
+      // Sign-in endpoints stay usable, and requests resume after a sign-in.
+      await api.post(
+        'auth/staff/logout/',
+        body: const {},
+        anonymous: true,
+        decode: (json) => json,
+      );
+      closing = false;
+      await api.get('patients/', decode: (json) => json);
+      expect(adapter.requests, hasLength(2));
+      expect(
+        adapter.requests.last.headers['Authorization'],
+        'Bearer secret-access-token',
+      );
+    },
+  );
+
   test('adds Idempotency-Key only to writes that pass one', () async {
     final api = client();
     final key = ApiClient.newIdempotencyKey();

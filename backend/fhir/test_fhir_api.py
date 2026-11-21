@@ -141,8 +141,10 @@ class FHIRApiTests(TestCase):
     def test_age_only_patient_gets_year_precision_birth_date(self):
         self.patient.date_of_birth = None
         self.patient.save(update_fields=["date_of_birth"])
+        # The stored age is the one the date of birth gave on save (BUG-04).
+        age = type(self.patient).objects.get(pk=self.patient.pk).age
         patient = self.client.get(f"/api/fhir/Patient/Patient-{self.patient.pk}").json()
-        self.assertEqual(patient["birthDate"], str(date.today().year - 40))
+        self.assertEqual(patient["birthDate"], str(date.today().year - age))
 
     def test_unreleased_lab_values_are_not_exported(self):
         observations = self._entries(self.client.get(f"/api/fhir/Observation?patient=Patient/Patient-{self.patient.pk}"))

@@ -104,10 +104,23 @@ def _imaging(patient, hospital_ids, for_patient=False, **_):
 def _admissions(patient, hospital_ids, **_):
     from ipd.models import Admission
 
-    for a in Admission.objects.filter(patient=patient, hospital_id__in=hospital_ids).select_related("hospital"):
+    rows = (
+        Admission.objects.filter(patient=patient, hospital_id__in=hospital_ids)
+        .select_related("hospital", "discharge_summary", "discharge_plan")
+    )
+    for a in rows:
         yield _event(a.admission_date, "Admission", "Admitted", a.reason, a.hospital, a.pk)
         if a.discharge_date:
-            yield _event(a.discharge_date, "Discharge", "Discharged", "", a.hospital, a.pk)
+            # Prompt 3: the finalized summary and the follow-up instructions,
+            # so the patient's history shows what the discharge said.
+            summary = getattr(a, "discharge_summary", None)
+            plan = getattr(a, "discharge_plan", None)
+            parts = [
+                summary.summary if summary is not None and summary.finalized else "",
+                f"Follow-up: {plan.instructions}" if plan is not None and plan.instructions else "",
+            ]
+            yield _event(a.discharge_date, "Discharge", "Discharged", "\n\n".join(p for p in parts if p),
+                         a.hospital, a.pk)
 
 
 def _emergency(patient, hospital_ids, **_):

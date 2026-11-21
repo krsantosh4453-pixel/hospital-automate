@@ -1,0 +1,8 @@
+// Copy to GoogleSignIn.xcconfig (git-ignored) and fill in this deployment's
+// iOS OAuth client from Google Cloud Console. These are public identifiers,
+// not secrets, but differ per deployment.
+//   GOOGLE_IOS_CLIENT_ID          = <number>-<hash>.apps.googleusercontent.com
+//   GOOGLE_IOS_REVERSED_CLIENT_ID = com.googleusercontent.apps.<number>-<hash>
+// Build with: flutter build ipa --dart-define=GOOGLE_IOS_CLIENT_ID=<same id> ...
+GOOGLE_IOS_CLIENT_ID =
+GOOGLE_IOS_REVERSED_CLIENT_ID =

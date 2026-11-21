@@ -6,6 +6,7 @@ Supports structured output with schema validation.
 """
 
 import os
+import re
 import json
 import logging
 import time
@@ -17,6 +18,53 @@ from pathlib import Path
 from django.conf import settings
 
 from .stt import TranscriptionError
+
+REDACTED = "[patient]"
+REDACTED_ID = "[identifier]"
+MIN_REDACT_CHARS = 3
+
+# Identifiers masked wherever they appear, whoever they belong to (a relative
+# or another patient mentioned in the conversation). Clinical values (doses,
+# lab counts, vitals) never match: they are short or not in these shapes.
+GENERIC_IDENTIFIER_PATTERNS = [
+    re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"),                              # e-mail
+    re.compile(r"(?<!\d)\d{2}-\d{4}-\d{4}-\d{4}(?!\d)"),                       # ABHA number
+    re.compile(r"\b[\w.]+@(?:sbx|abdm)\b", re.IGNORECASE),                      # ABHA address
+    re.compile(r"(?<!\d)\d{4}[\s-]?\d{4}[\s-]?\d{4}(?!\d)"),                    # Aadhaar
+    re.compile(r"(?<![\d+])(?:\+?91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}(?!\d)"),      # Indian mobile
+    re.compile(r"\b[A-Z]{5}\d{4}[A-Z]\b"),                                       # PAN
+]
+
+
+def _pieces(value: str, split_words: bool) -> set:
+    """A term and its parts worth masking: comma-separated segments, and
+    for names also each word. Fragments under MIN_REDACT_CHARS are kept."""
+    value = str(value or "").strip()
+    if len(value) < MIN_REDACT_CHARS:
+        return set()
+    parts = {value} | {seg.strip() for seg in value.split(",")}
+    if split_words:
+        parts |= {word.strip(",.;:") for word in value.split()}
+    return {p for p in parts if len(p) >= MIN_REDACT_CHARS}
+
+
+def redact_identifiers(text: str, terms: List[str], names: Optional[List[str]] = None) -> str:
+    """
+    Mask the patient's own identifiers in ``text``: ``names`` whole and word
+    by word, ``terms`` (phones, address, IDs) whole and by comma-separated
+    segment, case-insensitively on word boundaries. Then mask any e-mail,
+    phone, Aadhaar, ABHA or PAN, whoever it belongs to.
+    """
+    pieces = set()
+    for name in names or []:
+        pieces |= _pieces(name, split_words=True)
+    for term in terms:
+        pieces |= _pieces(term, split_words=False)
+    for piece in sorted(pieces, key=len, reverse=True):
+        text = re.sub(rf"(?<!\w){re.escape(piece)}(?!\w)", REDACTED, text, flags=re.IGNORECASE)
+    for pattern in GENERIC_IDENTIFIER_PATTERNS:
+        text = pattern.sub(REDACTED_ID, text)
+    return text
 
 logger = logging.getLogger(__name__)
 
@@ -199,13 +247,22 @@ class DevelopmentLLMProvider(LLMProvider):
 
 
 class OpenAILLMProvider(LLMProvider):
-    """OpenAI GPT provider for clinical extraction"""
+    """
+    Chat-completions provider for OpenAI or any OpenAI-compatible host
+    (``{AI_SCRIBE_LLM_BASE_URL}/chat/completions``), called with ``requests``
+    so no vendor SDK is needed. Key, base URL, model and timeout come from
+    settings only, so test settings can switch it off.
+    """
 
-    def __init__(self, api_key: Optional[str] = None, default_model: str = "gpt-4o"):
-        from django.conf import settings
-        self.api_key = api_key or getattr(settings, "AI_SCRIBE_API_KEY", None) or os.getenv("AI_SCRIBE_API_KEY") or os.getenv("OPENAI_API_KEY")
-        self.default_model = default_model
-        self._client = None
+    DEFAULT_BASE_URL = "https://api.openai.com/v1"
+    DEFAULT_MODEL = "gpt-4o-mini"
+    DEFAULT_TIMEOUT_SECONDS = 60
+
+    def __init__(self, api_key: Optional[str] = None, default_model: Optional[str] = None):
+        self.api_key = api_key or getattr(settings, "AI_SCRIBE_API_KEY", "") or ""
+        self.default_model = default_model or getattr(settings, "AI_SCRIBE_MODEL", "") or self.DEFAULT_MODEL
+        self.base_url = (getattr(settings, "AI_SCRIBE_LLM_BASE_URL", "") or self.DEFAULT_BASE_URL).rstrip("/")
+        self.timeout = getattr(settings, "AI_SCRIBE_LLM_TIMEOUT_SECONDS", None) or self.DEFAULT_TIMEOUT_SECONDS
 
     @property
     def provider_name(self) -> str:
@@ -213,89 +270,77 @@ class OpenAILLMProvider(LLMProvider):
 
     @property
     def supported_models(self) -> List[str]:
-        return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+        return [self.default_model]
 
     def is_available(self) -> bool:
-        if not self.api_key:
-            return False
-        try:
-            from openai import OpenAI
-            return True
-        except ImportError:
-            return False
-
-    def _get_client(self):
-        if self._client is None:
-            from openai import OpenAI
-            self._client = OpenAI(api_key=self.api_key)
-        return self._client
+        return bool(self.api_key)
 
     def generate(
         self,
         system_prompt: str,
         user_prompt: str,
-        model: str = "gpt-4o",
+        model: Optional[str] = None,
         temperature: float = 0.1,
         max_tokens: int = 4000,
         response_format: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> ClinicalExtractionResult:
+        import requests
+
         if not self.is_available():
-            raise LLMGenerationError("OpenAI provider not available. Check API key and openai package.")
-
-        client = self._get_client()
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
-
-        # Prepare request parameters
-        request_params = {
+            raise LLMGenerationError("OpenAI-compatible provider not available: AI_SCRIBE_API_KEY is not set.")
+        model = model or self.default_model
+        payload = {
             "model": model,
-            "messages": messages,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
             "temperature": temperature,
             "max_tokens": max_tokens,
+            "response_format": (
+                {"type": "json_schema",
+                 "json_schema": {"name": "clinical_extraction", "schema": response_format, "strict": False}}
+                if response_format else {"type": "json_object"}
+            ),
         }
-
-        # Add structured output if schema provided
-        if response_format:
-            request_params["response_format"] = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "clinical_extraction",
-                    "schema": response_format,
-                    "strict": True,
-                },
-            }
-
         start_time = time.time()
-
         try:
-            response = client.chat.completions.create(**request_params)
-        except Exception as e:
-            raise LLMGenerationError(f"OpenAI API error: {str(e)}")
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json=payload,
+                timeout=self.timeout,
+            )
+        except requests.Timeout as exc:
+            raise LLMGenerationError(f"LLM request timed out after {self.timeout}s.") from exc
+        except requests.RequestException as exc:
+            raise LLMGenerationError(f"LLM request failed: {type(exc).__name__}") from exc
+        if response.status_code != 200:
+            # The body may echo the prompt; keep only the status code.
+            raise LLMGenerationError(f"LLM provider answered HTTP {response.status_code}.")
 
         latency_ms = int((time.time() - start_time) * 1000)
-
-        # Parse response
-        content = response.choices[0].message.content
-
         try:
+            body = response.json()
+            content = body["choices"][0]["message"]["content"]
             structured_data = json.loads(content)
-        except json.JSONDecodeError:
-            raise LLMGenerationError(f"Failed to parse JSON response: {content[:500]}")
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise LLMGenerationError("LLM reply was not the expected JSON.") from exc
+        if not isinstance(structured_data, dict):
+            raise LLMGenerationError("LLM reply was not a JSON object.")
+        usage = body.get("usage") or {}
 
         return ClinicalExtractionResult(
             structured_extraction=structured_data,
             summary=structured_data.get("summary", "") or self._build_summary(structured_data),
             provider=self.provider_name,
-            model=model,
+            model=body.get("model") or model,
             prompt_version=kwargs.get("prompt_version", "v1"),
             metadata={
-                "tokens_used": response.usage.total_tokens if response.usage else 0,
-                "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-                "completion_tokens": response.usage.completion_tokens if response.usage else 0,
+                "tokens_used": usage.get("total_tokens", 0),
+                "prompt_tokens": usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
                 "latency_ms": latency_ms,
             },
             raw_response=content,
@@ -665,13 +710,12 @@ class LLMClinicalService:
         if getattr(settings, "AI_SCRIBE_ALLOW_MOCK_PROVIDERS", False):
             self._providers["development"] = DevelopmentLLMProvider()
 
-        # Try to register OpenAI
-        if os.getenv("OPENAI_API_KEY"):
-            openai_provider = OpenAILLMProvider()
-            if openai_provider.is_available():
-                self._providers["openai"] = openai_provider
-                if not self._default_provider:
-                    self._default_provider = "openai"
+        # OpenAI or any OpenAI-compatible host, once AI_SCRIBE_API_KEY is set.
+        openai_provider = OpenAILLMProvider()
+        if openai_provider.is_available():
+            self._providers["openai"] = openai_provider
+            if not self._default_provider:
+                self._default_provider = "openai"
 
         # Try to register Anthropic
         if os.getenv("ANTHROPIC_API_KEY"):
@@ -696,6 +740,11 @@ class LLMClinicalService:
             if not self._default_provider:
                 self._default_provider = "local"
 
+        # An explicitly chosen provider wins when it is actually registered.
+        preferred = getattr(settings, "AI_SCRIBE_PROVIDER", "")
+        if preferred and preferred in self._providers:
+            self._default_provider = preferred
+
         # Fall back to the development provider only where it is allowed;
         # otherwise there is no provider and callers report "unavailable".
         if not self._default_provider and "development" in self._providers:
@@ -718,7 +767,6 @@ IMPORTANT RULES:
 The output will be reviewed and approved by a licensed physician before becoming part of the medical record.
 
 Patient Context:
-- Name: {patient_name}
 - Age: {patient_age}
 - Gender: {patient_gender}
 
@@ -759,6 +807,8 @@ Extract the following clinical information in the specified JSON format:"""
         language: str = "en",
         patient_context: Optional[Dict[str, Any]] = None,
         provider: Optional[str] = None,
+        redact_terms: Optional[List[str]] = None,
+        redact_names: Optional[List[str]] = None,
         model: Optional[str] = None,
         temperature: float = 0.1,
         prompt_version: str = "v1",
@@ -769,7 +819,10 @@ Extract the following clinical information in the specified JSON format:"""
         Args:
             transcript_text: Full conversation transcript
             language: Language code
-            patient_context: Dict with patient_name, patient_age, patient_gender
+            patient_context: Dict with age and gender. A name is never sent.
+            redact_terms: Patient identifiers (phones, address, IDs) masked
+                in the transcript before it leaves the server
+            redact_names: Patient and family names, masked word by word
             provider: Specific provider to use
             model: Specific model to use
             temperature: Sampling temperature
@@ -788,8 +841,7 @@ Extract the following clinical information in the specified JSON format:"""
         patient_ctx = patient_context or {}
         system_prompt = self._build_system_prompt(language)
         user_prompt = self._build_user_prompt(
-            transcript_text,
-            patient_ctx.get("name", "Unknown"),
+            redact_identifiers(transcript_text, redact_terms or [], redact_names),
             patient_ctx.get("age", "Unknown"),
             patient_ctx.get("gender", "Unknown"),
         )
@@ -845,13 +897,11 @@ The output will be reviewed and approved by a licensed physician before becoming
     def _build_user_prompt(
         self,
         transcript: str,
-        patient_name: str,
         patient_age: Any,
         patient_gender: str,
     ) -> str:
-        """Build user prompt with transcript and patient context"""
+        """Build user prompt with transcript and non-identifying patient context"""
         return f"""Patient Context:
-- Name: {patient_name}
 - Age: {patient_age}
 - Gender: {patient_gender}
 
@@ -864,7 +914,20 @@ Remember: Only extract what is explicitly stated. Use empty arrays for missing i
     MAX_ITEM_CHARS = 1000
     MAX_ITEMS = 50
 
-    def _validate_extraction(self, extraction: Dict[str, Any]) -> None:
+    @classmethod
+    def coerce_section(cls, section: str, value: Any) -> Any:
+        """
+        A doctor's edit of one draft section, held to the same schema as
+        provider output. Raises ValueError for an unknown section.
+        """
+        if section not in cls.DEFAULT_SCHEMA["properties"]:
+            raise ValueError(f"Unknown section: {section}")
+        extraction = {section: value}
+        cls._validate_extraction(extraction)
+        return extraction[section]
+
+    @classmethod
+    def _validate_extraction(cls, extraction: Dict[str, Any]) -> None:
         """
         Coerce provider output to the schema in place: unknown keys are
         dropped, list fields hold only short strings, the vitals object only
@@ -872,7 +935,7 @@ Remember: Only extract what is explicitly stated. Use empty arrays for missing i
         """
         if not isinstance(extraction, dict):
             raise LLMGenerationError("Provider output is not a JSON object.")
-        properties = self.DEFAULT_SCHEMA["properties"]
+        properties = cls.DEFAULT_SCHEMA["properties"]
         for key in list(extraction):
             if key not in properties:
                 extraction.pop(key)
@@ -884,17 +947,17 @@ Remember: Only extract what is explicitly stated. Use empty arrays for missing i
                 elif not isinstance(value, list):
                     value = [value]
                 extraction[field] = [
-                    str(item).strip()[: self.MAX_ITEM_CHARS]
-                    for item in value[: self.MAX_ITEMS]
+                    str(item).strip()[: cls.MAX_ITEM_CHARS]
+                    for item in value[: cls.MAX_ITEMS]
                     if item not in (None, "") and not isinstance(item, (dict, list))
                 ]
             elif prop["type"] == "object":
                 allowed = prop.get("properties", {})
                 value = value if isinstance(value, dict) else {}
                 extraction[field] = {
-                    k: str(v).strip()[: self.MAX_ITEM_CHARS]
+                    k: str(v).strip()[: cls.MAX_ITEM_CHARS]
                     for k, v in value.items()
                     if k in allowed and v not in (None, "") and not isinstance(v, (dict, list))
                 }
             elif prop["type"] == "string":
-                extraction[field] = "" if value is None else str(value).strip()[: self.MAX_ITEM_CHARS * 4]
+                extraction[field] = "" if value is None else str(value).strip()[: cls.MAX_ITEM_CHARS * 4]

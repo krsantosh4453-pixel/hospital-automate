@@ -8,7 +8,7 @@ import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 // Prescription.status is free text; these are the values the staff pages set.
 const FILTERS = {
   all: () => true,
-  current: (p) => p.status === "Confirmed" || p.status === "Pending",
+  current: (p) => ["Confirmed", "Pending", "Partially Dispensed"].includes(p.status),
   dispensed: (p) => p.status === "Dispensed",
   cancelled: (p) => p.status === "Cancelled",
 }

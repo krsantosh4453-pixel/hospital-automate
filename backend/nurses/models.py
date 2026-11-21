@@ -307,15 +307,17 @@ class MAR(EnteredInError):
         related_name="mar_records",
         db_index=True
     )
+    # PROTECT (H-03): removing a prescription line must never erase the
+    # medication order and the doses recorded under it.
     prescription = models.ForeignKey(
         "clinical.Prescription",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="mar_records",
         db_index=True
     )
     prescription_item = models.ForeignKey(
         "clinical.PrescriptionItem",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="mar_records",
         db_index=True
     )
@@ -326,6 +328,12 @@ class MAR(EnteredInError):
     start_date = models.DateField(db_index=True)
     end_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
+    # The doctor's directions for the ward (with food, hold if BP low...).
+    instructions = models.TextField(blank=True, default="")
+    # H-10: limits on an as-needed (PRN) order, set by the doctor. Blank means
+    # no limit. Enforced when a PRN dose is recorded (nurses/prn_limits.py).
+    prn_min_interval_minutes = models.PositiveIntegerField(null=True, blank=True)
+    prn_max_doses_per_24h = models.PositiveSmallIntegerField(null=True, blank=True)
     # The doctor whose order this is; nurses give doses only against it.
     ordered_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
@@ -409,6 +417,37 @@ class MARAdministration(models.Model):
             models.Index(fields=["mar", "status"]),
             models.Index(fields=["administered_by", "scheduled_time"]),
         ]
+        constraints = [
+            # One scheduled dose per order and time: a repeated or parallel
+            # schedule request can never create a second record of a dose.
+            models.UniqueConstraint(fields=["mar", "scheduled_time"], condition=models.Q(is_prn=False),
+                                    name="one_scheduled_dose_per_order_time"),
+        ]
+
+
+class MedicationRound(models.Model):
+    """
+    A time of day the ward gives scheduled medicines, configured per hospital
+    (e.g. 08:00, 14:00, 20:00). Once-daily orders start at the next round
+    unless the doctor chooses another time. None are assumed.
+    """
+    hospital = models.ForeignKey("hospital.Hospital", on_delete=models.CASCADE, related_name="medication_rounds")
+    label = models.CharField(max_length=60, blank=True)
+    time = models.TimeField()
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["time"]
+        constraints = [
+            models.UniqueConstraint(fields=["hospital", "time"], condition=models.Q(is_active=True),
+                                    name="one_active_round_per_hospital_time"),
+        ]
+
+    def __str__(self):
+        return f"{self.label or 'Round'} {self.time:%H:%M}"
 
 
 class PatientAssignment(models.Model):

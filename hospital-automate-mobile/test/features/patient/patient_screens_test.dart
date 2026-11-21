@@ -330,6 +330,64 @@ void main() {
     expect(repo.queueCalls, calls + 1);
   });
 
+  group('queue after the consultation (BUG-02)', () {
+    QueueToken token(String status, {DateTime? day}) => QueueToken(
+      id: 3,
+      tokenNumber: 3,
+      status: status,
+      queuePosition: 2,
+      estimatedWaitMinutes: 15,
+      tokenDate: day ?? DateTime.now(),
+      doctorName: 'Dr Upcoming Test',
+    );
+
+    testWidgets('a completed token leaves no waiting information', (
+      tester,
+    ) async {
+      await pumpPatient(
+        tester,
+        '/patient/queue',
+        repository: FakePatientRepository(tokens: [token('Completed')]),
+      );
+
+      expect(find.text('No active token'), findsOneWidget);
+      expect(find.text('#2'), findsNothing);
+      expect(find.textContaining('Wait times are estimates'), findsNothing);
+    });
+
+    testWidgets('in consultation shows no position and no "stay nearby"', (
+      tester,
+    ) async {
+      await pumpPatient(
+        tester,
+        '/patient/queue',
+        repository: FakePatientRepository(tokens: [token('In Consultation')]),
+      );
+
+      expect(
+        find.textContaining('consultation is in progress'),
+        findsOneWidget,
+      );
+      expect(find.text('#2'), findsNothing);
+      expect(find.textContaining("don't miss your call"), findsNothing);
+    });
+
+    testWidgets('a token left open on an earlier day is not shown', (
+      tester,
+    ) async {
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      await pumpPatient(
+        tester,
+        '/patient/queue',
+        repository: FakePatientRepository(
+          tokens: [token('Waiting', day: yesterday)],
+        ),
+      );
+
+      expect(find.text('No active token'), findsOneWidget);
+    });
+  });
+
   testWidgets('prescriptions show each medicine as the doctor wrote it', (
     tester,
   ) async {

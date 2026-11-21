@@ -160,8 +160,9 @@ Plain `http://` works only in development: the Android debug manifest allows cle
 
 ## 8. Known limitations
 
-- Sidebar modules not built on mobile yet open a "not on mobile yet" screen, for example nurses, IPD, emergency, pharmacy, radiology, staff billing, inventory, reports, the admin pages and patient consent.
+- Sidebar modules without a mobile screen open a "not in this app version" screen (for example patient consent, radiology, inventory and reports). So does a built module opened by a role it is not built for. Nursing, pharmacy, laboratory, billing, emergency, IPD, hospital management and the AI scribe are built (2026-11-18).
 - No push notifications; screens load from the API, and the queue screens poll.
 - No offline cache.
-- Release builds are still signed with the debug key (the Flutter template default). Set up an upload keystore before publishing.
+- Release signing (2026-11-18): a release build reads the upload key from `android/key.properties` (git-ignored; fields listed in `android/app/build.gradle.kts`) and stops if it is missing. No upload keystore exists yet, so the hospital must create one before publishing. For a local test build only, `ORG_GRADLE_PROJECT_hmsAllowDebugReleaseSigning=true` signs with the debug key. A release build also refuses to start unless it was built with `--dart-define=APP_ENV=staging|production` and an `https://` `API_ORIGIN`.
+- The app keeps no Android backup (`allowBackup="false"`). AI scribe recordings are deleted from the device after the upload attempt.
 - iOS has not been built on the development machine yet (no simulator runtime or CocoaPods installed).

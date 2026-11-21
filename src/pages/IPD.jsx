@@ -471,6 +471,7 @@ function IPD() {
         admission={selectedAdmission}
         hospitalId={selectedHospital?.id}
         canOrder={activeRoleName === "Doctor"}
+        canGive={activeRoleName === "Nurse"}
       />
 
       {/* New admission */}

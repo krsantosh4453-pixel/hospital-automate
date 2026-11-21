@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hms_mobile/features/ipd/data/clinical_work_repository.dart';
+import 'package:hms_mobile/features/reception/data/reception_repository.dart';
 import 'package:hms_mobile/app.dart';
 import 'package:hms_mobile/core/app_scope.dart';
 import 'package:hms_mobile/core/config/api_config.dart';
@@ -9,21 +11,42 @@ import 'package:hms_mobile/core/network/api_client.dart';
 import 'package:hms_mobile/core/network/backend_health.dart';
 import 'package:hms_mobile/core/security/session_controller.dart';
 import 'package:hms_mobile/core/security/token_store.dart';
+import 'package:hms_mobile/features/ai/data/ai_repository.dart';
+import 'package:hms_mobile/features/ai/data/scribe_recorder.dart';
 import 'package:hms_mobile/features/auth/auth_repository.dart';
 import 'package:hms_mobile/features/auth/auth_service.dart';
 import 'package:hms_mobile/features/auth/google_identity.dart';
 import 'package:hms_mobile/features/dashboard/dashboard_repository.dart';
 import 'package:hms_mobile/features/dashboard/dashboard_stats.dart';
 import 'package:hms_mobile/features/doctor/data/doctor_repository.dart';
+import 'package:hms_mobile/features/billing/data/billing_repository.dart';
+import 'package:hms_mobile/features/laboratory/data/lab_repository.dart';
+import 'package:hms_mobile/features/nursing/data/nursing_repository.dart';
+import 'package:hms_mobile/features/pharmacy/data/pharmacy_repository.dart';
+import 'package:hms_mobile/features/emergency/data/emergency_repository.dart';
+import 'package:hms_mobile/features/hospital/data/hospital_repository.dart';
+import 'package:hms_mobile/features/ipd/data/ipd_repository.dart';
 import 'package:hms_mobile/features/patient/data/patient_repository.dart';
 
 import 'fake_auth_repository.dart';
 import 'fake_doctor_repository.dart';
 import 'fake_patient_repository.dart';
+import 'fake_billing_repository.dart';
+import 'fake_nursing_repository.dart';
+import 'fake_pharmacy_repository.dart';
+import 'fake_lab_repository.dart';
+import 'fake_ops_repositories.dart';
+import 'fake_ai_repository.dart';
 
 export 'fake_auth_repository.dart';
 export 'fake_doctor_repository.dart';
 export 'fake_patient_repository.dart';
+export 'fake_billing_repository.dart';
+export 'fake_nursing_repository.dart';
+export 'fake_pharmacy_repository.dart';
+export 'fake_lab_repository.dart';
+export 'fake_ops_repositories.dart';
+export 'fake_ai_repository.dart';
 
 /// Answers every request with [respond] instead of touching the network.
 class FakeAdapter implements HttpClientAdapter {
@@ -82,7 +105,18 @@ AppServices testServices({
   TokenStore? tokenStore,
   PatientRepository? patient,
   DoctorRepository? doctor,
+  LabRepository? laboratory,
+  BillingRepository? billing,
+  NursingRepository? nursing,
+  PharmacyRepository? pharmacy,
+  EmergencyRepository? emergency,
+  IpdRepository? ipd,
+  HospitalRepository? hospital,
   GoogleIdentity? google,
+  AiRepository? ai,
+  ReceptionRepository? reception,
+  ClinicalWorkRepository? clinicalWork,
+  ScribeRecorder Function()? scribeRecorder,
 }) {
   final store = tokenStore ?? InMemoryTokenStore();
   final controller = SessionController(tokenStore: store, initial: session);
@@ -117,6 +151,17 @@ AppServices testServices({
     dashboard: dashboard ?? FakeDashboardRepository(),
     patient: patient ?? FakePatientRepository(),
     doctor: doctor ?? FakeDoctorRepository(),
+    laboratory: laboratory ?? FakeLabRepository(),
+    billing: billing ?? FakeBillingRepository(),
+    nursing: nursing ?? FakeNursingRepository(),
+    pharmacy: pharmacy ?? FakePharmacyRepository(),
+    emergency: emergency ?? FakeEmergencyRepository(),
+    ipd: ipd ?? FakeIpdRepository(),
+    hospital: hospital ?? FakeHospitalRepository(),
+    aiOverride: ai ?? FakeAiRepository(),
+    receptionOverride: reception,
+    clinicalWorkOverride: clinicalWork,
+    scribeRecorderFactory: scribeRecorder ?? FakeScribeRecorder.new,
   );
 }
 

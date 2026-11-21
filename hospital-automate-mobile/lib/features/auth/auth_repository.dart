@@ -9,6 +9,10 @@ import 'auth_models.dart';
 ///
 /// Failures are thrown as `ApiException`; nothing here logs request bodies.
 abstract interface class AuthRepository {
+  /// `GET auth/staff/login/options/`: whether staff sign-in needs or can use
+  /// a one-time code on this server.
+  Future<StaffLoginOptions> staffLoginOptions();
+
   Future<StaffOtpChallenge> staffStartOtp(
     String username,
     String password,
@@ -46,6 +50,13 @@ abstract interface class AuthRepository {
   Future<void> verifyEmailOtp(String email, String otp);
   Future<RegistrationResult> registerPatient(PatientRegistration registration);
 
+  /// Hospitals open to patient self-registration (sign-up and joining).
+  Future<List<PublicHospital>> patientHospitals();
+
+  /// The signed-in patient registers at a hospital; the server issues its
+  /// UHID once (repeating returns the same one).
+  Future<void> joinHospital(int hospitalId);
+
   /// Family member / caregiver: code to their own mobile, then a ticket to
   /// open one patient's records view-only.
   Future<OtpDelivery> proxyRequestOtp(String phone);
@@ -82,6 +93,13 @@ class ApiAuthRepository implements AuthRepository {
 
   Future<AuthTokens> _signIn(String path, Map<String, Object?> body) =>
       _api.post(path, body: body, anonymous: true, decode: AuthTokens.fromJson);
+
+  @override
+  Future<StaffLoginOptions> staffLoginOptions() => _api.get(
+    'auth/staff/login/options/',
+    anonymous: true,
+    decode: StaffLoginOptions.fromJson,
+  );
 
   @override
   Future<StaffOtpChallenge> staffStartOtp(
@@ -190,6 +208,23 @@ class ApiAuthRepository implements AuthRepository {
     body: registration.toJson(),
     anonymous: true,
     decode: (json) => RegistrationResult.fromJson(json, registration.email),
+  );
+
+  @override
+  Future<List<PublicHospital>> patientHospitals() => _api.get(
+    'auth/patient/hospitals/',
+    anonymous: true,
+    decode: (json) => [
+      for (final row in json is List ? json : const [])
+        PublicHospital.fromJson(row),
+    ],
+  );
+
+  @override
+  Future<void> joinHospital(int hospitalId) => _api.post(
+    'auth/patient/hospitals/join/',
+    body: {'hospital': hospitalId},
+    decode: (_) {},
   );
 
   @override

@@ -11,7 +11,9 @@ from django.db.models import Max
 
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
 from users.viewsets import HospitalScopedViewSet
@@ -36,7 +38,8 @@ from .serializers import (
 )
 
 from audit.services import record_audit
-from .services import languages
+from . import audio_validation, tasks
+from .services import languages, pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -51,40 +54,65 @@ ALLOWED_AUDIO_TYPES = [
     "audio/webm",
 ]
 MAX_AUDIO_BYTES = 100 * 1024 * 1024
-PROVIDER_UNAVAILABLE = (
-    "AI service is not configured for this hospital. "
-    "Document the consultation manually."
-)
+PROVIDER_UNAVAILABLE = pipeline.PROVIDER_UNAVAILABLE
+_draft_language = pipeline.draft_language
 
 
 def _audio_error(audio_file):
     """Return an error message for an unacceptable upload, else None."""
     if audio_file.size > MAX_AUDIO_BYTES:
         return "Audio file too large. Maximum 100MB."
-    content_type = (audio_file.content_type or "").split(";")[0].strip()
+    content_type = audio_validation.declared_type(audio_file)
     if content_type not in ALLOWED_AUDIO_TYPES:
         return f"Unsupported audio format. Allowed: {', '.join(ALLOWED_AUDIO_TYPES)}"
-    return None
+    # S-L6: the bytes must be that audio container, not just claim to be.
+    return audio_validation.container_error(audio_file)
 
 
-def _draft_language(draft):
-    """
-    Language for the clinical draft. The doctor's choice wins; only "auto"
-    defers to what the STT provider heard (a Hinglish consultation is often
-    detected as "hi", but its note should still be in English).
-    """
-    chosen = draft.consultation.language
-    if chosen != languages.AUTO:
-        return chosen
-    detected = draft.transcript.detected_language
-    return detected if detected in languages.SUPPORTED_LANGUAGES else languages.AUTO
+def _accept_audio(session, audio_file):
+    """Attach a checked upload under a server-chosen name (never the client's)."""
+    audio_file.name = audio_validation.safe_name(audio_file, f"consultation-{session.pk}")
+    session.audio_file = audio_file
 
+
+def _wants_async(request):
+    """True when the client asked to queue the provider call and poll."""
+    return str(request.data.get("async", "")).lower() in ("true", "1", "yes")
 
 def _doctor_for(request, hospital_id):
     """The Doctor profile of the signed-in user at this hospital, if any."""
     from doctors.models import Doctor
 
     return Doctor.objects.filter(user=request.user, hospital_id=hospital_id).first()
+
+
+NOT_CONSULTING_DOCTOR = "Only the consulting doctor of this session may do this."
+NOT_RECORDED = "Not recorded in this consultation."
+
+
+def _not_consulting_doctor(request, session):
+    """
+    A 403 response unless the signed-in user is the session's own doctor:
+    recording, transcription, drafting and approval belong to the clinician
+    who holds the consultation, not to any doctor of the hospital.
+    """
+    if session.doctor_id and session.doctor.user_id == request.user.pk:
+        return None
+    return Response({"error": NOT_CONSULTING_DOCTOR}, status=status.HTTP_403_FORBIDDEN)
+
+
+NO_CONSENT = ("Record the patient's consent to audio recording (Start recording) before audio is "
+              "uploaded or transcribed.")
+
+
+def _no_recording_consent(session):
+    """
+    H-06: patient audio is stored and sent to the speech-to-text provider only
+    after the patient's recorded consent. A refusal, or None when consented.
+    """
+    if session.recording_consent_at:
+        return None
+    return Response({"error": NO_CONSENT}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ConsultationSessionViewSet(HospitalScopedViewSet):
@@ -110,6 +138,9 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
     def start_recording(self, request, pk=None):
         """Start audio recording for this consultation"""
         session = self.get_object()
+        denied = _not_consulting_doctor(request, session)
+        if denied:
+            return denied
 
         if not session.can_start_recording():
             return Response(
@@ -138,6 +169,9 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
     def stop_recording(self, request, pk=None):
         """Stop audio recording and optionally upload audio file"""
         session = self.get_object()
+        denied = _not_consulting_doctor(request, session)
+        if denied:
+            return denied
 
         if not session.can_stop_recording():
             return Response(
@@ -154,7 +188,7 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
             error = _audio_error(audio_file)
             if error:
                 return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
-            session.audio_file = audio_file
+            _accept_audio(session, audio_file)
         if audio_duration:
             try:
                 session.audio_duration_seconds = int(audio_duration)
@@ -183,6 +217,13 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
     def upload_audio(self, request, pk=None):
         """Upload audio file for an existing consultation"""
         session = self.get_object()
+        denied = _not_consulting_doctor(request, session)
+        if denied:
+            return denied
+
+        no_consent = _no_recording_consent(session)
+        if no_consent:
+            return no_consent
 
         audio_file = request.FILES.get("audio_file")
         if not audio_file:
@@ -195,18 +236,27 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
         if error:
             return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
-        session.audio_file = audio_file
-        session.audio_format = audio_file.content_type.split("/")[-1]
+        _accept_audio(session, audio_file)
+        session.audio_format = audio_validation.declared_type(audio_file).split("/")[-1]
         session.save(update_fields=["audio_file", "audio_format"])
 
         return Response(self.get_serializer(session).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsDoctor])
     def transcribe(self, request, pk=None):
-        """Trigger speech-to-text transcription for this consultation"""
-        from .services.stt import SpeechToTextService
-
+        """
+        Speech-to-text for this consultation. With ``{"async": true}`` the
+        work is queued and the transcript comes back as ``processing`` (202);
+        poll ``ai/transcripts/?consultation=<id>``. Otherwise the call waits.
+        """
         session = self.get_object()
+        denied = _not_consulting_doctor(request, session)
+        if denied:
+            return denied
+
+        no_consent = _no_recording_consent(session)
+        if no_consent:
+            return no_consent
 
         if not session.audio_file:
             return Response(
@@ -226,64 +276,25 @@ class ConsultationSessionViewSet(HospitalScopedViewSet):
                 session.save(update_fields=["language"])
                 language_changed = True
 
-        # Get or create transcript
-        transcript, created = ConversationTranscript.objects.get_or_create(
-            consultation=session,
-            defaults={"status": ConversationTranscript.Status.PENDING},
-        )
+        # A finished transcript is reused unless the doctor changed the language;
+        # one already being transcribed is not sent to the provider again.
+        transcript, claimed = pipeline.claim_transcription(session, force=language_changed)
+        if not claimed:
+            if transcript.status == ConversationTranscript.Status.COMPLETED:
+                message = "Transcript already exists"
+            else:
+                message = "Transcription is already in progress"
+            return Response({"message": message, "transcript": ConversationTranscriptSerializer(transcript).data},
+                            status=status.HTTP_200_OK)
 
-        # A finished transcript is reused unless the doctor changed the language.
-        if transcript.status == ConversationTranscript.Status.COMPLETED and not language_changed:
-            return Response(
-                {"message": "Transcript already exists", "transcript": ConversationTranscriptSerializer(transcript).data},
-                status=status.HTTP_200_OK,
-            )
+        if _wants_async(request):
+            transaction.on_commit(lambda: tasks.transcribe_consultation.delay(transcript.pk))
+            return Response(ConversationTranscriptSerializer(transcript).data, status=status.HTTP_202_ACCEPTED)
 
-        # Reset for reprocessing
-        transcript.status = ConversationTranscript.Status.PROCESSING
-        transcript.processing_started_at = timezone.now()
-        transcript.error_message = ""
-        transcript.save(update_fields=["status", "processing_started_at", "error_message"])
-
-        # Process asynchronously (in production, use Celery)
-        try:
-            stt_service = SpeechToTextService()
-            result = stt_service.transcribe(
-                audio_file=session.audio_file.path,
-                language=session.language,
-            )
-
-            transcript.text = result.text or ""
-            transcript.structured_data = result.structured_data or {}
-            transcript.provider = result.provider or ""
-            transcript.provider_model = result.model or ""
-            transcript.provider_metadata = result.metadata or {}
-            transcript.detected_language = result.detected_language or ""
-            transcript.language_confidence = result.language_confidence
-            transcript.status = ConversationTranscript.Status.COMPLETED
-            transcript.processing_completed_at = timezone.now()
-
-        except Exception as e:
-            logger.exception("STT processing failed")
-            transcript.status = ConversationTranscript.Status.FAILED
-            transcript.error_message = str(e)[:1000]
-            transcript.processing_completed_at = timezone.now()
-            transcript.save()
-            return Response(
-                {"error": PROVIDER_UNAVAILABLE if "not available" in str(e) else "Transcription failed. Try again or document manually.",
-                 "transcript": ConversationTranscriptSerializer(transcript).data},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
-        transcript.save()
-        # Give the doctor a draft to generate into; it stays a pending-review draft.
-        if not session.ai_drafts.exists():
-            AIConsultationDraft.objects.create(
-                consultation=session,
-                transcript=transcript,
-                version=1,
-                status=AIConsultationDraft.Status.GENERATED,
-            )
+        transcript, error = pipeline.run_transcription(transcript.pk)
+        if error:
+            return Response({"error": error, "transcript": ConversationTranscriptSerializer(transcript).data},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response(ConversationTranscriptSerializer(transcript).data)
 
 
@@ -294,6 +305,9 @@ class ConversationTranscriptViewSet(HospitalScopedViewSet):
     )
     serializer_class = ConversationTranscriptSerializer
     permission_classes = [IsClinicalStaff]
+    # Read-only: the transcript is the AI draft's input and is written only by
+    # the session's transcribe step, never edited or deleted by hand.
+    http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -315,6 +329,12 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
     ).prefetch_related("doctor_reviews")
     serializer_class = AIConsultationDraftSerializer
     permission_classes = [IsDoctor]
+    # Drafts are made by the pipeline and changed only through the workflow
+    # actions below (POST), so plain create, edit and delete are refused.
+    http_method_names = ["get", "post", "head", "options"]
+
+    def create(self, request, *args, **kwargs):
+        raise MethodNotAllowed(request.method)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -333,10 +353,15 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
 
     @action(detail=True, methods=["post"], permission_classes=[IsDoctor])
     def generate(self, request, pk=None):
-        """Generate AI clinical draft from transcript"""
-        from .services.llm import LLMClinicalService
-
+        """
+        Generate the AI clinical draft from the transcript. With
+        ``{"async": true}`` the work is queued (202): the draft reads
+        ``under_review`` with no ``generation_completed_at`` until it is ready.
+        """
         draft = self.get_object()
+        denied = _not_consulting_doctor(request, draft.consultation)
+        if denied:
+            return denied
 
         if not draft.transcript or not draft.transcript.text:
             return Response(
@@ -344,61 +369,36 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if draft.status != AIConsultationDraft.Status.GENERATED:
+        # Claim the draft atomically: of two simultaneous requests only one
+        # calls the provider, so the same transcript is never sent twice.
+        if not pipeline.claim_generation(draft):
             return Response(
                 {"error": f"Cannot generate draft in status: {draft.status}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Mark as processing
-        draft.generation_started_at = timezone.now()
-        draft.status = AIConsultationDraft.Status.UNDER_REVIEW
-        draft.save(update_fields=["generation_started_at", "status"])
+        if _wants_async(request):
+            transaction.on_commit(lambda: tasks.generate_draft.delay(draft.pk))
+            return Response(self.get_serializer(draft).data, status=status.HTTP_202_ACCEPTED)
 
-        try:
-            llm_service = LLMClinicalService()
-            result = llm_service.generate_clinical_draft(
-                transcript_text=draft.transcript.text,
-                language=_draft_language(draft),
-                patient_context={
-                    "name": draft.consultation.patient.name,
-                    "age": draft.consultation.patient.age,
-                    "gender": draft.consultation.patient.gender,
-                },
-            )
-
-            draft.structured_extraction = result.get("structured_extraction", {})
-            draft.summary = result.get("summary", "")
-            draft.provider = result.get("provider", "")
-            draft.provider_model = result.get("model", "")
-            draft.prompt_version = result.get("prompt_version", "v1")
-            draft.provider_metadata = result.get("metadata", {})
-            draft.generation_completed_at = timezone.now()
-            draft.generation_duration_ms = int(
-                (draft.generation_completed_at - draft.generation_started_at).total_seconds() * 1000
-            )
-            draft.status = AIConsultationDraft.Status.UNDER_REVIEW
-
-        except Exception as e:
-            # Nothing is written to the clinical record on failure.
-            logger.exception("LLM generation failed")
-            draft.status = AIConsultationDraft.Status.GENERATED
-            draft.generation_completed_at = timezone.now()
-            draft.provider_metadata = {"error": str(e)[:1000]}
-            draft.save()
-            return Response(
-                {"error": PROVIDER_UNAVAILABLE if "not available" in str(e) else "AI draft generation failed. Try again or document manually.",
-                 "draft": self.get_serializer(draft).data},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
-        draft.save()
+        draft, error = pipeline.run_generation(draft.pk)
+        if error:
+            return Response({"error": error, "draft": self.get_serializer(draft).data},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        record_audit(request, "ai.draft.generated", draft, hospital=draft.consultation.hospital_id,
+                     details={"provider": draft.provider, "model": draft.provider_model, "version": draft.version})
         return Response(self.get_serializer(draft).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsDoctor])
     def regenerate(self, request, pk=None):
         """Regenerate AI draft (creates new version)"""
         old_draft = self.get_object()
+        denied = _not_consulting_doctor(request, old_draft.consultation)
+        if denied:
+            return denied
+        if old_draft.status == AIConsultationDraft.Status.APPROVED:
+            return Response({"error": "An approved draft is final and cannot be regenerated."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         # Create new version
         new_version = (
@@ -434,6 +434,9 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
     def review(self, request, pk=None):
         """Record doctor's review action on a draft section"""
         draft = self.get_object()
+        denied = _not_consulting_doctor(request, draft.consultation)
+        if denied:
+            return denied
 
         if not draft.is_editable():
             return Response(
@@ -455,6 +458,20 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if action_enum in (DoctorReview.Action.APPROVED, DoctorReview.Action.REJECTED,
+                           DoctorReview.Action.REGENERATE_REQUESTED):
+            return Response(
+                {"error": "Use the approve, reject or regenerate action for this."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if action_enum == DoctorReview.Action.EDITED_SECTION:
+            from .services.llm import LLMClinicalService
+
+            try:
+                doctor_value = LLMClinicalService.coerce_section(section, doctor_value)
+            except ValueError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
         doctor = _doctor_for(request, draft.consultation.hospital_id)
 
         review = DoctorReview.objects.create(
@@ -471,10 +488,13 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
         # Update draft status based on action
         if action_enum == DoctorReview.Action.EDITED_SECTION:
             draft.status = AIConsultationDraft.Status.EDITED
-            # Apply doctor's edit to structured_extraction
-            if section and doctor_value:
-                draft.structured_extraction[section] = doctor_value
-            draft.save(update_fields=["status", "structured_extraction", "updated_at"])
+            # Apply the doctor's edit; an emptied section stays empty (missing).
+            draft.structured_extraction = {**draft.structured_extraction, section: doctor_value}
+            if section == "summary":
+                draft.summary = doctor_value
+            draft.save(update_fields=["status", "structured_extraction", "summary", "updated_at"])
+            record_audit(request, "ai.draft.section_edited", draft, hospital=draft.consultation.hospital_id,
+                         details={"section": section, "version": draft.version})
 
         return Response(DoctorReviewSerializer(review).data)
 
@@ -482,6 +502,9 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
     def approve(self, request, pk=None):
         """Approve AI draft and create final clinical note"""
         draft = self.get_object()
+        denied = _not_consulting_doctor(request, draft.consultation)
+        if denied:
+            return denied
 
         if not draft.can_approve():
             return Response(
@@ -496,6 +519,9 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
                 {"error": "Only a doctor of this hospital, linked to your login, can approve clinical drafts."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        if not draft.generation_completed_at or not draft.provider:
+            return Response({"error": "The AI draft is not ready yet; wait for it to finish generating."},
+                            status=status.HTTP_400_BAD_REQUEST)
         if draft.provider == "development" and not getattr(settings, "AI_SCRIBE_ALLOW_MOCK_PROVIDERS", False):
             return Response(
                 {"error": "This draft came from the development mock provider and cannot enter a medical record."},
@@ -506,6 +532,12 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
+            # Two approvals at once must not write two clinical notes.
+            draft = AIConsultationDraft.objects.select_for_update().select_related(
+                "consultation__visit", "consultation__hospital").get(pk=draft.pk)
+            if not draft.can_approve():
+                return Response({"error": f"Draft cannot be approved in status: {draft.status}"},
+                                status=status.HTTP_400_BAD_REQUEST)
             # Create final clinical note
             from clinical.models import ClinicalNote
 
@@ -560,6 +592,9 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
     def reject(self, request, pk=None):
         """Reject AI draft"""
         draft = self.get_object()
+        denied = _not_consulting_doctor(request, draft.consultation)
+        if denied:
+            return denied
 
         if draft.status == AIConsultationDraft.Status.APPROVED:
             return Response(
@@ -584,6 +619,9 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
             ai_value=draft.structured_extraction,
             notes=draft.review_notes,
         )
+        # Rejections go to the audit log as approvals do.
+        record_audit(request, "ai.draft.rejected", draft, hospital=draft.consultation.hospital_id,
+                     details={"version": draft.version, "notes": draft.review_notes})
 
         return Response(self.get_serializer(draft).data)
 
@@ -610,14 +648,19 @@ class AIConsultationDraftViewSet(HospitalScopedViewSet):
             "follow_up": "Follow-up",
         }
 
+        # Every section is listed: one the consultation did not cover says so
+        # instead of disappearing from the note.
         for key, label in section_labels.items():
             value = extraction.get(key)
-            if value:
-                if isinstance(value, list):
-                    formatted = "\n".join(f"  - {v}" for v in value)
-                else:
-                    formatted = str(value)
-                parts.append(f"{label}:\n{formatted}\n")
+            if not value:
+                formatted = f"  {NOT_RECORDED}"
+            elif isinstance(value, list):
+                formatted = "\n".join(f"  - {v}" for v in value)
+            elif isinstance(value, dict):
+                formatted = "\n".join(f"  - {k}: {v}" for k, v in value.items())
+            else:
+                formatted = str(value)
+            parts.append(f"{label}:\n{formatted}\n")
 
         parts.append(
             "\n---\n"
@@ -639,6 +682,8 @@ class DoctorReviewViewSet(HospitalScopedViewSet):
     )
     serializer_class = DoctorReviewSerializer
     permission_classes = [IsClinicalStaff]
+    # Review history is written only by the draft's review/approve/reject actions.
+    http_method_names = ["get", "head", "options"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -648,15 +693,70 @@ class DoctorReviewViewSet(HospitalScopedViewSet):
         return qs
 
 
+# S-L8 (2026-11-18): extraction schemas and prompt templates are platform-wide
+# rows (no hospital). Any doctor of any hospital could POST, edit or delete
+# them, changing configuration for every tenant. The scribe pipeline does not
+# read them (its prompts and schema live in ai_scribe/services), so the API is
+# read-only; platform superusers manage the rows in the Django admin, where
+# changes are logged.
 class ClinicalExtractionSchemaViewSet(HospitalScopedViewSet):
-    """API for managing clinical extraction schemas"""
+    """Read-only list of clinical extraction schemas (platform reference data)."""
     queryset = ClinicalExtractionSchema.objects.filter(is_active=True)
     serializer_class = ClinicalExtractionSchemaSerializer
     permission_classes = [IsDoctor]
+    http_method_names = ["get", "head", "options"]
+    tenant_global = True
 
 
 class AIPromptTemplateViewSet(HospitalScopedViewSet):
-    """API for managing AI prompt templates"""
+    """Read-only list of AI prompt templates (platform reference data)."""
     queryset = AIPromptTemplate.objects.filter(is_active=True).select_related("schema_version")
     serializer_class = AIPromptTemplateSerializer
     permission_classes = [IsDoctor]
+    http_method_names = ["get", "head", "options"]
+    tenant_global = True
+
+
+CNN_UNAVAILABLE = (
+    "No validated imaging model, dataset or approved medical use case is configured. "
+    "Image predictions are not available."
+)
+
+
+class AICapabilitiesView(APIView):
+    """
+    GET /api/ai/capabilities/: which AI assists this server can run, with
+    the provider and model names (never keys). Clinical staff only.
+    """
+
+    permission_classes = [IsClinicalStaff]
+
+    def get(self, request):
+        from .services.llm import LLMClinicalService
+        from .services.stt import SpeechToTextService
+
+        stt = SpeechToTextService()
+        llm = LLMClinicalService()
+        stt_name = stt._default_provider or ""
+        llm_name = llm._default_provider or ""
+        llm_provider = llm._providers.get(llm_name)
+        stt_provider = stt._providers.get(stt_name)
+        return Response({
+            "scribe": {
+                "speech_to_text": {
+                    "available": bool(stt_name),
+                    "provider": stt_name,
+                    "model": getattr(stt_provider, "model", "") or "",
+                    "mock": stt_name == "development",
+                },
+                "drafting": {
+                    "available": bool(llm_name),
+                    "provider": llm_name,
+                    "model": getattr(llm_provider, "default_model", "") or "",
+                    "mock": llm_name == "development",
+                },
+                "languages": sorted(languages.SUPPORTED_LANGUAGES),
+            },
+            "image_prediction": {"available": False, "status": "blocked", "reason": CNN_UNAVAILABLE},
+            "notice": "AI output is a draft for a qualified clinician to review. It is never a diagnosis or a prescription.",
+        })

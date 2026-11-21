@@ -65,7 +65,9 @@ async function billAndPayInFull(page, username) {
   await page.getByRole("button", { name: "Create invoice" }).click()
   // Chosen by search and kept by id, never matched by typed name (RL-03).
   await pickPatient(page, patient)
-  await page.getByPlaceholder("Doctor Consultation ₹").fill("300")
+  // B-1: the consultation is billed automatically when the visit is
+  // completed; the form no longer takes a typed consultation charge.
+  await page.getByPlaceholder("Other Charges ₹").fill("300")
   await page.getByPlaceholder("Pharmacy / Medicines ₹").fill("25")
   await page.locator("input[name=paid]").fill("325")
   await page.locator("select[name=payment]").selectOption("Cash")

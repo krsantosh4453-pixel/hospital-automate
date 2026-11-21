@@ -47,14 +47,33 @@ def salts_for(text, catalogue, known):
     return salts
 
 
-def _allergy_covers(allergen, prescribed_salts):
-    """Salts an allergy recorded as ``allergen`` rules out."""
-    allergen = allergen.lower()
+MIN_BRAND_LENGTH = 4  # shorter allergy words are too ambiguous to match a brand
+
+
+def _brand_salts(allergen, catalogue):
+    """
+    H-05: salts of catalogue brands an allergy names ("Augmentin" for
+    "Augmentin 625"), so an allergy recorded by brand is checked too.
+    """
+    salts = set()
+    for name, catalogue_salts in catalogue:
+        stem = next((word for word in re.findall(r"[a-z]+", name) if len(word) >= MIN_BRAND_LENGTH), "")
+        named = (len(allergen) >= MIN_BRAND_LENGTH and _word(allergen).search(name)) or \
+            _word(name).search(allergen) or (stem and _word(stem).search(allergen))
+        if named:
+            salts |= catalogue_salts
+    return salts
+
+
+def _allergy_covers(allergen, prescribed_salts, catalogue=(), known=()):
+    """Salts an allergy recorded as ``allergen`` rules out (empty: not understood)."""
+    allergen = allergen.lower().strip()
     covered = set()
     for class_name, members in rules.ALLERGY_CLASSES.items():
         if re.search(rf"\b{re.escape(class_name)}s?\b", allergen):
             covered |= members
-    covered |= {salt for salt in prescribed_salts if _word(salt).search(allergen)}
+    covered |= {salt for salt in set(prescribed_salts) | set(known) if _word(salt).search(allergen)}
+    covered |= _brand_salts(allergen, catalogue)
     return covered
 
 
@@ -84,7 +103,16 @@ def check_items(hospital, patient, names):
     # hospital in this system; one recorded elsewhere says where.
     allergies = Allergy.objects.filter(patient=patient).select_related("hospital") if patient else []
     for allergy in allergies:
-        covered = _allergy_covers(allergy.name, all_salts)
+        covered = _allergy_covers(allergy.name, all_salts, catalogue, known)
+        if not covered:
+            # H-05: say so, rather than let a silent pass look like a clean check.
+            alerts.append(_alert(
+                "allergy_unchecked", rules.INFO,
+                f"Recorded allergy \"{allergy.name}\" could not be matched to a medicine, so it was not "
+                f"checked. Check it yourself, or record the allergy by its generic name.",
+                [], rule=f"allergy_unchecked:{allergy.name.lower()}",
+            ))
+            continue
         hits = [name for name, salts in salts_by_item.items() if salts & covered]
         if hits:
             reaction = f" ({allergy.reaction})" if allergy.reaction else ""

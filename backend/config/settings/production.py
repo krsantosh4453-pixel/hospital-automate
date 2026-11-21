@@ -16,17 +16,27 @@ from django.core.exceptions import ImproperlyConfigured
 # ============================================================
 
 # SECRET_KEY must be set via environment variable
+MIN_SECRET_KEY_LENGTH = 50
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 if not SECRET_KEY:
     raise ImproperlyConfigured('DJANGO_SECRET_KEY environment variable is required in production')
+# A short key or Django's generated development key is as bad as none.
+if len(SECRET_KEY) < MIN_SECRET_KEY_LENGTH or SECRET_KEY.startswith('django-insecure'):
+    raise ImproperlyConfigured(
+        f'DJANGO_SECRET_KEY must be at least {MIN_SECRET_KEY_LENGTH} random characters '
+        'and not a django-insecure development key'
+    )
 
 # DEBUG must be False in production
 DEBUG = False
 
-# ALLOWED_HOSTS must be explicitly configured
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
-if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['']:
+# ALLOWED_HOSTS must be explicitly configured ("a.org, b.org" is accepted).
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get('ALLOWED_HOSTS', '').split(',') if host.strip()]
+if not ALLOWED_HOSTS:
     raise ImproperlyConfigured('ALLOWED_HOSTS environment variable is required in production')
+# A wildcard turns off Host header validation (password-reset link poisoning).
+if '*' in ALLOWED_HOSTS:
+    raise ImproperlyConfigured("ALLOWED_HOSTS must list the real host names, not '*'")
 
 # HTTPS/SSL Settings
 SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
@@ -103,9 +113,14 @@ DATABASES = {
         'HOST': db_url.hostname,
         'PORT': db_url.port or 5432,
         'CONN_MAX_AGE': 60,  # Persistent connections
+        # Test a reused connection before each request: after a PostgreSQL
+        # restart the stale one is replaced instead of failing that request.
+        'CONN_HEALTH_CHECKS': True,
         'OPTIONS': {
             'connect_timeout': 10,
-            'options': '-c statement_timeout=30000',  # 30 second statement timeout
+            # 30 s guards web requests. The entrypoint sets 0 (no limit) for
+            # `migrate`, where an index build on a large table can take longer.
+            'options': f"-c statement_timeout={int(os.environ.get('DB_STATEMENT_TIMEOUT_MS', '30000'))}",
         },
         'TEST': {
             'NAME': 'test_' + db_url.path[1:],
@@ -207,8 +222,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # ============================================================
 
 # Load RSA private key for signing (RS256)
-JWT_PRIVATE_KEY = os.environ.get('JWT_PRIVATE_KEY')
-JWT_PUBLIC_KEY = os.environ.get('JWT_PUBLIC_KEY')
+# An env file holds a PEM on one line with "\n" escapes; turn them back into
+# newlines, or the key would fail to load at the first sign-in instead of here.
+JWT_PRIVATE_KEY = os.environ.get('JWT_PRIVATE_KEY', '').replace('\\n', '\n').strip()
+JWT_PUBLIC_KEY = os.environ.get('JWT_PUBLIC_KEY', '').replace('\\n', '\n').strip()
 JWT_KEY_ID = os.environ.get('JWT_KEY_ID', 'hms-key-1')
 
 if not JWT_PRIVATE_KEY or not JWT_PUBLIC_KEY:
@@ -216,6 +233,25 @@ if not JWT_PRIVATE_KEY or not JWT_PUBLIC_KEY:
         'JWT_PRIVATE_KEY and JWT_PUBLIC_KEY environment variables are required in production. '
         'Generate with: openssl genrsa -out private.pem 2048 && openssl rsa -in private.pem -pubout -out public.pem'
     )
+
+
+def _check_jwt_key_pair(private_pem, public_pem):
+    """Refuse to start unless both PEMs load and the public key matches the private key."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    try:
+        private_key = serialization.load_pem_private_key(private_pem.encode(), password=None)
+        public_key = serialization.load_pem_public_key(public_pem.encode())
+    except (ValueError, TypeError) as exc:
+        raise ImproperlyConfigured(f'JWT_PRIVATE_KEY / JWT_PUBLIC_KEY are not valid unencrypted PEM keys: {exc}')
+    if not isinstance(private_key, rsa.RSAPrivateKey) or not isinstance(public_key, rsa.RSAPublicKey):
+        raise ImproperlyConfigured('JWT keys must be RSA keys (tokens are signed with RS256)')
+    if private_key.public_key().public_numbers() != public_key.public_numbers():
+        raise ImproperlyConfigured('JWT_PUBLIC_KEY does not belong to JWT_PRIVATE_KEY')
+
+
+_check_jwt_key_pair(JWT_PRIVATE_KEY, JWT_PUBLIC_KEY)
 
 SIMPLE_JWT['SIGNING_KEY'] = JWT_PRIVATE_KEY
 SIMPLE_JWT['VERIFYING_KEY'] = JWT_PUBLIC_KEY
@@ -379,7 +415,7 @@ AI_SCRIBE_ENABLED = os.environ.get('AI_SCRIBE_ENABLED', 'True').lower() == 'true
 AI_SCRIBE_ALLOW_MOCK_PROVIDERS = False
 AI_SCRIBE_PROVIDER = os.environ.get('AI_SCRIBE_PROVIDER', 'openai')
 AI_SCRIBE_API_KEY = os.environ.get('AI_SCRIBE_API_KEY')
-AI_SCRIBE_MODEL = os.environ.get('AI_SCRIBE_MODEL', 'gpt-4')
+AI_SCRIBE_MODEL = os.environ.get('AI_SCRIBE_MODEL', 'gpt-4o-mini')
 AI_SCRIBE_MAX_TOKENS = int(os.environ.get('AI_SCRIBE_MAX_TOKENS', '4000'))
 AI_SCRIBE_TEMPERATURE = float(os.environ.get('AI_SCRIBE_TEMPERATURE', '0.1'))
 

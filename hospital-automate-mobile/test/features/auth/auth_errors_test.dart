@@ -108,10 +108,14 @@ void main() {
     expect(
       authErrorMessage(
         t,
-        signIn(400, 'Account already exists with this email.'),
+        signIn(
+          400,
+          'We could not create an account with these details. If you already '
+          'have an account, sign in or reset your password.',
+        ),
         AuthStep.registration,
       ),
-      t.authEmailExists,
+      t.authRegistrationUnavailable,
     );
   });
 

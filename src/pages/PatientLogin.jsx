@@ -76,7 +76,7 @@ function PatientLogin() {
 
   const GOOGLE_CLIENT_ID =
     import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-    "1199500530711-s1ti1g061cno8d3tk2759hqrgitdect.apps.googleusercontent.com"
+    "119950053071-f93kl31rlntoo9jq35bgtc69rcqtrti5.apps.googleusercontent.com"
 
   // Google Identity Services load
   useEffect(() => {

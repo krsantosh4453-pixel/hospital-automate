@@ -78,8 +78,9 @@ String? _knownMessage(AppLocalizations t, String? message) {
   if (has('do not match')) return t.authPasswordMismatch;
   if (has('full name is required')) return t.authNameRequired;
   if (has('date of birth')) return t.authInvalidDob;
-  if (has('already exists with this email')) return t.authEmailExists;
-  if (has('already exists with this mobile')) return t.authPhoneExists;
+  if (has('could not create an account with these details')) {
+    return t.authRegistrationUnavailable;
+  }
   if (has('verification email')) return t.authEmailSendFailed;
   if (has('google authentication failed') || has('google credential')) {
     return t.authGoogleFailed;

@@ -72,6 +72,22 @@ class AuthService implements TokenRefreshHandler {
     String password,
   ) async {
     final device = await deviceInfo();
+    // Final E2E finding 5: every staff sign-in called otp/start first and got
+    // 400/503 on servers without SMS codes. Skip that step only when the
+    // server says codes are neither required nor available; if the options
+    // cannot be read, keep the code-first flow (the server enforces policy).
+    StaffLoginOptions? options;
+    try {
+      options = await _repository.staffLoginOptions();
+    } on ApiException {
+      options = null;
+    }
+    if (options != null && !options.tryOtp) {
+      await completeSignIn(
+        await _repository.staffPasswordLogin(username, password, device),
+      );
+      return const StaffSignedIn();
+    }
     try {
       final challenge = await _repository.staffStartOtp(
         username,
@@ -141,6 +157,17 @@ class AuthService implements TokenRefreshHandler {
     PatientRegistration registration,
   ) => _repository.registerPatient(registration);
 
+  Future<List<PublicHospital>> patientHospitals() =>
+      _repository.patientHospitals();
+
+  /// Registers the signed-in patient at [hospitalId], then reloads the
+  /// session so the new hospital is listed and selected (BUG-01).
+  Future<void> joinHospital(int hospitalId) async {
+    await _repository.joinHospital(hospitalId);
+    await _loadSession();
+    await _session.selectHospital(hospitalId);
+  }
+
   Future<OtpDelivery> requestEmailOtp(String email) =>
       _repository.requestEmailOtp(email);
 
@@ -187,6 +214,9 @@ class AuthService implements TokenRefreshHandler {
   /// account. Throws (and forgets the tokens) if that view cannot be read.
   Future<void> completeSignIn(AuthTokens tokens) async {
     await _store.save(tokens);
+    // A sign-out earlier in this app run closed signed-in requests; the new
+    // tokens open them again before the account is loaded.
+    _session.allowRequests();
     try {
       await _loadSession();
     } catch (_) {
@@ -236,6 +266,9 @@ class AuthService implements TokenRefreshHandler {
   /// Signs this device out on the server (best effort: an unreachable
   /// server must not keep the person signed in), then clears everything.
   Future<void> signOut() async {
+    // Stop signed-in requests first: pages that reload on the session change
+    // must not send requests with a token that is about to be revoked.
+    _session.beginSignOut();
     final refreshToken = await _store.readRefreshToken();
     if (refreshToken != null) {
       try {

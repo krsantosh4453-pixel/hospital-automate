@@ -6,11 +6,27 @@ from dataclasses import dataclass
 
 from django.conf import settings
 from twilio.rest import Client
-from twilio.base.exceptions import TwilioException
+from twilio.base.exceptions import TwilioException, TwilioRestException
 
 logger = logging.getLogger(__name__)
 
 TWILIO_VERIFY_NOT_CONFIGURED = "Twilio Verify is not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_VERIFY_SERVICE_SID, and either TWILIO_API_KEY + TWILIO_API_SECRET or TWILIO_AUTH_TOKEN."
+
+
+MSG_LIMITED_SEND = "Too many requests. Please try again later."
+MSG_LIMITED_CHECK = "Too many verification attempts. Please try again later."
+MSG_INVALID_OR_EXPIRED = "Invalid or expired OTP."
+MSG_INVALID_NUMBER = "Invalid phone number format"
+MSG_SEND_FAILED = "Unable to send OTP. Please try again."
+MSG_CHECK_FAILED = "Unable to verify OTP. Please try again."
+
+# Twilio error codes (https://www.twilio.com/docs/api/errors) mapped to outcomes.
+# Only the code is ever logged: Twilio's message text echoes the phone number.
+TWILIO_AUTH_FAILED = {20003}
+TWILIO_NOT_FOUND = 20404  # check: verification expired, approved or never started
+TWILIO_RATE_LIMITED = {20429, 60202, 60203, 60212}
+TWILIO_INVALID_NUMBER = {21211, 21214, 21614, 60200, 60205}
+TWILIO_UNDELIVERABLE = {21408, 21608, 21610, 60220, 60410, 60605}
 
 
 @dataclass
@@ -18,6 +34,33 @@ class VerifyResult:
     ok: bool
     message: str
     sid: str | None = None
+    # Machine-readable outcome: sent, approved, rejected, limited, invalid_number,
+    # expired, not_configured, provider_auth, undeliverable, provider_error.
+    reason: str = ""
+
+
+def mask_phone(phone: str) -> str:
+    """Keep the last four digits only, for logs."""
+    digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
+    return f"***{digits[-4:]}" if len(digits) >= 4 else "***"
+
+
+def _twilio_failure(exc: Exception, to: str, step: str, limited_msg: str, failed_msg: str) -> VerifyResult:
+    code = getattr(exc, "code", None)
+    status = getattr(exc, "status", None)
+    if code in TWILIO_AUTH_FAILED or status == 401:
+        logger.critical("Twilio Verify rejected the credentials (%s, code %s); check TWILIO_* settings", step, code)
+        return VerifyResult(False, failed_msg, reason="provider_auth")
+    logger.warning("Twilio Verify %s failed for %s: HTTP %s code %s", step, mask_phone(to), status, code)
+    if step == "check" and code == TWILIO_NOT_FOUND:
+        return VerifyResult(False, MSG_INVALID_OR_EXPIRED, reason="expired")
+    if code in TWILIO_RATE_LIMITED or status == 429:
+        return VerifyResult(False, limited_msg, reason="limited")
+    if code in TWILIO_INVALID_NUMBER:
+        return VerifyResult(False, MSG_INVALID_NUMBER, reason="invalid_number")
+    if code in TWILIO_UNDELIVERABLE:
+        return VerifyResult(False, failed_msg, reason="undeliverable")
+    return VerifyResult(False, failed_msg, reason="provider_error")
 
 
 class TwilioVerifyService:
@@ -53,7 +96,7 @@ class TwilioVerifyService:
             self._verify_service_sid = verify_service_sid
             self._initialized = True
         except Exception as e:
-            logger.error(f"Failed to initialize Twilio Verify client: {e}")
+            logger.error("Failed to initialize Twilio Verify client: %s", type(e).__name__)
             self._initialized = True
 
     def is_configured(self) -> bool:
@@ -65,12 +108,8 @@ class TwilioVerifyService:
         digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
         if len(digits) == 10:
             return f"+91{digits}"
-        elif len(digits) == 12 and digits.startswith("91"):
+        if len(digits) == 12 and digits.startswith("91"):
             return f"+{digits}"
-        elif len(digits) == 13 and digits.startswith("+91"):
-            return digits
-        elif digits.startswith("+"):
-            return digits
         return f"+91{digits[-10:]}" if len(digits) >= 10 else ""
 
     def start_verification(self, phone: str, channel: str = "sms") -> VerifyResult:
@@ -79,27 +118,27 @@ class TwilioVerifyService:
 
         if not self.is_configured():
             logger.error("Twilio Verify not configured")
-            return VerifyResult(False, TWILIO_VERIFY_NOT_CONFIGURED)
+            return VerifyResult(False, TWILIO_VERIFY_NOT_CONFIGURED, reason="not_configured")
 
         to = self._normalize_phone(phone)
         if not to:
-            return VerifyResult(False, "Invalid phone number format")
+            return VerifyResult(False, MSG_INVALID_NUMBER, reason="invalid_number")
 
         try:
             verification = self._client.verify.v2.services(self._verify_service_sid).verifications.create(
                 to=to,
                 channel=channel,
             )
-            logger.info(f"Twilio Verify started for {to}: {verification.sid} (status: {verification.status})")
-            return VerifyResult(True, "OTP sent to your registered mobile number.", verification.sid)
+        except TwilioRestException as e:
+            return _twilio_failure(e, to, "start", MSG_LIMITED_SEND, MSG_SEND_FAILED)
         except TwilioException as e:
-            logger.exception(f"Twilio Verify start failed for {to}")
-            if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
-                return VerifyResult(False, "Too many requests. Please try again later.")
-            return VerifyResult(False, "Unable to send OTP. Please try again.")
+            logger.error("Twilio Verify start failed for %s: %s", mask_phone(to), type(e).__name__)
+            return VerifyResult(False, MSG_SEND_FAILED, reason="provider_error")
         except Exception as e:
-            logger.exception(f"Unexpected error starting Twilio Verify for {to}")
-            return VerifyResult(False, "Unable to send OTP. Please try again.")
+            logger.error("Unexpected error starting Twilio Verify for %s: %s", mask_phone(to), type(e).__name__)
+            return VerifyResult(False, MSG_SEND_FAILED, reason="provider_error")
+        logger.info("Twilio Verify started for %s: %s (status: %s)", mask_phone(to), verification.sid, verification.status)
+        return VerifyResult(True, "OTP sent to your registered mobile number.", verification.sid, reason="sent")
 
     def check_verification(self, phone: str, code: str) -> VerifyResult:
         """Verify the OTP code via Twilio Verify."""
@@ -107,38 +146,34 @@ class TwilioVerifyService:
 
         if not self.is_configured():
             logger.error("Twilio Verify not configured")
-            return VerifyResult(False, TWILIO_VERIFY_NOT_CONFIGURED)
+            return VerifyResult(False, TWILIO_VERIFY_NOT_CONFIGURED, reason="not_configured")
 
         to = self._normalize_phone(phone)
         if not to:
-            return VerifyResult(False, "Invalid phone number format")
+            return VerifyResult(False, MSG_INVALID_NUMBER, reason="invalid_number")
 
         clean_code = "".join(ch for ch in str(code or "") if ch.isdigit())
         if len(clean_code) != 6:
-            return VerifyResult(False, "Invalid OTP format")
+            return VerifyResult(False, "Invalid OTP format", reason="rejected")
 
         try:
             verification_check = self._client.verify.v2.services(self._verify_service_sid).verification_checks.create(
                 to=to,
                 code=clean_code,
             )
-            logger.info(f"Twilio Verify check for {to}: {verification_check.status}")
-
-            if verification_check.status == "approved":
-                return VerifyResult(True, "OTP verified successfully.", verification_check.sid)
-            elif verification_check.status == "pending":
-                return VerifyResult(False, "Invalid or expired OTP.")
-            else:
-                return VerifyResult(False, "Invalid or expired OTP.")
+        except TwilioRestException as e:
+            return _twilio_failure(e, to, "check", MSG_LIMITED_CHECK, MSG_CHECK_FAILED)
         except TwilioException as e:
-            logger.exception(f"Twilio Verify check failed for {to}")
-            if "rate limit" in str(e).lower() or "too many requests" in str(e).lower():
-                return VerifyResult(False, "Too many verification attempts. Please try again later.")
-            return VerifyResult(False, "Unable to verify OTP. Please try again.")
+            logger.error("Twilio Verify check failed for %s: %s", mask_phone(to), type(e).__name__)
+            return VerifyResult(False, MSG_CHECK_FAILED, reason="provider_error")
         except Exception as e:
-            logger.exception(f"Unexpected error checking Twilio Verify for {to}")
-            return VerifyResult(False, "Unable to verify OTP. Please try again.")
+            logger.error("Unexpected error checking Twilio Verify for %s: %s", mask_phone(to), type(e).__name__)
+            return VerifyResult(False, MSG_CHECK_FAILED, reason="provider_error")
 
+        logger.info("Twilio Verify check for %s: %s", mask_phone(to), verification_check.status)
+        if verification_check.status == "approved":
+            return VerifyResult(True, "OTP verified successfully.", verification_check.sid, reason="approved")
+        return VerifyResult(False, MSG_INVALID_OR_EXPIRED, reason="rejected")
 
 _twilio_verify_service = None
 

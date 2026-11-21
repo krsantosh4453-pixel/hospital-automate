@@ -1,7 +1,6 @@
 import hmac
 import logging
 import uuid
-from datetime import date
 
 from django.conf import settings
 from django.contrib.auth import authenticate
@@ -22,7 +21,13 @@ from config.auth_cookies import REFRESH_COOKIE, clear_auth_cookies
 logger = logging.getLogger(__name__)
 
 from .models import DeviceSession, GoogleAccount, StaffProfile, StaffHospitalMembership, StaffRole
-from patients.models import Patient
+from patients.models import Patient, age_from_dob
+from patients.self_registration import (
+    hospital_for_self_registration, join_hospital, parse_date_of_birth, self_registration_hospitals,
+)
+from patients.uhid import ensure_uhid
+from config.hospital_time import hospital_today
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from .patient_auth import (
     authenticate_patient_email,
     authenticate_patient_identifier,
@@ -204,6 +209,9 @@ def _get_staff_data(user):
     }
 
 
+LOCKED_OUT_MESSAGE = "Too many failed sign-in attempts. Try again in 15 minutes or reset your password."
+
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def staff_login(request):
@@ -220,9 +228,13 @@ def staff_login(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    if security.is_locked_out(username):
+    # S-L2: count failures per account, not per typed identifier, so the
+    # username and the email of one account share a single budget.
+    lockout_keys = security.staff_login_keys(username)
+    if security.any_locked_out(lockout_keys):
+        record_audit(request, "auth.staff_login.locked", details={"username": str(username)[:150]})
         return Response(
-            {"error": "Too many failed sign-in attempts. Try again in 15 minutes or reset your password."},
+            {"error": LOCKED_OUT_MESSAGE},
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
@@ -230,7 +242,7 @@ def staff_login(request):
     user = authenticate(request, username=username, password=password)
 
     if user is None:
-        security.record_failure(username)
+        security.record_failures(lockout_keys)
         record_audit(request, "auth.staff_login.failed", details={"username": str(username)[:150]})
         return Response(
             {"error": "Invalid credentials."},
@@ -257,7 +269,7 @@ def staff_login(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    security.clear_failures(username)
+    security.clear_login_failures(username, user)
     record_audit(request, "auth.staff_login.success", user=user)
 
     # Generate JWT tokens
@@ -268,6 +280,29 @@ def staff_login(request):
         "user": staff_data,
         "roles": staff_data["roles"],
         "hospitals": staff_data["hospitals"],
+    })
+
+
+def _staff_otp_available():
+    """SMS one-time codes can be sent from this server (an account may still lack a phone)."""
+    if getattr(settings, "OTP_PROVIDER", "twilio") != "twilio":
+        return False
+    return get_twilio_verify_service().is_configured()
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def staff_login_options(request):
+    """
+    GET /api/auth/staff/login/options/ - how staff sign in on this server, so
+    the sign-in page skips the OTP step when it can only fail (final E2E
+    finding: every login called otp/start and got 400/503 first). Only two
+    booleans; no provider or account details. The login endpoints still
+    enforce the policy (staff_login refuses a password when OTP is required).
+    """
+    return Response({
+        "otp_required": security.otp_required_for_staff(),
+        "otp_available": _staff_otp_available(),
     })
 
 
@@ -287,16 +322,20 @@ def staff_login_start_otp(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    if security.is_locked_out(username):
+    # S-L2: count failures per account, not per typed identifier, so the
+    # username and the email of one account share a single budget.
+    lockout_keys = security.staff_login_keys(username)
+    if security.any_locked_out(lockout_keys):
+        record_audit(request, "auth.staff_login.locked", details={"username": str(username)[:150]})
         return Response(
-            {"error": "Too many failed sign-in attempts. Try again in 15 minutes or reset your password."},
+            {"error": LOCKED_OUT_MESSAGE},
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
     user = authenticate(request, username=username, password=password)
 
     if user is None:
-        security.record_failure(username)
+        security.record_failures(lockout_keys)
         record_audit(request, "auth.staff_login.failed", details={"username": str(username)[:150]})
         return Response(
             {"error": "Invalid credentials."},
@@ -315,7 +354,7 @@ def staff_login_start_otp(request):
             {"error": "Not authorized as staff."},
             status=status.HTTP_403_FORBIDDEN
         )
-    security.clear_failures(username)
+    security.clear_login_failures(username, user)
 
     # otp_unavailable tells the sign-in page to fall back to the password
     # login, which itself refuses when STAFF_LOGIN_REQUIRE_OTP is on.
@@ -610,16 +649,54 @@ INVITE_ONLY_ROLES = {
 }
 
 
-def _age_from_dob(dob_value):
-    if not dob_value:
-        return 1
+def _patient_hospitals_payload(patient):
+    """The hospitals a patient is registered at, with the UHID each one issued."""
+    return [
+        {"id": m.hospital_id, "name": m.hospital.name, "uhid": m.uhid}
+        for m in patient.hospital_memberships.filter(is_active=True).select_related("hospital").order_by("hospital__name")
+    ]
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def patient_hospitals(request):
+    """
+    GET /api/auth/patient/hospitals/ — hospitals a patient may choose at sign-up
+    or join from the app (active, accepting self-registration). Names only.
+    """
+    return Response([
+        {"id": h.pk, "name": h.name, "city": h.city}
+        for h in self_registration_hospitals()
+    ])
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def patient_join_hospital(request):
+    """
+    POST /api/auth/patient/hospitals/join/ {"hospital": id} — the signed-in
+    patient registers at a hospital and gets its UHID (BUG-01). Repeating it
+    returns the same membership. A family member with view-only access cannot.
+    """
+    from .permissions import get_linked_patient
+    from .proxy_access import get_proxy_grant
+
+    patient = get_linked_patient(request.user)
+    if patient is None or get_proxy_grant(request.user) is not None:
+        return Response({"error": "Only the patient can register at a hospital."}, status=status.HTTP_403_FORBIDDEN)
     try:
-        dob = date.fromisoformat(str(dob_value)[:10])
-    except ValueError:
-        return 1
-    today = date.today()
-    age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-    return max(age, 1)
+        membership, created = join_hospital(patient, (request.data or {}).get("hospital"))
+    except DRFValidationError as exc:
+        return Response({"error": str(exc.detail.get("hospital", ["Choose a hospital."])[0])},
+                        status=status.HTTP_400_BAD_REQUEST)
+    if created:
+        record_audit(request, "patients.self_registration.join", patient, hospital=membership.hospital_id,
+                     details={"uhid": membership.uhid})
+    return Response(
+        {"hospital": membership.hospital_id, "uhid": membership.uhid, "created": created,
+         "hospitals": _patient_hospitals_payload(patient)},
+        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+    )
 
 
 def _unique_username(email, phone):
@@ -636,6 +713,12 @@ def _unique_username(email, phone):
         username = f"{base}_{suffix}"
         suffix += 1
     return username
+
+
+REGISTRATION_UNAVAILABLE = (
+    "We could not create an account with these details. If you already have an account, "
+    "sign in or reset your password."
+)
 
 
 @api_view(["POST"])
@@ -707,16 +790,16 @@ def register_account(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    if email and User.objects.filter(email__iexact=email).exists():
-        return Response(
-            {"error": "Account already exists with this email."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
+    # S-L4: one message whichever detail is taken, so the form no longer says
+    # whether a given email or a given mobile number has an account. The route
+    # is also rate limited per address (config.middleware.ratelimit).
     normalized_phone = normalize_phone(phone)
-    if Patient.objects.filter(phone__endswith=normalized_phone).exists():
+    if (
+        (email and User.objects.filter(email__iexact=email).exists())
+        or Patient.objects.filter(phone__endswith=normalized_phone).exists()
+    ):
         return Response(
-            {"error": "Account already exists with this mobile number."},
+            {"error": REGISTRATION_UNAVAILABLE},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -749,14 +832,20 @@ def register_account(request):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+    # BUG-04: the date of birth is required, so no patient is stored with a
+    # made-up age. BUG-01: the hospital chosen at sign-up is joined at once.
     dob_raw = data.get("date_of_birth") or data.get("dob") or ""
     dob_value = None
-    if requested_role == "Patient" and dob_raw:
+    join_at = None
+    if requested_role == "Patient":
         try:
-            dob_value = date.fromisoformat(str(dob_raw)[:10])
-        except ValueError:
+            dob_value = parse_date_of_birth(dob_raw, hospital_today())
+            if data.get("hospital") not in (None, ""):
+                join_at = hospital_for_self_registration(data.get("hospital"))
+        except DRFValidationError as exc:
+            message = next(iter(exc.detail.values()))
             return Response(
-                {"error": "Date of birth is not valid."},
+                {"error": str(message[0] if isinstance(message, list) else message)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -776,7 +865,7 @@ def register_account(request):
                 created_patient = Patient.objects.create(
                     user=user,
                     name=full_name[:100],
-                    age=_age_from_dob(dob_raw),
+                    age=age_from_dob(dob_value),
                     gender=gender[:20],
                     phone=normalized_phone[:15],
                     address=str(data.get("address") or ""),
@@ -786,6 +875,10 @@ def register_account(request):
                     phone_verified=False,
                     status="Active",
                 )
+                if join_at is not None:
+                    membership, _ = ensure_uhid(created_patient, join_at)
+                    record_audit(request, "patients.self_registration.join", created_patient,
+                                 hospital=join_at.pk, details={"uhid": membership.uhid})
             else:
                 staff_role = requested_role
                 is_active = True  # only Admin reaches here, after the invite-code check
@@ -860,9 +953,11 @@ def register_account(request):
                 "id": created_patient.id,
                 "name": created_patient.name,
                 "age": created_patient.age,
+                "date_of_birth": str(created_patient.date_of_birth) if created_patient.date_of_birth else None,
                 "gender": created_patient.gender,
                 "phone": created_patient.phone,
                 "email": email,
+                "hospitals": _patient_hospitals_payload(created_patient),
             },
         },
         status=status.HTTP_201_CREATED,
@@ -957,12 +1052,25 @@ def patient_email_otp_verify(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def patient_email_login(request):
+    # S-L1: a per-account lockout on top of the per-address rate limit, so
+    # many addresses cannot keep guessing one patient's password.
+    email = str(request.data.get("email") or "").strip().lower()
+    lockout_keys = security.login_keys(
+        f"patient-email:{email}",
+        User.objects.filter(email__iexact=email).only("pk", "date_joined") if email else (),
+    )
+    if security.any_locked_out(lockout_keys):
+        record_audit(request, "auth.patient_login.locked", details={"method": "email"})
+        return Response({"error": LOCKED_OUT_MESSAGE}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     patient, error, http_status = authenticate_patient_email(
-        request.data.get("email"),
+        email,
         request.data.get("password") or "",
     )
     if patient is None:
+        if http_status == status.HTTP_401_UNAUTHORIZED:
+            security.record_failures(lockout_keys)
         return Response({"error": error}, status=http_status)
+    security.clear_login_failures(f"patient-email:{email}", patient.user)
     refused = _refuse_staff_on_patient_login(patient.user)
     if refused:
         return refused
@@ -975,15 +1083,28 @@ def patient_email_login(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def patient_token_login(request):
-    patient = authenticate_patient_identifier(
-        request.data.get("identifier") or request.data.get("token") or request.data.get("patient_id"),
-        request.data.get("password") or "",
+    from .patient_auth import patients_for_identifier
+
+    identifier = str(
+        request.data.get("identifier") or request.data.get("token") or request.data.get("patient_id") or ""
+    ).strip()
+    # S-L1: one mobile number can match several family accounts; each of them
+    # is charged for a wrong password, and any locked one stops the attempt.
+    lockout_keys = security.login_keys(
+        f"patient-id:{identifier}",
+        [p.user for p in patients_for_identifier(identifier) if p.user_id],
     )
+    if security.any_locked_out(lockout_keys):
+        record_audit(request, "auth.patient_login.locked", details={"method": "identifier"})
+        return Response({"error": LOCKED_OUT_MESSAGE}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    patient = authenticate_patient_identifier(identifier, request.data.get("password") or "")
     if patient is None or patient.user is None:
+        security.record_failures(lockout_keys)
         return Response(
             {"error": "Invalid patient credentials."},
             status=status.HTTP_401_UNAUTHORIZED,
         )
+    security.clear_login_failures(f"patient-id:{identifier}", patient.user)
     refused = _refuse_staff_on_patient_login(patient.user)
     if refused:
         return refused
@@ -1009,6 +1130,9 @@ def patient_me(request):
     return Response({
         "role": "Patient",
         "patient": patient_payload(patient),
+        # BUG-11: the UHID each hospital issued, so the app shows it rather
+        # than the internal record id.
+        "hospitals": _patient_hospitals_payload(patient),
         # Set when a family member is signed in with view-only access.
         "proxy": proxy_payload(grant) if grant else None,
         "user": {
@@ -1091,7 +1215,8 @@ def staff_password_reset_confirm(request):
     user.set_password(new_password)
     user.save(update_fields=["password"])
     revoke_all_sessions(user, "password reset")
-    security.clear_failures(identifier)
+    # A new password ends any lockout of this account, whichever identifier it hit.
+    security.clear_login_failures(identifier, user)
     security.clear_failures(f"reset:{identifier}")
     record_audit(request, "auth.password_reset.completed", user=user)
     return Response({"message": "Password updated. Sign in with your new password."})

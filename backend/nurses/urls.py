@@ -7,6 +7,7 @@ from .views import (
     CareTaskViewSet,
     MARViewSet,
     MARAdministrationViewSet,
+    MedicationRoundViewSet,
     NurseWardAssignmentViewSet,
     PatientAssignmentViewSet,
 )
@@ -18,6 +19,7 @@ router.register(r"notes", NursingNoteViewSet, basename="nursing-note")
 router.register(r"care-tasks", CareTaskViewSet, basename="care-task")
 router.register(r"mar", MARViewSet, basename="mar")
 router.register(r"mar-administrations", MARAdministrationViewSet, basename="mar-administration")
+router.register(r"medication-rounds", MedicationRoundViewSet, basename="medication-round")
 router.register(r"patient-assignments", PatientAssignmentViewSet, basename="patient-assignment")
 router.register(r"ward-assignments", NurseWardAssignmentViewSet, basename="nurse-ward-assignment")
 
