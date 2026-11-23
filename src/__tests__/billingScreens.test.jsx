@@ -152,8 +152,8 @@ describe("Unbilled work", () => {
   const ROWS = {
     count: 2,
     results: [
-      { kind: "consultation", id: 12, patient: 3, service: "OPD", date: "2026-11-20", priced: true },
-      { kind: "laboratory", id: 5, patient: 3, service: "Lipid Profile", date: "2026-11-20", priced: false },
+      { kind: "consultation", id: 12, patient: 3, service: "OPD", date: "2026-11-20", priced: true, source: "unpriced" },
+      { kind: "laboratory", id: 5, patient: 3, service: "Lipid Profile", date: "2026-11-20", priced: false, source: "unpriced" },
     ],
   }
 
@@ -171,6 +171,23 @@ describe("Unbilled work", () => {
     expect(api.billing.priceList.chargeUnbilled).toHaveBeenCalledWith(4, undefined)
     expect(onCharged).toHaveBeenCalled()
     expect(document.body.textContent).toContain("Unbilled work (1)")
+  })
+
+  it("bills a charge from a cancelled bill only when picked, after showing why it was cancelled", async () => {
+    const cancelled = { kind: "consultation", id: 30, patient: 3, service: "OPD", date: "2026-11-20", priced: true,
+      source: "cancelled", cancelled_invoice: "INV/26-27/000009", cancel_reason: "Staff family, not chargeable" }
+    api.billing.priceList.unbilled.mockResolvedValueOnce({ count: 1, results: [cancelled] }).mockResolvedValueOnce({ count: 0, results: [] })
+    api.billing.priceList.chargeUnbilled.mockResolvedValue({ charged: [cancelled], left: [] })
+    await render(<UnbilledWork hospitalId={4} canCharge />)
+    expect(document.body.textContent).toContain("On cancelled bill INV/26-27/000009: Staff family, not chargeable")
+    // Not part of the bulk sweep.
+    expect(buttonStarting("Bill priced work").disabled).toBe(true)
+
+    await act(async () => button("Bill").click())
+    expect(document.body.textContent).toContain("Staff family, not chargeable")
+    await act(async () => button("Bill it").click())
+    await flush()
+    expect(api.billing.priceList.chargeUnbilled).toHaveBeenCalledWith(4, undefined, [{ kind: "consultation", id: 30 }])
   })
 
   it("is hidden when nothing is unbilled, and offers no button without the right", async () => {

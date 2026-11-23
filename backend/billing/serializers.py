@@ -80,6 +80,9 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
+        # B-1: a line added on its own to an existing bill (nested bill lines
+        # go through InvoiceSerializer, where an older bill can still be edited).
+        refuse_automatic_free_text([validated_data])
         validated_data = price_line(validated_data, validated_data["invoice"].hospital_id)
         validated_data["subtotal"] = line_subtotal(validated_data.get("quantity", 1), validated_data["unit_price"])
         return super().create(validated_data)

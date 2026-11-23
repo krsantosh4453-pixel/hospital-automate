@@ -9,11 +9,13 @@ Synthetic data only.
 from datetime import timedelta
 from decimal import Decimal
 
+from django.db import connection, transaction
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from audit.models import AuditLog
-from billing.charges import release_charges
+from billing.charges import capture_lab_test, release_charges
 from billing.models import Invoice, InvoiceItem
 from billing.test_charge_capture import add_price
 from config.hospital_time import hospital_today
@@ -65,6 +67,13 @@ class HandAddedLineTests(LifecycleFixture, TestCase):
             "items_data": [{"description": "Other Services", "quantity": 1, "unit_price": "300.00"}],
         }, format="json")
         self.assertEqual(ok.status_code, 201, ok.content)
+
+    def test_the_old_lines_cannot_be_added_to_an_existing_bill_either(self):
+        response = client_for(self.admin_user, self.hospital).post("/api/billing/invoice-items/", {
+            "invoice": self.invoice.pk, "description": "Doctor Consultation", "quantity": 1, "unit_price": "300.00",
+        }, format="json")
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertFalse(InvoiceItem.objects.filter(invoice=self.invoice).exists())
 
     def test_an_older_bill_with_such_a_line_can_still_be_edited(self):
         InvoiceItem.objects.create(invoice=self.invoice, description="Doctor Consultation", quantity=1,
@@ -124,7 +133,7 @@ class UnbilledSweepTests(LifecycleFixture, TestCase):
     def test_unpriced_work_is_reported_not_charged(self):
         self.completed_without_price("NoPrice")
         swept = self.sweep(self.admin_user).json()
-        self.assertEqual((swept["charged"], len(swept["unpriced"])), ([], 1))
+        self.assertEqual((swept["charged"], len(swept["left"])), ([], 1))
         self.assertFalse(InvoiceItem.objects.exists())
 
     def test_a_verified_lab_test_without_a_charge_is_swept(self):
@@ -132,6 +141,8 @@ class UnbilledSweepTests(LifecycleFixture, TestCase):
                                          hospital=self.hospital)
         test = LabTest.objects.create(hospital=self.hospital, name="Lipid Profile", patient=patient,
                                       status="Verified", verified_at=timezone.now())
+        with transaction.atomic():
+            self.assertIsNone(capture_lab_test(test))  # no price yet: audited as unpriced
         add_price(self.hospital, "laboratory", "LAB-LIPID", "650.00", applies_to="Lipid Profile")
         swept = self.sweep(self.admin_user).json()
         self.assertEqual([r["id"] for r in swept["charged"]], [test.pk])
@@ -146,10 +157,42 @@ class UnbilledSweepTests(LifecycleFixture, TestCase):
         invoice.refresh_from_db()
         release_charges(invoice)
 
-        self.assertEqual(self.get(self.desk_user).json()["count"], 1)
-        self.sweep(self.admin_user)
+        row = self.get(self.desk_user).json()["results"][0]
+        self.assertEqual((row["source"], row["cancelled_invoice"]), ("cancelled", invoice.invoice_number))
+
+        # The bulk sweep never re-bills a cancelled charge: it may have been deliberate.
+        self.assertEqual(self.sweep(self.admin_user).json()["charged"], [])
+        self.assertFalse(InvoiceItem.objects.filter(charge_key=f"visit:{token.visit_id}:consultation").exists())
+
+        picked = self.sweep(self.admin_user, items=[{"kind": "consultation", "id": token.visit_id}])
+        self.assertEqual(len(picked.json()["charged"]), 1, picked.content)
         live = InvoiceItem.objects.get(charge_key=f"visit:{token.visit_id}:consultation")
         self.assertNotEqual(live.invoice_id, invoice.pk)
+
+    def test_work_billed_before_automatic_charging_is_never_listed(self):
+        # A visit completed before charge capture existed: no unpriced record.
+        add_price(self.hospital, "consultation", "CON-OPD", "500.00")
+        token = self.booked("HandBilled", state=Token.IN_CONSULTATION)
+        Visit.objects.filter(pk=token.visit_id).update(status="Completed")
+        self.assertEqual(self.get(self.desk_user).json()["count"], 0)
+        self.assertEqual(self.sweep(self.admin_user).json()["charged"], [])
+
+    def test_a_bad_pick_list_is_refused(self):
+        for items in ("all", [{"kind": "bed", "id": 1}], [{"kind": "consultation", "id": "1"}]):
+            with self.subTest(items=items):
+                self.assertEqual(self.sweep(self.admin_user, items=items).status_code, 400)
+
+    def test_listing_is_read_only_and_does_not_grow_with_the_work(self):
+        self.completed_without_price("One")
+        with CaptureQueriesContext(connection) as one:
+            self.assertEqual(self.get(self.desk_user).json()["count"], 1)
+        for name in ("Two", "Three", "Four", "Five"):
+            self.completed_without_price(name)
+        with CaptureQueriesContext(connection) as five:
+            self.assertEqual(self.get(self.desk_user).json()["count"], 5)
+        self.assertEqual(len(five), len(one))
+        writes = [q["sql"] for q in five.captured_queries if q["sql"].lstrip().upper().startswith(("UPDATE", "DELETE"))]
+        self.assertEqual([w for w in writes if "billing_" in w], [])
 
     def test_only_an_admin_or_manager_charges(self):
         self.completed_without_price("Roles")
@@ -165,7 +208,8 @@ class UnbilledSweepTests(LifecycleFixture, TestCase):
                 self.assertEqual(self.get(self.desk_user, since=str(since)).status_code, 400)
         self.assertEqual(self.get(self.desk_user, since="yesterday").status_code, 400)
         old = self.completed_without_price("Old")
-        Visit.objects.filter(pk=old.visit_id).update(visit_date=timezone.now() - timedelta(days=40))
+        AuditLog.objects.filter(action="billing.charge.unpriced", object_id=str(old.visit_id)).update(
+            created_at=timezone.now() - timedelta(days=40))
         self.assertEqual(self.get(self.desk_user).json()["count"], 0)
         since = str(today - timedelta(days=60))
         self.assertEqual(self.get(self.desk_user, since=since).json()["count"], 1)

@@ -343,11 +343,11 @@ class MARSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"prescription_item": "This medicine is not on that prescription."})
         if admission is not None and patient is not None and admission.patient_id != patient.id:
             raise serializers.ValidationError({"admission": "This admission is for another patient."})
-        self._check_prn_limits(get)
+        self._check_prn_limits(attrs, get)
         return attrs
 
     @staticmethod
-    def _check_prn_limits(get):
+    def _check_prn_limits(attrs, get):
         # H-10: limits belong to as-needed orders only, within sane bounds.
         from .frequency import PRN, FrequencyError, parse_frequency
         from .prn_limits import MAX_DOSES_PER_24H, MAX_INTERVAL_MINUTES, MIN_INTERVAL_MINUTES
@@ -359,6 +359,12 @@ class MARSerializer(serializers.ModelSerializer):
             prn = parse_frequency(get("frequency")).kind == PRN
         except FrequencyError:
             prn = False
+        sent_limits = "prn_min_interval_minutes" in attrs or "prn_max_doses_per_24h" in attrs
+        if not prn and not sent_limits:
+            # The order stops being as-needed: its stored limits no longer apply.
+            attrs["prn_min_interval_minutes"] = None
+            attrs["prn_max_doses_per_24h"] = None
+            return
         if not prn:
             raise serializers.ValidationError(
                 {"prn_min_interval_minutes": "Dose limits apply only to an as-needed (PRN/SOS) order."})

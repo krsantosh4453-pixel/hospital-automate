@@ -134,6 +134,13 @@ class PrnLimitTests(TestCase):
         self.order.refresh_from_db()
         self.assertEqual((self.order.prn_min_interval_minutes, self.order.prn_max_doses_per_24h), (360, 4))
 
+    def test_changing_a_limited_order_to_a_schedule_clears_its_limits(self):
+        response = self.doctor_client.patch(f"/api/nurses/mar/{self.order.id}/", {"frequency": "TID"}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.order.refresh_from_db()
+        self.assertEqual((self.order.frequency, self.order.prn_min_interval_minutes, self.order.prn_max_doses_per_24h),
+                         ("TID", None, None))
+
     def test_a_nurse_cannot_change_the_limits(self):
         response = self.nurse_client.patch(f"/api/nurses/mar/{self.order.id}/", {"prn_max_doses_per_24h": 10},
                                            format="json")

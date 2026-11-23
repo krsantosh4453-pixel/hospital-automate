@@ -2176,10 +2176,12 @@ api.billing = {
       if (since) params.set("since", since)
       return request(`${API_BASE_URL}/billing/price-list/unbilled/?${params.toString()}`)
     },
-    chargeUnbilled: async (hospitalId, since) =>
+    // items: [{ kind, id }] bills exactly those (needed for work from a
+    // cancelled bill); without it only priced work skipped for want of a price.
+    chargeUnbilled: async (hospitalId, since, items) =>
       request(`${API_BASE_URL}/billing/price-list/charge-unbilled/?hospital=${encodeURIComponent(hospitalId)}`, {
         method: "POST",
-        ...jsonBody(since ? { since } : {}),
+        ...jsonBody({ ...(since ? { since } : {}), ...(items ? { items } : {}) }),
       }),
   },
 }

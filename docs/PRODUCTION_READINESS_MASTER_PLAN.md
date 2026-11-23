@@ -321,6 +321,33 @@ With the guard removed (mutation check), the refusal checks fail.
 | Web production build | OK |
 | Backend | 1,443 OK, 35 skipped |
 
+### Code review of this session's work (2026-11-23) and its fixes
+
+A high-effort review of commit `3632693` found 8 issues. All 8 are fixed in the commit that follows it.
+
+| # | Severity | Issue | Fix | Evidence |
+|---|---|---|---|---|
+| 1 | Important | The Billing **Payment** button reused the edit form without resetting the price-list lines, so paying bill B could replace its lines with those of a bill edited earlier. The Payment form also could never submit (pre-existing). | Payment-only mode: records the payment against the server's total and sends no bill lines. Every way of opening or closing the form clears the extra lines. An edit of a bill holding automatic charges sends only the discount. | Checked in a browser: edit A, close, pay B. Only `POST /payments/` was sent, B stayed "Other Services ₹100" and Paid, A was unchanged. |
+| 2 | Important | The sweep listed every uncharged completed visit and verified test, including ones billed by hand before automatic charging, so it would bill them twice. | Lists only work audited as `billing.charge.unpriced`, plus charges from cancelled bills. | `test_work_billed_before_automatic_charging_is_never_listed` |
+| 3 | Important | The bulk sweep re-billed charges an Admin had cancelled on purpose. | Those rows show the bill and cancel reason and are billed only when picked (`items: [{kind, id}]`). | `test_a_charge_on_a_cancelled_bill_is_billed_again`, `test_a_bad_pick_list_is_refused`, Vitest "bills a charge from a cancelled bill only when picked" |
+| 4 | Important | The unbilled list made a few queries per visit on every Billing page load, and could rewrite charge keys while listing. | Candidates come from audit rows and voided keys; live charges are found in one query; prices are cached per service; listing never writes. | `test_listing_is_read_only_and_does_not_grow_with_the_work`: the same query count for 1 and 5 rows, and no billing UPDATE or DELETE |
+| 5 | Important | A lab value whose parameter had limits, but none for the patient's sex, was silently unflagged. | Recorded as not checked, with the reason. | `test_a_patient_with_no_matching_sex_range_is_marked_not_checked` |
+| 6 | Nit | Critical results showed only on the Laboratory page. | Also shown on the Consultation page, where doctors work. | Vitest suite; component tests unchanged |
+| 7 | Nit | The free-text consultation block didn't cover `POST /invoice-items/`. | Checked on standalone line creation too; editing an older bill still works. | `test_the_old_lines_cannot_be_added_to_an_existing_bill_either` |
+| 8 | Nit | Changing a limited PRN order to a scheduled frequency gave a confusing 400. | The limits are cleared automatically unless sent in the same request. | `test_changing_a_limited_order_to_a_schedule_clears_its_limits` |
+
+**Suites after the fixes:**
+
+| Check | Result |
+|---|---|
+| Backend tests | 1,449 OK, 35 skipped |
+| `makemigrations --check` | "No changes detected" |
+| Vitest | 38 files, 149 passed |
+| ESLint | 0 errors, 11 warnings |
+| Web production build | OK |
+
+Mobile was not changed in this round.
+
 ## 5. Next phases, in order
 
 1. **L-1** lab reject/correct, then **L-3** reference-range admin screen, then **L-2** Android structured entry.

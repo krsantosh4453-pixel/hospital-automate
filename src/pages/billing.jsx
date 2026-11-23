@@ -52,6 +52,9 @@ function Billing() {
   // that the four typed amounts do not cover (kept, never dropped on save).
   const [pricedLines, setPricedLines] = useState([])
   const [keptLines, setKeptLines] = useState([])
+  // The Payment button opens the form to take money only: no bill lines are
+  // sent, so another bill's lines can never be written onto this one.
+  const [paymentOnly, setPaymentOnly] = useState(false)
   const otherTotal = () =>
     pricedLines.reduce((sum, line) => sum + pricedAmount(line), 0) +
     keptLines.reduce((sum, line) => sum + pricedAmount(line), 0)
@@ -296,6 +299,9 @@ function Billing() {
     })
 
     setSelectedBill(null)
+    setPricedLines([])
+    setKeptLines([])
+    setPaymentOnly(false)
     setShowForm(false)
     paymentKey.current = ""
   }
@@ -537,6 +543,7 @@ function Billing() {
     const others = otherLinesOf(bill.apiInvoice?.items)
     setPricedLines(others.priced)
     setKeptLines(others.kept)
+    setPaymentOnly(false)
 
 
     setFormData({
@@ -590,9 +597,47 @@ function Billing() {
   // Update Bill
   // =========================
 
+  // Payment button: record money received against the server's total only.
+  const recordPaymentOnly = async () => {
+    if (!selectedBill?.apiInvoice?.id) {
+      toast.error("Cannot update: missing server record ID")
+      return
+    }
+    const total = calculateTotal(selectedBill)
+    const alreadyPaid = Number(selectedBill.apiInvoice.total_paid || 0)
+    const paid = Number(formData.paid || 0)
+    if (paid > total) {
+      toast.error("Paid amount cannot be greater than total amount.")
+      return
+    }
+    const additional = Math.round((paid - alreadyPaid) * 100) / 100
+    if (additional <= 0) {
+      toast.info(t("₹{alreadyPaid} has already been received. To return money, record a refund instead of lowering the paid amount.", { alreadyPaid }))
+      return
+    }
+    await api.billing.payments.create({
+      invoice: selectedBill.apiInvoice.id,
+      amount: additional.toFixed(2),
+      payment_method: formData.payment,
+      idempotency_key: paymentKeyFor(selectedBill.apiInvoice.id),
+    })
+    setBillsReloadToken((n) => n + 1)
+    resetForm()
+    toast.success("Payment recorded.")
+  }
+
   const handleUpdate = async (e) => {
 
     e.preventDefault()
+
+    if (paymentOnly) {
+      try {
+        await recordPaymentOnly()
+      } catch (error) {
+        toast.error(error.message || "Failed to record the payment")
+      }
+      return
+    }
 
 
     const services =
@@ -663,10 +708,13 @@ function Billing() {
       return
     }
     const hasPayments = alreadyPaid > 0 || (selectedBill.apiInvoice.payments || []).length > 0
+    // Lines charged automatically (consultation, lab, bed) are fixed; the
+    // server refuses to replace them, so only the discount is sent.
+    const hasCapturedCharges = (selectedBill.apiInvoice.items || []).some((item) => item.charge_key)
 
     try {
       const payload = { discount: discount }
-      if (!hasPayments) {
+      if (!hasPayments && !hasCapturedCharges) {
         payload.items_data = itemsData(services, pricedLines, keptLines)
       }
 
@@ -762,6 +810,9 @@ function Billing() {
     setSelectedBill(
       bill
     )
+    setPricedLines([])
+    setKeptLines([])
+    setPaymentOnly(true)
 
 
     const remaining =
@@ -875,6 +926,7 @@ function Billing() {
                   setSelectedBill(null)
                   setPricedLines([])
                   setKeptLines([])
+                  setPaymentOnly(false)
                   setFormData({ patient: "", patientId: "", patientRecord: "", consultation: "", laboratory: "", pharmacy: "", other: "", discount: "", paid: "", payment: "Cash" })
                   setShowForm(true)
                 }}
@@ -1402,7 +1454,8 @@ function Billing() {
               )}
 
 
-              {/* Services */}
+              {/* Services: not shown when only taking a payment. */}
+              {!paymentOnly && (
 
               <div>
 
@@ -1530,6 +1583,7 @@ function Billing() {
                 </div>
 
               </div>
+              )}
 
 
               {/* Discount */}

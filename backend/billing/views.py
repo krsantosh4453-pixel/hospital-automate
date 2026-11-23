@@ -381,9 +381,10 @@ class ServicePriceViewSet(HospitalScopedViewSet):
     @action(detail=False, methods=["get"])
     def unbilled(self, request):
         """
-        B-2: completed consultations and verified laboratory tests with no
-        live charge since ?since= (default 30 days, at most 90), each saying
-        whether it has a price today.
+        B-2: consultations and laboratory tests the capture skipped for want
+        of a price, and charges left on cancelled bills, since ?since=
+        (default 30 days, at most 90). Each row says its source and whether
+        it has a price today.
         """
         from . import unbilled
 
@@ -394,17 +395,37 @@ class ServicePriceViewSet(HospitalScopedViewSet):
     @action(detail=False, methods=["post"], url_path="charge-unbilled")
     def charge_unbilled(self, request):
         """
-        B-2: charge the priced rows of ``unbilled`` (Admin or Hospital Manager).
-        Each service is charged once only, through the normal capture.
+        B-2: charge unbilled work (Admin or Hospital Manager). Without
+        ``items`` only priced work that was skipped for want of a price;
+        with ``items`` [{kind, id}] exactly those, including work from a
+        cancelled bill. Each service is charged once only.
         """
         from . import unbilled
 
         hospital_id, since = self._sweep_scope(request)
-        charged, unpriced = unbilled.charge_unbilled(hospital_id, since)
+        selected = self._selected_rows(request.data.get("items"))
+        charged, left = unbilled.charge_unbilled(hospital_id, since, selected)
         record_audit(request, "billing.charge.unbilled_swept", None, hospital=hospital_id,
-                     details={"since": str(since), "charged": len(charged), "unpriced": len(unpriced),
+                     details={"since": str(since), "charged": len(charged), "left": len(left),
+                              "picked": selected is not None,
                               "keys": [f"{r['kind']}:{r['id']}" for r in charged]})
-        return Response({"since": str(since), "charged": charged, "unpriced": unpriced})
+        return Response({"since": str(since), "charged": charged, "left": left})
+
+    @staticmethod
+    def _selected_rows(items):
+        """{items: [{kind, id}]} picks rows (needed for work from a cancelled bill); none means the bulk sweep."""
+        if items is None:
+            return None
+        if not isinstance(items, list):
+            raise ValidationError({"items": "Send a list of {kind, id}."})
+        picked = set()
+        for item in items:
+            kind = item.get("kind") if isinstance(item, dict) else None
+            pk = item.get("id") if isinstance(item, dict) else None
+            if kind not in ("consultation", "laboratory") or not isinstance(pk, int):
+                raise ValidationError({"items": "Each item needs kind (consultation or laboratory) and a numeric id."})
+            picked.add((kind, pk))
+        return picked
 
     @action(detail=False, methods=["get"])
     def medicines(self, request):

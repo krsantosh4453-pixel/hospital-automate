@@ -29,7 +29,11 @@ The open task inventory and the order of the next phases are in [PRODUCTION_READ
 
 **Billing (B-1 to B-3):**
 - Consultation, laboratory and bed-day lines can no longer be added by hand from the price list. They are charged automatically, so a hand line would bill them twice.
-- Work done before its price existed, or left on a cancelled bill, is listed and charged once by the unbilled-work sweep (`/api/billing/price-list/unbilled/`, Admin or Hospital Manager to charge). It looks back at most 90 days and uses today's price.
+- The unbilled-work sweep (`/api/billing/price-list/unbilled/`, Admin or Hospital Manager to charge) lists two things only:
+  - work the automatic charge skipped for want of a price (audited `billing.charge.unpriced`)
+  - charges left on a cancelled bill, shown with the bill number and cancel reason
+
+  Work completed before automatic charging existed is never listed, so earlier hand-made bills are not charged twice. "Bill priced work" bills only the first kind; a charge from a cancelled bill is billed only when picked one by one. The sweep looks back at most 90 days and uses today's price. Work skipped for want of a price and then billed by hand anyway would still be listed.
 - The Billing page has a Price list panel, an Unbilled work panel and a price-list picker in Create invoice (2026-11-21). The Android app has none of these.
 - The web form no longer takes typed consultation or lab amounts, and the server refuses those two line names on a new bill. Another client could still type its own wording for a consultation, because a free-text line can't be recognised reliably.
 

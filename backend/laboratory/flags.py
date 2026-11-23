@@ -68,21 +68,28 @@ def range_label(rng):
 
 
 def ranges_for(hospital_id, test_name, sex):
-    """Active ranges for a test, keyed by lower-case parameter; a sex-specific row wins over "Any"."""
+    """
+    Active ranges for a test, keyed by lower-case parameter; a sex-specific
+    row wins over "Any". Returns (chosen, configured): ``configured`` holds
+    every parameter the hospital has limits for, so a parameter with limits
+    for neither the patient's sex nor "Any" is reported as not checked.
+    """
     from .models import LabReferenceRange
 
     if not hospital_id or not test_name:
-        return {}
+        return {}, set()
     rows = LabReferenceRange.objects.filter(hospital_id=hospital_id, test_name__iexact=test_name.strip(),
                                             is_active=True)
     chosen = {}
+    configured = set()
     for rng in rows:
+        key = rng.parameter.strip().lower()
+        configured.add(key)
         if rng.sex and rng.sex != sex:
             continue
-        key = rng.parameter.strip().lower()
         if key not in chosen or (rng.sex and not chosen[key].sex):
             chosen[key] = rng
-    return chosen
+    return chosen, configured
 
 
 def _client_flag_names(client_flags):
@@ -95,14 +102,21 @@ def _client_flag_names(client_flags):
 
 def evaluate(hospital_id, test_name, sex, result_data, client_ranges=None, client_flags=None):
     """Flag ``result_data`` ({parameter: value}) against the hospital's ranges."""
-    ranges = ranges_for(hospital_id, test_name, sex)
+    ranges, configured = ranges_for(hospital_id, test_name, sex)
     details = []
     snapshot = {}
     flagged = []
     checked_keys = set()
     for parameter, raw in (result_data or {}).items():
-        rng = ranges.get(str(parameter).strip().lower())
+        key = str(parameter).strip().lower()
+        rng = ranges.get(key)
         if rng is None:
+            if key in configured:
+                # Limits exist, but none for this patient's sex: say so, never pass it as normal.
+                checked_keys.add(key)
+                details.append({"parameter": parameter, "value": str(raw), "unit": "", "low": None, "high": None,
+                                "critical_low": None, "critical_high": None, "flag": "", "checked": False,
+                                "reason": f"No range for sex '{sex or 'not recorded'}'"})
             continue
         checked_keys.add(str(parameter).strip().lower())
         snapshot[parameter] = range_label(rng)

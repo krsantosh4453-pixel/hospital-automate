@@ -125,6 +125,17 @@ class EvaluateTests(LabFixture):
         self.assertEqual(flags.evaluate(self.other.pk, "CBC", "Female", {"Hb": "14"}).details[0]["flag"], "H")
         self.assertEqual(flags.evaluate(self.hospital.pk, "CBC", "Female", {"Hb": "14"}).details[0]["flag"], "")
 
+    def test_a_patient_with_no_matching_sex_range_is_marked_not_checked(self):
+        # Hb has only sex-specific limits here; K has an "Any" range.
+        LabReferenceRange.objects.filter(pk=self.hb_any.pk).update(is_active=False)
+        self.range("Hb", low="13", high="17", critical_low="7", unit="g/dL", sex="Male")
+        result = flags.evaluate(self.hospital.pk, "CBC", "Other", {"Hb": "5.8", "K": "4"})
+        by_name = {d["parameter"]: d for d in result.details}
+        self.assertFalse(by_name["Hb"]["checked"])
+        self.assertIn("No range for sex", by_name["Hb"]["reason"])
+        self.assertEqual(by_name["K"]["flag"], "")
+        self.assertTrue(by_name["K"]["checked"])
+
     def test_retired_ranges_are_ignored(self):
         LabReferenceRange.objects.filter(parameter="K").update(is_active=False)
         self.assertEqual(flags.evaluate(self.hospital.pk, "CBC", "Female", {"K": "9"}).details, [])
