@@ -16,6 +16,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
+from billing.models import ServicePrice
 from doctors.models import Doctor
 from hospital.models import Bed, Hospital, Room, Ward
 from patients.models import Patient
@@ -37,6 +38,8 @@ class HospitalWorkflowTests(TestCase):
         self.doctor_user = role("wf_doctor", StaffRole.DOCTOR)
         self.nurse = role("wf_nurse", StaffRole.NURSE)
         self.lab = role("wf_lab", StaffRole.LAB_STAFF)
+        # BUG-06: a second technician verifies what the first one entered.
+        self.lab_verifier = role("wf_lab_verifier", StaffRole.LAB_STAFF)
         self.pharmacist = role("wf_pharmacist", StaffRole.PHARMACIST)
         self.doctor = Doctor.objects.create(
             hospital=self.hospital, user=self.doctor_user, name="Dr Workflow",
@@ -121,7 +124,9 @@ class HospitalWorkflowTests(TestCase):
         self.ok(lab.post(f"{base}/start_processing/", {}, format="json"))
         self.ok(lab.post(f"{base}/enter_result/", {"result_text": "Hb 12.1 g/dL"}, format="json"), 201)
         self.assertEqual(doctor.post(f"{base}/verify_result/", {}, format="json").status_code, 403)
-        self.ok(lab.post(f"{base}/verify_result/", {}, format="json"))
+        # BUG-06: the technician who entered the result cannot verify it.
+        self.assertEqual(lab.post(f"{base}/verify_result/", {}, format="json").status_code, 403)
+        self.ok(self.api(self.lab_verifier).post(f"{base}/verify_result/", {}, format="json"))
         # Status cannot be forged by editing the record.
         self.ok(doctor.patch(f"{base}/", {"status": "Released", "result": "forged"}, format="json"))
         released_before = self.ok(lab.get(f"{base}/"))
@@ -187,7 +192,12 @@ class HospitalWorkflowTests(TestCase):
             "patient_counselled": True, "follow_up_arranged": True, "documents_handed_over": True,
         }, format="json"), 201)
         reception = self.api(self.reception)
-        bill = self.ok(reception.post(f"{base}/final_bill/", {"daily_rate": "1000"}, format="json"), 201)
+        # BUG-07: the bed rate comes from the price list, not the counter.
+        ServicePrice.objects.create(hospital=self.hospital, category=ServicePrice.Category.BED, code="BED-GEN",
+                                    name="General bed", unit_price=Decimal("1000.00"),
+                                    effective_from=datetime.date.today() - datetime.timedelta(days=1))
+        bill = self.ok(reception.post(f"{base}/final_bill/", {}, format="json"), 201)
+        self.assertEqual(bill["total"], "1000.00")
         self.assertEqual(doctor.post(f"{base}/complete_discharge/", {}, format="json").status_code, 400)
         self.ok(reception.post("/api/billing/payments/", {
             "invoice": bill["id"], "amount": bill["balance_due"], "payment_method": "Cash",

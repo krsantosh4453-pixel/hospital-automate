@@ -166,3 +166,59 @@ def record_refund(invoice, amount, reason, method="Cash", user=None, idempotency
     )
     recalculate(invoice)
     return refund, True
+
+
+def gross(invoice):
+    """The bill before discount and tax."""
+    return money(sum((line_subtotal(item.quantity, item.unit_price) for item in invoice.items.all()), ZERO))
+
+
+def refuse_unexplained_zero(invoice):
+    """
+    BUG-07: a bill with charges on it never comes to ₹0 by a discount alone.
+    Only a waiver (``waive_invoice``) may make it free. Call after recalculate().
+    """
+    from .models import InvoiceWaiver
+
+    if invoice.total > ZERO or gross(invoice) <= ZERO:
+        return
+    if InvoiceWaiver.objects.filter(invoice=invoice).exists():
+        return
+    raise ValidationError({
+        "discount": "A discount cannot bring a bill to ₹0. An Admin or Hospital Manager can record a waiver instead.",
+    })
+
+
+MIN_WAIVER_REASON = 10
+
+
+@transaction.atomic
+def waive_invoice(invoice, reason, user):
+    """
+    BUG-07: let a bill go unpaid on purpose. The caller has checked the user
+    is an Admin or Hospital Manager. The whole amount still due is waived: the
+    discount takes the bill to ₹0 before tax, and an InvoiceWaiver row keeps
+    who approved it, why, and what was waived. Refused once any money was taken.
+    """
+    from .models import Invoice, InvoiceWaiver
+
+    invoice = _locked(invoice)
+    reason = (reason or "").strip()
+    if len(reason) < MIN_WAIVER_REASON:
+        raise ValidationError({"reason": "Say why this bill is waived (at least 10 characters)."})
+    if invoice.status == Invoice.Status.CANCELLED:
+        raise ValidationError({"invoice": "This invoice is cancelled."})
+    if InvoiceWaiver.objects.filter(invoice=invoice).exists():
+        raise ValidationError({"invoice": "This bill is already waived."})
+    if invoice.payments.exists():
+        raise ValidationError({"invoice": "Money was already taken on this bill; refund it before waiving."})
+    before = gross(invoice)
+    if before <= ZERO:
+        raise ValidationError({"invoice": "This bill has no charges to waive."})
+    # What the patient would have paid; a legacy bill already at ₹0 records its gross.
+    waived = money(invoice.total) if invoice.total > ZERO else before
+    invoice.discount = before
+    invoice.save(update_fields=["discount"])
+    waiver = InvoiceWaiver.objects.create(invoice=invoice, amount=waived, reason=reason[:2000], approved_by=user)
+    recalculate(invoice)
+    return waiver

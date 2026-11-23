@@ -86,13 +86,43 @@ http {
         keepalive 32;
     }
 
+    # Any other Host (scanners hitting the bare IP, stale DNS records) stops
+    # here instead of reaching Django, which would answer 400 and log an error.
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        server_name _;
+
+        # Container health check (docker-compose.prod.yml); loopback only.
+        location = /nginx-health {
+            allow 127.0.0.1;
+            deny all;
+            access_log off;
+            default_type text/plain;
+            return 200 "ok\n";
+        }
+
+        location / {
+            return 444;
+        }
+    }
+
+    server {
+        listen 443 ssl default_server;
+        listen [::]:443 ssl default_server;
+        server_name _;
+        # Refuse the TLS handshake for unknown SNI names; no certificate needed.
+        ssl_reject_handshake on;
+    }
+
     # HTTP to HTTPS redirect
     server {
         listen 80;
         listen [::]:80;
         server_name ${DOMAIN_NAME};
 
-        # ACME challenge for Let's Encrypt
+        # ACME HTTP-01 challenge (certbot --webroot -w ./certbot); see
+        # docs/STAGING_DEPLOYMENT.md. docker-compose.prod.yml mounts ./certbot here.
         location /.well-known/acme-challenge/ {
             root /var/www/certbot;
         }
@@ -105,8 +135,9 @@ http {
 
     # HTTPS server
     server {
-        listen 443 ssl http2;
-        listen [::]:443 ssl http2;
+        listen 443 ssl;
+        listen [::]:443 ssl;
+        http2 on;
         server_name ${DOMAIN_NAME};
 
         # SSL Configuration

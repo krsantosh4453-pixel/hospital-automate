@@ -196,11 +196,9 @@ class SaleSerializer(serializers.ModelSerializer):
                 {"hospital": "A hospital is required."}
             )
 
-        # A sale can never draw stock from another hospital.
-        if (
-            medicine.hospital_id
-            and medicine.hospital_id != hospital.pk
-        ):
+        # A sale can never draw stock from another hospital, and stock that
+        # belongs to no hospital (legacy rows, S-L3) is never sold.
+        if medicine.hospital_id != hospital.pk:
             raise serializers.ValidationError(
                 {
                     "medicine": (

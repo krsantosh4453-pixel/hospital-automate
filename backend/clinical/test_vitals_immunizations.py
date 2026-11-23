@@ -82,6 +82,29 @@ class ExtendedVitalsTests(ClinicalTestBase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         self.assertEqual(VitalSign.objects.get().recorded_by, self.doctor_user)
 
+class VitalsRecorderNameTests(ClinicalTestBase):
+    """The OPD vitals card showed the recorder's login ("demo.doctor1")."""
+
+    def test_recorder_is_named_as_the_hospital_knows_them(self):
+        from doctors.models import Doctor
+
+        Doctor.objects.update_or_create(user=self.doctor_user, hospital=self.hospital,
+                                        defaults={"name": "Dr Synthetic Asha", "specialization": "", "phone": ""})
+        response = self.post(VITALS, {"visit": self.visit.pk, "heart_rate": 80})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data["recorded_by_name"], "Dr Synthetic Asha")
+
+    def test_without_a_profile_there_the_account_name_then_username(self):
+        from users.staff_links import staff_display_name
+
+        # No profile at the other hospital: the login's own name, then username.
+        self.assertEqual(staff_display_name(self.doctor_user, self.other_hospital.pk), "doc_a")
+        self.doctor_user.first_name, self.doctor_user.last_name = "Synthetic", "Account"
+        self.doctor_user.save()
+        self.assertEqual(staff_display_name(self.doctor_user, self.other_hospital.pk), "Synthetic Account")
+        self.assertEqual(staff_display_name(None, self.hospital.pk), "")
+
+
 class ImmunizationTests(ClinicalTestBase):
     def dose(self, **overrides):
         data = {

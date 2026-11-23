@@ -1,7 +1,7 @@
 import logging
 
 from rest_framework import viewsets, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
@@ -19,6 +19,8 @@ from users.permissions import (
     IsNurse,
     IsReceptionist,
 )
+from config.hospital_time import hospital_today
+from encounters.services.visit_lifecycle import close_open_tokens, recalculate_queue_of
 from . import discharge
 from .models import (
     Admission,
@@ -28,6 +30,14 @@ from .models import (
     DischargeNote,
 )
 logger = logging.getLogger(__name__)
+
+
+class AdmissionConflict(APIException):
+    """The patient is already in this hospital: one active stay at a time."""
+
+    status_code = 409
+    default_detail = "This patient already has an active admission at this hospital."
+    default_code = "active_admission"
 
 from .serializers import (
     AdmissionSerializer,
@@ -46,6 +56,39 @@ class AdmissionViewSet(HospitalScopedViewSet):
     queryset = Admission.objects.select_related("hospital", "patient", "admitting_doctor").prefetch_related("bed_allocations__bed__room__ward")
     serializer_class = AdmissionSerializer
     permission_classes = [IsDoctor | IsNurse | IsHospitalManagerReadOnly]
+
+    # A stay still in the hospital (one at a time per patient and hospital).
+    ACTIVE_STATUSES = ("Admitted", "Discharge Initiated")
+
+    def get_permissions(self):
+        # Prompt 3: only a doctor admits. Nurses keep reading and moving beds.
+        if getattr(self, "action", None) == "create":
+            return [IsDoctor()]
+        return super().get_permissions()
+
+    def perform_create(self, serializer):
+        from doctors.models import Doctor
+        from patients.models import Patient
+
+        from users.permissions import get_request_hospital_id
+
+        hospital_id = getattr(serializer.validated_data.get("hospital"), "pk", None) or get_request_hospital_id(
+            self.request, self)
+        doctor = Doctor.objects.filter(user=self.request.user, hospital_id=hospital_id).first()
+        if doctor is None:
+            raise ValidationError({"admitting_doctor": "Only a doctor of this hospital, linked to your login, can admit."})
+        # The admitting doctor is the signed-in doctor, which puts the patient
+        # in their care for the tenancy check (users/care_scope.py).
+        extra = self._check_tenancy({**serializer.validated_data, "admitting_doctor": doctor})
+        hospital = serializer.validated_data.get("hospital") or extra.get("hospital") or doctor.hospital
+        patient = serializer.validated_data["patient"]
+        with transaction.atomic():
+            # The patient row is the lock: two admissions at the same moment wait here.
+            Patient.objects.select_for_update().filter(pk=patient.pk).first()
+            if Admission.objects.filter(patient=patient, hospital=hospital, status__in=self.ACTIVE_STATUSES).exists():
+                raise AdmissionConflict()
+            serializer.save(status="Admitted", admitting_doctor=doctor, **extra)
+        record_audit(self.request, "ipd.admission.create", serializer.instance, hospital=hospital.pk)
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -115,6 +158,7 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        record_audit(request, "ipd.bed.allocated", admission, details={"bed": allocation.bed_id})
         return Response(BedAllocationSerializer(allocation).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
@@ -145,6 +189,7 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        record_audit(request, "ipd.bed.released", admission)
         return Response({"detail": "Bed released successfully"})
 
     @action(detail=True, methods=["post"])
@@ -204,6 +249,7 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        record_audit(request, "ipd.bed.transferred", admission, details={"bed": new_allocation.bed_id})
         return Response(BedAllocationSerializer(new_allocation).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
@@ -219,6 +265,7 @@ class AdmissionViewSet(HospitalScopedViewSet):
 
         admission.status = "Discharge Initiated"
         admission.save()
+        record_audit(request, "ipd.admission.discharge_initiated", admission)
 
         return Response(AdmissionSerializer(admission).data)
 
@@ -256,6 +303,22 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 admission.discharge_date = timezone.now()
                 admission.save()
 
+                # The stay's ward medication orders end with it; otherwise their
+                # later doses kept showing as due to nurses for a patient who
+                # had left. Recorded doses are kept as they are.
+                from nurses.models import MAR
+
+                stopped_orders = MAR.objects.filter(admission=admission, is_active=True).update(
+                    is_active=False, end_date=hospital_today(),
+                )
+
+                # BUG-02: a discharged patient leaves every outpatient queue of
+                # this hospital (today's and older tokens; later follow-ups stay).
+                close_open_tokens(
+                    admission.patient_id, admission.hospital_id, hospital_today(),
+                    after_commit=recalculate_queue_of,
+                )
+
         except Exception:
             logger.exception("Discharge completion failed")
             return Response(
@@ -263,7 +326,8 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        record_audit(request, "ipd.admission.discharged", admission)
+        record_audit(request, "ipd.admission.discharged", admission,
+                     details={"medication_orders_stopped": stopped_orders})
         return Response(AdmissionSerializer(admission).data)
 
     @action(detail=True, methods=["get"])
@@ -288,13 +352,15 @@ class AdmissionViewSet(HospitalScopedViewSet):
                 "admission_date": admission.admission_date,
                 "days": discharge.billable_days(admission),
                 "final_invoice": discharge.invoice_brief(discharge.final_invoice(admission)),
+                # BUG-07: the bed days priced from the price list, before the bill exists.
+                "bed_charges": discharge.bed_charge_preview(admission),
             }
             for admission in rows
         ])
 
     @action(detail=True, methods=["post"], permission_classes=[BILLING_ROLES])
     def final_bill(self, request, pk=None):
-        """Create the final invoice of this stay: bed days at ``daily_rate`` plus ``items``."""
+        """Create the final invoice of this stay: its charges, bed days from the price list, plus ``items``."""
         admission = self.get_object()
         items = request.data.get("items") or []
         if not isinstance(items, list):

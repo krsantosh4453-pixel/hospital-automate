@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from billing.models import Invoice
+from billing.models import Invoice, ServicePrice
 from billing.services import record_payment
 from doctors.models import Doctor
 from hospital.models import Hospital
@@ -45,6 +45,11 @@ class DischargeReadinessTests(TestCase):
         )
         Admission.objects.filter(pk=self.admission.pk).update(admission_date=timezone.now() - timedelta(days=2, hours=3))
         self.admission.refresh_from_db()
+        # BUG-07: bed days are priced from the hospital price list (general bed, ₹1000/day).
+        ServicePrice.objects.create(
+            hospital=self.hospital, category=ServicePrice.Category.BED, code="BED-GEN", name="General bed",
+            unit_price=Decimal("1000.00"), effective_from=timezone.localdate() - timedelta(days=30),
+        )
         self.client = APIClient()
 
     def url(self, action, detail=True):
@@ -59,7 +64,7 @@ class DischargeReadinessTests(TestCase):
     def make_ready(self, pay=True):
         DischargePlan.objects.create(admission=self.admission, **TICKED)
         DischargeSummary.objects.create(admission=self.admission, summary="Recovered", finalized=True)
-        response = self.client.post(self.url("final_bill"), {"daily_rate": "1000"}, format="json", **self.as_user(self.billing_user))
+        response = self.client.post(self.url("final_bill"), {}, format="json", **self.as_user(self.billing_user))
         invoice = Invoice.objects.get(pk=response.data["id"])
         if pay:
             record_payment(invoice, invoice.total_amount)
@@ -105,10 +110,38 @@ class DischargeReadinessTests(TestCase):
         self.admission.refresh_from_db()
         self.assertEqual(self.admission.status, "Discharged")
 
+    def test_discharge_stops_the_stay_medication_orders(self):
+        """Doses of a discharged stay must not keep showing as due to nurses."""
+        from clinical.models import Prescription, PrescriptionItem
+        from nurses.models import MAR, MARAdministration
+
+        self.make_ready()
+        rx = Prescription.objects.create(patient=self.patient, hospital=self.hospital, doctor=self.doctor,
+                                         status="Confirmed")
+        item = PrescriptionItem.objects.create(prescription=rx, name="Synthetic Pantoprazole", quantity=5)
+        order = MAR.objects.create(patient=self.patient, admission=self.admission, hospital=self.hospital,
+                                   prescription=rx, prescription_item=item, medicine_name="Synthetic Pantoprazole",
+                                   dose="40 mg", route="Oral", frequency="OD", start_date=timezone.localdate())
+        given = MARAdministration.objects.create(mar=order, scheduled_time=timezone.now() - timedelta(hours=2),
+                                                 status=MARAdministration.ADMINISTERED)
+        MARAdministration.objects.create(mar=order, scheduled_time=timezone.now() + timedelta(minutes=30))
+
+        response = self.client.post(self.url("complete_discharge"), **self.as_user(self.doctor_user))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        order.refresh_from_db()
+        self.assertFalse(order.is_active)
+        self.assertIsNotNone(order.end_date)
+        given.refresh_from_db()
+        self.assertEqual(given.status, MARAdministration.ADMINISTERED)  # history kept
+        due = MARAdministration.objects.filter(mar__is_active=True, status=MARAdministration.SCHEDULED,
+                                               mar__admission=self.admission)
+        self.assertFalse(due.exists())
+
     def test_final_bill_charges_bed_days_plus_extra_lines(self):
         response = self.client.post(
             self.url("final_bill"),
-            {"daily_rate": "1000", "items": [{"description": "Medicines", "quantity": 1, "unit_price": "450.50"}]},
+            {"items": [{"description": "Medicines", "quantity": 1, "unit_price": "450.50"}]},
             format="json",
             **self.as_user(self.billing_user),
         )
@@ -117,17 +150,20 @@ class DischargeReadinessTests(TestCase):
         invoice = Invoice.objects.get(pk=response.data["id"])
         self.assertEqual(invoice.admission, self.admission)
         self.assertEqual(invoice.total_amount, Decimal("3450.50"))
-        self.assertEqual(list(invoice.items.values_list("description", flat=True)), ["Bed charges: 3 day(s)", "Medicines"])
+        self.assertTrue(invoice.is_final)
+        self.assertEqual(list(invoice.items.values_list("description", flat=True)),
+                         ["Bed charges (general, ₹1000.00/day): 3 day(s)", "Medicines"])
 
     def test_only_one_live_final_bill_per_stay(self):
         header = self.as_user(self.billing_user)
-        first = self.client.post(self.url("final_bill"), {"daily_rate": "1000"}, format="json", **header)
-        second = self.client.post(self.url("final_bill"), {"daily_rate": "1000"}, format="json", **header)
+        first = self.client.post(self.url("final_bill"), {}, format="json", **header)
+        second = self.client.post(self.url("final_bill"), {}, format="json", **header)
         Invoice.objects.filter(pk=first.data["id"]).update(status=Invoice.Status.CANCELLED)
-        replacement = self.client.post(self.url("final_bill"), {"daily_rate": "1200"}, format="json", **header)
+        replacement = self.client.post(self.url("final_bill"), {}, format="json", **header)
 
         self.assertEqual(second.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(replacement.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(replacement.status_code, status.HTTP_201_CREATED, replacement.data)
+        self.assertEqual(Invoice.objects.get(pk=replacement.data["id"]).total, Decimal("3000.00"))
 
     def test_final_bill_rejects_bad_amounts(self):
         header = self.as_user(self.billing_user)
@@ -139,13 +175,13 @@ class DischargeReadinessTests(TestCase):
     def test_bill_needs_discharge_started(self):
         Admission.objects.filter(pk=self.admission.pk).update(status="Admitted")
 
-        response = self.client.post(self.url("final_bill"), {"daily_rate": "1000"}, format="json", **self.as_user(self.billing_user))
+        response = self.client.post(self.url("final_bill"), {}, format="json", **self.as_user(self.billing_user))
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_nurse_cannot_create_the_bill_and_billing_sees_only_the_brief(self):
         nurse = staff("nurse", self.hospital, StaffRole.NURSE)
-        refused = self.client.post(self.url("final_bill"), {"daily_rate": "1000"}, format="json", **self.as_user(nurse))
+        refused = self.client.post(self.url("final_bill"), {}, format="json", **self.as_user(nurse))
 
         listed = self.client.get(self.url("awaiting_final_bill", detail=False), **self.as_user(self.billing_user))
         admission_read = self.client.get(f"/api/ipd/admissions/{self.admission.pk}/", **self.as_user(self.billing_user))
@@ -161,7 +197,7 @@ class DischargeReadinessTests(TestCase):
         self.client.force_authenticate(user=outsider)
 
         response = self.client.post(
-            self.url("final_bill"), {"daily_rate": "1000"}, format="json", HTTP_X_HOSPITAL_ID=str(self.other_hospital.pk)
+            self.url("final_bill"), {}, format="json", HTTP_X_HOSPITAL_ID=str(self.other_hospital.pk)
         )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

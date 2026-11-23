@@ -49,7 +49,7 @@ def _masked_phone(phone):
 
 
 class PatientViewSet(HospitalScopedViewSet):
-    queryset = Patient.objects.select_related("hospital").prefetch_related("hospital_memberships")
+    queryset = Patient.objects.select_related("hospital").prefetch_related("hospital_memberships", "allergies")
     serializer_class = PatientSerializer
     permission_classes = [
         IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsPatientReadOnly | IsHospitalManagerReadOnly | IsBillingStaffReadOnly
@@ -62,6 +62,11 @@ class PatientViewSet(HospitalScopedViewSet):
             return [(IsAdmin | IsHospitalManager)()]
         if action_name == "documents":
             return [(IsReceptionist | IsDoctor | IsNurse | IsAdmin | IsLinkedPatient)()]
+        if action_name == "allergy_status":
+            return [(IsDoctor | IsNurse)()]
+        if action_name == "link":
+            # Registering an existing patient here: the front desk and administrators.
+            return [(IsReceptionist | IsAdmin)()]
         if action_name == "lookup":
             # Finding a patient to order for; Lab Staff may not browse the list.
             # Pharmacists find the patient named on a paper prescription (F13).
@@ -296,7 +301,19 @@ class PatientViewSet(HospitalScopedViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         duplicates = self._possible_duplicates(serializer.validated_data)
-        if duplicates and not _is_true(request.data.get("confirm_new")):
+        confirmed = _is_true(request.data.get("confirm_new"))
+        if not duplicates and not confirmed and self._portal_account_elsewhere(serializer.validated_data):
+            # BUG-01: the person already has a patient-app account, so link that
+            # record here instead of making a second one.
+            return Response(
+                {
+                    "error": "This mobile number already has a patient app account. Link the existing "
+                             "patient with their date of birth, or confirm this is a different person.",
+                    "portal_account": True,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        if duplicates and not confirmed:
             return Response(
                 {
                     "error": "A patient with this mobile number is already registered here. "
@@ -324,6 +341,85 @@ class PatientViewSet(HospitalScopedViewSet):
             membership, _ = ensure_uhid(patient, patient.hospital)
             record_audit(self.request, "patients.uhid.issue", patient, hospital=patient.hospital_id,
                          details={"uhid": membership.uhid})
+
+    @action(detail=True, methods=["post"], url_path="allergy-status")
+    def allergy_status(self, request, pk=None):
+        """
+        POST /api/patients/{id}/allergy-status/ {"status": "No known allergies" | "Unknown"}.
+
+        Records that the patient was asked and has no known allergies (or
+        that it is not known). "No known allergies" is refused while an
+        allergy is on record; allergies are added at clinical/allergies/.
+        """
+        from rest_framework.exceptions import ValidationError
+
+        patient = self.get_object()
+        wanted = str(request.data.get("status") or "").strip()
+        if wanted not in ("No known allergies", "Unknown"):
+            raise ValidationError({"status": "Choose No known allergies or Unknown."})
+        if wanted == "No known allergies" and patient.allergies.exists():
+            return Response(
+                {"error": "This patient has an allergy on record. Mark it entered in error first.",
+                 "allergy_on_record": True},
+                status=status.HTTP_409_CONFLICT,
+            )
+        patient.allergy_status = wanted
+        patient.save(update_fields=["allergy_status"])
+        record_audit(request, "patients.allergy_status.set", patient,
+                     hospital=self.get_object_hospital_id(patient), details={"status": wanted})
+        return Response({"allergy_status": patient.effective_allergy_status})
+
+    @staticmethod
+    def _portal_account_elsewhere(data):
+        """A patient-app account with this mobile number (not visible at the acting hospital)."""
+        digits = "".join(ch for ch in str(data.get("phone") or "") if ch.isdigit())[-10:]
+        if len(digits) < 10:
+            return False
+        return Patient.objects.filter(phone__endswith=digits, user__isnull=False).exists()
+
+    @action(detail=False, methods=["post"])
+    def link(self, request):
+        """
+        POST /api/patients/link/ {"phone", "date_of_birth"} — register an existing
+        patient (for example a patient-app account) at the acting hospital (BUG-01).
+
+        The desk must give both the mobile number and the date of birth, so
+        nobody can be found by a number alone. Issues the hospital's UHID once;
+        repeating it returns the same registration. Every link is audited.
+        """
+        from config.hospital_time import hospital_today
+        from patients.self_registration import parse_date_of_birth
+        from rest_framework.exceptions import ValidationError
+        from users.permissions import get_request_hospital_id, hospitals_with_role
+
+        hospital_id = get_request_hospital_id(request, self)
+        if hospital_id is None or not hospitals_with_role(request.user, [hospital_id], ["Receptionist", "Admin"]):
+            raise PermissionDenied("Choose a hospital where you work at the front desk.")
+        digits = "".join(ch for ch in str(request.data.get("phone") or "") if ch.isdigit())[-10:]
+        if len(digits) < 10:
+            raise ValidationError({"phone": "Enter the 10-digit mobile number."})
+        dob = parse_date_of_birth(request.data.get("date_of_birth"), hospital_today())
+        matches = list(Patient.objects.filter(phone__endswith=digits, date_of_birth=dob)[:2])
+        if not matches:
+            return Response(
+                {"error": "No patient has this mobile number and date of birth. Register them as new.",
+                 "not_found": True},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if len(matches) > 1:
+            return Response(
+                {"error": "More than one patient has this mobile number and date of birth. "
+                          "Ask the patient to join the hospital from the patient app.",
+                 "multiple": True},
+                status=status.HTTP_409_CONFLICT,
+            )
+        patient = matches[0]
+        from hospital.models import Hospital
+        membership, created = ensure_uhid(patient, Hospital.objects.get(pk=hospital_id))
+        record_audit(request, "patients.link" if created else "patients.link.repeat", patient,
+                     hospital=hospital_id, details={"uhid": membership.uhid})
+        data = self.get_serializer(patient).data
+        return Response(data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
     def _possible_duplicates(self, data, limit=5):
         """Patients at the acting hospitals with the same mobile number (B5)."""

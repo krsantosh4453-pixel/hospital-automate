@@ -102,6 +102,10 @@ class ConsultationSessionSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"visit": "This visit does not belong to the selected patient."}
                 )
+            if doctor and visit.doctor_id and visit.doctor_id != doctor.id:
+                raise serializers.ValidationError(
+                    {"doctor": "The scribe session must belong to the visit's own doctor."}
+                )
 
         return attrs
 

@@ -15,6 +15,7 @@ import '../../../shared/widgets/states.dart';
 import '../../../shared/widgets/tone.dart';
 import '../data/appointment_models.dart';
 import '../data/patient_repository.dart';
+import 'join_hospital_panel.dart';
 import 'patient_routes.dart';
 import 'patient_ui.dart';
 
@@ -267,6 +268,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         children: [
           if (_options.hospitals.isEmpty) ...[
             HmsAlert(tone: AlertTone.warning, title: t.bookingNoHospital),
+            const SizedBox(height: AppSpacing.x4),
+            // BUG-01: join a hospital here instead of waiting for reception.
+            JoinHospitalPanel(onJoined: _loadHospitals),
             const SizedBox(height: AppSpacing.x4),
           ],
           if (_bookingError != null) ...[

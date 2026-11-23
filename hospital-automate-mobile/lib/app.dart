@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/theme/app_scroll_behavior.dart';
 import 'core/app_scope.dart';
 import 'core/localization/l10n.dart';
 import 'core/routing/app_router.dart';
 import 'core/routing/app_routes.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/ui/session_gate.dart';
+import 'core/security/privacy_cover.dart';
 
 /// The application: HMS theme, English/Hindi, and the routed shell.
 class HmsApp extends StatefulWidget {
@@ -48,6 +50,8 @@ class _HmsAppState extends State<HmsApp> {
           onGenerateTitle: (context) =>
               '${context.l10n.appName} — ${context.l10n.appSubtitle}',
           debugShowCheckedModeBanner: false,
+          // No stretch overscroll: it scales text at the ends of a scroll.
+          scrollBehavior: const HmsScrollBehavior(),
           theme: AppTheme.light(),
           locale: widget.services.locale.locale,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -59,8 +63,10 @@ class _HmsAppState extends State<HmsApp> {
           ],
           routerConfig: _router,
           // Resuming a stored session, or offline while checking it.
-          builder: (context, child) =>
-              SessionGate(child: child ?? const SizedBox.shrink()),
+          // PrivacyCover: no patient data in the app-switcher snapshot.
+          builder: (context, child) => PrivacyCover(
+            child: SessionGate(child: child ?? const SizedBox.shrink()),
+          ),
         ),
       ),
     );

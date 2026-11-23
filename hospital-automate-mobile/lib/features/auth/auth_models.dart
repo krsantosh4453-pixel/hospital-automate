@@ -24,6 +24,32 @@ class DeviceInfo {
   };
 }
 
+/// `staff/login/options/`: how staff sign in on this server.
+@immutable
+class StaffLoginOptions {
+  const StaffLoginOptions({
+    required this.otpRequired,
+    required this.otpAvailable,
+  });
+
+  factory StaffLoginOptions.fromJson(Object? json) {
+    final map = json is Map ? json : const {};
+    return StaffLoginOptions(
+      otpRequired: map['otp_required'] == true,
+      otpAvailable: map['otp_available'] == true,
+    );
+  }
+
+  /// The server refuses a password-only sign-in.
+  final bool otpRequired;
+
+  /// One-time codes can be sent (an account may still have no phone).
+  final bool otpAvailable;
+
+  /// Whether to try the one-time-code step first.
+  bool get tryOtp => otpRequired || otpAvailable;
+}
+
 /// `staff/login/otp/start/`: a code was sent; [challenge] proves the
 /// password step and is held in memory only until the code is entered.
 @immutable
@@ -78,6 +104,7 @@ class PatientRegistration {
     required this.confirmPassword,
     this.gender,
     this.dateOfBirth,
+    this.hospitalId,
   });
 
   final String fullName;
@@ -90,6 +117,10 @@ class PatientRegistration {
   /// `YYYY-MM-DD`.
   final String? dateOfBirth;
 
+  /// The hospital to register at (from [PublicHospital]); the server issues
+  /// its UHID with the account (BUG-01).
+  final int? hospitalId;
+
   Map<String, String> toJson() => {
     'role': 'Patient',
     'full_name': fullName,
@@ -99,10 +130,34 @@ class PatientRegistration {
     'confirm_password': confirmPassword,
     'gender': ?gender,
     'date_of_birth': ?dateOfBirth,
+    if (hospitalId != null) 'hospital': '$hospitalId',
   };
 
   @override
   String toString() => 'PatientRegistration(<redacted>)';
+}
+
+/// `GET auth/patient/hospitals/`: a hospital patients may choose themselves.
+@immutable
+class PublicHospital {
+  const PublicHospital({required this.id, required this.name, this.city});
+
+  factory PublicHospital.fromJson(Object? json) {
+    final map = json is Map ? json : const {};
+    return PublicHospital(
+      id: map['id'] is int ? map['id'] as int : int.parse('${map['id']}'),
+      name: '${map['name'] ?? ''}',
+      city: map['city'] is String && (map['city'] as String).isNotEmpty
+          ? map['city'] as String
+          : null,
+    );
+  }
+
+  final int id;
+  final String name;
+  final String? city;
+
+  String get label => city == null ? name : '$name, $city';
 }
 
 /// `auth/register/` answered 201: the email still has to be verified.
@@ -193,6 +248,7 @@ SessionUser patientUserFromJson(Object? json, AccountType accountType) {
     email: patient['email'] as String?,
     emailVerified: patient['email_verified'] == true,
     phoneVerified: patient['phone_verified'] == true,
+    uhids: _uhidsFrom(json is Map ? json['hospitals'] : null),
   );
   return SessionUser(
     id: user is Map ? (user['id'] as num?)?.toInt() : null,
@@ -300,3 +356,10 @@ class ProxyVerification {
   @override
   String toString() => 'ProxyVerification(<redacted>, ${grants.length})';
 }
+
+Map<int, String> _uhidsFrom(Object? rows) => Map.unmodifiable({
+  if (rows is List)
+    for (final row in rows)
+      if (row is Map && row['id'] is num && '${row['uhid'] ?? ''}'.isNotEmpty)
+        (row['id'] as num).toInt(): '${row['uhid']}',
+});

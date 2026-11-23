@@ -9,7 +9,8 @@ import PatientTimeline from "../../components/clinical/PatientTimeline.jsx"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
-const CURRENT_RX = ["Confirmed", "Pending"]
+// Partly dispensed prescriptions still have medicines to collect (BUG-05).
+const CURRENT_RX = ["Confirmed", "Pending", "Partially Dispensed"]
 
 function PatientDashboard() {
   const { t } = useLanguage()

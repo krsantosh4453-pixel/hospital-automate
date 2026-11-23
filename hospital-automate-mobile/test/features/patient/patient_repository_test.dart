@@ -1,3 +1,5 @@
+import 'package:hms_mobile/features/patient/data/record_models.dart';
+
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -409,4 +411,53 @@ void main() {
       );
     },
   );
+
+  group('BUG-05 partly dispensed prescriptions', () {
+    Prescription rx(String status) => Prescription.fromJson({
+      'id': 1,
+      'status': status,
+      'items': [
+        {
+          'id': 7,
+          'name': 'Pantoprazole 40mg',
+          'quantity': 10,
+          'dispensed_quantity': 5,
+        },
+      ],
+    });
+
+    test('count as current until fully dispensed', () {
+      expect(rx('Partially Dispensed').isCurrent, isTrue);
+      expect(rx('Confirmed').isCurrent, isTrue);
+      expect(rx('Dispensed').isCurrent, isFalse);
+      expect(rx('Cancelled').isCurrent, isFalse);
+    });
+
+    test('each item knows what is still to be issued', () {
+      final item = rx('Partially Dispensed').items.single;
+      expect(item.dispensedQuantity, 5);
+      expect(item.remaining, 5);
+    });
+  });
+
+  group('H-14 lab flags', () {
+    test('a flagged-name list and computed flag details are both read', () {
+      final result = LabResultData.fromJson({
+        'result_data': {'Hb': '6', 'ESR': '40', 'K': '4.1'},
+        'abnormal_flags': ['Hb', 'ESR'],
+        'flag_details': [
+          {'parameter': 'Hb', 'flag': 'LL'},
+          {'parameter': 'K', 'flag': ''},
+        ],
+      });
+      expect(result.flags, {'Hb': 'LL', 'ESR': 'A'});
+    });
+
+    test('an older map of flags is still read as it is', () {
+      final result = LabResultData.fromJson({
+        'abnormal_flags': {'Hb': 'L'},
+      });
+      expect(result.flags, {'Hb': 'L'});
+    });
+  });
 }

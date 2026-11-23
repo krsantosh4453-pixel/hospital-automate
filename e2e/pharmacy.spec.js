@@ -64,7 +64,8 @@ test("pharmacist dispenses a prescription written after the page opened", async 
   await pharmacist.reload()
   await pharmacist.getByPlaceholder("RX-0001").fill(rx)
   await pharmacist.getByRole("button", { name: "Search Prescription" }).click()
-  await expect(pharmacist.getByText("Dispensed", { exact: true })).toBeVisible()
+  // The status badge of the prescription found, not the "Dispensed" tab of the same name.
+  await expect(pharmacist.locator("#pharmacy-rx-details").getByText("Dispensed", { exact: true })).toBeVisible()
   await expect(pharmacist.getByRole("button", { name: "Dispense Prescription" })).toHaveCount(0)
 })
 

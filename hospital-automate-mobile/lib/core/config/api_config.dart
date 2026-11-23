@@ -24,6 +24,7 @@ class ApiConfig {
     override: _originOverride,
     platform: defaultTargetPlatform,
     environment: AppEnvironment.parse(_environmentName),
+    releaseBuild: kReleaseMode,
   );
 
   static const _originOverride = String.fromEnvironment('API_ORIGIN');
@@ -43,11 +44,21 @@ class ApiConfig {
   String get healthUrl => '$origin/health/';
 
   /// The configuration for [environment], refusing plain HTTP outside development.
+  /// A [releaseBuild] must name staging or production: a release left on the
+  /// development default would ship pointing at a developer's machine.
   static ApiConfig resolve({
     required String override,
     required TargetPlatform platform,
     required AppEnvironment environment,
+    bool releaseBuild = false,
   }) {
+    if (releaseBuild && environment == AppEnvironment.development) {
+      throw ArgumentError.value(
+        environment.name,
+        'APP_ENV',
+        'must be staging or production in a release build',
+      );
+    }
     if (environment.requiresHttps && override.isEmpty) {
       throw ArgumentError.value(
         override,

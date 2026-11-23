@@ -354,8 +354,15 @@ class EmailProvider(NotificationProvider):
     def channel(self) -> NotificationChannel:
         return NotificationChannel.EMAIL
 
+    # Backends that accept a message without delivering it anywhere. A console
+    # "send" must not be recorded as a delivered notification.
+    NON_DELIVERING_BACKENDS = ("console", "dummy", "filebased")
+
     def is_configured(self) -> bool:
         from django.conf import settings
+        backend = str(getattr(settings, "EMAIL_BACKEND", "")).lower()
+        if any(name in backend for name in self.NON_DELIVERING_BACKENDS):
+            return False
         return bool(getattr(settings, "EMAIL_HOST", None))
 
     def send(self, payload: NotificationPayload) -> NotificationResult:

@@ -146,6 +146,8 @@ AI_SCRIBE_ALLOW_MOCK_PROVIDERS = True
 # Never call a real speech-to-text service from tests, even if .env has a key.
 AI_SCRIBE_STT_API_KEY = ''
 AI_SCRIBE_STT_PROVIDER = ''
+# ...nor a real LLM.
+AI_SCRIBE_API_KEY = ''
 
 
 # ============================================================

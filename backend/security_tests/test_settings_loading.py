@@ -10,17 +10,33 @@ import subprocess
 import sys
 from pathlib import Path
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from django.test import SimpleTestCase
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
+
+def _rsa_pem_pair():
+    """A throwaway RS256 key pair as (private PEM, public PEM) text."""
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+    ).decode()
+    public_pem = key.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode()
+    return private_pem, public_pem
+
+
+JWT_PRIVATE_PEM, JWT_PUBLIC_PEM = _rsa_pem_pair()
 
 # Synthetic values only; production settings refuse to load without them.
 PRODUCTION_ENV = {
     "DJANGO_SECRET_KEY": "synthetic-" + "x" * 50, "ALLOWED_HOSTS": "hms.example.test",
     "DATABASE_URL": "postgres://u:p@localhost:5432/db", "CORS_ALLOWED_ORIGINS": "https://hms.example.test",
     "EMAIL_HOST_USER": "x", "EMAIL_HOST_PASSWORD": "x", "GOOGLE_CLIENT_ID": "x",
-    "REDIS_URL": "redis://localhost:6399/0", "JWT_PRIVATE_KEY": "x", "JWT_PUBLIC_KEY": "x",
+    "REDIS_URL": "redis://localhost:6399/0", "JWT_PRIVATE_KEY": JWT_PRIVATE_PEM, "JWT_PUBLIC_KEY": JWT_PUBLIC_PEM,
     "TWILIO_ACCOUNT_SID": "x", "TWILIO_API_KEY": "x", "TWILIO_API_SECRET": "x",
     "TWILIO_VERIFY_SERVICE_SID": "x", "FHIR_ENABLED": "False", "HL7_ENABLED": "False",
     "ABDM_ENABLED": "False", "AI_SCRIBE_ENABLED": "False",
@@ -142,3 +158,70 @@ class SettingsLoadingTests(SimpleTestCase):
         self.assertEqual(manifest, "True")
         self.assertRegex(url, r"^/static/admin/css/base\.[0-9a-f]{12}\.css$")
 
+
+class ProductionSecretValidationTests(SimpleTestCase):
+    """Production refuses unusable secrets at start-up, not at the first request."""
+
+    def load(self, expression="settings.SECRET_KEY[:4]", **env):
+        script = f"import django; django.setup(); from django.conf import settings; print({expression})"
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=BACKEND_DIR, capture_output=True, text=True, timeout=120,
+            env={**os.environ, **PRODUCTION_ENV, **env, "DJANGO_SETTINGS_MODULE": "config.settings.production",
+                 "DJANGO_ENV": ""},
+        )
+        return result
+
+    def assert_refused(self, result, message):
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("ImproperlyConfigured", result.stderr)
+        self.assertIn(message, result.stderr)
+
+    def test_jwt_key_that_is_not_a_pem_is_refused(self):
+        self.assert_refused(self.load(JWT_PRIVATE_KEY="x"), "not valid unencrypted PEM keys")
+
+    def test_jwt_public_key_from_another_pair_is_refused(self):
+        _, other_public = _rsa_pem_pair()
+        self.assert_refused(self.load(JWT_PUBLIC_KEY=other_public), "does not belong to JWT_PRIVATE_KEY")
+
+    def test_jwt_keys_written_on_one_line_with_escaped_newlines_load(self):
+        result = self.load(
+            "settings.SIMPLE_JWT['SIGNING_KEY'].splitlines()[0]",
+            JWT_PRIVATE_KEY=JWT_PRIVATE_PEM.replace("\n", "\\n"),
+            JWT_PUBLIC_KEY=JWT_PUBLIC_PEM.replace("\n", "\\n"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "-----BEGIN PRIVATE KEY-----")
+
+    def test_short_or_development_secret_key_is_refused(self):
+        for key in ("short-key", "django-insecure-" + "x" * 60):
+            with self.subTest(key=key[:16]):
+                self.assert_refused(self.load(DJANGO_SECRET_KEY=key), "DJANGO_SECRET_KEY must be at least")
+
+    def test_wildcard_allowed_hosts_is_refused(self):
+        self.assert_refused(self.load(ALLOWED_HOSTS="hms.example.test,*"), "not '*'")
+
+    def test_allowed_hosts_are_trimmed(self):
+        result = self.load("settings.ALLOWED_HOSTS", ALLOWED_HOSTS="hms.example.test, www.hms.example.test ,")
+        self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "['hms.example.test', 'www.hms.example.test']")
+
+    def test_statement_timeout_defaults_to_30_seconds_and_can_be_lifted_for_migrations(self):
+        expression = "settings.DATABASES['default']['OPTIONS']['options']"
+        default = self.load(expression)
+        lifted = self.load(expression, DB_STATEMENT_TIMEOUT_MS="0")
+        self.assertEqual(default.stdout.strip().splitlines()[-1], "-c statement_timeout=30000")
+        self.assertEqual(lifted.stdout.strip().splitlines()[-1], "-c statement_timeout=0")
+
+    def test_reused_database_connections_are_health_checked(self):
+        result = self.load("settings.DATABASES['default']['CONN_HEALTH_CHECKS']")
+        self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "True")
+
+    def test_debug_is_off_and_mock_ai_providers_stay_disallowed_even_if_env_asks(self):
+        result = self.load(
+            "settings.DEBUG, settings.AI_SCRIBE_ALLOW_MOCK_PROVIDERS",
+            DEBUG="True", DJANGO_DEBUG="True", AI_SCRIBE_ALLOW_MOCK_PROVIDERS="True",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "False False")

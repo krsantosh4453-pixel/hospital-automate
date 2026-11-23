@@ -1,17 +1,50 @@
 import 'package:flutter/widgets.dart';
+
+import '../../features/ipd/ui/clinical_work_sections.dart'
+    show AdmitPatientScreen;
+
 import 'package:go_router/go_router.dart';
 
+import '../../features/reception/ui/reception_screens.dart';
+
+import '../../features/ai/ui/ai_dashboard_screen.dart';
+import '../../features/ai/ui/ai_ui.dart';
+import '../../features/ai/ui/scribe_screen.dart';
 import '../../features/auth/ui/patient_login_screen.dart';
 import '../../features/auth/ui/register_screen.dart';
 import '../../features/auth/ui/staff_login_screen.dart';
+import '../../features/billing/ui/billing_screen.dart';
+import '../../features/billing/ui/billing_ui.dart';
+import '../../features/billing/ui/invoice_screen.dart';
+import '../../features/billing/ui/money_entry_screen.dart';
+import '../../features/billing/ui/new_invoice_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
+import '../../features/laboratory/ui/lab_new_order_screen.dart';
+import '../../features/laboratory/ui/lab_order_screen.dart';
+import '../../features/laboratory/ui/lab_ui.dart';
+import '../../features/laboratory/ui/laboratory_screen.dart';
 import '../../features/doctor/ui/consultation_screen.dart';
 import '../../features/doctor/ui/doctor_appointments_screen.dart';
 import '../../features/doctor/ui/doctor_lists_screens.dart';
 import '../../features/doctor/ui/doctor_ui.dart';
 import '../../features/doctor/ui/patient_records_screens.dart';
 import '../../features/doctor/ui/queue_board_screen.dart';
+import '../../features/emergency/ui/emergency_screen.dart';
+import '../../features/emergency/ui/emergency_ui.dart';
+import '../../features/emergency/ui/emergency_visit_screen.dart';
+import '../../features/hospital/ui/hospital_screens.dart';
+import '../../features/ipd/ui/admission_screen.dart';
+import '../../features/ipd/ui/ipd_screen.dart';
+import '../../features/ipd/ui/ipd_ui.dart';
+import '../../features/operations/ops_ui.dart';
 import '../../features/navigation/app_shell.dart';
+import '../../features/nursing/ui/nursing_ui.dart';
+import '../../features/nursing/ui/ward_patient_screen.dart';
+import '../../features/nursing/ui/ward_patients_screen.dart';
+import '../../features/pharmacy/ui/dispense_screen.dart';
+import '../../features/pharmacy/ui/medicine_screen.dart';
+import '../../features/pharmacy/ui/pharmacy_screen.dart';
+import '../../features/pharmacy/ui/pharmacy_ui.dart';
 import '../../features/navigation/nav_config.dart';
 import '../../features/patient/ui/account_screens.dart';
 import '../../features/patient/ui/appointments_screen.dart';
@@ -67,7 +100,79 @@ GoRouter buildAppRouter({
     '${DoctorRoutes.consultation}/:visitId': (state) =>
         ConsultationScreen(visitId: _idOf(state, 'visitId')),
     DoctorRoutes.prescriptions: (_) => const DoctorPrescriptionsScreen(),
-    DoctorRoutes.laboratory: (_) => const DoctorLabScreen(),
+    '${IpdRoutes.list}/admit/:patientId': (state) =>
+        AdmitPatientScreen(patientId: _idOf(state, 'patientId')),
+    // AI assist: status, the doctor's scribe sessions, one visit's scribe.
+    AiRoutes.home: (_) => const AiDashboardScreen(),
+    '${AiRoutes.home}/visits/:visitId': (state) =>
+        ScribeScreen(visitId: _idOf(state, 'visitId')),
+  };
+  // Laboratory and billing desks, for every role the sidebar lets in (the
+  // module check in redirectFor). Each page offers only the actions the
+  // server allows that role; /laboratory shows doctors their ordered tests.
+  final deskScreens = <String, Widget Function(GoRouterState)>{
+    LabRoutes.worklist: (_) => const LabHomeScreen(),
+    LabRoutes.newOrder: (_) => const LabNewOrderScreen(),
+    '${LabRoutes.worklist}/:id': (state) =>
+        LabOrderScreen(orderId: _idOf(state)),
+    BillingRoutes.desk: (_) => const BillingScreen(),
+    BillingRoutes.newInvoice: (_) => const NewInvoiceScreen(),
+    '${BillingRoutes.desk}/invoices/:id': (state) =>
+        InvoiceScreen(invoiceId: _idOf(state)),
+    '${BillingRoutes.desk}/invoices/:id/pay': (state) =>
+        MoneyEntryScreen(invoiceId: _idOf(state), kind: MoneyEntryKind.payment),
+    '${BillingRoutes.desk}/invoices/:id/refund': (state) =>
+        MoneyEntryScreen(invoiceId: _idOf(state), kind: MoneyEntryKind.refund),
+  };
+  // Nursing pages for the Nurse role, pharmacy pages for Pharmacist and
+  // Compounder. Other roles keep ModuleScreen there.
+  final nurseScreens = <String, Widget Function(GoRouterState)>{
+    NursingRoutes.ward: (_) => const WardPatientsScreen(),
+    '${NursingRoutes.ward}/patients/:id': (state) =>
+        WardPatientScreen(patientId: _idOf(state)),
+  };
+  final pharmacyScreens = <String, Widget Function(GoRouterState)>{
+    PharmacyRoutes.home: (_) => const PharmacyScreen(),
+    '${PharmacyRoutes.home}/prescriptions/:id': (state) =>
+        DispenseScreen(prescriptionId: _idOf(state)),
+    '${PharmacyRoutes.home}/medicines/:id': (state) =>
+        MedicineScreen(medicineId: _idOf(state)),
+  };
+  // Emergency, IPD and hospital pages, for every role whose permissions open
+  // the module (redirectFor). Each page offers only what the role may do;
+  // the server checks every request.
+  final opsScreens = <String, Widget Function(GoRouterState)>{
+    EmergencyRoutes.list: (_) => const EmergencyScreen(),
+    '${EmergencyRoutes.list}/:id': (state) =>
+        EmergencyVisitScreen(visitId: _idOf(state)),
+    IpdRoutes.list: (_) => const IpdScreen(),
+    '${IpdRoutes.list}/:id': (state) =>
+        AdmissionScreen(admissionId: _idOf(state)),
+    HospitalRoutes.hospitals: (_) => const HospitalOverviewScreen(),
+    HospitalRoutes.departments: (_) => const DepartmentsScreen(),
+    HospitalRoutes.staff: (_) => const StaffScreen(),
+  };
+  GoRoute rolePage(
+    String path,
+    bool Function(SessionState) allowed,
+    Widget Function(GoRouterState) build,
+  ) => GoRoute(
+    path: path,
+    pageBuilder: (_, state) {
+      final location = state.uri.path;
+      final item = findNavMatch(location)?.item;
+      final Widget child = allowed(session.state) || item == null
+          ? PatientPage(location: location, child: build(state))
+          : ModuleScreen(item: item, location: location);
+      return _page(state, child);
+    },
+  );
+  // Front desk pages at the same staff paths (BUG-01): find, register and
+  // link patients, check appointments in, and see the queue read-only.
+  final receptionScreens = <String, Widget Function()>{
+    DoctorRoutes.patients: () => const ReceptionPatientsScreen(),
+    DoctorRoutes.appointments: () => const ReceptionAppointmentsScreen(),
+    DoctorRoutes.queue: () => const QueueBoardScreen(readOnly: true),
   };
   GoRoute doctorPage(String path, Widget Function(GoRouterState) build) =>
       GoRoute(
@@ -75,8 +180,11 @@ GoRouter buildAppRouter({
         pageBuilder: (_, state) {
           final location = state.uri.path;
           final item = findNavMatch(location)?.item;
+          final reception = receptionScreens[path];
           final Widget child = isDoctor(session.state) || item == null
               ? PatientPage(location: location, child: build(state))
+              : isReceptionist(session.state) && reception != null
+              ? PatientPage(location: location, child: reception())
               : ModuleScreen(item: item, location: location);
           return _page(state, child);
         },
@@ -117,11 +225,41 @@ GoRouter buildAppRouter({
             patientPage(entry.key, entry.value),
           for (final entry in doctorScreens.entries)
             doctorPage(entry.key, entry.value),
+          for (final entry in nurseScreens.entries)
+            rolePage(entry.key, isNurse, entry.value),
+          for (final entry in pharmacyScreens.entries)
+            rolePage(entry.key, isPharmacyStaff, entry.value),
+          for (final entry in deskScreens.entries)
+            GoRoute(
+              path: entry.key,
+              pageBuilder: (_, state) => _page(
+                state,
+                PatientPage(
+                  location: state.uri.path,
+                  child: entry.value(state),
+                ),
+              ),
+            ),
+          for (final entry in opsScreens.entries)
+            GoRoute(
+              path: entry.key,
+              pageBuilder: (_, state) => _page(
+                state,
+                StaffModulePage(
+                  location: state.uri.path,
+                  child: entry.value(state),
+                ),
+              ),
+            ),
           for (final group in [...staffNav, ...patientNav])
             for (final item in group.items)
               if (!ownScreens.contains(item.path) &&
                   !patientScreens.containsKey(item.path) &&
-                  !doctorScreens.containsKey(item.path))
+                  !doctorScreens.containsKey(item.path) &&
+                  !nurseScreens.containsKey(item.path) &&
+                  !pharmacyScreens.containsKey(item.path) &&
+                  !deskScreens.containsKey(item.path) &&
+                  !opsScreens.containsKey(item.path))
                 page(
                   item.path,
                   (location) => ModuleScreen(item: item, location: location),

@@ -129,7 +129,14 @@ class _MedicineRow extends StatelessWidget {
       if (item.dosage != null) '${t.dosage}: ${item.dosage}',
       if (item.frequency != null) '${t.frequency}: ${item.frequency}',
       if (item.duration != null) '${t.duration}: ${item.duration}',
-      if (item.quantity != null) '${t.quantity}: ${item.quantity}',
+      if (item.quantity != null && (item.dispensedQuantity ?? 0) > 0)
+        t.prescribedIssuedLeft(
+          item.quantity!,
+          item.dispensedQuantity!,
+          item.remaining,
+        )
+      else if (item.quantity != null)
+        '${t.quantity}: ${item.quantity}',
     ];
     return Padding(
       padding: AppSpacing.cardRow,

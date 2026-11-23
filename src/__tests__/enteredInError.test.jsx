@@ -90,7 +90,10 @@ describe("Medicine orders", () => {
     expect(api.nurses.mar.create).toHaveBeenCalledWith(expect.objectContaining({
       patient: 12, admission: 5, hospital: 4, prescription: 40, prescription_item: 41,
       medicine_name: "Synthetic Amoxicillin", dose: "250 mg", frequency: "BID", route: "Oral",
+      // The first dose goes with the order (next medication round by default),
+      // never a separate schedule call that defaulted to midnight.
+      first_dose: "next_round",
     }))
-    expect(api.nurses.mar.generateSchedule).toHaveBeenCalledWith(9)
+    expect(api.nurses.mar.generateSchedule).not.toHaveBeenCalled()
   })
 })

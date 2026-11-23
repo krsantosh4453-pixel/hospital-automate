@@ -298,16 +298,40 @@ class AppointmentViewSet(HospitalScopedViewSet):
             super().perform_create(serializer)
 
     def perform_update(self, serializer):
+        from encounters.services.visit_lifecycle import (
+            VisitTransitionError, cancel_tokens_of_appointment, recalculate_queue_of,
+        )
+
         with transaction.atomic():
             _claim_place(serializer.validated_data, instance=serializer.instance)
+            cancelling = (
+                serializer.validated_data.get("status") == Appointment.Status.CANCELLED
+                and serializer.instance.status != Appointment.Status.CANCELLED
+            )
+            if cancelling:
+                # BUG-02: a cancelled booking leaves the queue with its token.
+                try:
+                    cancel_tokens_of_appointment(serializer.instance.pk, after_commit=recalculate_queue_of)
+                except VisitTransitionError as error:
+                    raise ValidationError({"status": [error.message]})
             super().perform_update(serializer)
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
-        """Cancel an appointment."""
+        """Cancel an appointment, and its queue token if it has one (BUG-02)."""
+        from encounters.services.visit_lifecycle import (
+            VisitTransitionError, cancel_tokens_of_appointment, recalculate_queue_of,
+        )
+
         appointment = self.get_object()
-        appointment.status = "Cancelled"
-        appointment.save()
+        try:
+            with transaction.atomic():
+                cancel_tokens_of_appointment(appointment.pk, after_commit=recalculate_queue_of)
+                appointment = Appointment.objects.select_for_update().get(pk=appointment.pk)
+                appointment.status = Appointment.Status.CANCELLED
+                appointment.save()
+        except VisitTransitionError as error:
+            return Response(error.as_body(), status=status.HTTP_409_CONFLICT)
         return Response(self.get_serializer(appointment).data)
 
     @action(detail=True, methods=["post"])

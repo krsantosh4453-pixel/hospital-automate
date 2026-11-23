@@ -7,13 +7,15 @@ discharge plan). With an LLM configured (ai_scribe's provider registry) the
 model writes the narrative from that data only; otherwise the draft is
 assembled from the records directly. Either way it is only a draft: nothing
 is saved to the discharge summary until a clinician reviews and saves it.
-The model is never sent the patient's name or contact details.
+The model is never sent the patient's name, contact details or ID numbers.
 """
 
+import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
 
+from django.core.cache import cache
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -23,6 +25,8 @@ MAX_NOTES = 20
 MAX_NOTE_CHARS = 800
 MAX_ROWS = 40
 LLM_MAX_TOKENS = 2000
+# The same admission record (and model) is drafted once per hour, not on every click.
+DRAFT_CACHE_SECONDS = 60 * 60
 
 # Sections of the draft, in order, with their printed headings.
 SECTIONS = [
@@ -128,7 +132,7 @@ def collect_admission_context(admission):
     patient, hospital_id = admission.patient, admission.hospital_id
     plan = DischargePlan.objects.filter(admission=admission).first()
     return {
-        "patient": {"age": patient.age, "gender": patient.gender},
+        "patient": {"age": "Unknown" if patient.age is None else patient.age, "gender": patient.gender},
         "admitted_at": _fmt(admission.admission_date),
         "discharged_at": _fmt(admission.discharge_date),
         "reason_for_admission": admission.reason,
@@ -197,11 +201,28 @@ def _llm_provider():
     return None if provider.provider_name == "development" else provider
 
 
-def _sections_from_llm(provider, context):
+def _masked_record(admission, context):
+    """The admission record as sent to the model: every patient identifier
+    (and any phone, e-mail or ID number in the notes) masked."""
+    from ai_scribe.services.llm import redact_identifiers
+    from ai_scribe.services.pipeline import patient_identifiers
+
+    names, terms = patient_identifiers(admission.patient)
+    return redact_identifiers(json.dumps(context, ensure_ascii=False), terms, names)
+
+
+def _sections_from_llm(provider, context, admission=None):
     model = getattr(provider, "default_model", "")
+    record = _masked_record(admission, context) if admission is not None else json.dumps(context, ensure_ascii=False)
+    key = "ai-discharge:" + hashlib.sha256(
+        f"{provider.provider_name}|{model}|{SYSTEM_PROMPT}|{record}".encode()
+    ).hexdigest()
+    cached = cache.get(key)
+    if cached:
+        return cached["sections"], cached["provider"], cached["model"]
     result = provider.generate(
         system_prompt=SYSTEM_PROMPT,
-        user_prompt="Admission record (JSON):\n" + json.dumps(context, ensure_ascii=False),
+        user_prompt="Admission record (JSON):\n" + record,
         model=model,
         temperature=0.1,
         max_tokens=LLM_MAX_TOKENS,
@@ -210,7 +231,9 @@ def _sections_from_llm(provider, context):
     data = result.structured_extraction or {}
     if not isinstance(data, dict) or not any(data.get(key) for key, _ in SECTIONS):
         raise ValueError("The model returned no discharge summary sections.")
-    return {key: str(data.get(key) or TO_COMPLETE) for key, _ in SECTIONS}, result.provider, result.model
+    sections = {name: str(data.get(name) or TO_COMPLETE) for name, _ in SECTIONS}
+    cache.set(key, {"sections": sections, "provider": result.provider, "model": result.model}, DRAFT_CACHE_SECONDS)
+    return sections, result.provider, result.model
 
 
 def draft_discharge_summary(admission, provider=None):
@@ -220,7 +243,7 @@ def draft_discharge_summary(admission, provider=None):
     warnings = []
     if provider is not None:
         try:
-            sections, name, model = _sections_from_llm(provider, context)
+            sections, name, model = _sections_from_llm(provider, context, admission)
             return context, DischargeDraft(sections, render_text(sections, context), "llm", name, model)
         except Exception as exc:  # model/network/parse errors fall back to the records draft
             logger.warning("Discharge draft LLM call failed for admission %s: %s", admission.pk, type(exc).__name__)

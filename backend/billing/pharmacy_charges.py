@@ -23,6 +23,8 @@ from .numbering import next_invoice_number
 from .services import ZERO, line_subtotal, money, net_paid, recalculate, record_refund
 
 MAX_DESCRIPTION = 200
+# BUG-07: InvoiceItem.category of a medicine line.
+PHARMACY = "pharmacy"
 
 
 def _description(sale):
@@ -71,6 +73,7 @@ def post_sales(prescription, sales):
             tax_rate=sale.medicine.tax_rate,
             hsn_code=sale.medicine.hsn_code,
             pharmacy_sale=sale,
+            category=PHARMACY,
         )
     return recalculate(invoice)
 

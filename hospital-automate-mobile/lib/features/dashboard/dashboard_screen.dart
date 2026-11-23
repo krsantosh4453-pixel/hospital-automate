@@ -10,6 +10,10 @@ import '../../shared/widgets/states.dart';
 import '../../shared/widgets/tone.dart';
 import '../doctor/ui/doctor_home_panel.dart';
 import '../doctor/ui/doctor_ui.dart';
+import '../nursing/ui/nurse_home_panel.dart';
+import '../nursing/ui/nursing_ui.dart';
+import '../pharmacy/ui/pharmacy_home_panel.dart';
+import '../pharmacy/ui/pharmacy_ui.dart';
 import '../navigation/nav_config.dart';
 import 'guest_home.dart';
 import 'patient_home.dart';
@@ -50,6 +54,23 @@ class DashboardScreen extends StatelessWidget {
                   key: ValueKey('doctor-day-${session.activeHospitalId}'),
                   repository: services.doctor,
                   session: session,
+                ),
+              ],
+              if (isNurse(session) && session.activeHospitalId != null) ...[
+                const SizedBox(height: AppSpacing.x6),
+                NurseHomePanel(
+                  key: ValueKey('nurse-day-${session.activeHospitalId}'),
+                  repository: services.nursing,
+                  session: session,
+                ),
+              ],
+              if (isPharmacyStaff(session) &&
+                  session.activeHospitalId != null) ...[
+                const SizedBox(height: AppSpacing.x6),
+                PharmacyHomePanel(
+                  key: ValueKey('pharmacy-day-${session.activeHospitalId}'),
+                  repository: services.pharmacy,
+                  hospitalId: session.activeHospitalId!,
                 ),
               ],
             ] else if (session.isPatient)

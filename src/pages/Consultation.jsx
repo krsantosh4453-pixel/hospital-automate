@@ -23,11 +23,13 @@ import {
   TableWrap,
   Tabs,
   Textarea,
+  usePrompt,
 } from "../components/ui"
 import VisitDocuments from "../components/clinical/VisitDocuments.jsx"
 import PatientTimeline from "../components/clinical/PatientTimeline.jsx"
 import VisitImmunizations from "../components/clinical/VisitImmunizations.jsx"
 import PatientContextStrip from "../components/clinical/PatientContextStrip.jsx"
+import CriticalResults from "../components/laboratory/CriticalResults.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 // =========================================================
@@ -298,7 +300,9 @@ function Consultation() {
   const [searchParams] = useSearchParams()
   const requestedVisitId = searchParams.get("visit") || ""
   const [selectedVisitId, setSelectedVisitId] = useState(requestedVisitId)
-  const { canAdd } = useRole()
+  const { canAdd, activeRoleName } = useRole()
+  // H-14: critical lab values wait here too, where doctors work, not only on the Laboratory page.
+  const [promptText, promptDialog] = usePrompt()
 
   // ---------------------------------------------------------
   // Clinical record state (for the selected visit)
@@ -1107,6 +1111,15 @@ function Consultation() {
           </Button>
         }
       />
+
+      {promptDialog}
+      {selectedHospital && (
+        <CriticalResults
+          hospitalId={selectedHospital.id}
+          canAcknowledge={activeRoleName === "Doctor" || activeRoleName === "Admin"}
+          promptText={promptText}
+        />
+      )}
 
       {successMessage && <Alert tone="success" onDismiss={() => setSuccessMessage("")}>{successMessage}</Alert>}
       {errorMessage && <Alert tone="danger" onDismiss={() => setErrorMessage("")}>{errorMessage}</Alert>}

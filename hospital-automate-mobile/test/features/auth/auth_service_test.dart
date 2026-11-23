@@ -56,6 +56,63 @@ void main() {
       },
     );
 
+    test(
+      'skips the code step when the server has codes off (finding 5)',
+      () async {
+        repo.loginOptions = const StaffLoginOptions(
+          otpRequired: false,
+          otpAvailable: false,
+        );
+
+        final result = await auth.staffSignIn('dr.test', 'secret');
+
+        expect(result, isA<StaffSignedIn>());
+        expect(repo.loginOptionsCalls, 1);
+        expect(repo.calls, isNot(contains('staffStartOtp')));
+        expect(repo.calls.first, 'staffPasswordLogin');
+        expect(session.state.activeRole, 'Doctor');
+      },
+    );
+
+    test('a wrong password is still refused when codes are off', () async {
+      repo
+        ..loginOptions = const StaffLoginOptions(
+          otpRequired: false,
+          otpAvailable: false,
+        )
+        ..staffPasswordError = unauthorized;
+
+      await expectLater(
+        auth.staffSignIn('dr.test', 'bad'),
+        throwsA(unauthorized),
+      );
+      expect(session.status, isNot(SessionStatus.signedIn));
+      expect(await store.readAccessToken(), isNull);
+    });
+
+    test('a server that requires codes keeps the code step', () async {
+      repo
+        ..loginOptions = const StaffLoginOptions(
+          otpRequired: true,
+          otpAvailable: true,
+        )
+        ..staffStartOtpError = null;
+
+      final result = await auth.staffSignIn('dr.test', 'secret');
+
+      expect(result, isA<StaffOtpNeeded>());
+      expect(repo.calls, ['staffStartOtp']);
+      expect(session.status, isNot(SessionStatus.signedIn));
+    });
+
+    test('unreadable options keep the code-first flow', () async {
+      repo.loginOptionsError = const ApiException(kind: ApiErrorKind.network);
+
+      await auth.staffSignIn('dr.test', 'secret');
+
+      expect(repo.calls.first, 'staffStartOtp');
+    });
+
     test('sends device details but no password in what it records', () async {
       await auth.staffSignIn('dr.test', 'secret');
 
@@ -323,6 +380,34 @@ void main() {
 
       expect(session.state.isSignedIn, isFalse);
       expect(session.sessionExpired, isTrue);
+    });
+  });
+
+  group('sign-out closes signed-in requests (finding 6)', () {
+    test(
+      'closed before the server is told, reopened by the next sign-in',
+      () async {
+        await auth.staffSignIn('dr.test', 'secret');
+        expect(session.isClosing, isFalse);
+
+        bool? closingDuringLogout;
+        repo.onLogout = () => closingDuringLogout = session.isClosing;
+        await auth.signOut();
+
+        expect(closingDuringLogout, isTrue);
+        expect(session.isClosing, isTrue);
+        expect(await store.readAccessToken(), isNull);
+
+        await auth.staffSignIn('dr.test', 'secret');
+        expect(session.isClosing, isFalse);
+        expect(session.status, SessionStatus.signedIn);
+      },
+    );
+
+    test('a session the server ended closes requests too', () async {
+      await auth.staffSignIn('dr.test', 'secret');
+      await session.signOut(expired: true);
+      expect(session.isClosing, isTrue);
     });
   });
 }

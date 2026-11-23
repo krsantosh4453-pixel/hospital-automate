@@ -107,6 +107,25 @@ void main() {
       }
     });
 
+    test('a release build refuses the development environment', () {
+      expect(
+        () => ApiConfig.resolve(
+          override: '',
+          platform: TargetPlatform.android,
+          environment: AppEnvironment.development,
+          releaseBuild: true,
+        ),
+        throwsArgumentError,
+      );
+      final config = ApiConfig.resolve(
+        override: 'https://hms.example.org',
+        platform: TargetPlatform.android,
+        environment: AppEnvironment.production,
+        releaseBuild: true,
+      );
+      expect(config.origin, 'https://hms.example.org');
+    });
+
     test('production accepts an https origin', () {
       final config = ApiConfig.resolve(
         override: 'https://hms.example.org',

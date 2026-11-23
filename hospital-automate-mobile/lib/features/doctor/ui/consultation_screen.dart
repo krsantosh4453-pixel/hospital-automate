@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../ipd/ui/ipd_ui.dart' show IpdRoutes;
+import '../../ipd/ui/clinical_work_sections.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -13,6 +17,7 @@ import '../../../shared/widgets/hms_dialog.dart';
 import '../../../shared/widgets/page_header.dart';
 import '../../../shared/widgets/states.dart';
 import '../../../shared/widgets/tone.dart';
+import '../../ai/ui/ai_ui.dart';
 import '../../patient/record_loader.dart';
 import '../../patient/ui/patient_ui.dart';
 import '../data/doctor_models.dart';
@@ -140,6 +145,18 @@ class _ConsultationListScreenState extends State<ConsultationListScreen> {
   }
 }
 
+/// Why the server refused a Start or Complete (flags set by the visit
+/// lifecycle, `encounters/services/visit_lifecycle.py`).
+String _statusErrorMessage(AppLocalizations t, Object error) {
+  if (error is ApiException) {
+    if (error.hasFlag('patient_not_called')) return t.visitPatientNotCalled;
+    if (error.hasFlag('doctor_busy')) return t.queueDoctorBusy;
+    if (error.hasFlag('invalid_transition')) return t.visitStatusMovedOn;
+    if (error.hasFlag('not_visit_doctor')) return t.visitNotYourPatient;
+  }
+  return clinicalErrorMessage(t, error);
+}
+
 /// The visit, and the doctor's own profile at its hospital.
 class _VisitData {
   const _VisitData(this.visit, this.doctor);
@@ -213,11 +230,17 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
       _statusError = null;
     });
     try {
+      // The server moves the queue token and appointment with the visit.
       final visit = await _repository.setVisitStatus(data.visit.id, status);
       _loader.replace(_VisitData(visit, data.doctor));
     } catch (error) {
       if (mounted) {
-        setState(() => _statusError = clinicalErrorMessage(t, error));
+        setState(() => _statusError = _statusErrorMessage(t, error));
+        // Refused because the visit moved on (another device, a double tap):
+        // show it as the server holds it now.
+        if (error is ApiException && error.hasFlag('invalid_transition')) {
+          await _loader.load();
+        }
       }
     } finally {
       if (mounted) setState(() => _changingStatus = false);
@@ -279,6 +302,23 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
                 variant: HmsButtonVariant.secondary,
                 onPressed: () =>
                     context.go(DoctorRoutes.patient(visit.patientId!)),
+              ),
+            if (own && data.doctor != null && visit.patientId != null)
+              HmsButton(
+                key: const Key('admit-patient'),
+                label: t.admitPatient,
+                icon: LucideIcons.bedDouble,
+                variant: HmsButtonVariant.secondary,
+                onPressed: () =>
+                    context.go('${IpdRoutes.list}/admit/${visit.patientId}'),
+              ),
+            if (own && data.doctor != null)
+              HmsButton(
+                key: const Key('open-ai-scribe'),
+                label: t.aiScribeTitle,
+                icon: LucideIcons.mic,
+                variant: HmsButtonVariant.secondary,
+                onPressed: () => context.go(AiRoutes.visit(visit.id)),
               ),
           ],
         ),
@@ -343,6 +383,10 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
                       ? t.doctorProfileMissing
                       : t.visitClosedReadOnly),
           ),
+        ],
+        if (visit.patientId != null) ...[
+          sectionGap,
+          AllergiesSection(patientId: visit.patientId!, canWrite: canWrite),
         ],
         sectionGap,
         VitalsSection(context: sectionContext),

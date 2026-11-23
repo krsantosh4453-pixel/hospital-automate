@@ -91,14 +91,26 @@ function buildHeaders(extra = {}, body) {
   return headers
 }
 
-function parseErrorDetail(body, status) {
+// The sentences in a field-error body such as {"first_dose": ["..."], "first_dose_required": true}:
+// strings and lists of strings, nested objects included; flags and ids are skipped.
+function fieldMessages(value) {
+  if (typeof value === 'string') return value.trim() ? [value.trim()] : []
+  if (Array.isArray(value)) return value.flatMap(fieldMessages)
+  if (value && typeof value === 'object') return Object.values(value).flatMap(fieldMessages)
+  return []
+}
+
+export function parseErrorDetail(body, status) {
   if (!body) return `Request failed (${status})`
   if (typeof body === 'string') return body
   // The backend wraps errors as { error: true, message, details }.
   const text = [body.message, body.detail, body.error].find(
     (value) => typeof value === 'string' && value.trim()
   )
-  return text || (typeof body === 'object' ? JSON.stringify(body.details || body) : `Request failed (${status})`)
+  if (text) return text
+  // A view that answers with field errors directly: show the sentences, never raw JSON.
+  const messages = typeof body === 'object' ? fieldMessages(body.details || body) : []
+  return messages.length ? [...new Set(messages)].join(' ') : `Request failed (${status})`
 }
 
 let refreshPromise = null
@@ -705,6 +717,10 @@ const api = {
         }),
       dueMedications: async (hospitalId) =>
         request(`${API_BASE_URL}/nurses/mar/due_medications/?hospital=${hospitalId}`),
+      // Nurse: an as-needed (PRN) dose given now. H-10: refused (409) inside
+      // the order's minimum interval or over its 24-hour maximum.
+      givePrn: async (id, notes) =>
+        request(`${API_BASE_URL}/nurses/mar/${id}/prn/`, { method: 'POST', ...jsonBody({ notes: notes || "" }) }),
     },
     marAdministrations: {
       list: async (hospitalId, marId, status) => {
@@ -2051,6 +2067,25 @@ api.laboratory = {
       request(`${API_BASE_URL}/laboratory/${id}/release_result/`, { method: "POST" }),
     cancel: async (id) =>
       request(`${API_BASE_URL}/laboratory/${id}/cancel/`, { method: "POST" }),
+    // H-14: verified critical values no doctor has acknowledged yet.
+    criticalResults: async (hospitalId) => {
+      const query = hospitalId ? `?hospital=${encodeURIComponent(hospitalId)}` : ""
+      return request(`${API_BASE_URL}/laboratory/critical-results/${query}`)
+    },
+    acknowledgeCritical: async (id, note) =>
+      request(`${API_BASE_URL}/laboratory/${id}/acknowledge_critical/`, {
+        method: "POST",
+        ...jsonBody({ note }),
+      }),
+  },
+  // H-14: the hospital's reference and critical limits, set by an Admin.
+  referenceRanges: {
+    list: async (hospitalId, testName) => {
+      const params = new URLSearchParams({ active: "1" })
+      if (hospitalId) params.set("hospital", hospitalId)
+      if (testName) params.set("test", testName)
+      return request(`${API_BASE_URL}/laboratory/reference-ranges/?${params.toString()}`)
+    },
   },
   sampleCollections: {
     list: async (hospitalId) => {
@@ -2094,8 +2129,9 @@ api.billing = {
     get: async (id) => request(`${API_BASE_URL}/billing/invoices/${id}/`),
     create: async (data) =>
       request(`${API_BASE_URL}/billing/invoices/`, { method: "POST", ...jsonBody(data) }),
+    // A partial change (discount, lines): PUT would demand every field again.
     update: async (id, data) =>
-      request(`${API_BASE_URL}/billing/invoices/${id}/`, { method: "PUT", ...jsonBody(data) }),
+      request(`${API_BASE_URL}/billing/invoices/${id}/`, { method: "PATCH", ...jsonBody(data) }),
     delete: async (id) => {
       await request(`${API_BASE_URL}/billing/invoices/${id}/`, { method: "DELETE" })
       return true
@@ -2128,6 +2164,37 @@ api.billing = {
     // data: { amount, idempotency_key }
     applyToInvoice: async (invoiceId, data) =>
       request(`${API_BASE_URL}/billing/invoices/${invoiceId}/apply-advance/`, { method: "POST", ...jsonBody(data) }),
+  },
+  // BUG-07 price list; B-2 unbilled work. Admin or Hospital Manager writes.
+  priceList: {
+    list: async (hospitalId, { current = true, category } = {}) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set("hospital", hospitalId)
+      if (current) params.set("current", "1")
+      if (category) params.set("category", category)
+      return request(`${API_BASE_URL}/billing/price-list/?${params.toString()}`)
+    },
+    // data: { hospital, category, code, name, applies_to, unit_price, tax_rate, effective_from }
+    create: async (data) =>
+      request(`${API_BASE_URL}/billing/price-list/`, { method: "POST", ...jsonBody(data) }),
+    retire: async (id, effectiveTo) =>
+      request(`${API_BASE_URL}/billing/price-list/${id}/retire/`, {
+        method: "POST",
+        ...jsonBody(effectiveTo ? { effective_to: effectiveTo } : {}),
+      }),
+    unbilled: async (hospitalId, since) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set("hospital", hospitalId)
+      if (since) params.set("since", since)
+      return request(`${API_BASE_URL}/billing/price-list/unbilled/?${params.toString()}`)
+    },
+    // items: [{ kind, id }] bills exactly those (needed for work from a
+    // cancelled bill); without it only priced work skipped for want of a price.
+    chargeUnbilled: async (hospitalId, since, items) =>
+      request(`${API_BASE_URL}/billing/price-list/charge-unbilled/?hospital=${encodeURIComponent(hospitalId)}`, {
+        method: "POST",
+        ...jsonBody({ ...(since ? { since } : {}), ...(items ? { items } : {}) }),
+      }),
   },
 }
 

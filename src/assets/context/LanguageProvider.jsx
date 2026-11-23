@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react"
-import HI_PAGES from "../i18n/hiPages.js"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { getLoadedHindiPages, loadHindiPages } from "../i18n/loadHindiPages.js"
 import { LanguageContext, fillPlaceholders } from "./LanguageContext.jsx"
 
 // Interface language (English / Hindi). Only interface text is translated;
@@ -98,10 +98,12 @@ const HI = {
   "Approved by clinician": "डॉक्टर द्वारा स्वीकृत",
 }
 
+const ENGLISH = {}
+
 // Page text (A17) first; the shell entries above win where both define a string.
-const DICTIONARIES = { en: {}, hi: { ...HI_PAGES, ...HI } }
-
-
+// The page dictionary is loaded only when Hindi is chosen; until it arrives,
+// shell text is already Hindi and page text shows in English.
+const hindiDictionary = (pages) => (pages ? { ...pages, ...HI } : HI)
 
 const readStored = () => {
   try {
@@ -114,10 +116,33 @@ const readStored = () => {
 
 export function LanguageProvider({ children }) {
   const [language, setLanguageState] = useState(readStored)
+  const [hindiPages, setHindiPages] = useState(getLoadedHindiPages)
 
   useEffect(() => {
     document.documentElement.lang = language
   }, [language])
+
+  useEffect(() => {
+    if (language !== "hi" || hindiPages) return undefined
+    let active = true
+    loadHindiPages()
+      .then((pages) => {
+        if (active) setHindiPages(pages)
+      })
+      .catch((error) => {
+        // Page text stays in English (the documented fallback); switching
+        // language again retries the download.
+        console.error("Could not load Hindi page text", error)
+      })
+    return () => {
+      active = false
+    }
+  }, [language, hindiPages])
+
+  const dictionary = useMemo(
+    () => (language === "hi" ? hindiDictionary(hindiPages) : ENGLISH),
+    [language, hindiPages],
+  )
 
   const setLanguage = useCallback((next) => {
     const value = next === "hi" ? "hi" : "en"
@@ -133,8 +158,8 @@ export function LanguageProvider({ children }) {
   // or numbers are keyed with {placeholders}, filled after lookup so Hindi can
   // put them where its word order needs them.
   const t = useCallback(
-    (text, vars) => fillPlaceholders(DICTIONARIES[language][text] || text, vars),
-    [language],
+    (text, vars) => fillPlaceholders(dictionary[text] || text, vars),
+    [dictionary],
   )
 
   return (

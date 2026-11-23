@@ -133,8 +133,21 @@ def verify_patient_otp(phone, otp):
     if not normalized or len(code) != 6:
         return None, "Invalid OTP."
 
+    # Our own expiry and attempt cap, independent of the SMS provider's limits.
+    record = (
+        OTPVerification.objects.filter(phone=normalized, channel="sms", is_verified=False)
+        .order_by("-created_at")
+        .first()
+    )
+    if record is None or record.expires_at < timezone.now():
+        return None, "Invalid or expired OTP."
+    if record.attempts >= OTP_ATTEMPT_LIMIT:
+        return None, "Too many OTP requests. Please try again later."
+
     result = SMSService().verify_otp(normalized, code)
     if not result.ok:
+        record.attempts += 1
+        record.save(update_fields=["attempts"])
         return None, result.message
 
     patients = linked_patients_for_phone(normalized)
@@ -347,6 +360,7 @@ def patient_payload(patient):
         "id": patient.id,
         "name": patient.name,
         "age": patient.age,
+        "date_of_birth": str(patient.date_of_birth) if patient.date_of_birth else None,
         "gender": patient.gender,
         "phone": patient.phone,
         "email": user.email if user else "",
@@ -413,7 +427,7 @@ def link_google_patient(user, name, email):
     patient = Patient.objects.create(
         user=user,
         name=(name or email.split("@")[0] or "Patient")[:100],
-        age=1,
+        age=None,  # not known from Google; never a made-up 1 (BUG-04)
         gender="Other",
         phone="",
         doctor="",

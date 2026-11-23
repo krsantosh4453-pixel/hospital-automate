@@ -30,13 +30,14 @@ import {
 import { LabReportDocument } from "../components/documents/ClinicalDocuments.jsx"
 import SampleLabel from "../components/laboratory/SampleLabel.jsx"
 import SampleScanDialog from "../components/laboratory/SampleScanDialog.jsx"
+import CriticalResults from "../components/laboratory/CriticalResults.jsx"
 import PatientPicker from "../components/patients/PatientPicker.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Laboratory() {
   const { t } = useLanguage()
   // Doctors order tests; a Hospital Manager only views them.
-  const { canAdd } = useRole()
+  const { canAdd, activeRoleName } = useRole()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
   const [promptText, promptDialog] = usePrompt()
@@ -401,9 +402,8 @@ function Laboratory() {
     const [label, method, needsResult] = step
     let payload = {}
     if (needsResult) {
-      const resultText = (await promptText(t("Result for {test} ({patient}):", { test: test.test, patient: test.patient })))
-      if (!resultText || !resultText.trim()) return
-      payload = { result_text: resultText.trim() }
+      payload = await askForResult(test)
+      if (!payload) return
     }
     setBusyId(id)
     try {
@@ -414,6 +414,34 @@ function Laboratory() {
     } finally {
       setBusyId(null)
     }
+  }
+
+  // H-14: when the hospital has reference ranges for this test, ask for each
+  // parameter's value so the server can flag it. Empty means "not measured".
+  const askForResult = async (test) => {
+    let ranges = []
+    try {
+      const data = await api.laboratory.referenceRanges.list(selectedHospital?.id, test.test)
+      ranges = Array.isArray(data) ? data : data?.results || []
+    } catch (err) {
+      toast.warning(t("Reference ranges could not be loaded, so values will not be flagged: {reason}", { reason: err.message }))
+    }
+    const parameters = [...new Set(ranges.map((r) => r.parameter))]
+    const resultData = {}
+    for (const parameter of parameters) {
+      const unit = ranges.find((r) => r.parameter === parameter)?.unit || ""
+      const value = await promptText(t("{parameter} ({unit}) for {test}, empty if not measured:", { parameter, unit, test: test.test }))
+      if (value === null) return null
+      if (value.trim()) resultData[parameter] = value.trim()
+    }
+    const resultText = await promptText(
+      parameters.length
+        ? t("Comment for {test} ({patient}), optional:", { test: test.test, patient: test.patient })
+        : t("Result for {test} ({patient}):", { test: test.test, patient: test.patient }),
+    )
+    if (resultText === null) return null
+    if (!resultText.trim() && Object.keys(resultData).length === 0) return null
+    return { result_text: resultText.trim(), result_data: resultData }
   }
 
   // Workflow stages in order, for the per-order progress indicator.
@@ -471,6 +499,13 @@ function Laboratory() {
   return (
     <>{confirmDialog}{promptDialog}<div className="space-y-5">
       {header}
+
+      <CriticalResults
+        hospitalId={selectedHospital.id}
+        canAcknowledge={activeRoleName === "Doctor" || activeRoleName === "Admin"}
+        promptText={promptText}
+        onChange={loadTests}
+      />
 
       {error ? (
         <Card><ErrorState title={t("Laboratory orders could not be loaded")} message={error} onRetry={loadTests} /></Card>

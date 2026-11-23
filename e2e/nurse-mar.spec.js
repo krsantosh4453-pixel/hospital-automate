@@ -29,6 +29,8 @@ async function orderFromIpd(page) {
   await option.waitFor({ state: "attached" })
   await medicine.selectOption(await option.getAttribute("value"))
   await dialog.getByLabel(/^Route/).selectOption("IV")
+  // The demo hospital has no medication rounds, so the first dose starts now.
+  await dialog.getByLabel(/^First dose/).selectOption("now")
   await dialog.getByRole("button", { name: "Order medicine" }).click()
   // The order lists who ordered it; its first dose is due now.
   await expect(dialog.getByRole("row", { name: new RegExp(MEDICINE) })).toContainText("Active")

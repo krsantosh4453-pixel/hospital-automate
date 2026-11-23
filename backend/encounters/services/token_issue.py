@@ -68,8 +68,11 @@ def issue_queue_token_for_appointment(
 
     # 1) Obtain the Visit ------------------------------------------------
     if visit is None:
-        # Prefer an existing, same-day visit for this patient/doctor so we do
-        # not create a new visit every time a token is issued.
+        # Reuse a same-day visit opened for this patient and doctor before the
+        # token, so a token does not make a second visit. Only one still
+        # Waiting and without a token of its own: a Completed visit of an
+        # earlier appointment used to be picked up here, putting the new
+        # appointment's consultation on a closed visit (BUG-02 follow-up).
         visit = (
             Visit.objects
             .filter(
@@ -77,6 +80,8 @@ def issue_queue_token_for_appointment(
                 hospital=hospital,
                 doctor=doctor,
                 visit_date__date=token_date,
+                status="Waiting",
+                queue_tokens__isnull=True,
             )
             .order_by("-id")
             .first()

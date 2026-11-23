@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from ai_scribe.models import AIConsultationDraft, ConsultationSession
+from ai_scribe.models import AIConsultationDraft, ConsultationSession, ConversationTranscript
 from clinical.models import ClinicalNote
 from doctors.models import Doctor
 from encounters.models import Visit
@@ -100,6 +100,30 @@ class AIScribeSafetyTests(TestCase):
         draft.refresh_from_db()
         self.assertEqual(draft.approved_by_id, self.doctor.id)
 
+    def test_transcripts_reviews_and_drafts_cannot_be_written_directly(self):
+        # Transcripts feed the AI draft and reviews are the approval history:
+        # only the workflow actions write them, never a plain create/edit/delete.
+        session_id = self._session()
+        draft = self._record_and_transcribe(session_id)
+        transcript = ConversationTranscript.objects.get(consultation_id=session_id)
+        original = transcript.text
+
+        attempts = [
+            self.client.patch(f"/api/ai/transcripts/{transcript.id}/", {"text": "tampered"}, format="json"),
+            self.client.put(f"/api/ai/transcripts/{transcript.id}/", {"text": "tampered"}, format="json"),
+            self.client.delete(f"/api/ai/transcripts/{transcript.id}/"),
+            self.client.post("/api/ai/transcripts/", {"consultation": session_id, "text": "x"}, format="json"),
+            self.client.post("/api/ai/reviews/", {"ai_draft": draft.id, "action": "approved"}, format="json"),
+            self.client.post("/api/ai/drafts/", {"consultation": session_id}, format="json"),
+            self.client.delete(f"/api/ai/drafts/{draft.id}/"),
+        ]
+
+        self.assertEqual([r.status_code for r in attempts], [405] * len(attempts))
+        transcript.refresh_from_db()
+        self.assertEqual(transcript.text, original)
+        self.assertTrue(AIConsultationDraft.objects.filter(pk=draft.id).exists())
+        self.assertEqual(self.client.get(f"/api/ai/transcripts/?consultation={session_id}").status_code, 200)
+
     @override_settings(AI_SCRIBE_ALLOW_MOCK_PROVIDERS=False)
     def test_mock_draft_cannot_be_approved_where_mocks_are_disallowed(self):
         session = ConsultationSession.objects.create(
@@ -130,7 +154,7 @@ class AIScribeSafetyTests(TestCase):
         session_id = self._session()
         base = f"/api/ai/consultation-sessions/{session_id}"
         self.client.post(f"{base}/start_recording/", {"patient_consent": True}, format="json")
-        audio = SimpleUploadedFile("c.webm", b"synthetic", content_type="audio/webm")
+        audio = SimpleUploadedFile("c.webm", b"\x1aE\xdf\xa3synthetic", content_type="audio/webm")
         self.client.post(f"{base}/stop_recording/", {"audio_file": audio}, format="multipart")
         with mock.patch.dict("os.environ", {}, clear=False):
             resp = self.client.post(f"{base}/transcribe/", {}, format="json")

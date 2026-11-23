@@ -15,9 +15,17 @@ import 'core/security/token_store.dart';
 import 'features/auth/auth_repository.dart';
 import 'features/auth/auth_service.dart';
 import 'features/auth/google_identity.dart';
+import 'features/ai/data/scribe_recorder.dart';
+import 'features/billing/data/billing_repository.dart';
 import 'features/dashboard/dashboard_repository.dart';
+import 'features/laboratory/data/lab_repository.dart';
 import 'features/doctor/data/doctor_repository.dart';
+import 'features/emergency/data/emergency_repository.dart';
+import 'features/hospital/data/hospital_repository.dart';
+import 'features/ipd/data/ipd_repository.dart';
+import 'features/nursing/data/nursing_repository.dart';
 import 'features/patient/data/patient_repository.dart';
+import 'features/pharmacy/data/pharmacy_repository.dart';
 
 const _healthTimeout = Duration(seconds: 10);
 
@@ -32,11 +40,20 @@ Future<void> main() async {
     initial: await _savedLanguage(languagePreference),
   );
   final store = SecureTokenStore();
+  // Before anything reads the Keychain: a reinstall starts signed out.
+  await forgetSessionFromPreviousInstall(
+    store,
+    SharedPreferencesInstallMarker(),
+  );
   final session = SessionController(tokenStore: store);
+  // Consultation audio never outlives an upload, a crash or a sign-out.
+  unawaited(_sweepRecordings());
+  session.onSignOut(_sweepRecordings);
   final api = ApiClient(
     config: config,
     accessToken: session.accessToken,
     hospitalId: () => session.activeHospitalId,
+    blockAuthenticated: () => session.isClosing,
   );
   final auth = AuthService(
     repository: ApiAuthRepository(api),
@@ -60,6 +77,7 @@ Future<void> main() async {
     ),
   );
 
+  final doctor = ApiDoctorRepository(api);
   runApp(
     HmsApp(
       services: AppServices(
@@ -71,7 +89,14 @@ Future<void> main() async {
         checkHealth: () => health.check(config.healthUrl),
         dashboard: ApiDashboardRepository(api),
         patient: ApiPatientRepository(api),
-        doctor: ApiDoctorRepository(api),
+        doctor: doctor,
+        laboratory: ApiLabRepository(api),
+        billing: ApiBillingRepository(api),
+        nursing: ApiNursingRepository(api, doctor),
+        pharmacy: ApiPharmacyRepository(api),
+        emergency: ApiEmergencyRepository(api),
+        ipd: ApiIpdRepository(api),
+        hospital: ApiHospitalRepository(api),
       ),
     ),
   );
@@ -82,5 +107,14 @@ Future<AppLanguage> _savedLanguage(LanguagePreference preference) async {
     return await preference.read();
   } on Exception {
     return AppLanguage.en;
+  }
+}
+
+Future<void> _sweepRecordings() async {
+  try {
+    await deleteLeftoverRecordingsInTemp();
+  } on Exception catch (_) {
+    // Best effort: a file that cannot be listed or deleted now is retried at
+    // the next start-up or sign-out.
   }
 }

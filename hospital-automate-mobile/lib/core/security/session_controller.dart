@@ -50,6 +50,7 @@ class PatientProfile {
     this.email,
     this.emailVerified = false,
     this.phoneVerified = false,
+    this.uhids = const {},
   });
 
   final int id;
@@ -60,6 +61,15 @@ class PatientProfile {
   final String? email;
   final bool emailVerified;
   final bool phoneVerified;
+
+  /// Hospital id → the UHID it issued (`patient/me` `hospitals`).
+  final Map<int, String> uhids;
+
+  /// The UHID to show for [hospitalId], or the only one when the patient is
+  /// registered at a single hospital (BUG-11: the profile showed the
+  /// internal record id).
+  String? uhidFor(int? hospitalId) =>
+      uhids[hospitalId] ?? (uhids.length == 1 ? uhids.values.single : null);
 }
 
 /// The signed-in person, shown in the header and greeting.
@@ -122,6 +132,16 @@ class SessionState {
     return activeHospital?.permissions.contains('$module.View') ?? false;
   }
 
+  /// Whether the active role holds `<module>.<action>` (e.g. `Billing.Add`).
+  /// Like [canView], this only decides what the app offers.
+  bool can(String module, String action) =>
+      isStaff &&
+      (activeHospital?.permissions.contains('$module.$action') ?? false);
+
+  /// Whether the active role is one of [roles] (server role names).
+  bool hasRole(Set<String> roles) =>
+      isStaff && activeRole != null && roles.contains(activeRole);
+
   SessionState copyWith({int? activeHospitalId}) => SessionState(
     user: user,
     hospitals: hospitals,
@@ -179,7 +199,21 @@ class SessionController extends ChangeNotifier {
 
   /// Begins a signed-in session. Keeps [preferredHospitalId] when the
   /// person still belongs to it, otherwise the first hospital.
+  bool _closing = false;
+
+  /// True from the start of a sign-out until the next sign-in: the API
+  /// client sends no signed-in request meanwhile (final E2E finding 6).
+  bool get isClosing => _closing;
+
+  /// Called before the server is told about a sign-out, so pages reacting
+  /// to it cannot send requests with a token that is being revoked.
+  void beginSignOut() => _closing = true;
+
+  /// New tokens were issued (a sign-in): signed-in requests may go again.
+  void allowRequests() => _closing = false;
+
   Future<void> start(SessionState state, {int? preferredHospitalId}) async {
+    _closing = false;
     final ids = state.hospitals.map((h) => h.id).toList();
     final active = ids.contains(preferredHospitalId)
         ? preferredHospitalId
@@ -216,6 +250,7 @@ class SessionController extends ChangeNotifier {
   /// Forgets tokens, the hospital, the session and every cached record,
   /// even if a cleanup fails. [expired]: the server ended the session.
   Future<void> signOut({bool expired = false}) async {
+    _closing = true;
     _state = SessionState.signedOut;
     _status = SessionStatus.signedOut;
     _expired = expired;

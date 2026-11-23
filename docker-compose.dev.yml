@@ -52,7 +52,7 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174
       - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,backend
-      - GOOGLE_CLIENT_ID=1199500530711-s1ti1g061cno8d3tk2759hqrgitdect.apps.googleusercontent.com
+      - GOOGLE_CLIENT_ID=119950053071-f93kl31rlntoo9jq35bgtc69rcqtrti5.apps.googleusercontent.com
       - AI_SCRIBE_API_KEY=
     volumes:
       - ./backend:/app

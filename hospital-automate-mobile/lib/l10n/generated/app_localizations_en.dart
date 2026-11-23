@@ -78,12 +78,346 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addOneMedicine => 'Add at least one medicine.';
 
   @override
+  String get admissionAndVisits => 'Admission and visits';
+
+  @override
+  String get admissionReason => 'Reason for admission';
+
+  @override
+  String get admitAlreadyActive =>
+      'This patient already has an active admission here.';
+
+  @override
+  String get admitBed => 'Free bed';
+
+  @override
+  String get admitConfirm => 'Confirm admission';
+
+  @override
+  String get admitIntro =>
+      'Admit this patient under your care. Choose a ward to see its free beds.';
+
+  @override
+  String get admitNoBedNow => 'No bed now (allocate later)';
+
+  @override
+  String get admitNoFreeBeds =>
+      'No free bed in this hospital now. You can admit and allocate a bed later.';
+
+  @override
+  String get admitPatient => 'Admit patient';
+
+  @override
+  String get admitReason => 'Reason for admission';
+
+  @override
+  String get admitReasonRequired => 'Enter the reason for admission.';
+
+  @override
+  String get admittedOn => 'Admitted on';
+
+  @override
+  String get admittingDoctor => 'Admitting doctor';
+
+  @override
+  String get admitWard => 'Ward';
+
+  @override
   String get ageLabel => 'Age';
 
   @override
   String ageYears(String age) {
     return '$age y';
   }
+
+  @override
+  String get aiApprove => 'Approve and save';
+
+  @override
+  String get aiApproveBody =>
+      'You confirm you have read and corrected every section. It is saved as your clinical note for this visit. No prescription is created.';
+
+  @override
+  String get aiApproveTitle => 'Save this draft to the medical record?';
+
+  @override
+  String get aiAudioUploaded => 'Audio uploaded';
+
+  @override
+  String get aiCnnBlocked => 'Blocked';
+
+  @override
+  String get aiCnnBlockedBody =>
+      'No validated imaging model, dataset or approved medical use case is set up, so the app makes no image predictions. Any future prediction will need review by a qualified clinician and will never be a diagnosis.';
+
+  @override
+  String get aiCnnTitle => 'Image prediction (CNN)';
+
+  @override
+  String get aiConsentLabel =>
+      'The patient agrees to this consultation being recorded';
+
+  @override
+  String get aiConsentRecorded => 'Patient consent recorded';
+
+  @override
+  String get aiDraftApproved => 'Approved and saved to the record';
+
+  @override
+  String get aiDraftFailed =>
+      'The last draft attempt failed. Try again or document manually.';
+
+  @override
+  String aiDraftPending(int version) {
+    return 'AI draft v$version: pending your review';
+  }
+
+  @override
+  String get aiDraftRejected => 'Rejected: nothing was saved';
+
+  @override
+  String get aiDrafting => 'Clinical draft';
+
+  @override
+  String get aiEditHint =>
+      'One item per line. Leave it empty if it was not discussed.';
+
+  @override
+  String get aiEditSection => 'Edit';
+
+  @override
+  String get aiEngineNotConfigured => 'Not configured on this server';
+
+  @override
+  String get aiGenerateDraft => 'Generate draft';
+
+  @override
+  String get aiIntro =>
+      'Drafts that a qualified clinician reviews before anything is saved.';
+
+  @override
+  String get aiLangAuto => 'Detect';
+
+  @override
+  String get aiLangEn => 'English';
+
+  @override
+  String get aiLangHi => 'Hindi';
+
+  @override
+  String get aiLangHinglish => 'Hinglish';
+
+  @override
+  String get aiMicDenied => 'Microphone permission is needed to record.';
+
+  @override
+  String get aiMockDraftWarning =>
+      'This draft came from the development mock and cannot be approved into a record.';
+
+  @override
+  String get aiMockEngine =>
+      'Development mock: its text can never be approved into a record';
+
+  @override
+  String get aiNoDraftYet => 'Transcribe the audio, then generate a draft.';
+
+  @override
+  String get aiNoSessions => 'No scribe sessions yet';
+
+  @override
+  String get aiNoSessionsHint =>
+      'Open one of your consultations and choose AI scribe.';
+
+  @override
+  String get aiNoTranscriptYet => 'Upload the audio, then transcribe it.';
+
+  @override
+  String get aiNotConsultingDoctor =>
+      'Only the consulting doctor of this visit can use the scribe.';
+
+  @override
+  String get aiNotRecorded => 'Not recorded in this consultation';
+
+  @override
+  String get aiNothingRecorded => 'Nothing was recorded. Try again.';
+
+  @override
+  String get aiOpenConsultations => 'Open consultations';
+
+  @override
+  String get aiProviderUnavailable =>
+      'The AI service is not available. Document the consultation manually.';
+
+  @override
+  String get aiReadOnly =>
+      'You can view this scribe session but not change it.';
+
+  @override
+  String get aiRecordAgain => 'Record again';
+
+  @override
+  String get aiRecordingNow => 'Recording… speak normally.';
+
+  @override
+  String get aiRegenerate => 'New draft';
+
+  @override
+  String get aiReject => 'Reject draft';
+
+  @override
+  String get aiRejectBody => 'Nothing from it is saved to the record.';
+
+  @override
+  String get aiRejectTitle => 'Reject this draft?';
+
+  @override
+  String get aiSafetyBody =>
+      'Every AI suggestion needs review by a qualified doctor. AI never completes a consultation or writes a prescription.';
+
+  @override
+  String get aiSafetyTitle => 'AI output is a draft, not a diagnosis';
+
+  @override
+  String get aiSaveSection => 'Save section';
+
+  @override
+  String get aiScribeCardTitle => 'Medical scribe';
+
+  @override
+  String get aiScribeTitle => 'AI scribe';
+
+  @override
+  String get aiSecAllergies => 'Allergies';
+
+  @override
+  String get aiSecAssessment => 'Assessment';
+
+  @override
+  String get aiSecChiefComplaint => 'Chief complaint';
+
+  @override
+  String get aiSecExamination => 'Examination';
+
+  @override
+  String get aiSecFollowUp => 'Follow-up';
+
+  @override
+  String get aiSecHistory => 'History';
+
+  @override
+  String get aiSecInvestigations => 'Investigations';
+
+  @override
+  String get aiSecMedications => 'Current medications';
+
+  @override
+  String get aiSecPlan => 'Plan';
+
+  @override
+  String get aiSecSummary => 'Summary';
+
+  @override
+  String get aiSecSymptoms => 'Symptoms';
+
+  @override
+  String get aiSecVitals => 'Vital signs';
+
+  @override
+  String get aiSessionsTitle => 'Your scribe sessions';
+
+  @override
+  String get aiSpeechToText => 'Speech to text';
+
+  @override
+  String get aiSpokenLanguage => 'Spoken language';
+
+  @override
+  String get aiStartRecording => 'Start recording';
+
+  @override
+  String get aiStepApprove => '4. Approve and save';
+
+  @override
+  String get aiStepDraft => '3. Review and edit the draft';
+
+  @override
+  String get aiStepRecord => '1. Record the consultation';
+
+  @override
+  String get aiStepTranscript => '2. Review the transcript';
+
+  @override
+  String get aiStopRecording => 'Stop and upload';
+
+  @override
+  String get aiTitle => 'AI assist';
+
+  @override
+  String get aiTranscribe => 'Transcribe';
+
+  @override
+  String get aiTranscriptFailed =>
+      'Transcription failed. Try again or document manually.';
+
+  @override
+  String get aiWorking =>
+      'Working on it… this can take up to a minute. You can leave this page; the result is saved.';
+
+  @override
+  String get allergiesTitle => 'Allergies';
+
+  @override
+  String get allergyAdd => 'Add allergy';
+
+  @override
+  String get allergyCategory => 'Type';
+
+  @override
+  String get allergyCategoryDrug => 'Drug';
+
+  @override
+  String get allergyCategoryEnvironmental => 'Environmental';
+
+  @override
+  String get allergyCategoryFood => 'Food';
+
+  @override
+  String get allergyCategoryOther => 'Other';
+
+  @override
+  String get allergyMarkNone => 'Record: no known allergies';
+
+  @override
+  String get allergyMarkUnknown => 'Record: not known';
+
+  @override
+  String get allergyName => 'Allergic to (medicine, food…)';
+
+  @override
+  String get allergyNameRequired => 'Enter what the patient is allergic to.';
+
+  @override
+  String get allergyNoneBlocked =>
+      'An allergy is on record, so no known allergies cannot be recorded.';
+
+  @override
+  String get allergyReaction => 'Reaction';
+
+  @override
+  String get allergySeverity => 'Severity';
+
+  @override
+  String get allergyStatusNone => 'No known allergies';
+
+  @override
+  String get allergyStatusRecorded => 'Has allergies';
+
+  @override
+  String get allergyStatusUnknown => 'Not known (not asked yet)';
+
+  @override
+  String get alreadyDispensed =>
+      'This prescription has already been dispensed.';
 
   @override
   String get amountPaid => 'Paid';
@@ -118,7 +452,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appointmentsIntro => 'Your bookings at the selected hospital.';
 
   @override
+  String assignedForShift(String shift) {
+    return 'Assigned to you · $shift';
+  }
+
+  @override
+  String get assignedToMe => 'Assigned to me';
+
+  @override
   String get atLeast8Characters => 'At least 8 characters.';
+
+  @override
+  String atMost(int count) {
+    return 'At most $count';
+  }
 
   @override
   String attentionBilling(int count) {
@@ -184,8 +531,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your sign-in step expired. Enter your password again.';
 
   @override
-  String get authEmailExists =>
-      'An account already exists with this email. Sign in instead.';
+  String get authDobRequired => 'Enter your date of birth.';
+
+  @override
+  String get authHospitalRequired =>
+      'Choose the hospital you want to register at.';
+
+  @override
+  String get authRegistrationUnavailable =>
+      'We could not create an account with these details. If you already have an account, sign in or reset your password.';
 
   @override
   String get authEmailNotVerified =>
@@ -271,10 +625,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authPasswordTooShort => 'Password must be at least 8 characters.';
 
   @override
-  String get authPhoneExists =>
-      'An account already exists with this mobile number. Sign in instead.';
-
-  @override
   String get authResetCodeInvalid => 'The code is not correct or has expired.';
 
   @override
@@ -302,6 +652,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'This account cannot use the mobile app. Use the web app.';
 
   @override
+  String get authorNotRecorded => 'Author not recorded';
+
+  @override
+  String get availabilityDone => 'Fully issued';
+
+  @override
+  String get availabilityInStock => 'In stock';
+
+  @override
+  String get availabilityNone => 'Not in stock';
+
+  @override
+  String get availabilityShort => 'Not enough stock';
+
+  @override
+  String get availabilitySplit => 'Needs several batches';
+
+  @override
+  String get awaitingBed => 'Awaiting bed';
+
+  @override
+  String get awaitingVerification => 'Awaiting verification';
+
+  @override
   String get back => 'Back';
 
   @override
@@ -320,6 +694,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get balanceDue => 'Balance due';
 
   @override
+  String get batch => 'Batch';
+
+  @override
+  String batchCode(String batch) {
+    return 'Batch $batch';
+  }
+
+  @override
+  String get bedAvailable => 'Available';
+
+  @override
+  String get bedCleaning => 'Cleaning';
+
+  @override
+  String get bedMaintenance => 'Maintenance';
+
+  @override
+  String bedNumber(String bed) {
+    return 'Bed $bed';
+  }
+
+  @override
+  String get bedOccupied => 'Occupied';
+
+  @override
+  String get bedReserved => 'Reserved';
+
+  @override
   String bedsOccupiedOf(String occupied, String total) {
     return '$occupied occupied of $total';
   }
@@ -329,6 +731,285 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get billTotal => 'Total';
+
+  @override
+  String get billingAmount => 'Amount';
+
+  @override
+  String get billingAmountInvalid =>
+      'Enter an amount in rupees, like 500 or 499.50.';
+
+  @override
+  String get billingAmountRefused =>
+      'The hospital system did not accept this amount. Check the balance and try again.';
+
+  @override
+  String billingAmountTooHigh(String limit) {
+    return 'The amount is more than the balance due ($limit).';
+  }
+
+  @override
+  String get billingAnyDate => 'Any date';
+
+  @override
+  String get billingBackToDesk => 'Back to billing';
+
+  @override
+  String get billingBackToInvoice => 'Back to invoice';
+
+  @override
+  String get billingChargeConsultation => 'Consultation';
+
+  @override
+  String get billingChargeLaboratory => 'Laboratory';
+
+  @override
+  String get billingChargeOther => 'Other charge';
+
+  @override
+  String get billingChargePharmacy => 'Pharmacy';
+
+  @override
+  String get billingChoosePatient =>
+      'Choose the patient by searching their name, phone or UHID.';
+
+  @override
+  String get billingClearDates => 'Clear dates';
+
+  @override
+  String billingConfirmPayment(
+    String amount,
+    String method,
+    String invoice,
+    String patient,
+  ) {
+    return 'Record $amount received by $method for invoice $invoice ($patient)? This records money already received at the desk; it does not charge anyone.';
+  }
+
+  @override
+  String get billingConfirmPaymentTitle => 'Record this payment?';
+
+  @override
+  String billingConfirmRefund(String amount, String method, String invoice) {
+    return 'Record a refund of $amount by $method on invoice $invoice? A refund cannot be edited or deleted later.';
+  }
+
+  @override
+  String get billingConfirmRefundTitle => 'Record this refund?';
+
+  @override
+  String get billingCountsUnavailable => 'Billing figures could not be loaded';
+
+  @override
+  String get billingCreateInvoice => 'Create invoice';
+
+  @override
+  String get billingCreateNotAllowed =>
+      'Your role at this hospital cannot create invoices.';
+
+  @override
+  String get billingDeskIntro =>
+      'Invoices and payments of the selected hospital. Totals and balances come from the hospital system.';
+
+  @override
+  String get billingDiscount => 'Discount';
+
+  @override
+  String get billingDiscountHint =>
+      'Taken off before GST, as the hospital system calculates it.';
+
+  @override
+  String get billingDiscountRefused =>
+      'The discount cannot be negative or more than the bill before tax.';
+
+  @override
+  String billingDue(String amount) {
+    return 'Due $amount';
+  }
+
+  @override
+  String get billingFromPharmacy => 'from pharmacy';
+
+  @override
+  String get billingGstPercent => 'GST %';
+
+  @override
+  String billingGstRate(String rate) {
+    return 'GST $rate%';
+  }
+
+  @override
+  String get billingInvoiceClosed =>
+      'This invoice is cancelled or closed, so no money can be recorded on it.';
+
+  @override
+  String get billingInvoiceMaybeCreated =>
+      'No answer came from the hospital system, so the invoice may have been created. Check the invoice list before creating it again.';
+
+  @override
+  String get billingInvoiceTitle => 'Invoice';
+
+  @override
+  String get billingInvoices => 'Invoices';
+
+  @override
+  String get billingItems => 'Items';
+
+  @override
+  String get billingKeyReused =>
+      'This request was already used for another record. Go back to the invoice and start again.';
+
+  @override
+  String billingLatestRecords(int count) {
+    return 'Latest $count records';
+  }
+
+  @override
+  String get billingLineDescription => 'Description';
+
+  @override
+  String get billingLineDescriptionRequired => 'Describe the charge.';
+
+  @override
+  String billingLineNumber(int number) {
+    return 'Item $number';
+  }
+
+  @override
+  String get billingNetOfRefunds => 'After refunds';
+
+  @override
+  String get billingNewInvoice => 'New invoice';
+
+  @override
+  String get billingNewInvoiceIntro =>
+      'Choose the patient and add the charges. The hospital system works out tax, the total and the invoice number.';
+
+  @override
+  String get billingNoGateway => 'Payments are recorded at the desk';
+
+  @override
+  String get billingNoGatewayBody =>
+      'There is no online payment gateway. Record cash, UPI, card or bank transfer only after the money has been received. Nothing here is pending or failed: every record is a confirmed receipt.';
+
+  @override
+  String get billingNoInvoicesMatch => 'No invoices match these filters';
+
+  @override
+  String get billingNoItems => 'This invoice has no items.';
+
+  @override
+  String get billingOpenInvoiceList => 'Open invoice list';
+
+  @override
+  String get billingPatientSearchHint =>
+      'Search patient by name, phone or UHID';
+
+  @override
+  String get billingPaymentIntro =>
+      'Money received at the desk against this invoice.';
+
+  @override
+  String get billingPaymentKind => 'Payment';
+
+  @override
+  String get billingPaymentMethod => 'Payment method';
+
+  @override
+  String get billingPaymentNotAllowed =>
+      'A payment cannot be recorded on this invoice by your role.';
+
+  @override
+  String get billingPaymentRecorded =>
+      'Payment recorded by the hospital system';
+
+  @override
+  String get billingPayments => 'Payments';
+
+  @override
+  String get billingPaymentsRecorded => 'Payments recorded';
+
+  @override
+  String get billingPharmacyAutomatic =>
+      'Medicines sold by the pharmacy are billed automatically, so they are not added here.';
+
+  @override
+  String get billingPrintOnWeb =>
+      'Printed bills and PDFs are made from the web app; the hospital system has no invoice PDF for the phone.';
+
+  @override
+  String get billingQuantityInvalid =>
+      'Quantity must be a whole number of at least 1.';
+
+  @override
+  String get billingReceipt => 'Receipt number';
+
+  @override
+  String get billingRecordPayment => 'Record payment';
+
+  @override
+  String get billingRecordRefund => 'Record refund';
+
+  @override
+  String get billingReference => 'Transaction reference';
+
+  @override
+  String get billingReferenceHint =>
+      'UPI transaction ID, card slip or transfer number. Never a card number, CVV or PIN.';
+
+  @override
+  String get billingRefundIntro =>
+      'Money paid back to the patient on this invoice.';
+
+  @override
+  String get billingRefundNotAllowed =>
+      'A refund cannot be recorded on this invoice by your role.';
+
+  @override
+  String get billingRefundReason => 'Reason for the refund';
+
+  @override
+  String get billingRefundReasonRequired => 'Give the reason for the refund.';
+
+  @override
+  String get billingRefundRecorded => 'Refund recorded by the hospital system';
+
+  @override
+  String billingRefundTooHigh(String limit) {
+    return 'A refund cannot be more than the amount received ($limit).';
+  }
+
+  @override
+  String get billingRefunds => 'Refunds';
+
+  @override
+  String get billingRefused =>
+      'The hospital system did not accept this. Refresh and try again.';
+
+  @override
+  String get billingRemoveLine => 'Remove item';
+
+  @override
+  String get billingSearchHint => 'Search invoice number, patient or UHID';
+
+  @override
+  String get billingServerTotals =>
+      'Tax, the total and the invoice number are calculated by the hospital system when you create the invoice.';
+
+  @override
+  String get billingSubtotal => 'Subtotal';
+
+  @override
+  String get billingTax => 'Tax (GST)';
+
+  @override
+  String get billingTaxRateInvalid => 'GST must be between 0 and 100 percent.';
+
+  @override
+  String get billingTotalInvoices => 'Invoices';
+
+  @override
+  String get billingUnitPrice => 'Unit price';
 
   @override
   String get billsIntro => 'Invoices and the payments recorded against them.';
@@ -385,19 +1066,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'This time is no longer available. Please choose another time.';
 
   @override
+  String get bpNeedsBoth =>
+      'Enter both systolic and diastolic blood pressure, or neither.';
+
+  @override
   String get calledPatients => 'Called';
 
   @override
   String get cancel => 'Cancel';
 
   @override
+  String get careTasks => 'Care tasks';
+
+  @override
+  String get category => 'Category';
+
+  @override
   String get changeNumber => 'Change number';
+
+  @override
+  String chargedOnBill(String invoice, String total) {
+    return 'Charged on bill $invoice ($total).';
+  }
 
   @override
   String get checkAgain => 'Check again';
 
   @override
   String get checkAndSavePrescription => 'Check safety and save prescription';
+
+  @override
+  String get checkDispenseLines => 'Check these lines before dispensing';
+
+  @override
+  String get checkPatientBeforeDose =>
+      'Check the patient\'s name and ID, the medicine, dose and route against the patient before you confirm.';
 
   @override
   String checkTheseFields(String fields) {
@@ -409,6 +1112,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get checkingConnection => 'Checking connection…';
+
+  @override
+  String get chooseDateOfBirth => 'Choose date of birth';
 
   @override
   String get chooseDoctorFirst => 'Choose a doctor to see free times.';
@@ -453,13 +1159,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get completeConsultationTitle => 'Complete this consultation?';
 
   @override
+  String get completeTask => 'Complete';
+
+  @override
+  String get completeTaskTitle => 'Mark this task complete?';
+
+  @override
   String get completedToday => 'Completed today';
+
+  @override
+  String get confirm => 'Confirm';
 
   @override
   String get confirmBooking => 'Confirm booking';
 
   @override
+  String get confirmDispenseTitle => 'Dispense these medicines?';
+
+  @override
+  String get confirmGiveTitle => 'Record this dose as given?';
+
+  @override
+  String get confirmHoldTitle => 'Hold this dose?';
+
+  @override
+  String get confirmMissedTitle => 'Record this dose as missed?';
+
+  @override
   String get confirmPassword => 'Confirm password';
+
+  @override
+  String get confirmRefuseTitle => 'Record that the patient refused this dose?';
 
   @override
   String get consultationIntro =>
@@ -499,6 +1229,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dateOfBirth => 'Date of birth';
 
   @override
+  String get department => 'Department';
+
+  @override
   String get departments => 'Departments';
 
   @override
@@ -521,13 +1254,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deptConsultationText => 'Doctors\' clinical work.';
 
   @override
+  String get deptDescription => 'Description';
+
+  @override
   String get deptEmergencyText => 'Triage and emergency care.';
+
+  @override
+  String get deptHead => 'Head of department';
+
+  @override
+  String get deptIntro => 'Departments of this hospital.';
 
   @override
   String get deptInventoryText => 'Store, suppliers and purchase orders.';
 
   @override
   String get deptLaboratoryText => 'Samples, results and reports.';
+
+  @override
+  String get deptNone => 'No departments set up yet.';
 
   @override
   String get deptNursing => 'Nursing';
@@ -569,6 +1314,95 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diagnosisType => 'Type';
 
   @override
+  String get dischargeCondition => 'Condition at discharge';
+
+  @override
+  String get dischargeFinalDiagnosis => 'Final diagnosis';
+
+  @override
+  String get dischargeFinalize => 'Finalise summary';
+
+  @override
+  String get dischargeFinalizeBody =>
+      'After this the summary cannot be changed, and the patient sees it in their history.';
+
+  @override
+  String get dischargeFinalizeTitle => 'Finalise the discharge summary?';
+
+  @override
+  String get dischargeFollowUp => 'Follow-up instructions';
+
+  @override
+  String get dischargeMedications => 'Discharge medications';
+
+  @override
+  String get dischargeNotes => 'Hospital course and other notes';
+
+  @override
+  String get dischargePlanTitle => 'Discharge plan';
+
+  @override
+  String get dischargeSaved => 'Saved by the hospital system.';
+
+  @override
+  String get dischargeSavePlan => 'Save plan';
+
+  @override
+  String get dischargeSaveSummary => 'Save summary draft';
+
+  @override
+  String get dischargeSummaryFinalized =>
+      'Finalised by a doctor. It can no longer be changed.';
+
+  @override
+  String get dischargeSummaryRequired =>
+      'Enter the final diagnosis and the condition at discharge.';
+
+  @override
+  String get dischargeSummaryTitle => 'Write the discharge summary';
+
+  @override
+  String get dispense => 'Dispense';
+
+  @override
+  String dispenseNoBatch(String medicine) {
+    return '$medicine: choose a stock batch';
+  }
+
+  @override
+  String dispenseNoReason(String medicine) {
+    return '$medicine: give the reason for the substitute';
+  }
+
+  @override
+  String get dispenseNothingChosen =>
+      'Enter a quantity for at least one medicine.';
+
+  @override
+  String get dispenseOutcomeUnknown =>
+      'The hospital system could not be reached, so it is not known whether the medicines were issued. The prescription has been reloaded: check the dispensing history before trying again.';
+
+  @override
+  String get dispenseRefused =>
+      'The hospital system refused this dispense (stock, quantity, expiry or substitute check). Nothing was issued; the stock has been reloaded.';
+
+  @override
+  String dispenseTooMany(String medicine, int count) {
+    return '$medicine: at most $count can still be issued';
+  }
+
+  @override
+  String get dispensedInFull =>
+      'Dispensed in full. Stock was updated by the hospital system.';
+
+  @override
+  String get dispensedInPart =>
+      'Part of the prescription was dispensed; the rest can be given later.';
+
+  @override
+  String get dispensingHistory => 'Dispensing history';
+
+  @override
   String get doctor => 'Doctor';
 
   @override
@@ -606,7 +1440,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dosage => 'Dosage';
 
   @override
+  String get doseDue => 'Due';
+
+  @override
+  String doseDueAt(String time) {
+    return 'Due $time';
+  }
+
+  @override
+  String get doseExcluded => 'Excluded by doctor';
+
+  @override
+  String get doseGiven => 'Given';
+
+  @override
+  String get doseHeld => 'Held';
+
+  @override
+  String get doseMissed => 'Missed';
+
+  @override
+  String get doseNotRecorded =>
+      'This dose was not recorded: it was already recorded (perhaps by another nurse) or the doctor\'s order is no longer in force. The list has been refreshed.';
+
+  @override
+  String get doseOutcomeUnknown =>
+      'The hospital system could not be reached, so it is not known whether the dose was recorded. The list has been refreshed: check it before trying again.';
+
+  @override
+  String doseOverdueAt(String time) {
+    return 'Overdue since $time';
+  }
+
+  @override
+  String doseRecorded(String medicine, String status, String time) {
+    return '$medicine: $status at $time, confirmed by the hospital system.';
+  }
+
+  @override
+  String get doseRefused => 'Refused';
+
+  @override
+  String get doseVomited => 'Vomited';
+
+  @override
+  String get dosesDue => 'Doses due';
+
+  @override
+  String get dosesOverdue => 'Overdue';
+
+  @override
   String get draft => 'Draft';
+
+  @override
+  String get drugSchedule => 'Drug schedule';
 
   @override
   String get duration => 'Duration';
@@ -651,6 +1538,264 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get enterTheCode => 'Enter the code';
+
+  @override
+  String get erActiveNow => 'In the ER now';
+
+  @override
+  String get erAddNote => 'Add note';
+
+  @override
+  String get erAdmitHint =>
+      'The server allocates the bed and closes the ER visit as Admitted.';
+
+  @override
+  String get erAdmitToIpd => 'Admit to IPD';
+
+  @override
+  String get erAdmitted => 'Admission created by the hospital system.';
+
+  @override
+  String get erAlreadyAdmitted => 'This patient already has an open admission:';
+
+  @override
+  String get erArrival => 'Arrival';
+
+  @override
+  String get erAttendingDoctor => 'Attending doctor';
+
+  @override
+  String get erBp => 'BP';
+
+  @override
+  String get erChiefComplaint => 'Chief complaint';
+
+  @override
+  String get erChiefComplaintRequired => 'Enter the chief complaint.';
+
+  @override
+  String get erCompleteTriage => 'Complete triage';
+
+  @override
+  String get erConsultationStarted => 'Consultation started';
+
+  @override
+  String get erDetails => 'Visit details';
+
+  @override
+  String get erDischarge => 'Discharge from ER';
+
+  @override
+  String get erDischargeDiagnosis => 'Discharge diagnosis';
+
+  @override
+  String get erDischargeWarning =>
+      'The visit is closed after discharge and cannot be reopened here.';
+
+  @override
+  String get erDischarged => 'Discharge saved by the hospital system.';
+
+  @override
+  String get erFilterActive => 'Active';
+
+  @override
+  String get erFilterClosed => 'Closed';
+
+  @override
+  String get erFollowUp => 'Follow-up instructions';
+
+  @override
+  String get erGcs => 'Glasgow Coma Scale';
+
+  @override
+  String get erGiven => 'Given';
+
+  @override
+  String get erIntro =>
+      'Patients in the emergency department, most urgent first.';
+
+  @override
+  String erKeepDoctor(String name) {
+    return 'Keep $name';
+  }
+
+  @override
+  String get erLeftEr => 'Left the ER';
+
+  @override
+  String get erMedicationsSection => 'Medicines';
+
+  @override
+  String get erNextSteps => 'Next steps';
+
+  @override
+  String get erNoActiveVisits => 'No patients in the emergency department now.';
+
+  @override
+  String get erNoDoctorYet => 'No doctor assigned';
+
+  @override
+  String get erNoMedications => 'No medicines recorded.';
+
+  @override
+  String get erNoNotes => 'No notes yet.';
+
+  @override
+  String get erNoOrders => 'No orders.';
+
+  @override
+  String get erNoPatientMatch => 'No patient found at this hospital.';
+
+  @override
+  String get erNoVisits => 'No emergency visits.';
+
+  @override
+  String get erNoVitals => 'No vitals recorded.';
+
+  @override
+  String get erNotGiven => 'Not given yet';
+
+  @override
+  String get erNotTriaged => 'Not triaged yet.';
+
+  @override
+  String get erNote => 'Note';
+
+  @override
+  String get erNoteHint => 'Notes are kept permanently and cannot be edited.';
+
+  @override
+  String get erNoteRequired => 'Write the note.';
+
+  @override
+  String get erNoteSaved => 'Note saved by the hospital system.';
+
+  @override
+  String get erNotes => 'Notes';
+
+  @override
+  String get erOpenAdmission => 'Open the admission';
+
+  @override
+  String get erOrdersSection => 'Orders';
+
+  @override
+  String get erPainScore => 'Pain score';
+
+  @override
+  String get erReadOnly =>
+      'You can view emergency visits. Changes need a doctor or nurse role at this hospital.';
+
+  @override
+  String get erRecordVitals => 'Record vitals';
+
+  @override
+  String get erRefer => 'Refer out';
+
+  @override
+  String get erReferWarning =>
+      'The visit is closed after referral and cannot be reopened here.';
+
+  @override
+  String get erReferred => 'Referral saved by the hospital system.';
+
+  @override
+  String get erReferredTo => 'Referred to (facility)';
+
+  @override
+  String get erReferredToRequired => 'Enter where the patient is referred.';
+
+  @override
+  String get erRegister => 'Register';
+
+  @override
+  String get erRegisterHint =>
+      'Only patients already registered at this hospital can be chosen.';
+
+  @override
+  String get erRegisterPatient => 'Register ER patient';
+
+  @override
+  String get erRegistered =>
+      'Emergency visit registered by the hospital system.';
+
+  @override
+  String get erRemarks => 'Remarks';
+
+  @override
+  String get erRr => 'Resp.';
+
+  @override
+  String get erSearchPatient => 'Name, UHID or phone';
+
+  @override
+  String get erStartConsultation => 'Start consultation';
+
+  @override
+  String get erStartTriage => 'Start triage';
+
+  @override
+  String get erStartTriageConfirm => 'Move this patient to triage?';
+
+  @override
+  String get erStatusAdmitted => 'Admitted to IPD';
+
+  @override
+  String get erStatusDischarged => 'Discharged';
+
+  @override
+  String get erStatusExpired => 'Expired';
+
+  @override
+  String get erStatusInvestigations => 'Investigations';
+
+  @override
+  String get erStatusLeftAgainstAdvice => 'Left against advice';
+
+  @override
+  String get erStatusObservation => 'Observation';
+
+  @override
+  String get erStatusReferred => 'Referred';
+
+  @override
+  String get erStatusRegistered => 'Registered';
+
+  @override
+  String get erStatusTreatment => 'Treatment';
+
+  @override
+  String get erStatusTriage => 'In triage';
+
+  @override
+  String get erStatusUnderConsultation => 'Under consultation';
+
+  @override
+  String get erSugar => 'Sugar';
+
+  @override
+  String get erTriageLevel => 'Triage level';
+
+  @override
+  String get erTriageNotes => 'Triage notes';
+
+  @override
+  String get erTriageSection => 'Triage';
+
+  @override
+  String get erTriageStarted => 'Triage started';
+
+  @override
+  String get erTriagedBy => 'Triaged by';
+
+  @override
+  String get erVisitClosed => 'This visit is closed; only notes can be added.';
+
+  @override
+  String get erVitalsEmpty => 'Enter at least one reading.';
+
+  @override
+  String get erVitalsSection => 'Vitals';
 
   @override
   String get errorConflict =>
@@ -711,6 +1856,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get expectedAround => 'Expected around';
 
   @override
+  String get expiredInStock => 'Expired';
+
+  @override
+  String expiresOn(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String expiringSoonCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count batches in stock expire within 30 days',
+      one: '1 batch in stock expires within 30 days',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get expiryDate => 'Expiry date';
+
+  @override
   String get familyChoosePatient => 'Whose records do you want to view?';
 
   @override
@@ -751,6 +1918,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get filterUpcoming => 'Upcoming';
+
+  @override
+  String finalBillBedCharges(String amount) {
+    return 'Bed charges from the price list: $amount';
+  }
+
+  @override
+  String get finalBillCreate => 'Create final bill';
+
+  @override
+  String finalBillDays(String days) {
+    return 'Days in hospital: $days';
+  }
+
+  @override
+  String get finalBillDone => 'Final bill created.';
+
+  @override
+  String get finalBillNoBedPrice => 'Bed days cannot be priced yet';
+
+  @override
+  String get finalBillNone => 'No stay is waiting for its final bill.';
+
+  @override
+  String get finalBillTitle => 'Stays awaiting the final bill';
 
   @override
   String get fixHighlightedFields => 'Fix the highlighted readings.';
@@ -834,6 +2026,74 @@ class AppLocalizationsEn extends AppLocalizations {
   String get haveAccountSignIn => 'Already have an account? Sign in';
 
   @override
+  String get historyAll => 'All';
+
+  @override
+  String get historyEmpty => 'Nothing in your history yet.';
+
+  @override
+  String get historyIntro =>
+      'Visits, diagnoses, prescriptions, reports, vitals, admissions and discharges at your hospitals, newest first.';
+
+  @override
+  String get historyTitle => 'My health history';
+
+  @override
+  String get hospActive => 'Active';
+
+  @override
+  String get hospAddress => 'Address';
+
+  @override
+  String get hospCode => 'Code';
+
+  @override
+  String get hospCurrent => 'Current';
+
+  @override
+  String get hospDepartments => 'Departments';
+
+  @override
+  String get hospDoctors => 'Doctors';
+
+  @override
+  String get hospEmail => 'Email';
+
+  @override
+  String get hospGrievanceOfficer => 'Grievance officer';
+
+  @override
+  String get hospInactive => 'Inactive';
+
+  @override
+  String get hospIntro => 'The hospital you are working in now.';
+
+  @override
+  String get hospitalsUnavailable =>
+      'The list of hospitals could not be loaded. Try again.';
+
+  @override
+  String get hospNoWards => 'No wards set up yet.';
+
+  @override
+  String get hospNurses => 'Nurses';
+
+  @override
+  String get hospPhone => 'Phone';
+
+  @override
+  String get hospSwitch => 'Switch';
+
+  @override
+  String get hospType => 'Type';
+
+  @override
+  String get hospWards => 'Wards';
+
+  @override
+  String get hospYourHospitals => 'Your hospitals';
+
+  @override
   String get hospital => 'Hospital';
 
   @override
@@ -846,6 +2106,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get icd10Search => 'Search ICD-10 (optional)';
 
   @override
+  String get inStock => 'In stock';
+
+  @override
+  String inStockCount(int count, String unit) {
+    return '$count $unit in stock';
+  }
+
+  @override
+  String get inStockMedicines => 'In stock';
+
+  @override
   String get instructions => 'Instructions';
 
   @override
@@ -853,6 +2124,198 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get invoicesPaidTotal => 'Invoices paid / total';
+
+  @override
+  String get ipdAdmitted => 'Admitted';
+
+  @override
+  String get ipdAdmittedOn => 'Admitted on';
+
+  @override
+  String get ipdAdmittingDoctor => 'Admitting doctor';
+
+  @override
+  String get ipdAllocateBed => 'Allocate bed';
+
+  @override
+  String get ipdAvailableBeds => 'Free beds';
+
+  @override
+  String ipdBedReleased(String bed, String day) {
+    return 'Bed $bed · released $day';
+  }
+
+  @override
+  String get ipdAwaitingBed => 'Waiting for a bed';
+
+  @override
+  String get ipdBalanceDue => 'Balance due';
+
+  @override
+  String get ipdBedHistory => 'Bed history';
+
+  @override
+  String get ipdBedSaved => 'Bed saved by the hospital system.';
+
+  @override
+  String get ipdBedTaken =>
+      'That bed is no longer free. The list has been refreshed.';
+
+  @override
+  String ipdBedsPartial(int count) {
+    return 'Showing the first $count beds; the counts may be incomplete.';
+  }
+
+  @override
+  String get ipdBillDue => 'The final bill still has money due.';
+
+  @override
+  String get ipdBillTotal => 'Total';
+
+  @override
+  String get ipdCheckCounselled => 'Patient and family counselled';
+
+  @override
+  String get ipdCheckDocuments => 'Documents handed over';
+
+  @override
+  String get ipdCheckFollowUp => 'Follow-up arranged';
+
+  @override
+  String get ipdCheckMedications => 'Medications reconciled';
+
+  @override
+  String get ipdChecklist => 'Discharge checklist';
+
+  @override
+  String get ipdChooseBed => 'Choose a free bed:';
+
+  @override
+  String get ipdCompleteDischarge => 'Complete discharge';
+
+  @override
+  String get ipdConfirmComplete =>
+      'Complete the discharge? The bed is released and the stay is closed.';
+
+  @override
+  String get ipdConfirmInitiate =>
+      'Start the discharge? The checklist, summary and final bill must still be finished.';
+
+  @override
+  String get ipdCurrentBed => 'Bed';
+
+  @override
+  String get ipdDaysBilled => 'Days billed';
+
+  @override
+  String get ipdDischarge => 'Discharge';
+
+  @override
+  String get ipdDischargeDone => 'Discharge completed by the hospital system.';
+
+  @override
+  String get ipdDischargeInitiated => 'Discharge started';
+
+  @override
+  String get ipdDischargeReady => 'Ready: every discharge step is done.';
+
+  @override
+  String get ipdDischargeStepsOnWeb =>
+      'The doctor writes the plan and the summary here; the billing desk creates the final bill.';
+
+  @override
+  String get ipdDischarged => 'Discharged';
+
+  @override
+  String get ipdDischargedOn => 'Discharged on';
+
+  @override
+  String get ipdFilterCurrent => 'In hospital';
+
+  @override
+  String get ipdFinalBill => 'Final bill';
+
+  @override
+  String get ipdInitiateDischarge => 'Start discharge';
+
+  @override
+  String get ipdIntro => 'Admitted patients, their beds and discharges.';
+
+  @override
+  String get ipdNoAdmissions => 'No admissions.';
+
+  @override
+  String get ipdNoBedHistory => 'No bed allocated yet.';
+
+  @override
+  String get ipdNoBeds => 'No beds set up at this hospital.';
+
+  @override
+  String get ipdNoFinalBill => 'The final bill has not been created.';
+
+  @override
+  String get ipdNoFreeBeds => 'No free beds at this hospital right now.';
+
+  @override
+  String get ipdNoPlan => 'No discharge plan written yet.';
+
+  @override
+  String get ipdNoSummary => 'No discharge summary written yet.';
+
+  @override
+  String get ipdNotStarted => 'Discharge has not been started.';
+
+  @override
+  String get ipdReadOnly =>
+      'You can view admissions. Bed and discharge changes need a doctor or nurse role at this hospital.';
+
+  @override
+  String get ipdReason => 'Reason for admission';
+
+  @override
+  String get ipdSince => 'Since';
+
+  @override
+  String get ipdStay => 'Stay';
+
+  @override
+  String get ipdStillToDo => 'Still to do before discharge';
+
+  @override
+  String get ipdSummary => 'Discharge summary';
+
+  @override
+  String get ipdSummaryDoctorsOnly =>
+      'Only doctors and hospital managers can read discharge summaries.';
+
+  @override
+  String get ipdSummaryDraft => 'Draft, not finalised';
+
+  @override
+  String get ipdSummaryFinalized => 'Finalised by a doctor';
+
+  @override
+  String get ipdSummaryNotFinalized =>
+      'A doctor must finalise the discharge summary.';
+
+  @override
+  String get ipdTabAdmissions => 'Admissions';
+
+  @override
+  String get ipdTabBeds => 'Beds';
+
+  @override
+  String get ipdTransferBed => 'Transfer bed';
+
+  @override
+  String get ipdTransferred => 'Transferred';
+
+  @override
+  String get joinHospital => 'Register at this hospital';
+
+  @override
+  String get joinHospitalIntro =>
+      'Choose a hospital to register at. It gives you a patient ID (UHID) there, then you can book.';
 
   @override
   String get jumpTo => 'Jump to…';
@@ -864,18 +2327,258 @@ class AppLocalizationsEn extends AppLocalizations {
   String get knownCondition => 'Known condition';
 
   @override
+  String get labBackToWorklist => 'Back to worklist';
+
+  @override
+  String labCancelConfirm(String test) {
+    return 'Cancel the order for $test? It stays in the record as cancelled.';
+  }
+
+  @override
+  String get labCancelOrder => 'Cancel order';
+
+  @override
+  String get labChoosePatient => 'Choose the patient first.';
+
+  @override
+  String get labCollectedAt => 'Collected at';
+
+  @override
+  String get labCollectedBy => 'Collected by';
+
+  @override
+  String get labCollectionNotes => 'Collection notes';
+
+  @override
+  String get labCommonTestsNote =>
+      'Common tests (names only; the hospital system has no test catalogue with prices):';
+
+  @override
+  String get labContainerType => 'Container';
+
+  @override
+  String get labCountsUnavailable => 'Laboratory counts could not be loaded';
+
+  @override
+  String get labDeskIntro =>
+      'Orders of the selected hospital, from sample collection to released result.';
+
+  @override
+  String get labDispatchNotes => 'Dispatch notes';
+
+  @override
+  String get labDispatchedBy => 'Dispatched by';
+
+  @override
+  String get labEnteredAt => 'Entered at';
+
+  @override
+  String get labEnteredBy => 'Entered by';
+
+  @override
+  String get labExternalLab => 'External laboratory';
+
+  @override
+  String get labExternalLabHint =>
+      'Leave empty when the sample goes to this hospital\'s laboratory.';
+
+  @override
+  String get labFindSample => 'Find a sample';
+
+  @override
+  String get labFindSampleHint =>
+      'Scan or type a sample number, then press enter';
+
+  @override
   String get labIntro => 'Results released by the laboratory.';
+
+  @override
+  String get labNewOrder => 'New lab order';
+
+  @override
+  String get labNewOrderIntro =>
+      'A walk-in order from the laboratory desk. Doctors order from the consultation, linked to the visit.';
+
+  @override
+  String labNextStepByOthers(String step) {
+    return 'Next step: $step. Your role at this hospital cannot do it.';
+  }
+
+  @override
+  String get labNoOrdersMatch => 'No orders match these filters';
+
+  @override
+  String get labNoOrdersYet => 'No laboratory orders yet';
+
+  @override
+  String get labNoResultYet => 'No result has been entered yet.';
 
   @override
   String get labNotADiagnosis =>
       'Values are shown as the laboratory entered them. Please discuss them with your doctor.';
 
   @override
+  String get labOpenWorklist => 'Open worklist';
+
+  @override
+  String get labOrderCancelled => 'Order cancelled by the hospital system.';
+
+  @override
+  String get labOrderMaybeCreated =>
+      'No answer came from the hospital system, so the order may have been placed. Check the worklist before ordering again.';
+
+  @override
+  String get labOrderNotAllowed =>
+      'Your role at this hospital cannot place laboratory orders.';
+
+  @override
+  String get labOrderTitle => 'Laboratory order';
+
+  @override
   String get labOrders => 'Lab orders';
+
+  @override
+  String get labPatientSearchHint =>
+      'Type at least 3 letters of the name, phone or UHID';
+
+  @override
+  String get labPlaceOrder => 'Place order';
+
+  @override
+  String get labPriorityNormal => 'Normal';
+
+  @override
+  String labProgressLabel(int stage, int total) {
+    return 'Stage $stage of $total';
+  }
+
+  @override
+  String get labQueueAwaitingCollection => 'To collect';
+
+  @override
+  String get labQueueAwaitingRelease => 'To release';
+
+  @override
+  String get labQueueCancelled => 'Cancelled';
+
+  @override
+  String get labQueueInProgress => 'In progress';
+
+  @override
+  String get labQueueReleased => 'Released';
+
+  @override
+  String get labQueueSampleCollected => 'Sample collected';
+
+  @override
+  String get labReceivedBy => 'Received by';
+
+  @override
+  String labReleaseConfirm(String test) {
+    return 'Release the verified result of $test? The doctor and the patient will then see it.';
+  }
 
   @override
   String get labReleasedOnly =>
       'Reports appear here after the laboratory has checked and released them.';
+
+  @override
+  String get labResultAwaitingVerification => 'Awaiting verification';
+
+  @override
+  String get labResultNotVerifiedYet =>
+      'Type the result as the laboratory reports it. It stays unverified until it is verified as a separate step.';
+
+  @override
+  String get labResultRequired => 'Enter the result.';
+
+  @override
+  String get labResultText => 'Result';
+
+  @override
+  String get labResultVerified => 'Verified';
+
+  @override
+  String get labReviewOrder => 'Review order';
+
+  @override
+  String get labReviewOrderHint =>
+      'Check the patient and the test. The order is placed only when the hospital system confirms it.';
+
+  @override
+  String get labSample => 'Sample';
+
+  @override
+  String get labSampleNumber => 'Sample number';
+
+  @override
+  String get labSampleNumberHint =>
+      'Scan the label, or leave empty and the hospital system numbers the sample.';
+
+  @override
+  String get labSampleType => 'Sample type';
+
+  @override
+  String get labSearchHint => 'Search test, patient or sample number';
+
+  @override
+  String get labStatusCollected => 'Sample collected';
+
+  @override
+  String get labStatusDispatched => 'Dispatched';
+
+  @override
+  String get labStatusOrdered => 'Ordered';
+
+  @override
+  String get labStatusProcessing => 'Processing';
+
+  @override
+  String get labStatusReceived => 'Received in lab';
+
+  @override
+  String get labStatusResultEntered => 'Result entered';
+
+  @override
+  String get labStatusSamplePending => 'Sample pending';
+
+  @override
+  String get labStatusVerified => 'Verified';
+
+  @override
+  String get labStepCollect => 'Collect sample';
+
+  @override
+  String labStepConfirm(String step, String test) {
+    return '$step for $test?';
+  }
+
+  @override
+  String get labStepDispatch => 'Dispatch sample';
+
+  @override
+  String labStepDone(String step) {
+    return '$step: saved by the hospital system.';
+  }
+
+  @override
+  String get labStepEnterResult => 'Enter result';
+
+  @override
+  String get labStepReceive => 'Receive in lab';
+
+  @override
+  String get labStepRefused =>
+      'The hospital system refused this step: the order has probably moved on. It has been reloaded.';
+
+  @override
+  String get labStepRelease => 'Release result';
+
+  @override
+  String get labStepStartProcessing => 'Start processing';
+
+  @override
+  String get labStepVerify => 'Verify result';
 
   @override
   String get labTestName => 'Test name';
@@ -884,7 +2587,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labTestNameRequired => 'Enter the test name.';
 
   @override
+  String labTestNameTooLong(int max) {
+    return 'Use at most $max characters.';
+  }
+
+  @override
   String get labTestStatus => 'Lab test status';
+
+  @override
+  String get labTimeline => 'Timeline';
+
+  @override
+  String get labTotalOrders => 'Lab orders';
+
+  @override
+  String get labVerifiedBy => 'Verified by';
+
+  @override
+  String get labVerifySameUser =>
+      'You entered this result, so a different authorised person must verify it.';
+
+  @override
+  String labVerifyConfirm(String test) {
+    return 'Verify the result of $test? Verify only after checking the entered result against the sample and the instrument report.';
+  }
+
+  @override
+  String get labWorklist => 'Worklist';
+
+  @override
+  String get labWorklistNewestFirst => 'Newest orders first';
 
   @override
   String get laboratory => 'Laboratory';
@@ -930,7 +2662,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lookupAndLogin => 'Lookup & Login';
 
   @override
+  String get lowStock => 'Low stock';
+
+  @override
+  String get manufacturer => 'Manufacturer';
+
+  @override
+  String get markGiven => 'Given';
+
+  @override
+  String get markHeld => 'Hold';
+
+  @override
+  String get markMissed => 'Missed';
+
+  @override
   String get markReadFailed => 'Could not mark as read';
+
+  @override
+  String get markRefused => 'Refused';
+
+  @override
+  String get medicationAdministration => 'Medication administration';
+
+  @override
+  String get medicationOrdersByDoctor =>
+      'Medication orders are written by the doctor. Nurses record the doses given under them.';
 
   @override
   String get medicationSafetyAlerts => 'Medication safety alerts';
@@ -965,6 +2722,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get medicineStock => 'Medicines';
+
+  @override
   String get medicines => 'Medicines';
 
   @override
@@ -985,10 +2745,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get mrp => 'MRP';
+
+  @override
   String get myDoctorProfile => 'My doctor profile';
 
   @override
   String get myHospitals => 'My hospitals';
+
+  @override
+  String get myNurseProfile => 'My nurse profile';
 
   @override
   String get myProfile => 'My profile';
@@ -1105,6 +2871,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noAccessTitle => 'You don\'t have access';
 
   @override
+  String get noActiveStay => 'No current admission or open visit';
+
+  @override
   String get noActiveToken => 'No active token';
 
   @override
@@ -1137,11 +2906,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noDiagnosesYet => 'No diagnoses yet';
 
   @override
+  String get noDispensingYet => 'Nothing dispensed yet';
+
+  @override
   String get noDoctorInbox =>
       'Doctor notifications are not available: the hospital system has no inbox for staff yet.';
 
   @override
   String get noDocumentsYet => 'No documents yet';
+
+  @override
+  String get noDosesDue => 'No doses due';
+
+  @override
+  String get noDutyToday => 'No duty assigned for today';
+
+  @override
+  String get noEncounterForVitals =>
+      'Vitals are recorded on an admission or an open OPD visit; this patient has neither.';
 
   @override
   String get noFreeSlots => 'No free time on this day. Try another date.';
@@ -1167,6 +2949,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Reports for tests in progress appear once they are released.';
 
   @override
+  String get noMedicationOrders => 'No active medication orders';
+
+  @override
+  String get noMedicinesFound => 'No medicines found';
+
+  @override
   String get noMedicinesListed => 'No medicines listed';
 
   @override
@@ -1174,6 +2962,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noNotifications => 'No notifications';
+
+  @override
+  String get noOpenTasks => 'No open tasks';
 
   @override
   String get noOtherDevices => 'No signed-in devices.';
@@ -1199,11 +2990,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noPrescriptionsForVisit => 'No prescription on this visit yet';
 
   @override
+  String get noPrescriptionsInQueue => 'No prescriptions here';
+
+  @override
   String get noPrescriptionsYet => 'No prescriptions yet';
 
   @override
   String get noPrescriptionsYetHint =>
       'Prescriptions from your visits will appear here.';
+
+  @override
+  String get noReadingsYet => 'No readings recorded yet';
 
   @override
   String get noResultValues => 'No values in this report';
@@ -1212,10 +3009,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noShowTitle => 'Mark as no-show?';
 
   @override
+  String get noStaffInbox =>
+      'Notifications are not available: the hospital system has no inbox for staff yet.';
+
+  @override
+  String get noStockMovements => 'No stock movements yet';
+
+  @override
   String get noTokenServed => 'No token being served';
 
   @override
   String get noUpcomingAppointments => 'No upcoming appointments';
+
+  @override
+  String get noUsableBatch =>
+      'No unexpired batch of this medicine is in stock.';
 
   @override
   String get noVisitsToShow => 'No visits to show';
@@ -1229,6 +3037,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noVitalsYet => 'No vitals recorded on this visit';
+
+  @override
+  String get noWardPatients => 'No patients on your duty';
+
+  @override
+  String get noWardPatientsHint =>
+      'Patients appear here when they are in a ward you are on duty in, or assigned to you for today\'s shift.';
 
   @override
   String get nobodyCalled => 'Nobody called';
@@ -1266,6 +3081,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'You are not a member of any hospital yet.';
 
   @override
+  String get notScheduled => 'Not scheduled';
+
+  @override
   String get notSignedInSignIn => 'Not signed in · Sign in';
 
   @override
@@ -1299,6 +3117,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notePresentIllness => 'History of present illness';
 
   @override
+  String get noteSaved => 'Note saved by the hospital system.';
+
+  @override
+  String get noteText => 'Note';
+
+  @override
+  String get noteTextRequired => 'Write the note first.';
+
+  @override
+  String noteTooLong(int count) {
+    return 'Keep the note under $count characters.';
+  }
+
+  @override
+  String get noteType => 'Note type';
+
+  @override
+  String get noteTypeCommunication => 'Communication';
+
+  @override
+  String get noteTypeEducation => 'Patient education';
+
+  @override
+  String get noteTypeHandoff => 'Shift handoff';
+
+  @override
+  String get noteTypeIncident => 'Incident report';
+
+  @override
+  String get noteTypeProgress => 'Progress note';
+
+  @override
+  String get notesAreFinal =>
+      'Saved notes cannot be edited. To correct one, add a new note.';
+
+  @override
+  String get nothingLeftToDispense =>
+      'Nothing is left to dispense on this prescription.';
+
+  @override
   String get nothingNeedsAttention => 'Nothing needs attention';
 
   @override
@@ -1321,6 +3179,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get nurseProfileMissing =>
+      'No nurse profile is linked to your login at this hospital. Ask the hospital Admin to link it.';
+
+  @override
+  String get nursingNotes => 'Nursing notes';
+
+  @override
+  String get onThisStay => 'This admission';
+
+  @override
+  String opdVisitOn(String date) {
+    return 'OPD visit · $date';
+  }
+
+  @override
   String get open => 'Open';
 
   @override
@@ -1333,10 +3206,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openPatientRecord => 'Open patient record';
 
   @override
+  String get openTasks => 'Open tasks';
+
+  @override
   String get openVisits => 'Open visits';
 
   @override
   String get operations => 'Operations';
+
+  @override
+  String get opsBackToList => 'Back to list';
+
+  @override
+  String get opsSaved => 'Saved by the hospital system.';
+
+  @override
+  String get opsSearch => 'Search';
+
+  @override
+  String get opsStepRefused =>
+      'The hospital system did not allow this step for the record as it is now. Refresh to see its current state.';
 
   @override
   String get orDivider => 'OR';
@@ -1358,6 +3247,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String otpSentTo(String phone) {
     return 'Enter the 6-digit OTP sent to $phone';
   }
+
+  @override
+  String get outOfStock => 'Out of stock';
 
   @override
   String get outstandingBalance => 'Outstanding balance';
@@ -1442,6 +3334,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Patients see their own appointments, prescriptions, reports and bills.';
 
   @override
+  String get patientsInCare => 'Patients in care';
+
+  @override
   String get payAtHospital => 'Bills are paid at the hospital';
 
   @override
@@ -1449,10 +3344,43 @@ class AppLocalizationsEn extends AppLocalizations {
       'Online payment is not available yet. Payments made at the billing desk appear here.';
 
   @override
+  String get paymentBankTransfer => 'Bank transfer';
+
+  @override
+  String get paymentCard => 'Card';
+
+  @override
+  String get paymentCash => 'Cash';
+
+  @override
   String get paymentHistory => 'Payment history';
 
   @override
+  String get paymentUpi => 'UPI';
+
+  @override
+  String get pendingPrescriptions => 'Prescriptions to dispense';
+
+  @override
+  String get pendingTasks => 'Pending tasks';
+
+  @override
+  String get pharmacyActivity => 'Activity';
+
+  @override
+  String get pharmacyIntro =>
+      'Prescriptions to dispense, medicine stock and recent activity at this hospital.';
+
+  @override
   String get pickDate => 'Pick a date';
+
+  @override
+  String get pickerChange => 'Change';
+
+  @override
+  String pickerTypeMore(int count) {
+    return 'Type at least $count characters.';
+  }
 
   @override
   String get platformAndroid => 'Android';
@@ -1475,7 +3403,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prescribeAnyway => 'Prescribe anyway';
 
   @override
+  String prescribedIssuedLeft(int prescribed, int issued, int left) {
+    return 'Prescribed $prescribed · Issued $issued · Left $left';
+  }
+
+  @override
   String get prescription => 'Prescription';
+
+  @override
+  String get prescriptionCancelledNoDispense =>
+      'This prescription was cancelled; it cannot be dispensed.';
+
+  @override
+  String prescriptionCode(int id) {
+    return 'RX-$id';
+  }
 
   @override
   String get prescriptionFreeTextNote =>
@@ -1484,6 +3426,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get prescriptionMaybeSaved =>
       'This prescription may already be saved. Check the list below before saving again.';
+
+  @override
+  String get prescriptionNeedsVerification =>
+      'This paper prescription must be verified by a second pharmacist or an Admin before it is dispensed.';
+
+  @override
+  String get prescriptionQueue => 'Prescriptions';
 
   @override
   String prescriptionSaved(String id) {
@@ -1495,6 +3444,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get priority => 'Priority';
+
+  @override
+  String get priorityRoutine => 'Routine';
+
+  @override
+  String get priorityStat => 'STAT';
 
   @override
   String get profileChangesAtHospital =>
@@ -1509,7 +3464,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get qualification => 'Qualification';
+
+  @override
   String get quantity => 'Quantity';
+
+  @override
+  String get quantityNow => 'Quantity to issue now';
 
   @override
   String get queueCall => 'Call';
@@ -1567,16 +3528,111 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reasonForVisit => 'Reason for visit';
 
   @override
+  String get reasonRequired => 'Reason (required)';
+
+  @override
   String get recentConsultations => 'Recent consultations';
+
+  @override
+  String get recentDispensing => 'Recent dispensing';
 
   @override
   String get recentLabReports => 'Recent lab reports';
 
   @override
+  String get recentNursingActivity => 'Recent nursing activity';
+
+  @override
   String get recentPrescriptions => 'Recent prescriptions';
 
   @override
+  String get recentStockMovements => 'Recent stock movements';
+
+  @override
   String get recentlyRegistered => 'Recently registered patients';
+
+  @override
+  String get receptionAppointmentsIntro =>
+      'Bookings at this hospital. Check patients in to give them a queue token.';
+
+  @override
+  String receptionCheckedIn(String name, String token) {
+    return '$name is checked in. Token #$token.';
+  }
+
+  @override
+  String get receptionCheckIn => 'Check in';
+
+  @override
+  String get receptionLink => 'Register at this hospital';
+
+  @override
+  String receptionLinked(String name, String uhid) {
+    return '$name is now registered here. Patient ID: $uhid';
+  }
+
+  @override
+  String get receptionLinkIntro =>
+      'For a patient who already has an account, for example from the patient app. Ask for their mobile number and date of birth.';
+
+  @override
+  String get receptionLinkTitle => 'Register an existing patient here';
+
+  @override
+  String get receptionMultipleMatch =>
+      'More than one patient has this mobile number and date of birth. Ask the patient to join from the patient app.';
+
+  @override
+  String get receptionNoAppointments => 'No bookings on this day.';
+
+  @override
+  String get receptionNoMatch =>
+      'No patient has this mobile number and date of birth. Register them as new.';
+
+  @override
+  String get receptionNoResults => 'No patient found.';
+
+  @override
+  String get receptionPatientsIntro =>
+      'Find a patient, register a new one, or register an existing patient at this hospital.';
+
+  @override
+  String get receptionPhoneInvalid => 'Enter the 10-digit mobile number.';
+
+  @override
+  String get receptionPortalAccount =>
+      'This mobile number already has a patient app account. Register that patient here with their date of birth below.';
+
+  @override
+  String get receptionPossibleDuplicate =>
+      'A patient with this mobile number is already registered here. Check the list, or register anyway if this is a different person.';
+
+  @override
+  String get receptionQueueIntro =>
+      'Today\'s queue at this hospital. Doctors call and see patients from their own queue.';
+
+  @override
+  String get receptionRegister => 'Register patient';
+
+  @override
+  String get receptionRegisterAnyway => 'Register anyway';
+
+  @override
+  String receptionRegistered(String name, String uhid) {
+    return '$name is registered. Patient ID: $uhid';
+  }
+
+  @override
+  String get receptionRegisterTitle => 'Register a new patient';
+
+  @override
+  String get receptionSearch => 'Search';
+
+  @override
+  String get receptionSearchHint => 'Name, mobile number or patient ID';
+
+  @override
+  String get recordOn => 'Record on';
 
   @override
   String get recordSignedNoChange =>
@@ -1593,6 +3649,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get refund => 'Refund';
+
+  @override
+  String get registerAtHospital => 'Hospital to register at';
 
   @override
   String get registerIntro =>
@@ -1620,6 +3679,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get removeMedicine => 'Remove medicine';
+
+  @override
+  String get reorderLevel => 'Reorder level';
 
   @override
   String get reportNotes => 'Report notes';
@@ -1719,16 +3781,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roleReceptionist => 'Receptionist';
 
   @override
+  String roomNumber(String room) {
+    return 'Room $room';
+  }
+
+  @override
+  String get route => 'Route';
+
+  @override
+  String get saveNote => 'Save note';
+
+  @override
   String get saveNoteDraft => 'Save note as draft';
 
   @override
   String get saveVitals => 'Save vitals';
 
   @override
+  String get scheduledFor => 'Scheduled for';
+
+  @override
   String get searchByNameOrCity => 'Search by name or city';
 
   @override
   String get searchHospitals => 'Search hospitals';
+
+  @override
+  String get searchMedicinesHint => 'Search medicines by name';
 
   @override
   String get searchPages => 'Search pages';
@@ -1738,6 +3817,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchPatientsHint => 'Name, mobile number or UHID';
+
+  @override
+  String get searchPrescriptionsHint => 'RX number, patient name or UHID';
+
+  @override
+  String get searchWardPatients => 'Search by name, ward or bed';
 
   @override
   String get selectDoctor => 'Select doctor';
@@ -1780,6 +3865,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings => 'Settings';
+
+  @override
+  String get shiftEvening => 'Evening';
+
+  @override
+  String get shiftMorning => 'Morning';
+
+  @override
+  String get shiftNight => 'Night';
+
+  @override
+  String showingFirstOf(int shown, int total) {
+    return 'Showing the first $shown of $total. Search to narrow the list.';
+  }
 
   @override
   String get signIn => 'Sign in';
@@ -1868,7 +3967,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get specialization => 'Specialisation';
 
   @override
+  String get staffAccessEnded => 'Access ended';
+
+  @override
+  String get staffIntro => 'Staff with access to this hospital.';
+
+  @override
+  String get staffInvitePending => 'Invite pending';
+
+  @override
+  String get staffManagersOnly =>
+      'Only this hospital\'s Admin or Hospital Manager can see the staff list.';
+
+  @override
+  String get staffNone => 'No staff found.';
+
+  @override
   String get staffPortal => 'Staff portal';
+
+  @override
+  String get staffSearch => 'Search staff by name or employee ID';
 
   @override
   String get staffSignIn => 'Staff sign in';
@@ -1880,10 +3998,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startConsultation => 'Start consultation';
 
   @override
+  String get startTask => 'Start';
+
+  @override
   String get status => 'Status';
 
   @override
   String get statusAcknowledged => 'Acknowledged';
+
+  @override
+  String get statusAdmitted => 'Admitted';
 
   @override
   String get statusCalled => 'Called';
@@ -1901,10 +4025,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusConfirmed => 'Confirmed';
 
   @override
+  String get statusDeferred => 'Deferred';
+
+  @override
+  String get statusDischargeInitiated => 'Discharge initiated';
+
+  @override
+  String get statusDischarged => 'Discharged';
+
+  @override
   String get statusDispensed => 'Dispensed';
 
   @override
   String get statusInConsultation => 'In consultation';
+
+  @override
+  String get statusInProgress => 'In progress';
 
   @override
   String get statusNoShow => 'No show';
@@ -1959,6 +4095,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stepSelectHospitalText => 'Pick where you want to be seen.';
+
+  @override
+  String get stockAdjust => 'Adjusted';
+
+  @override
+  String get stockBatch => 'Stock batch';
+
+  @override
+  String get stockChangedByStore =>
+      'Stock is read-only here. It changes only when medicines are dispensed or received, or when the store (Admin, Hospital Manager or Inventory Staff) corrects it.';
+
+  @override
+  String get stockIn => 'In';
+
+  @override
+  String get stockMovements => 'Stock movements';
+
+  @override
+  String get stockOut => 'Out';
+
+  @override
+  String get substitute => 'Substitute';
+
+  @override
+  String substituteFor(String medicine) {
+    return 'instead of $medicine';
+  }
+
+  @override
+  String get substituteReason => 'Why is a substitute given?';
+
+  @override
+  String get supplier => 'Supplier';
 
   @override
   String get switchingHospitalNote =>
@@ -2016,6 +4185,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timeLabel => 'Time';
 
   @override
+  String get toDispense => 'To dispense';
+
+  @override
   String get todayAtAGlance => 'Today at a glance';
 
   @override
@@ -2023,6 +4195,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todaysPatientFlow => 'Today\'s patient flow';
+
+  @override
+  String get todaysShift => 'Today\'s duty';
 
   @override
   String get tokenCalled => 'Your token has been called';
@@ -2036,6 +4211,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tokenIdIntro => 'Enter your token number or hospital patient ID';
+
+  @override
+  String get tokenInConsultation =>
+      'You are with the doctor now. Your consultation is in progress.';
 
   @override
   String get tokenLabel => 'Token';
@@ -2052,6 +4231,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tokenOrPatientId => 'Token Number / Patient ID';
 
   @override
+  String get totalMedicines => 'Medicine batches';
+
+  @override
+  String get triageCritical => 'Critical';
+
+  @override
+  String get triageEmergency => 'Emergency';
+
+  @override
+  String get triageNonUrgent => 'Non-urgent';
+
+  @override
+  String get triageSemiUrgent => 'Semi-urgent';
+
+  @override
+  String get triageUrgent => 'Urgent';
+
+  @override
   String get tryAgain => 'Try again';
 
   @override
@@ -2061,6 +4258,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String typeToSearch(int count) {
     return 'Type at least $count letters to search';
   }
+
+  @override
+  String get unitPrice => 'Unit price';
 
   @override
   String get unread => 'Unread';
@@ -2127,7 +4327,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'This visit is closed. Its records are shown read-only.';
 
   @override
+  String get visitNotYourPatient =>
+      'Only this visit\'s doctor can start or complete the consultation.';
+
+  @override
+  String get visitPatientNotCalled =>
+      'This patient has not been called yet. Call them from the Queue first.';
+
+  @override
   String get visits => 'Visits';
+
+  @override
+  String get visitStatusMovedOn =>
+      'This visit has already moved on, so its status was not changed. The page now shows its current status.';
+
+  @override
+  String get vitalBloodPressure => 'Blood pressure';
 
   @override
   String get vitalBloodSugar => 'Blood sugar';
@@ -2184,6 +4399,56 @@ class AppLocalizationsEn extends AppLocalizations {
   String get waitingPatients => 'Waiting';
 
   @override
+  String get wardAndBed => 'Ward and bed';
+
+  @override
+  String get wardAttention => 'Needs attention on the ward';
+
+  @override
+  String get wardOrderAdd => 'Order medicine';
+
+  @override
+  String get wardOrderDose => 'Dose (with strength)';
+
+  @override
+  String get wardOrderEndDate => 'Last day (optional)';
+
+  @override
+  String get wardOrderFieldsRequired =>
+      'Choose a medicine and fill in dose, route and frequency.';
+
+  @override
+  String get wardOrderMedicine =>
+      'Medicine (from the patient\'s prescriptions)';
+
+  @override
+  String get wardOrderNoMedicines =>
+      'No prescribed medicine to order. Write a prescription in the consultation first.';
+
+  @override
+  String get wardOrderNone => 'No medication orders yet.';
+
+  @override
+  String get wardOrdersIntro =>
+      'Orders for the nurses. A dose counts as given only when a nurse records it.';
+
+  @override
+  String get wardOrdersTitle => 'Ward medication orders';
+
+  @override
+  String get wardOrderStop => 'Stop';
+
+  @override
+  String get wardOrderStopped => 'Stopped';
+
+  @override
+  String get wardPatients => 'Ward patients';
+
+  @override
+  String get wardPatientsIntro =>
+      'Patients of your duty today: in your wards, or assigned to you.';
+
+  @override
   String get weWillSendCode => 'We\'ll send a 6-digit verification code';
 
   @override
@@ -2194,4 +4459,104 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yourMobileNumber => 'Your mobile number';
+
+  @override
+  String get firstDoseLabel => 'First dose';
+
+  @override
+  String get firstDoseNextRound => 'Next medication round';
+
+  @override
+  String get firstDoseNow => 'Start now';
+
+  @override
+  String get firstDoseAt => 'Specific time';
+
+  @override
+  String get firstDosePickTime => 'Choose the date and time of the first dose';
+
+  @override
+  String get firstDoseReviewTitle => 'Review the dose schedule';
+
+  @override
+  String firstDoseReviewFirst(String when) {
+    return 'First dose: $when';
+  }
+
+  @override
+  String firstDoseReviewNext(String times) {
+    return 'Then: $times';
+  }
+
+  @override
+  String firstDoseReviewCount(int count) {
+    return '$count doses scheduled';
+  }
+
+  @override
+  String get firstDosePrn =>
+      'As needed (PRN): no doses are scheduled. Nurses record each dose when it is given.';
+
+  @override
+  String get firstDoseChoose =>
+      'The first dose cannot be set automatically: this hospital has no medication rounds for this order. Choose Start now or a specific time.';
+
+  @override
+  String get firstDoseRefused =>
+      'This first-dose time cannot be used: it is in the past or outside the order\'s dates. Choose another time.';
+
+  @override
+  String finalBillConfirmTitle(String patient) {
+    return 'Create the final bill for $patient?';
+  }
+
+  @override
+  String get finalBillConfirmBody =>
+      'The final bill brings together the bed days above and the charges already captured for this stay. Once created it can be cancelled only by an Admin or Hospital Manager, with a reason.';
+
+  @override
+  String get prnGiveDose => 'Give dose';
+
+  @override
+  String get prnAsNeededHint =>
+      'As needed (PRN): give when the patient needs it, within the doctor\'s limits.';
+
+  @override
+  String prnLimitInterval(String hours) {
+    return 'At least $hours h between doses';
+  }
+
+  @override
+  String prnLimitDaily(int count) {
+    return 'At most $count doses in 24 h';
+  }
+
+  @override
+  String get prnNoLimits => 'No dose limits set by the doctor';
+
+  @override
+  String get prnConfirmTitle => 'Give this as-needed dose now?';
+
+  @override
+  String get prnNoteLabel => 'Reason or note (optional)';
+
+  @override
+  String prnTooSoon(String hours) {
+    return 'Not recorded: too soon after the last dose. This order allows one dose every $hours h. Ask the doctor if the patient needs it sooner.';
+  }
+
+  @override
+  String prnDailyLimitReached(int count) {
+    return 'Not recorded: this order allows at most $count doses in 24 hours, and that many have been given. Ask the doctor before giving more.';
+  }
+
+  @override
+  String get prnIntervalField => 'Minimum hours between doses (optional)';
+
+  @override
+  String get prnMaxDosesField => 'Most doses in 24 hours (optional)';
+
+  @override
+  String get prnLimitsInvalid =>
+      'Enter the dose limits as numbers (hours above 0, doses 1 to 48), or leave them empty.';
 }

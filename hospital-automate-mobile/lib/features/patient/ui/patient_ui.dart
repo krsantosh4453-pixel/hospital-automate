@@ -60,20 +60,28 @@ AlertTone _toneFor(String status) => switch (status) {
   'Paid' ||
   'Released' ||
   'Dispensed' ||
+  'Administered' ||
   'Ready' => AlertTone.success,
-  'Cancelled' || 'No Show' => AlertTone.danger,
+  'Cancelled' || 'No Show' || 'Refused' || 'Missed' => AlertTone.danger,
   'Unpaid' ||
   'Partially Paid' ||
   'Called' ||
+  'Held' ||
+  'Discharge Initiated' ||
+  'Pending Verification' ||
   'Partially Dispensed' => AlertTone.warning,
   _ => AlertTone.info,
 };
 
 /// StatusBadge (Data.jsx): a small rounded label in the status colour.
 class StatusBadge extends StatelessWidget {
-  const StatusBadge({super.key, required this.status});
+  const StatusBadge({super.key, required this.status, this.label});
 
+  /// The server's status value; it picks the colour.
   final String status;
+
+  /// Text to show instead of [statusLabel] (module-specific statuses).
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +97,7 @@ class StatusBadge extends StatelessWidget {
         borderRadius: const BorderRadius.all(Radius.circular(999)),
       ),
       child: Text(
-        statusLabel(context.l10n, status),
+        label ?? statusLabel(context.l10n, status),
         style: AppTypography.caption(weight: FontWeight.w600, color: tone.text),
       ),
     );
