@@ -121,3 +121,19 @@ describe("cookie session", () => {
     expect(localStorage.getItem("refresh_token")).toBeNull()
   })
 })
+
+describe("error messages from field-error bodies", () => {
+  it("shows the server's sentences instead of raw JSON", async () => {
+    const { parseErrorDetail } = await import("../services/api.js")
+    const body = {
+      first_dose: ["This hospital has no medication rounds configured. Choose Start now or a specific time."],
+      first_dose_required: true,
+    }
+    expect(parseErrorDetail(body, 400)).toBe(
+      "This hospital has no medication rounds configured. Choose Start now or a specific time.",
+    )
+    expect(parseErrorDetail({ message: "Wrapped message" }, 400)).toBe("Wrapped message")
+    expect(parseErrorDetail({ details: { a: ["One"], b: { c: "Two" } } }, 400)).toBe("One Two")
+    expect(parseErrorDetail({ ok: false }, 409)).toBe("Request failed (409)")
+  })
+})

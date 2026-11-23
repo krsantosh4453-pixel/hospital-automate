@@ -56,8 +56,10 @@ test("doctor records intake, oxygen and mobility with the extra vitals (D2)", as
   await page.getByLabel("O₂ flow (L/min)").fill("2")
   await page.getByLabel("Mobility").selectOption("With assistance")
   await page.getByRole("button", { name: "Save vitals" }).click()
-  const row = page.getByRole("row").filter({ hasText: "In/Out 1200/800 mL" })
+  // Newest first: a retry adds a second row with the same values.
+  const row = page.getByRole("row").filter({ hasText: "In/Out 1200/800 mL" }).first()
   await expect(row).toContainText("Nasal cannula 2 L/min")
   await expect(row).toContainText("With assistance")
-  await expect(row).toContainText("by demo.doctor1")
+  // The recorder is shown by their doctor name, not their login (staff_display_name).
+  await expect(row).toContainText("by Dr Asha Mehta")
 })

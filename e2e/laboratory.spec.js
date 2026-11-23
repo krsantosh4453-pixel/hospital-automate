@@ -48,10 +48,16 @@ test("doctor orders a test, lab releases the result, doctor reads it", async ({ 
   await resultDialog.getByRole("button", { name: "Save" }).click()
   await expect(row.getByRole("cell").nth(4)).toContainText("Result Entered")
 
-  await row.getByRole("button", { name: "Verify Result" }).click()
-  await expect(row.getByRole("cell").nth(4)).toContainText("Verified")
-  await row.getByRole("button", { name: "Release Result" }).click()
-  await expect(row.getByRole("cell").nth(4)).toContainText("Released")
+  // BUG-06: a different authorised person verifies (maker-checker). The demo
+  // hospital has one lab technician, so its administrator verifies.
+  const checker = await (await browser.newContext()).newPage()
+  await signInAs(checker, "demo.admin")
+  await checker.goto("/laboratory")
+  const checkerRow = checker.getByRole("row", { name: new RegExp(`^${orderId} `) })
+  await checkerRow.getByRole("button", { name: "Verify Result" }).click()
+  await expect(checkerRow.getByRole("cell").nth(4)).toContainText("Verified")
+  await checkerRow.getByRole("button", { name: "Release Result" }).click()
+  await expect(checkerRow.getByRole("cell").nth(4)).toContainText("Released")
 
   await doctor.reload()
   await doctor.getByRole("tab", { name: /Released/ }).click()

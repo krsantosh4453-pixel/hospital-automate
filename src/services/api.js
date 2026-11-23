@@ -91,14 +91,26 @@ function buildHeaders(extra = {}, body) {
   return headers
 }
 
-function parseErrorDetail(body, status) {
+// The sentences in a field-error body such as {"first_dose": ["..."], "first_dose_required": true}:
+// strings and lists of strings, nested objects included; flags and ids are skipped.
+function fieldMessages(value) {
+  if (typeof value === 'string') return value.trim() ? [value.trim()] : []
+  if (Array.isArray(value)) return value.flatMap(fieldMessages)
+  if (value && typeof value === 'object') return Object.values(value).flatMap(fieldMessages)
+  return []
+}
+
+export function parseErrorDetail(body, status) {
   if (!body) return `Request failed (${status})`
   if (typeof body === 'string') return body
   // The backend wraps errors as { error: true, message, details }.
   const text = [body.message, body.detail, body.error].find(
     (value) => typeof value === 'string' && value.trim()
   )
-  return text || (typeof body === 'object' ? JSON.stringify(body.details || body) : `Request failed (${status})`)
+  if (text) return text
+  // A view that answers with field errors directly: show the sentences, never raw JSON.
+  const messages = typeof body === 'object' ? fieldMessages(body.details || body) : []
+  return messages.length ? [...new Set(messages)].join(' ') : `Request failed (${status})`
 }
 
 let refreshPromise = null
