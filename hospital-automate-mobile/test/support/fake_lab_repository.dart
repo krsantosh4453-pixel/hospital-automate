@@ -89,6 +89,7 @@ class FakeLabRepository implements LabRepository {
       LabStep.enterResult => LabStatus.resultEntered,
       LabStep.verify => LabStatus.verified,
       LabStep.release => LabStatus.released,
+      LabStep.reject => LabStatus.processing,
     };
     return _replace(id, next);
   }

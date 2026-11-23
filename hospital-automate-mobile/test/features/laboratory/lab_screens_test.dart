@@ -7,6 +7,7 @@ import 'package:hms_mobile/core/network/api_exception.dart';
 import 'package:hms_mobile/core/security/session_controller.dart';
 import 'package:hms_mobile/features/dashboard/dashboard_stats.dart';
 import 'package:hms_mobile/features/doctor/data/doctor_models.dart';
+import 'package:hms_mobile/features/laboratory/data/lab_workflow.dart';
 import 'package:hms_mobile/features/patient/data/record_models.dart';
 
 import '../../support/test_app.dart';
@@ -241,6 +242,38 @@ void main() {
         find.textContaining('Your role does not have access'),
         findsNothing,
       );
+    });
+
+    testWidgets('L-1: a wrong result is sent back with a reason', (
+      tester,
+    ) async {
+      final repo = FakeLabRepository(tests: sampleOrders());
+      await pumpLab(tester, '/laboratory/6', repository: repo);
+      await tapVisible(tester, find.byKey(const Key('lab-reject')));
+      // A reason is required before anything is sent.
+      await tapVisible(tester, find.byKey(const Key('lab-step-submit')));
+      expect(find.textContaining('at least 5 characters'), findsOneWidget);
+      expect(repo.steps, isEmpty);
+
+      await tester.enterText(
+        find.byKey(const Key('reject-reason')),
+        'Units missing, re-enter',
+      );
+      await tapVisible(tester, find.byKey(const Key('lab-step-submit')));
+      expect(repo.steps.single.step, LabStep.reject);
+      expect(repo.steps.single.body, {'reason': 'Units missing, re-enter'});
+      // Back to processing: the next step is entering the result again.
+      expect(find.byKey(const Key('lab-reject')), findsNothing);
+    });
+
+    testWidgets('L-1: a released result offers no reject', (tester) async {
+      await pumpLab(tester, '/laboratory/7');
+      expect(find.byKey(const Key('lab-reject')), findsNothing);
+    });
+
+    testWidgets('L-1: a manager is offered no reject', (tester) async {
+      await pumpLab(tester, '/laboratory/6', session: labManager());
+      expect(find.byKey(const Key('lab-reject')), findsNothing);
     });
 
     testWidgets('a manager is told the step is for other roles', (

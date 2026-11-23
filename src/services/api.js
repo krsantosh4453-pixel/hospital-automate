@@ -2065,6 +2065,9 @@ api.laboratory = {
       }),
     releaseResult: async (id) =>
       request(`${API_BASE_URL}/laboratory/${id}/release_result/`, { method: "POST" }),
+    // L-1: send a wrong, unreleased result back to processing with a reason.
+    rejectResult: async (id, reason) =>
+      request(`${API_BASE_URL}/laboratory/${id}/reject_result/`, { method: "POST", ...jsonBody({ reason }) }),
     cancel: async (id) =>
       request(`${API_BASE_URL}/laboratory/${id}/cancel/`, { method: "POST" }),
     // H-14: verified critical values no doctor has acknowledged yet.

@@ -4544,4 +4544,18 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get prnLimitsInvalid =>
       'खुराक की सीमा संख्या में लिखें (घंटे 0 से अधिक, खुराक 1 से 48), या खाली छोड़ें।';
+
+  @override
+  String get labStepReject => 'परिणाम अस्वीकार करें';
+
+  @override
+  String get labRejectReason => 'परिणाम गलत क्यों है?';
+
+  @override
+  String get labRejectHelp =>
+      'जाँच फिर से प्रोसेसिंग में जाती है और परिणाम दोबारा दर्ज होता है, फिर कोई दूसरा व्यक्ति सत्यापित करता है। अस्वीकार किया गया परिणाम सुरक्षित रहता है।';
+
+  @override
+  String get labRejectReasonRequired =>
+      'बताएँ परिणाम गलत क्यों है (कम से कम 5 अक्षर)।';
 }

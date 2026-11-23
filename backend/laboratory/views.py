@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.exceptions import ValidationError
@@ -18,6 +18,7 @@ from users.permissions import (
 from . import flags
 from .models import (
     LabReferenceRange,
+    LabResultRejection,
     LabTest,
     LabVerificationPolicy,
     SampleCollection,
@@ -41,6 +42,13 @@ from .serializers import (
 class LabTestViewSet(HospitalScopedViewSet):
     queryset = LabTest.objects.select_related("hospital", "patient", "doctor", "visit").prefetch_related(
         "sample_collection", "sample_dispatch", "lab_result"
+    ).annotate(
+        # L-1, in the same query (no prefetch): see LabTestSerializer.
+        rejection_total=Count("rejections", distinct=True),
+        latest_rejection_reason=Subquery(
+            LabResultRejection.objects.filter(lab_test=OuterRef("pk")).order_by("-rejected_at", "-pk")
+            .values("reason")[:1]
+        ),
     )
     serializer_class = LabTestSerializer
     permission_classes = [IsLabStaff | IsDoctor | IsNurse | IsPatientReadOnly | IsHospitalManagerReadOnly]
@@ -343,6 +351,43 @@ class LabTestViewSet(HospitalScopedViewSet):
         return Response(
             {"lab_test": LabTestSerializer(lab_test).data, "lab_result": LabResultSerializer(lab_result).data}
         )
+
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
+    def reject_result(self, request, pk=None):
+        """
+        L-1: send a wrong result back before release ({reason}, required).
+        The values as entered are kept in LabResultRejection, the result is
+        removed and the test returns to Processing so it can be entered
+        again (and verified again by a different person). A released result
+        cannot be rejected here. Audited.
+        """
+        reason = str(request.data.get("reason") or "").strip()
+        if len(reason) < 5:
+            return Response({"reason": "Say why the result is rejected (at least 5 characters)."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        lab_test = self.get_object()
+        with transaction.atomic():
+            lab_test = self._locked(lab_test)
+            lab_result = LabResult.objects.select_for_update().filter(lab_test=lab_test).first()
+            if lab_result is None or lab_test.status not in ("Result Entered", "Verified"):
+                return Response({"detail": "Only an entered or verified result that is not released can be rejected."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            rejection = LabResultRejection.objects.create(
+                lab_test=lab_test, result_data=lab_result.result_data, result_text=lab_result.result_text,
+                reference_ranges=lab_result.reference_ranges, abnormal_flags=lab_result.abnormal_flags,
+                flag_details=lab_result.flag_details, entered_by=lab_result.entered_by,
+                entered_at=lab_result.entered_at, was_verified=lab_result.is_verified,
+                rejected_by=request.user, reason=reason,
+            )
+            lab_result.delete()
+            lab_test.status = "Processing"
+            lab_test.result = ""
+            lab_test.verified_at = None
+            lab_test.save(update_fields=["status", "result", "verified_at"])
+        record_audit(request, "lab.result.rejected", lab_test, hospital=lab_test.hospital_id,
+                     details={"reason": reason, "rejection": rejection.pk, "was_verified": rejection.was_verified,
+                              "entered_by": rejection.entered_by_id})
+        return Response({"lab_test": LabTestSerializer(lab_test).data, "rejection": rejection.pk})
 
     @action(detail=False, methods=["get"], url_path="critical-results",
             permission_classes=[IsLabStaff | IsDoctor | IsNurse | IsHospitalManagerReadOnly])

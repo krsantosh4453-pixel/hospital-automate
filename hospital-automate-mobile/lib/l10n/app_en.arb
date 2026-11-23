@@ -2068,5 +2068,9 @@
   },
   "prnIntervalField": "Minimum hours between doses (optional)",
   "prnMaxDosesField": "Most doses in 24 hours (optional)",
-  "prnLimitsInvalid": "Enter the dose limits as numbers (hours above 0, doses 1 to 48), or leave them empty."
+  "prnLimitsInvalid": "Enter the dose limits as numbers (hours above 0, doses 1 to 48), or leave them empty.",
+  "labStepReject": "Reject result",
+  "labRejectReason": "Why is the result wrong?",
+  "labRejectHelp": "The test goes back to processing and the result is entered again, then verified by someone else. The rejected result is kept.",
+  "labRejectReasonRequired": "Say why the result is wrong (at least 5 characters)."
 }

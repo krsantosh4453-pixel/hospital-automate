@@ -77,6 +77,9 @@ function Laboratory() {
     Verified: ["Release Result", "releaseResult"],
   }
 
+  // L-1: a wrong result is sent back before release; the server keeps it.
+  const REJECTABLE = ["Result Entered", "Verified"]
+
   const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
 
   const toRow = (t) => ({
@@ -444,6 +447,25 @@ function Laboratory() {
     return { result_text: resultText.trim(), result_data: resultData }
   }
 
+  const handleReject = async (test) => {
+    const reason = await promptText({
+      title: t("Reject the result for {test}?", { test: test.test }),
+      label: t("Why is it wrong? The test goes back to processing and the result is entered again."),
+      confirmLabel: t("Reject Result"),
+    })
+    if (!reason || !reason.trim()) return
+    setBusyId(test.id)
+    try {
+      await api.laboratory.tests.rejectResult(test.apiId, reason.trim())
+      toast.success(t("Result sent back. Enter the corrected result."))
+      await loadTests()
+    } catch (err) {
+      toast.error(t("Result not rejected: {reason}", { reason: err.message }))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   // Workflow stages in order, for the per-order progress indicator.
   const STAGES = ["Ordered", "Collected", "Dispatched", "Received", "Processing", "Result Entered", "Verified", "Released"]
   const stageIndex = (stage) => {
@@ -591,6 +613,11 @@ function Laboratory() {
                                 {step && (
                                   <Button size="sm" variant="subtle" loading={busyId === test.id} onClick={() => handleProcess(test.id)}>
                                     {step[0]}
+                                  </Button>
+                                )}
+                                {REJECTABLE.includes(test.stage) && (
+                                  <Button size="sm" variant="danger-ghost" disabled={busyId === test.id} onClick={() => handleReject(test)}>
+                                    {t("Reject Result")}
                                   </Button>
                                 )}
                                 <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(test)} aria-label={`View ${test.id}`} title={t("View")} />

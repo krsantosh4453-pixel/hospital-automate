@@ -145,6 +145,10 @@ class LabTestSerializer(serializers.ModelSerializer):
     sample_collection = SampleCollectionSerializer(read_only=True)
     sample_dispatch = SampleDispatchSerializer(read_only=True)
     lab_result = LabResultSerializer(read_only=True)
+    # L-1: how often a result was sent back, and the latest reason. The rejected
+    # values themselves stay in LabResultRejection and the audit log.
+    rejection_count = serializers.SerializerMethodField()
+    last_rejection_reason = serializers.SerializerMethodField()
 
     class Meta:
         model = LabTest
@@ -171,6 +175,8 @@ class LabTestSerializer(serializers.ModelSerializer):
             "sample_collection",
             "sample_dispatch",
             "lab_result",
+            "rejection_count",
+            "last_rejection_reason",
         ]
         # status and result move only through the collect/dispatch/receive/
         # process/enter/verify/release actions.
@@ -180,6 +186,18 @@ class LabTestSerializer(serializers.ModelSerializer):
             "patient_name", "hospital_name", "doctor_name",
             "sample_collection", "sample_dispatch", "lab_result"
         ]
+
+    # The list view annotates both (no extra query); a single test read
+    # after an action falls back to one small query.
+    def get_rejection_count(self, obj) -> int:
+        total = getattr(obj, "rejection_total", None)
+        return total if total is not None else obj.rejections.count()
+
+    def get_last_rejection_reason(self, obj) -> str:
+        if hasattr(obj, "latest_rejection_reason"):
+            return obj.latest_rejection_reason or ""
+        latest = obj.rejections.order_by("-rejected_at", "-pk").values_list("reason", flat=True).first()
+        return latest or ""
 
     def validate_hospital(self, value):
         """Ensure user has access to the hospital."""

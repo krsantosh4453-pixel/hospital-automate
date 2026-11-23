@@ -4559,4 +4559,18 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get prnLimitsInvalid =>
       'Enter the dose limits as numbers (hours above 0, doses 1 to 48), or leave them empty.';
+
+  @override
+  String get labStepReject => 'Reject result';
+
+  @override
+  String get labRejectReason => 'Why is the result wrong?';
+
+  @override
+  String get labRejectHelp =>
+      'The test goes back to processing and the result is entered again, then verified by someone else. The rejected result is kept.';
+
+  @override
+  String get labRejectReasonRequired =>
+      'Say why the result is wrong (at least 5 characters).';
 }

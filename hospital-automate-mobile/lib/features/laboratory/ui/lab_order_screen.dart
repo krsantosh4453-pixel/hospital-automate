@@ -139,6 +139,9 @@ class _LabOrderScreenState extends State<LabOrderScreen> {
     final step = nextLabStep(test.status);
     final canStep = step != null && mayRunLabStep(session, step);
     final canCancel = mayCancelLabOrder(session, test.status);
+    final canReject =
+        mayRejectLabResult(test.status) &&
+        mayRunLabStep(session, LabStep.reject);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -171,7 +174,7 @@ class _LabOrderScreenState extends State<LabOrderScreen> {
                   DetailRow(label: t.hospital, value: test.hospitalName),
                 ],
               ),
-              if (canStep || canCancel)
+              if (canStep || canCancel || canReject)
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.x4),
                   child: Wrap(
@@ -185,6 +188,16 @@ class _LabOrderScreenState extends State<LabOrderScreen> {
                           surface: HmsSurface.card,
                           loading: _busy,
                           onPressed: _busy ? null : () => _run(test, step),
+                        ),
+                      if (canReject)
+                        HmsButton(
+                          key: const Key('lab-reject'),
+                          label: t.labStepReject,
+                          variant: HmsButtonVariant.secondary,
+                          surface: HmsSurface.card,
+                          onPressed: _busy
+                              ? null
+                              : () => _run(test, LabStep.reject),
                         ),
                       if (canCancel)
                         HmsButton(
