@@ -7,6 +7,7 @@ import { Alert, Card, CardHeader, EmptyState, SkeletonRows, StatTile, StatusBadg
 import { UPCOMING_STATUSES } from "../../config/appointmentStatus.js"
 import PatientTimeline from "../../components/clinical/PatientTimeline.jsx"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import { hasBalanceDue } from "../../utils/money.js"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 // Partly dispensed prescriptions still have medicines to collect (BUG-05).
@@ -46,7 +47,7 @@ function PatientDashboard() {
         upcomingAppointments: appts.status === "fulfilled" ? patientAppointments.filter((a) => UPCOMING_STATUSES.includes(a.status)).length : null,
         pastAppointments: appts.status === "fulfilled" ? patientAppointments.filter((a) => a.status === "Completed").length : null,
         currentPrescriptions: rx.status === "fulfilled" ? prescriptions.filter((p) => CURRENT_RX.includes(p.status)).length : null,
-        unpaidBills: bills.status === "fulfilled" ? invoices.filter((b) => b.status === "Unpaid" || b.status === "Partial").length : null,
+        unpaidBills: bills.status === "fulfilled" ? invoices.filter(hasBalanceDue).length : null,
       })
       const failed = [appts, rx, bills].find((r) => r.status === "rejected")
       setError(failed ? failed.reason?.message || "Some information could not be loaded." : null)

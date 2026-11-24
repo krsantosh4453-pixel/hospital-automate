@@ -14,6 +14,7 @@ import PriceList from "../components/billing/PriceList.jsx"
 import PricedServicePicker from "../components/billing/PricedServicePicker.jsx"
 import UnbilledWork from "../components/billing/UnbilledWork.jsx"
 import { itemsData, otherLinesOf, pricedAmount } from "../utils/billingLines.js"
+import { AMOUNT_FORMAT_ERROR, formatRupees, fromPaise, paymentToRecord, toPaise } from "../utils/money.js"
 import { Plus as PlusIcon } from "lucide-react"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
@@ -191,6 +192,16 @@ function Billing() {
   }
 
 
+  // A bill's money in whole paise, from the server's own figures when it sent
+  // them (BUG-002: no floating-point rupees in totals, balances or sums).
+  const billPaise = (bill) => {
+    const inv = bill.apiInvoice || {}
+    const total = toPaise(inv.total_amount ?? inv.total ?? calculateTotal(bill))
+    const paid = toPaise(inv.total_paid ?? bill.paid ?? 0)
+    const due = inv.balance_due !== undefined && inv.balance_due !== null ? toPaise(inv.balance_due) : total - paid
+    return { total, paid, due }
+  }
+
   // =========================
   // Statistics
   // =========================
@@ -198,7 +209,7 @@ function Billing() {
   const totalRevenue =
     hospitalBills.reduce(
       (total, bill) =>
-        total + Number(bill.paid),
+        total + billPaise(bill).paid,
       0
     )
 
@@ -206,9 +217,7 @@ function Billing() {
   const totalOutstanding =
     hospitalBills.reduce(
       (total, bill) =>
-        total +
-        calculateTotal(bill) -
-        Number(bill.paid),
+        total + billPaise(bill).due,
       0
     )
 
@@ -441,13 +450,16 @@ function Billing() {
       )
 
 
-    const paid =
-      Number(
-        formData.paid || 0
-      )
+    // BUG-002: amounts are compared in whole paise; more than 2 decimals is refused.
+    const paidPaise = toPaise(String(formData.paid || "0"))
+    const discountPaise = toPaise(String(formData.discount || "0"))
+    if (Number.isNaN(paidPaise) || paidPaise < 0 || Number.isNaN(discountPaise) || discountPaise < 0) {
+      toast.error(AMOUNT_FORMAT_ERROR)
+      return
+    }
 
-
-    if (paid > total) {
+    // A new bill's GST is added by the server, so this is the pre-tax limit.
+    if (paidPaise > toPaise(total)) {
 
       toast.error(
         "Paid amount cannot be greater than total amount."
@@ -475,10 +487,10 @@ function Billing() {
       const created = await api.billing.invoices.create(payload)
 
       // Also create payment record if paid > 0
-      if (paid > 0) {
+      if (paidPaise > 0) {
         await api.billing.payments.create({
           invoice: created.id,
-          amount: Number(paid).toFixed(2),
+          amount: fromPaise(paidPaise),
           payment_method: formData.payment,
           idempotency_key: `${created.id}-initial`,
         })
@@ -603,21 +615,23 @@ function Billing() {
       toast.error("Cannot update: missing server record ID")
       return
     }
-    const total = calculateTotal(selectedBill)
-    const alreadyPaid = Number(selectedBill.apiInvoice.total_paid || 0)
-    const paid = Number(formData.paid || 0)
-    if (paid > total) {
-      toast.error("Paid amount cannot be greater than total amount.")
+    // BUG-002: exact paise against the server's total (with GST), never floats.
+    const payment = paymentToRecord({
+      total: selectedBill.apiInvoice.total_amount ?? selectedBill.apiInvoice.total ?? calculateTotal(selectedBill),
+      alreadyPaid: selectedBill.apiInvoice.total_paid ?? "0",
+      enteredPaid: String(formData.paid ?? ""),
+    })
+    if (payment.error) {
+      toast.error(payment.error)
       return
     }
-    const additional = Math.round((paid - alreadyPaid) * 100) / 100
-    if (additional <= 0) {
-      toast.info(t("₹{alreadyPaid} has already been received. To return money, record a refund instead of lowering the paid amount.", { alreadyPaid }))
+    if (payment.info) {
+      toast.info(t(payment.info, { alreadyPaid: payment.alreadyPaid }))
       return
     }
     await api.billing.payments.create({
       invoice: selectedBill.apiInvoice.id,
-      amount: additional.toFixed(2),
+      amount: payment.amount,
       payment_method: formData.payment,
       idempotency_key: paymentKeyFor(selectedBill.apiInvoice.id),
     })
@@ -678,13 +692,17 @@ function Billing() {
       )
 
 
-    const paid =
-      Number(
-        formData.paid || 0
-      )
+    // BUG-002: amounts are compared in whole paise; more than 2 decimals is refused.
+    const paidPaise = toPaise(String(formData.paid || "0"))
+    const discountPaise = toPaise(String(formData.discount || "0"))
+    if (Number.isNaN(paidPaise) || paidPaise < 0 || Number.isNaN(discountPaise) || discountPaise < 0) {
+      toast.error(AMOUNT_FORMAT_ERROR)
+      return
+    }
 
-
-    if (paid > total) {
+    // An existing bill's limit is the server's total, which includes GST
+    // (the line sum here does not, and refused paying a GST bill in full).
+    if (paidPaise > (selectedBill ? toPaise(calculateTotal(selectedBill)) : toPaise(total))) {
 
       toast.error(
         "Paid amount cannot be greater than total amount."
@@ -701,13 +719,13 @@ function Billing() {
 
     // Payments are permanent records: an edit can only add money received.
     // Lowering the paid amount needs a refund; line items are fixed once paid.
-    const alreadyPaid = Number(selectedBill.apiInvoice.total_paid || 0)
-    const additional = Math.round((Number(paid) - alreadyPaid) * 100) / 100
-    if (additional < 0) {
+    const alreadyPaid = fromPaise(toPaise(selectedBill.apiInvoice.total_paid ?? "0"))
+    const additionalPaise = paidPaise - toPaise(alreadyPaid)
+    if (additionalPaise < 0) {
       toast.info(t("₹{alreadyPaid} has already been received. To return money, record a refund instead of lowering the paid amount.", { alreadyPaid }))
       return
     }
-    const hasPayments = alreadyPaid > 0 || (selectedBill.apiInvoice.payments || []).length > 0
+    const hasPayments = toPaise(alreadyPaid) > 0 || (selectedBill.apiInvoice.payments || []).length > 0
     // Lines charged automatically (consultation, lab, bed) are fixed; the
     // server refuses to replace them, so only the discount is sent.
     const hasCapturedCharges = (selectedBill.apiInvoice.items || []).some((item) => item.charge_key)
@@ -720,10 +738,10 @@ function Billing() {
 
       await api.billing.invoices.update(selectedBill.apiInvoice.id, payload)
 
-      if (additional > 0) {
+      if (additionalPaise > 0) {
         await api.billing.payments.create({
           invoice: selectedBill.apiInvoice.id,
-          amount: additional.toFixed(2),
+          amount: fromPaise(additionalPaise),
           payment_method: formData.payment,
           idempotency_key: paymentKeyFor(selectedBill.apiInvoice.id),
         })
@@ -891,7 +909,7 @@ function Billing() {
 
     if (
       status ===
-      "Partial"
+      "Partially Paid"
     ) {
 
       return "bg-blue-100 text-blue-700"
@@ -984,9 +1002,7 @@ function Billing() {
 
                 <h2 className="text-3xl font-bold text-green-600 mt-3">
                   ₹
-                  {totalRevenue.toLocaleString(
-                    "en-IN"
-                  )}
+                  {formatRupees(totalRevenue)}
                 </h2>
 
               </div>
@@ -1002,9 +1018,7 @@ function Billing() {
 
                 <h2 className="text-3xl font-bold text-orange-500 mt-3">
                   ₹
-                  {totalOutstanding.toLocaleString(
-                    "en-IN"
-                  )}
+                  {formatRupees(totalOutstanding)}
                 </h2>
 
               </div>
@@ -1075,9 +1089,9 @@ function Billing() {
 
                   <option value="Paid">{t("Paid")}</option>
 
-                  <option value="Partial">{t("Partial")}</option>
+                  <option value="Partially Paid">{t("Partial")}</option>
 
-                  <option value="Pending">{t("Pending")}</option>
+                  <option value="Unpaid">{t("Pending")}</option>
 
                 </select>
 
@@ -1179,16 +1193,7 @@ function Billing() {
                       filteredBills.map(
                         (bill) => {
 
-                          const total =
-                            calculateTotal(
-                              bill
-                            )
-
-                          const due =
-                            total -
-                            Number(
-                              bill.paid
-                            )
+                          const { total, paid, due } = billPaise(bill)
 
 
                           return (
@@ -1232,9 +1237,7 @@ function Billing() {
                               <td className="px-6 py-4 font-semibold">
 
                                 ₹
-                                {total.toLocaleString(
-                                  "en-IN"
-                                )}
+                                {formatRupees(total)}
 
                               </td>
 
@@ -1242,11 +1245,7 @@ function Billing() {
                               <td className="px-6 py-4 text-green-600 font-semibold">
 
                                 ₹
-                                {Number(
-                                  bill.paid
-                                ).toLocaleString(
-                                  "en-IN"
-                                )}
+                                {formatRupees(paid)}
 
                               </td>
 
@@ -1254,9 +1253,7 @@ function Billing() {
                               <td className="px-6 py-4 text-orange-600 font-semibold">
 
                                 ₹
-                                {due.toLocaleString(
-                                  "en-IN"
-                                )}
+                                {formatRupees(due)}
 
                               </td>
 
@@ -1480,6 +1477,10 @@ function Billing() {
 
                     min="0"
 
+                    step="0.01"
+
+                    inputMode="decimal"
+
                     name="consultation"
 
                     value={
@@ -1502,6 +1503,10 @@ function Billing() {
                     type="number"
 
                     min="0"
+
+                    step="0.01"
+
+                    inputMode="decimal"
 
                     name="laboratory"
 
@@ -1528,6 +1533,10 @@ function Billing() {
 
                     min="0"
 
+                    step="0.01"
+
+                    inputMode="decimal"
+
                     name="pharmacy"
 
                     value={
@@ -1550,6 +1559,10 @@ function Billing() {
                     type="number"
 
                     min="0"
+
+                    step="0.01"
+
+                    inputMode="decimal"
 
                     name="other"
 
@@ -1600,6 +1613,10 @@ function Billing() {
 
                   min="0"
 
+                  step="0.01"
+
+                  inputMode="decimal"
+
                   name="discount"
 
                   value={
@@ -1635,6 +1652,10 @@ function Billing() {
                     type="number"
 
                     min="0"
+
+                    step="0.01"
+
+                    inputMode="decimal"
 
                     name="paid"
 
