@@ -1,0 +1,395 @@
+{
+  "audit": "Hospital Automate end-to-end web application audit",
+  "date": "2026-11-24",
+  "commit": "e71bb63",
+  "branch": "ui/redesign-2026-10-25",
+  "scope": "testing only; no code, schema, settings or git changes",
+  "environment": {
+    "backend": "Django 6 + DRF, config.settings.e2e, throwaway SQLite seeded by seed_demo, 127.0.0.1:8147",
+    "frontend": "React 19 + Vite, :5187 proxied to 8147",
+    "browser": "Chrome DevTools automation, one isolated context per role",
+    "dev_database_modified": false,
+    "existing_playwright_suite": {
+      "total": 32,
+      "passed": 31,
+      "failed": 1,
+      "failed_spec": "e2e/nurse-mar.spec.js",
+      "rerun": "2/2 passed (flaky)"
+    },
+    "backend_unit_tests": {
+      "ran": 44,
+      "passed": 44
+    }
+  },
+  "summary": {
+    "workflows_tested": 11,
+    "passed": 6,
+    "partial": 4,
+    "failed": 0,
+    "not_tested": 1,
+    "bugs": {
+      "high": 2,
+      "medium": 6,
+      "low": 5
+    },
+    "missing_features": 12,
+    "security_findings": 2,
+    "readiness": "not ready for real patients until P1/P2 backlog items are fixed"
+  },
+  "journey": [
+    {
+      "step": 1,
+      "module": "Registration",
+      "result": "PARTIAL",
+      "notes": "account created (201), validation and Mobile-OTP sign-in pass; no hospital selector so no UHID; email verify blocked in e2e (passed on dev server)"
+    },
+    {
+      "step": 2,
+      "module": "Appointment",
+      "result": "PASS",
+      "notes": "booked via UI; 409 same slot; 400 past/off-hours/>60 days; bugs BUG-003, BUG-008"
+    },
+    {
+      "step": 3,
+      "module": "Queue",
+      "result": "PASS",
+      "notes": "token #3, position and wait from backend; patient page polls every 30 s"
+    },
+    {
+      "step": 4,
+      "module": "Doctor consultation",
+      "result": "PASS",
+      "notes": "diagnosis, note, vitals, RX-0001, completed; BUG-001 allergy banner"
+    },
+    {
+      "step": 5,
+      "module": "Nursing",
+      "result": "PARTIAL",
+      "notes": "ward vitals saved but not visible to doctor; OPD vitals not possible for nurse"
+    },
+    {
+      "step": 6,
+      "module": "Radiology",
+      "result": "PASS",
+      "notes": "Ordered->Scheduled->Performed->Reported; report locked; no radiology role or image upload; not billed"
+    },
+    {
+      "step": 7,
+      "module": "Laboratory",
+      "result": "PASS",
+      "notes": "8-step chain; self-verification refused; released result visible to patient"
+    },
+    {
+      "step": 8,
+      "module": "Pharmacy",
+      "result": "PASS",
+      "notes": "dispense, stock 100->90, ledger reconciles, duplicate 409; BUG-006, BUG-007"
+    },
+    {
+      "step": 9,
+      "module": "Billing",
+      "result": "PARTIAL",
+      "notes": "pharmacy billed; consultation/lab unpriced; radiology never billed; paise payment blocked (BUG-002)"
+    },
+    {
+      "step": 10,
+      "module": "Patient tracking",
+      "result": "PARTIAL",
+      "notes": "results, Rx, bills visible; no diagnosis/nursing/progress/discharge; BUG-004"
+    },
+    {
+      "step": 11,
+      "module": "Discharge",
+      "result": "NOT_TESTED",
+      "notes": "OPD patient; IPD discharge covered by Playwright ipd-bed spec (pass)"
+    }
+  ],
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "title": "Consultation banner shows 'No known allergies' when allergy status is Unknown",
+      "module": "Doctor consultation",
+      "severity": "High",
+      "api": "GET /api/patients/{id}/",
+      "root_cause": "src/components/clinical/PatientContextStrip.jsx:77 ignores allergy_status",
+      "evidence": "allergy_status=Unknown in API; banner text"
+    },
+    {
+      "id": "BUG-002",
+      "title": "Bill with paise cannot be paid in full",
+      "module": "Billing",
+      "severity": "High",
+      "api": "PUT invoice via Edit Bill",
+      "root_cause": "src/pages/billing.jsx Amount Paid input lacks step (defaults to 1)",
+      "evidence": "e2e-evidence/09-billing-paise-payment-blocked.png"
+    },
+    {
+      "id": "BUG-003",
+      "title": "Booking offers and accepts days outside doctor's working days",
+      "module": "Appointments",
+      "severity": "Medium",
+      "api": "GET /api/appointments/booking-options/, POST /api/appointments/book/",
+      "root_cause": "slots ignore working days",
+      "evidence": "Sunday 2026-11-29 booked (201) for Mon-Sat doctor"
+    },
+    {
+      "id": "BUG-004",
+      "title": "Patient dashboard ignores Partially Paid bills",
+      "module": "Patient portal",
+      "severity": "Medium",
+      "api": "GET /api/billing/invoices/",
+      "root_cause": "src/pages/patient/PatientDashboard.jsx:49 checks 'Partial'",
+      "evidence": "tile 0 vs Bills page Rs 0.60 due"
+    },
+    {
+      "id": "BUG-005",
+      "title": "Temperature stored without unit; nurse F vs doctor C",
+      "module": "Nursing",
+      "severity": "Medium",
+      "api": "POST /api/nurses/assessments/",
+      "root_cause": "unitless vitals JSON in separate store",
+      "evidence": "e2e-evidence/05-nurse-vitals-request.network-request"
+    },
+    {
+      "id": "BUG-006",
+      "title": "Medicine returns search throws TypeError",
+      "module": "Pharmacy",
+      "severity": "Medium",
+      "api": null,
+      "root_cause": "SaleReturns.jsx:87 reads e.target.value but SearchInput passes a string",
+      "evidence": "Vite log in Playwright run"
+    },
+    {
+      "id": "BUG-007",
+      "title": "Raw Python ErrorDetail shown for invalid dispense quantity",
+      "module": "Pharmacy",
+      "severity": "Medium",
+      "api": "POST /api/pharmacy-sales/dispense-prescription/ (400)",
+      "root_cause": "input min=0, invalid submit allowed, nested DRF error not flattened",
+      "evidence": "toast text"
+    },
+    {
+      "id": "BUG-008",
+      "title": "Same patient can book the same doctor twice on one day",
+      "module": "Appointments",
+      "severity": "Medium",
+      "api": "POST /api/appointments/book/",
+      "root_cause": null,
+      "evidence": "appointments #3 and #4"
+    },
+    {
+      "id": "BUG-009",
+      "title": "Nurse home shows billing permission error banner",
+      "module": "Nursing",
+      "severity": "Low",
+      "api": "GET /api/billing/invoices/ (403)",
+      "root_cause": "page requests data the role cannot read",
+      "evidence": "banner text"
+    },
+    {
+      "id": "BUG-010",
+      "title": "Edit Bill/Payment modal not an accessible dialog; unlabeled inputs",
+      "module": "Billing",
+      "severity": "Low",
+      "api": null,
+      "root_cause": "custom modal without role=dialog/labels",
+      "evidence": "a11y snapshot"
+    },
+    {
+      "id": "BUG-011",
+      "title": "Queue and visit status disagree; two tokens Called for one doctor",
+      "module": "Queue",
+      "severity": "Low",
+      "api": null,
+      "root_cause": null,
+      "evidence": "queue vs consultation lists"
+    },
+    {
+      "id": "BUG-012",
+      "title": "Patient portal calls staff-only and dev endpoints on each load",
+      "module": "Patient portal",
+      "severity": "Low",
+      "api": "GET /api/hospital/hospitals/ 403, /api/auth/staff/me/ 403, /api/auth/dev/login/ 404",
+      "root_cause": null,
+      "evidence": "console/network logs"
+    },
+    {
+      "id": "BUG-013",
+      "title": "Order forms default doctor to 'Not specified' for a signed-in doctor",
+      "module": "Laboratory/Prescription",
+      "severity": "Low",
+      "api": null,
+      "root_cause": null,
+      "evidence": "form defaults"
+    }
+  ],
+  "test_suite_findings": [
+    {
+      "id": "TEST-001",
+      "spec": "e2e/nurse-mar.spec.js",
+      "issue": "flaky after reload; passed 2/2 on rerun"
+    }
+  ],
+  "missing_features": [
+    {
+      "id": "MF-001",
+      "feature": "Hospital choice at self-registration",
+      "module": "Registration",
+      "status": "backend supports 'hospital'; no UI field"
+    },
+    {
+      "id": "MF-002",
+      "feature": "Reception link existing patient",
+      "module": "Reception",
+      "status": "POST /api/patients/link/ works; no UI caller"
+    },
+    {
+      "id": "MF-003",
+      "feature": "Patient cancel/reschedule",
+      "module": "Patient portal",
+      "status": "backend staff-only (patient 403); no UI"
+    },
+    {
+      "id": "MF-004",
+      "feature": "Radiology roles and statuses",
+      "module": "Radiology",
+      "status": "Lab Staff performs, any Doctor reports"
+    },
+    {
+      "id": "MF-005",
+      "feature": "Imaging attachments",
+      "module": "Radiology",
+      "status": "text fields only"
+    },
+    {
+      "id": "MF-006",
+      "feature": "Structured lab results",
+      "module": "Laboratory",
+      "status": "single free-text result"
+    },
+    {
+      "id": "MF-007",
+      "feature": "Service/formulary lookups when ordering",
+      "module": "Consultation/Prescription",
+      "status": "free text"
+    },
+    {
+      "id": "MF-008",
+      "feature": "Visit summary for patient",
+      "module": "Patient portal",
+      "status": "not shown"
+    },
+    {
+      "id": "MF-009",
+      "feature": "Journey tracker and discharge summary",
+      "module": "Patient portal",
+      "status": "not present"
+    },
+    {
+      "id": "MF-010",
+      "feature": "Real-time updates",
+      "module": "Patient portal",
+      "status": "queue page polls every 30 s only"
+    },
+    {
+      "id": "MF-011",
+      "feature": "Radiology billing",
+      "module": "Billing",
+      "status": "not in price list or unbilled sweep"
+    },
+    {
+      "id": "MF-012",
+      "feature": "OPD nursing triage",
+      "module": "Nursing",
+      "status": "nurse vitals form lists ward patients only"
+    }
+  ],
+  "integration_issues": [
+    {
+      "id": "INT-001",
+      "issue": "Nurse vitals in nurses/assessments not visible in doctor's clinical/vitals"
+    },
+    {
+      "id": "INT-002",
+      "issue": "Lab and imaging orders from module pages saved with visit=null"
+    },
+    {
+      "id": "INT-003",
+      "issue": "Backend endpoints without UI: patients/link, register 'hospital', patient cancel/reschedule"
+    },
+    {
+      "id": "INT-004",
+      "issue": "Consultation/lab charges need a price list (none seeded); radiology outside unbilled sweep"
+    },
+    {
+      "id": "INT-005",
+      "issue": "No single patient journey timeline; only queue page polls"
+    },
+    {
+      "id": "INT-006",
+      "issue": "No mock or localStorage-only workflows found in the tested journey (positive)"
+    }
+  ],
+  "security_findings": [
+    {
+      "id": "SEC-001",
+      "severity": "Low",
+      "finding": "Staff profile cached in localStorage on shared PCs (no tokens)"
+    },
+    {
+      "id": "SEC-002",
+      "severity": "Medium",
+      "finding": "Lab four-eyes verification can be done by an Admin account"
+    }
+  ],
+  "security_probes_passed": [
+    "patient cannot read other patients (404/403; lists scoped to self)",
+    "pharmacist: diagnosis/visit/users/lab result/imaging report all 403",
+    "nurse: prescription/diagnosis/users/dispense/invoices all 403",
+    "lab staff: users/invite/prescriptions/invoices/foreign hospital all 403; cannot sign imaging report",
+    "anonymous 401; forged JWT 401 (cookie and Bearer)",
+    "signed imaging report immutable (405); duplicate dispense 409; same slot 409"
+  ],
+  "evidence_dir": "reports/e2e-evidence/",
+  "backlog": {
+    "P1": [
+      "P1-01 allergy banner (BUG-001)",
+      "P1-02 unified vitals with units (BUG-005/INT-001)",
+      "P1-03 restrict lab verifier roles (SEC-002)"
+    ],
+    "P2": [
+      "P2-01 paise payments (BUG-002)",
+      "P2-02 hospital at sign-up (MF-001)",
+      "P2-03 enrol existing patient UI (MF-002)",
+      "P2-04 doctor working days (BUG-003)",
+      "P2-05 billing coverage incl. radiology (INT-004/MF-011)"
+    ],
+    "P3": [
+      "P3-01 order-visit link (INT-002)",
+      "P3-02 dashboard Partially Paid (BUG-004)",
+      "P3-03 queue/visit status sync (BUG-011)",
+      "P3-04 same-day duplicate booking policy (BUG-008)"
+    ],
+    "P4": [
+      "MF-003",
+      "MF-004",
+      "MF-005",
+      "MF-006",
+      "MF-007",
+      "MF-008",
+      "MF-009",
+      "MF-010",
+      "MF-012"
+    ],
+    "P5": [
+      "BUG-006",
+      "BUG-007",
+      "BUG-009",
+      "BUG-010",
+      "BUG-012",
+      "BUG-013",
+      "show appointment ID to patient",
+      "stabilise nurse-mar spec"
+    ]
+  }
+}
