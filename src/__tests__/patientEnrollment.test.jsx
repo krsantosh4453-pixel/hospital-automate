@@ -20,6 +20,7 @@ import { LanguageProvider } from "../assets/context/LanguageProvider.jsx"
 import Register from "../pages/Register.jsx"
 import EnrolExistingPatientDialog from "../components/patients/EnrolExistingPatientDialog.jsx"
 import { JoinHospitalForm, MyHospitalsCard } from "../components/patient/HospitalMembership.jsx"
+import { nextWorkingDate } from "../utils/hospitalDate.js"
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -207,5 +208,21 @@ describe("Patient portal: hospitals and UHID", () => {
 
     expect(api.auth.joinHospital).toHaveBeenCalledWith("9")
     expect(onJoined).toHaveBeenCalledWith(expect.objectContaining({ uhid: "SC-2026-000001" }))
+  })
+})
+
+// Prompt 4 (BUG-003): the booking form starts on a day the chosen doctor works.
+describe("nextWorkingDate", () => {
+  const MON_TO_SAT = [0, 1, 2, 3, 4, 5]
+  it("moves a Sunday to the next Monday for a Mon-Sat doctor", () => {
+    expect(nextWorkingDate("2026-11-29", MON_TO_SAT)).toBe("2026-11-30")
+  })
+  it("keeps a working day, and any day when the doctor has no rule", () => {
+    expect(nextWorkingDate("2026-11-25", MON_TO_SAT)).toBe("2026-11-25")
+    expect(nextWorkingDate("2026-11-29", null)).toBe("2026-11-29")
+  })
+  it("finds the next listed day and never passes the booking window", () => {
+    expect(nextWorkingDate("2026-11-26", [0, 2])).toBe("2026-11-30")
+    expect(nextWorkingDate("2026-11-29", MON_TO_SAT, "2026-11-29")).toBe("2026-11-29")
   })
 })

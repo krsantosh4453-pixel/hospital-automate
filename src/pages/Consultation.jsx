@@ -29,6 +29,7 @@ import VisitDocuments from "../components/clinical/VisitDocuments.jsx"
 import PatientTimeline from "../components/clinical/PatientTimeline.jsx"
 import VisitImmunizations from "../components/clinical/VisitImmunizations.jsx"
 import PatientContextStrip from "../components/clinical/PatientContextStrip.jsx"
+import NursingObservations from "../components/clinical/NursingObservations.jsx"
 import CriticalResults from "../components/laboratory/CriticalResults.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
@@ -1358,6 +1359,9 @@ function Consultation() {
                       </TableWrap>
                     )}
                   </Card>
+
+                  {/* Prompt 4 (INT-001): the ward nurses' vitals for this patient, with unit, nurse and time. */}
+                  <NursingObservations patientId={selectedVisit.patientApiId} />
                 </div>
               )}
 

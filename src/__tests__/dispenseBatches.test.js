@@ -79,6 +79,16 @@ describe("substitutes and partial dispensing", () => {
     const result = buildDispenseRequest(5, [item], { 9: { batch: 2, quantity: 7, reason: "" } }, shelf)
     expect(result.problems).toEqual(["Crocin 500: at most 6", "Crocin 500: give the reason for the substitute"])
   })
+
+  // Prompt 4 (BUG-007): -1 used to be sent, and the server's raw reply was shown.
+  it("refuses a negative or fractional quantity before sending anything", async () => {
+    const { buildDispenseRequest } = await import("../utils/dispenseBatches.js")
+    for (const quantity of [-1, "-1", 1.5, "2.5", "abc"]) {
+      const result = buildDispenseRequest(5, [item], { 9: { batch: 1, quantity } }, shelf)
+      expect(result.body).toBeUndefined()
+      expect(result.problems[0]).toMatch(/whole number/)
+    }
+  })
 })
 
 // F6: the pharmacy queue says whether each medicine can be given from stock.

@@ -3,6 +3,7 @@ import api from "../../services/api.js"
 import { Alert, Button, Field, Modal, Select, Textarea, Input } from "../../components/ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 import { JoinHospitalForm } from "../../components/patient/HospitalMembership.jsx"
+import { nextWorkingDate } from "../../utils/hospitalDate.js"
 
 /** Today's date in the browser's time zone, as YYYY-MM-DD. */
 function todayIso(offsetDays = 0) {
@@ -55,7 +56,7 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
     setLoading(true)
     api.appointments
       .bookingOptions({ hospital: form.hospital, doctor: form.doctor, date: form.date })
-      .then((data) => setOptions((prev) => ({ ...prev, slots: data.slots || [] })))
+      .then((data) => setOptions((prev) => ({ ...prev, slots: data.slots || [], unavailableReason: data.unavailable_reason || "" })))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [open, form.hospital, form.doctor, form.date, refresh])
@@ -119,7 +120,16 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
           </Select>
         </Field>
         <Field label="Doctor" required>
-          <Select value={form.doctor} onChange={(e) => set("doctor", e.target.value)} disabled={!form.hospital}>
+          <Select
+            value={form.doctor}
+            onChange={(e) => {
+              set("doctor", e.target.value)
+              // Start on a day this doctor works (the server still checks every booking).
+              const chosen = options.doctors.find((d) => String(d.id) === e.target.value)
+              set("date", nextWorkingDate(form.date, chosen?.working_days, todayIso(options.window_days || 60)))
+            }}
+            disabled={!form.hospital}
+          >
             <option value="">{t("Select doctor")}</option>
             {options.doctors.map((d) => (
               <option key={d.id} value={d.id}>
@@ -138,10 +148,11 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
             onChange={(e) => set("date", e.target.value)}
           />
         </Field>
+        {form.doctor && options.unavailableReason && <Alert tone="warning">{options.unavailableReason}</Alert>}
         <Field
           label="Time"
           required
-          hint={form.doctor && !loading && freeSlots.length === 0 ? t("No free time on this day. Try another date.") : undefined}
+          hint={form.doctor && !loading && freeSlots.length === 0 && !options.unavailableReason ? t("No free time on this day. Try another date.") : undefined}
         >
           <Select value={form.time} onChange={(e) => set("time", e.target.value)} disabled={!form.doctor || loading}>
             <option value="">{loading ? "Loading free times…" : "Select time"}</option>

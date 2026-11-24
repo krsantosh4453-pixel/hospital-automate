@@ -8,6 +8,7 @@ import { useToast } from "../components/Toast.jsx"
 import { Alert, Button, Card, CardHeader, EmptyState, Modal as UiModal, PageHeader as UiPageHeader, Tabs } from "../components/ui"
 import { UserPlus as UserPlusIcon } from "lucide-react"
 import { useConfirm } from "../components/ui"
+import { formatTemperature } from "../utils/temperature.js"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Nurses() {
@@ -127,6 +128,7 @@ function Nurses() {
       patientId: a.patient,
       patientName: a.patient_name,
       temperature: a.vitals.temperature ?? "",
+      temperatureUnit: a.vitals.temperature_unit ?? "",
       bp: a.vitals.bp ?? "",
       pulse: a.vitals.pulse ?? "",
       spo2: a.vitals.spo2 ?? "",
@@ -517,6 +519,8 @@ function Nurses() {
         assessment_type: "Focused",
         vitals: {
           temperature: vitalForm.temperature,
+          // The form asks for °F; the unit is stored with the reading (Prompt 4).
+          ...(String(vitalForm.temperature ?? "").trim() ? { temperature_unit: "F" } : {}),
           bp: vitalForm.bp,
           pulse: vitalForm.pulse,
           spo2: vitalForm.spo2,
@@ -1453,7 +1457,7 @@ function Nurses() {
                         </td>
 
                         <td className="px-5 py-4">
-                          {item.temperature} °F
+                          {formatTemperature(item.temperature, item.temperatureUnit)}
                         </td>
 
                         <td className="px-5 py-4">

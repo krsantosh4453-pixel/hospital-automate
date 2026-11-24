@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+from .availability import day_off_reason, refuse_day_off, working_days_of
 from .models import Appointment, clashing_booking
 from .openapi import BOOK_SCHEMA, BOOKING_OPTIONS_SCHEMA
 from .slots import SlotFull, lock_doctor, remaining_places, slot_is_full, take_place
@@ -115,6 +116,8 @@ def _claim_place(data, instance=None):
     )
     reactivated = instance is not None and instance.status not in Appointment.ACTIVE_STATUSES
     if moved or reactivated:
+        # BUG-003: never on a day the doctor does not work (their availability text).
+        refuse_day_off(doctor, current("appointment_date"))
         data["slot_seat"] = _place_or_refuse(doctor.pk, current("appointment_date"), current("appointment_time"),
                                              exclude_pk=getattr(instance, "pk", None))
 
@@ -176,7 +179,12 @@ class AppointmentViewSet(HospitalScopedViewSet):
         if hospital_id not in allowed:
             raise PermissionDenied("You are not registered at this hospital.")
         doctors = Doctor.objects.filter(hospital_id=hospital_id).exclude(status__in=UNBOOKABLE_DOCTOR_STATUSES)
-        payload["doctors"] = list(doctors.order_by("name").values("id", "name", "specialization", "availability"))
+        payload["doctors"] = [
+            {**row, "working_days": working_days_of(doctor)}
+            for doctor in doctors.order_by("name")
+            for row in [{"id": doctor.id, "name": doctor.name, "specialization": doctor.specialization,
+                         "availability": doctor.availability}]
+        ]
 
         doctor_id, day = request.query_params.get("doctor"), request.query_params.get("date")
         if doctor_id and day:
@@ -184,6 +192,12 @@ class AppointmentViewSet(HospitalScopedViewSet):
             if doctor is None:
                 raise ValidationError({"doctor": "Choose a doctor at this hospital."})
             day = _parse_date(day)
+            reason = day_off_reason(doctor, day)
+            if reason:
+                # BUG-003: a day the doctor does not work offers no slots, and says why.
+                payload["slots"] = []
+                payload["unavailable_reason"] = reason
+                return Response(payload)
             now = _hospital_now()
             slots = _day_slots()
             remaining = remaining_places(doctor, day, slots)
@@ -233,6 +247,7 @@ class AppointmentViewSet(HospitalScopedViewSet):
             raise ValidationError({"appointment_time": "This time has already passed."})
         if day > now.date() + timedelta(days=BOOKING_WINDOW_DAYS):
             raise ValidationError({"appointment_date": f"Book at most {BOOKING_WINDOW_DAYS} days ahead."})
+        refuse_day_off(doctor, day)
 
         upcoming = Appointment.objects.filter(patient=patient, appointment_date__gte=now.date()).exclude(
             status__in=["Cancelled", "Completed"]
@@ -351,6 +366,8 @@ class AppointmentViewSet(HospitalScopedViewSet):
             if appointment_time:
                 appointment.appointment_time = appointment_time
             if appointment.status in Appointment.ACTIVE_STATUSES:
+                new_day = appointment.appointment_date
+                refuse_day_off(appointment.doctor, _parse_date(new_day) if isinstance(new_day, str) else new_day)
                 refuse_double_booking(appointment.patient, appointment.doctor, appointment.appointment_date,
                                       appointment.appointment_time, exclude_pk=appointment.pk)
                 appointment.slot_seat = _place_or_refuse(appointment.doctor_id, appointment.appointment_date,

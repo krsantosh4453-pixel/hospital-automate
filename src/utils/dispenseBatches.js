@@ -106,6 +106,11 @@ export function buildDispenseRequest(prescriptionId, items, lines, medicines) {
     if (owed === 0) continue
     const line = lines[item.id] || {}
     const quantity = Number(line.quantity || 0)
+    // BUG-007: never send a negative or fractional count (it reached the server and came back raw).
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      problems.push(`${item.name}: enter a whole number of units (0 or more)`)
+      continue
+    }
     if (quantity < owed) partial = true
     if (quantity === 0) continue
     if (quantity > owed) problems.push(`${item.name}: at most ${owed}`)
