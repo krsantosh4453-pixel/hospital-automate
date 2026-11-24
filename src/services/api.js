@@ -39,11 +39,100 @@ let csrfToken = null
 // httpOnly, so the server hands the token out from /auth/csrf/.
 async function getCsrfToken(renew = false) {
   if (!csrfToken || renew) {
-    const response = await fetch(`${API_BASE_URL}/auth/csrf/`, { credentials: 'include' })
-    if (!response.ok) throw new Error(`CSRF token request failed (${response.status})`)
-    csrfToken = (await response.json()).csrfToken
+    const url = `${API_BASE_URL}/auth/csrf/`
+    const response = await sendRequest(url, { credentials: 'include' }, DEFAULT_TIMEOUT_MS)
+    if (!response.ok) throw httpError(response.status, null, url)
+    try {
+      csrfToken = (await response.json()).csrfToken
+    } catch {
+      // An HTML page here means /api is not routed to Django (wrong
+      // VITE_API_BASE_URL or proxy), not that the server is down.
+      throw apiMisrouted(url)
+    }
   }
   return csrfToken
+}
+
+const DEFAULT_TIMEOUT_MS = 8000
+// Statuses a proxy (Vite in dev, nginx in production) answers with when the
+// Django process behind it is not running, so Django never saw the request.
+const BACKEND_DOWN_STATUSES = new Set([502, 503])
+const DEV_BACKEND_HINT =
+  ' Start the Django backend (python manage.py runserver 127.0.0.1:8000) or point VITE_PROXY_TARGET at it.'
+
+// Technical detail for the developer console only; never the request body (PHI).
+function logDev(message, detail) {
+  if (import.meta.env.DEV) console.warn(`[api] ${message}`, detail)
+}
+
+/** fetch() that turns "no HTTP response arrived" into an error pages can recognise. */
+async function sendRequest(url, init, timeout) {
+  try {
+    return await fetch(url, { ...init, signal: init.signal || AbortSignal.timeout(timeout) })
+  } catch (networkError) {
+    // fetch() only rejects when no HTTP response arrived (server down, CORS
+    // blocked, timeout); its own messages ("Failed to fetch") say nothing useful.
+    logDev('no response', { url, reason: networkError.name })
+    const timedOut = networkError.name === 'TimeoutError'
+    const error = new Error(
+      timedOut
+        ? 'The server took too long to respond. Check whether the action completed before retrying.'
+        : 'Cannot reach the server. Check your connection, then try again.' +
+            (import.meta.env.DEV ? DEV_BACKEND_HINT : '')
+    )
+    error.isTimeout = timedOut
+    // Lets pages tell "server unreachable" apart from "server said no".
+    error.isNetworkError = true
+    throw error
+  }
+}
+
+// Used only when the server sent no message of its own (e.g. Django's HTML error pages).
+const STATUS_FALLBACKS = {
+  401: (status) => `Your session has ended. Please sign in again (HTTP ${status}).`,
+  403: (status) => `Not allowed (HTTP ${status}): your account cannot do this.`,
+  404: (status) =>
+    `This service was not found on the server (HTTP ${status}).` +
+      (import.meta.env.DEV ? ' Check the API path and VITE_API_BASE_URL.' : ' Please try again later.'),
+}
+
+/** Error for an HTTP response that is not OK; keeps the server's own message when it sent one. */
+function httpError(status, body, url) {
+  const fallback = `Request failed (${status})`
+  const serverText = body ? parseErrorDetail(body, status) : fallback
+  const hasServerMessage = serverText !== fallback
+  const backendDown = BACKEND_DOWN_STATUSES.has(status) && !hasServerMessage
+
+  let message = serverText
+  if (!hasServerMessage && STATUS_FALLBACKS[status]) {
+    message = STATUS_FALLBACKS[status](status)
+  } else if (backendDown) {
+    message = `The server is unavailable right now (HTTP ${status}). Please try again in a moment.` +
+      (import.meta.env.DEV ? DEV_BACKEND_HINT : '')
+  } else if (status >= 500 && !hasServerMessage) {
+    message = `The server hit an internal error (HTTP ${status}). Please try again; if it keeps happening, contact support.`
+  }
+  if (status >= 500) logDev(`HTTP ${status}`, { url })
+
+  const error = new Error(message)
+  error.status = status
+  error.body = body
+  if (backendDown) {
+    // Like a network error, nothing reached Django, so nothing was saved.
+    error.isNetworkError = true
+    error.isBackendUnavailable = true
+  }
+  return error
+}
+
+function apiMisrouted(url) {
+  logDev('non-JSON answer; is /api proxied to Django?', { url })
+  const error = new Error(
+    'The server answered in an unexpected format.' +
+      (import.meta.env.DEV ? ' Check VITE_API_BASE_URL and the Vite /api proxy.' : ' Please try again later.')
+  )
+  error.isMisrouted = true
+  return error
 }
 
 // Patient rows some pages keep in the browser (offline saves, the patient
@@ -104,7 +193,8 @@ export function parseErrorDetail(body, status) {
   if (!body) return `Request failed (${status})`
   if (typeof body === 'string') return body
   // The backend wraps errors as { error: true, message, details }.
-  const text = [body.message, body.detail, body.error].find(
+  // The rate limiter sends { error: { code, message, retry_after } }.
+  const text = [body.message, body.detail, body.error, body.error?.message].find(
     (value) => typeof value === 'string' && value.trim()
   )
   if (text) return text
@@ -173,29 +263,13 @@ function failAuthSession() {
 
 // Shared request helper with consistent error handling.
 async function request(url, options = {}) {
-  let response
-  const { headers: extraHeaders, _retried = false, _csrfRetried = false, timeout = 8000, ...rest } = options
+  const { headers: extraHeaders, _retried = false, _csrfRetried = false, timeout = DEFAULT_TIMEOUT_MS, ...rest } = options
   const headers = buildHeaders(extraHeaders || {}, rest.body)
   const unsafe = UNSAFE_METHODS.has(String(rest.method || 'GET').toUpperCase())
 
-  try {
-    if (unsafe) headers['X-CSRFToken'] = await getCsrfToken(_csrfRetried)
-    const timeoutSignal = rest.signal || AbortSignal.timeout(timeout)
-    response = await fetch(url, { ...rest, headers, credentials: 'include', signal: timeoutSignal })
-  } catch (networkError) {
-    // fetch() only rejects when no HTTP response arrived (server down, CORS
-    // blocked, timeout); its own messages ("Failed to fetch") say nothing useful.
-    const timedOut = networkError.name === 'TimeoutError'
-    const error = new Error(
-      timedOut
-        ? 'The server took too long to respond. Check whether the action completed before retrying.'
-        : 'Cannot reach the server. Check that the Django backend is running and the API URL is correct.'
-    )
-    error.isTimeout = timedOut
-    // Lets pages tell "server unreachable" apart from "server said no".
-    error.isNetworkError = true
-    throw error
-  }
+  // Both steps throw already-classified errors (network, HTTP, misrouted).
+  if (unsafe) headers['X-CSRFToken'] = await getCsrfToken(_csrfRetried)
+  const response = await sendRequest(url, { ...rest, headers, credentials: 'include' }, timeout)
 
   // A cached CSRF token goes stale when the CSRF cookie rotates (e.g. after
   // signing in); fetch a fresh one and retry once.
@@ -217,20 +291,13 @@ async function request(url, options = {}) {
   }
 
   if (!response.ok) {
-    let detail = `Request failed (${response.status})`
     let body = null
-
     try {
       body = await response.json()
-      detail = parseErrorDetail(body, response.status)
     } catch {
-      // Response body was not JSON — keep the default message.
+      // Not JSON (a proxy error or Django's HTML error page): httpError explains the status.
     }
-
-    const error = new Error(detail)
-    error.status = response.status
-    error.body = body
-    throw error
+    throw httpError(response.status, body, url)
   }
 
   if (response.status === 204) {

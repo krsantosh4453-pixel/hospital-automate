@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link, useNavigate, useSearchParams } from "react-router-dom"
+import { useSearchParams } from "react-router-dom"
 import api from "../services/api.js"
 import {
   LOGIN_ROLES,
@@ -9,17 +9,30 @@ import {
 import { BrandMark } from "../components/Sidebar.jsx"
 import { Alert } from "../components/ui"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
+import { AuthLink, useAuthNavigate, useInSignInDialog } from "../components/auth/SignInDialog.jsx"
 
 const inputClass = "hms-input w-full"
 
 // Staff (Doctor, Nurse, Compounder, Receptionist) join a hospital only by its
 // invitation; the backend refuses them here.
 const REGISTER_ROLES = LOGIN_ROLES.filter((item) => item === "Patient" || item === "Admin")
+const MOBILE_DIGITS = 10
+
+/** The sign-in route for `role`, keeping the booking hand-off (?next=book) PatientLogin understands. */
+function signInPath(role, next, email = "") {
+  const params = new URLSearchParams({ role })
+  if (email) params.set("email", email)
+  if (next === "book") params.set("next", "book")
+  return `/patient-login?${params}`
+}
 
 function Register() {
   const { t } = useLanguage()
-  const navigate = useNavigate()
+  // Opened from the sign-in dialog, the form stays in that dialog over the page.
+  const inDialog = useInSignInDialog()
+  const authNavigate = useAuthNavigate()
   const [searchParams] = useSearchParams()
+  const next = searchParams.get("next")
 
   const initialRole = useMemo(() => {
     const fromQuery = searchParams.get("role")
@@ -82,6 +95,9 @@ function Register() {
 
   const setField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }))
+    // An old error must not look like the answer to the next submit, which the
+    // browser itself may block (e.g. a date of birth after `max`).
+    setError("")
   }
 
   const handleSubmit = async (e) => {
@@ -91,6 +107,10 @@ function Register() {
 
     if (form.password !== form.confirm_password) {
       setError("Password and confirm password do not match.")
+      return
+    }
+    if (form.phone.length !== MOBILE_DIGITS) {
+      setError("Enter a valid 10-digit mobile number.")
       return
     }
 
@@ -125,7 +145,7 @@ function Register() {
 
       setSuccess(data.message || "Account created.")
       setTimeout(() => {
-        navigate(`/patient-login?role=${encodeURIComponent(role)}`)
+        authNavigate(signInPath(role, next))
       }, 1200)
     } catch (err) {
       setError(err.message || "Registration failed.")
@@ -135,15 +155,20 @@ function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-[28rem]">
-        <div className="mb-8">
-          <BrandMark inverted={false} />
-          <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">{t("Create an account")}</h1>
-          <p className="mt-1 text-sm text-ink-500">{t("Patients can sign in once their email is verified. Doctors, nurses and other staff join by an invitation from their hospital.")}</p>
-        </div>
+    // Inside the sign-in dialog the dialog supplies the frame and title (as on PatientLogin).
+    <div className={inDialog ? "" : "min-h-screen flex items-center justify-center px-4 py-8"}>
+      <div className={inDialog ? "" : "w-full max-w-[28rem]"}>
+        {inDialog ? (
+          <p className="mb-5 text-sm text-ink-500">{t("Patients can sign in once their email is verified. Doctors, nurses and other staff join by an invitation from their hospital.")}</p>
+        ) : (
+          <div className="mb-8">
+            <BrandMark inverted={false} />
+            <h1 className="mt-6 text-2xl font-semibold tracking-tight text-ink-900">{t("Create an account")}</h1>
+            <p className="mt-1 text-sm text-ink-500">{t("Patients can sign in once their email is verified. Doctors, nurses and other staff join by an invitation from their hospital.")}</p>
+          </div>
+        )}
 
-        <div className="hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8">
+        <div className={inDialog ? "" : "hms-surface-dark rounded-2xl border border-line p-6 shadow-xl shadow-ink-900/5 sm:p-8"}>
           <div className="mb-6">
             <p id="register-role-label" className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
               {t("Account type")}
@@ -350,12 +375,12 @@ function Register() {
                   {t("Resend email OTP")}
                 </button>
                 {verified && (
-                  <Link
-                    to={`/patient-login?role=Patient&email=${encodeURIComponent(pendingEmail)}`}
+                  <AuthLink
+                    to={signInPath("Patient", next, pendingEmail)}
                     className="rounded text-[13px] font-medium text-brand-700 hover:underline disabled:opacity-50"
                   >
                     {t("Sign in")}
-                  </Link>
+                  </AuthLink>
                 )}
               </div>
             </form>
@@ -363,12 +388,12 @@ function Register() {
 
           <div className="mt-6 text-center text-[13px] text-ink-500">
             <p>{t("Already have an account?")}</p>
-            <Link
-              to={`/patient-login?role=${encodeURIComponent(role)}`}
+            <AuthLink
+              to={signInPath(role, next)}
               className="mt-1 inline-block font-medium text-brand-700 hover:underline"
             >
               {t("Sign in")}
-            </Link>
+            </AuthLink>
           </div>
         </div>
       </div>
