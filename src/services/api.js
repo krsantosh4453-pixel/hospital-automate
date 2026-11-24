@@ -26,8 +26,36 @@ function clearTokens() {
   for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key)
 }
 
+// Prompt 5 (SEC-001): the staff profile (name, email, phone, employee ID,
+// roles, hospitals) is read from /auth/staff/me/ on every load and never
+// kept in browser storage, where the next person at a shared PC could read it.
+// Copies written by earlier builds are removed.
+const STAFF_PROFILE_KEYS = ['user', 'roles', 'hospitals']
+
+function forgetStaffProfile() {
+  for (const key of STAFF_PROFILE_KEYS) localStorage.removeItem(key)
+}
+
+// The hospital switcher's choice belongs to the person who made it.
+function forgetSelectedHospital() {
+  localStorage.removeItem('selectedHospital')
+}
+
+/** After a sign-in: keep the saved hospital only if this user is a member there. */
+function keepSelectedHospitalIfMember(hospitals) {
+  try {
+    const saved = JSON.parse(localStorage.getItem('selectedHospital') || 'null')
+    const id = saved && typeof saved === 'object' ? saved.id : saved
+    const member = Array.isArray(hospitals) && hospitals.some((h) => String(h?.id ?? h) === String(id))
+    if (id != null && !member) forgetSelectedHospital()
+  } catch {
+    forgetSelectedHospital()
+  }
+}
+
 try {
   for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key)
+  if (!localStorage.getItem('hms_dev_auth_bypass')) forgetStaffProfile()
 } catch {
   // Storage unavailable (private mode): nothing was stored either.
 }
@@ -252,9 +280,8 @@ async function refreshAccessToken() {
 
 function failAuthSession() {
   clearTokens()
-  localStorage.removeItem('user')
-  localStorage.removeItem('roles')
-  localStorage.removeItem('hospitals')
+  forgetStaffProfile()
+  forgetSelectedHospital()
   localStorage.removeItem('patientLoggedIn')
   localStorage.removeItem('patient')
   clearCachedPatientData()
@@ -338,11 +365,7 @@ const api = {
         ...jsonBody({ username, password }),
       })
       setTokens({ access: data.access, refresh: data.refresh })
-      if (data.user) localStorage.setItem('user', JSON.stringify(data.user))
-      if (data.roles) localStorage.setItem('roles', JSON.stringify(data.roles))
-      if (data.hospitals) {
-        localStorage.setItem('hospitals', JSON.stringify(data.hospitals))
-      }
+      keepSelectedHospitalIfMember(data.hospitals)
       return data
     },
     staffLoginStartOtp: async (username, password) =>
@@ -358,11 +381,7 @@ const api = {
         ...jsonBody({ challenge, otp }),
       })
       setTokens({ access: data.access, refresh: data.refresh })
-      if (data.user) localStorage.setItem('user', JSON.stringify(data.user))
-      if (data.roles) localStorage.setItem('roles', JSON.stringify(data.roles))
-      if (data.hospitals) {
-        localStorage.setItem('hospitals', JSON.stringify(data.hospitals))
-      }
+      keepSelectedHospitalIfMember(data.hospitals)
       return data
     },
     staffOtpResend: async (challenge) =>
@@ -393,9 +412,10 @@ const api = {
         // Keep logout local even if the server call fails.
       }
       clearTokens()
-      localStorage.removeItem('user')
-      localStorage.removeItem('roles')
-      localStorage.removeItem('hospitals')
+      forgetStaffProfile()
+      forgetSelectedHospital()
+      localStorage.removeItem('patientLoggedIn')
+      localStorage.removeItem('patient')
       clearCachedPatientData()
     },
     register: async (payload) =>
@@ -919,6 +939,18 @@ const api = {
         ...jsonBody(data),
       }),
 
+    // Prompt 5: a patient cancels or moves their own booking (server rules apply)
+    selfCancel: async (id, reason = '') =>
+      request(`${API_BASE_URL}/appointments/${id}/self-cancel/`, {
+        method: 'POST',
+        ...jsonBody({ reason }),
+      }),
+    selfReschedule: async (id, data) =>
+      request(`${API_BASE_URL}/appointments/${id}/self-reschedule/`, {
+        method: 'POST',
+        ...jsonBody(data),
+      }),
+
     // GET /api/appointments/ (scoped to the selected hospital)
     list: async (hospitalId) => {
       const query = hospitalId
@@ -986,6 +1018,14 @@ const api = {
   // Visits are the clinical encounter a queue token hangs off. The Queue
   // page mostly needs to read them / create them so a token has a parent.
   visits: {
+    // Prompt 5 (INT-002): one patient's visits at a hospital, to link an order to its visit.
+    forPatient: async (hospitalId, patientId) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set('hospital', hospitalId)
+      if (patientId) params.set('patient', patientId)
+      return request(`${API_BASE_URL}/encounters/visits/?${params.toString()}`)
+    },
+
     // GET /api/encounters/visits/ (scoped to a hospital)
     list: async (hospitalId) => {
       const query = hospitalId
@@ -2782,6 +2822,25 @@ api.imaging = {
   // POST { findings, impression } (doctor; signs and locks the report)
   report: async (id, data) => request(`${API_BASE_URL}/laboratory/imaging/${id}/report/`, { method: "POST", ...jsonBody(data) }),
   cancel: async (id) => request(`${API_BASE_URL}/laboratory/imaging/${id}/cancel/`, { method: "POST" }),
+  // Prompt 5 (MF-005): images attached to a study, served only through the audited study endpoint.
+  images: async (id) => request(`${API_BASE_URL}/laboratory/imaging/${id}/images/`),
+  uploadImage: async (id, file, title = "") => {
+    const form = new FormData()
+    form.append("file", file)
+    if (title) form.append("title", title)
+    return request(`${API_BASE_URL}/laboratory/imaging/${id}/images/`, { method: "POST", body: form })
+  },
+  imageBlob: async (id, docId) => {
+    const response = await fetch(`${API_BASE_URL}/laboratory/imaging/${id}/images/${docId}/`, {
+      headers: buildHeaders({}), credentials: "include",
+    })
+    if (!response.ok) {
+      const error = new Error(`The image could not be opened (${response.status}).`)
+      error.status = response.status
+      throw error
+    }
+    return response.blob()
+  },
 }
 
 // Longitudinal record (B9, D12). GET /api/patients/{id}/timeline/ (audited)

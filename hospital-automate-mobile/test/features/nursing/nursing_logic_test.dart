@@ -140,8 +140,28 @@ void main() {
           'respiratory_rate': '16',
           'temperature': '36.8',
           'spo2': '98',
+          'temperature_unit': 'C',
         },
       );
+    });
+
+    // Prompt 5: the unit travels with the reading, and only with one.
+    test('a temperature is sent with its unit, other vitals without', () {
+      expect(wardVitalsJson({VitalField.temperature: '37.2'}), {
+        'temperature': '37.2',
+        'temperature_unit': 'C',
+      });
+      expect(wardVitalsJson({VitalField.heartRate: '80'}), {'pulse': '80'});
+    });
+
+    test('a temperature is shown with its unit, an old one says it has none', () {
+      final t = AppLocalizationsEn();
+      expect(
+        wardVitalLines(t, {'temperature': '37.2', 'temperature_unit': 'C', 'pulse': '80'}),
+        ['Temperature: 37.2 °C', 'Pulse: 80'],
+      );
+      expect(wardVitalLines(t, {'temperature': '99.1', 'temperature_unit': 'F'}), ['Temperature: 99.1 °F']);
+      expect(wardVitalLines(t, {'temperature': '98.6'}), ['Temperature: 98.6 (unit not recorded)']);
     });
 
     test('decimal temperatures pass through unchanged (finding 7)', () {

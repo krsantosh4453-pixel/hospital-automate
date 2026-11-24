@@ -7927,6 +7927,12 @@ abstract class AppLocalizations {
   /// **'Temperature'**
   String get vitalTemperature;
 
+  /// No description provided for @vitalUnitNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'unit not recorded'**
+  String get vitalUnitNotRecorded;
+
   /// No description provided for @vitalTooHigh.
   ///
   /// In en, this message translates to:

@@ -10,6 +10,7 @@ import {
   Package,
   Pill,
   ReceiptIndianRupee,
+  ScanSearch,
   Search,
   ShieldAlert,
   Siren,
@@ -91,6 +92,11 @@ export const ROLE_HOMES = {
     title: "Laboratory today",
     tiles: ["labPending", "labUrgent", "labCompleted"],
     actions: [{ to: "/laboratory", icon: FlaskConical, label: "Lab worklist", module: "Laboratory" }],
+  },
+  "Radiology Staff": {
+    title: "Radiology today",
+    tiles: [],
+    actions: [{ to: "/radiology", icon: ScanSearch, label: "Imaging worklist", module: "Laboratory" }],
   },
   "Billing Staff": {
     title: "Billing today",

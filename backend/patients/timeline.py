@@ -141,6 +141,38 @@ def _nursing(patient, hospital_ids, for_patient=False, **_):
         yield _event(n.created_at, "Nursing note", n.get_note_type_display(), n.note, n.hospital, n.pk)
 
 
+TEMPERATURE_UNITS = {"C": "°C", "F": "°F"}
+
+
+def _temperature(value, unit):
+    """A temperature never travels without its unit; a reading without one says so (Prompt 4)."""
+    suffix = TEMPERATURE_UNITS.get(str(unit or "").upper())
+    return f"{value} {suffix}" if suffix else f"{value} (unit not recorded)"
+
+
+def _ward_vitals(patient, hospital_ids, **_):
+    """
+    Prompt 5 (MF-009): the vitals ward nurses record (NursingAssessment.vitals).
+    Only the measurements are shown, never the nurse's free-text assessment,
+    so the patient sees the same readings the doctor does and nothing more.
+    """
+    from nurses.models import NursingAssessment
+
+    rows = NursingAssessment.objects.filter(patient=patient, hospital_id__in=hospital_ids).select_related("hospital")
+    for a in rows:
+        vitals = a.vitals or {}
+        parts = [
+            f"BP {vitals['bp']}" if vitals.get("bp") else "",
+            f"Pulse {vitals['pulse']}" if vitals.get("pulse") else "",
+            f"SpO₂ {vitals['spo2']}%" if vitals.get("spo2") else "",
+            f"Resp. rate {vitals['respiratory_rate']}" if vitals.get("respiratory_rate") else "",
+            f"Temp {_temperature(vitals['temperature'], vitals.get('temperature_unit'))}" if vitals.get("temperature") else "",
+        ]
+        detail = " · ".join(part for part in parts if part)
+        if detail:
+            yield _event(a.assessed_at, "Nursing observation", "Ward vitals", detail, a.hospital, a.pk)
+
+
 def _immunizations(patient, hospital_ids, **_):
     from clinical.models import Immunization
 
@@ -160,7 +192,7 @@ def _documents(patient, hospital_ids, **_):
 
 SOURCES = [
     _visits, _diagnoses, _notes, _vitals, _prescriptions, _lab, _imaging,
-    _admissions, _emergency, _nursing, _immunizations, _documents,
+    _admissions, _emergency, _nursing, _ward_vitals, _immunizations, _documents,
 ]
 
 

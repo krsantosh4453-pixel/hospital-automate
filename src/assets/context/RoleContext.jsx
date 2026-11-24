@@ -148,6 +148,18 @@ export const DEFAULT_ROLES = [
     },
   },
   {
+    // Prompt 5 (MF-004): radiographers. Imaging is part of the Laboratory module
+    // (users/role_permissions.py); the Laboratory page itself is hidden for them.
+    id: 13,
+    name: "Radiology Staff",
+    description: "Schedule and perform imaging studies and attach images",
+    permissions: {
+      Dashboard: ["View"],
+      Laboratory: ["View", "Edit"],
+      Reports: ["View"],
+    },
+  },
+  {
     id: 8,
     name: "Blood Bank Staff",
     description: "Manage blood inventory, requests, and transactions",

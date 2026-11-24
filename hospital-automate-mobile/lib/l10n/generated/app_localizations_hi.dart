@@ -4364,6 +4364,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get vitalTemperature => 'तापमान';
 
   @override
+  String get vitalUnitNotRecorded => 'इकाई दर्ज नहीं';
+
+  @override
   String get vitalTooHigh => 'अनुमत अधिकतम से अधिक।';
 
   @override

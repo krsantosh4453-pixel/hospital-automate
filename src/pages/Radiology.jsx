@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react"
-import { CalendarClock, FilePenLine, Plus, Printer, RefreshCw, ScanSearch, XCircle, Zap } from "lucide-react"
+import { CalendarClock, FilePenLine, Images, Plus, Printer, RefreshCw, ScanSearch, XCircle, Zap } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import { useToast } from "../components/Toast.jsx"
 import PatientPicker from "../components/patients/PatientPicker.jsx"
+import VisitSelect from "../components/clinical/VisitSelect.jsx"
+import StudyImages from "../components/radiology/StudyImages.jsx"
 import {
   Alert,
   Button,
@@ -32,7 +34,7 @@ import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 const MODALITIES = ["X-ray", "Ultrasound", "CT", "MRI", "Mammography", "Fluoroscopy", "ECG", "Echo", "Other"]
-const EMPTY_ORDER = { patient: "", modality: "X-ray", body_part: "", indication: "", priority: "Routine" }
+const EMPTY_ORDER = { patient: "", visit: "", modality: "X-ray", body_part: "", indication: "", priority: "Routine" }
 const TABS = [
   { id: "todo", label: "To perform", statuses: ["Ordered", "Scheduled"] },
   { id: "report", label: "Awaiting report", statuses: ["Performed"] },
@@ -48,7 +50,7 @@ function Radiology() {
   const { activeRoleName } = useRole()
   const toast = useToast()
   const isDoctor = activeRoleName === "Doctor" || activeRoleName === "Admin"
-  const isTechnician = activeRoleName === "Lab Staff" || activeRoleName === "Admin"
+  const isTechnician = ["Lab Staff", "Radiology Staff", "Admin"].includes(activeRoleName)
 
   const [studies, setStudies] = useState([])
   const [loading, setLoading] = useState(true)
@@ -190,6 +192,9 @@ function Radiology() {
                           {isDoctor && ["Ordered", "Scheduled"].includes(s.status) && (
                             <Button size="sm" variant="danger-ghost" icon={XCircle} onClick={() => open("cancel", s)}>{t("Cancel")}</Button>
                           )}
+                          {s.status !== "Cancelled" && (
+                            <Button size="sm" variant="ghost" icon={Images} onClick={() => open("images", s)}>{t("Images")}</Button>
+                          )}
                           {s.status === "Reported" && (
                             <Button size="sm" variant="secondary" icon={Printer} onClick={() => setPrinting(s)}>{t("Print")}</Button>
                           )}
@@ -205,11 +210,13 @@ function Radiology() {
       )}
 
       <Modal open={dialog?.kind === "order"} onClose={close} title={t("New imaging order")} footer={footer("Place order")}>
-        <form id="radiology-form" className="space-y-3" onSubmit={(e) => submit(e, () => api.imaging.create({ ...form, patient: Number(form.patient) }), "Imaging ordered.")}>
+        <form id="radiology-form" className="space-y-3" onSubmit={(e) => submit(e, () => api.imaging.create({ ...form, patient: Number(form.patient), visit: form.visit ? Number(form.visit) : null }), "Imaging ordered.")}>
           <Field label="Patient" required>
             <PatientPicker hospitalId={selectedHospital?.id} value={form.patient || ""}
-              onChange={(id) => setForm((current) => ({ ...current, patient: id }))} />
+              onChange={(id) => setForm((current) => ({ ...current, patient: id, visit: "" }))} />
           </Field>
+          <VisitSelect hospitalId={selectedHospital?.id} patientId={form.patient}
+            value={form.visit} onChange={(visit) => setForm((current) => ({ ...current, visit }))} />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Modality" required>
               <Select value={form.modality || "X-ray"} onChange={set("modality")}>{MODALITIES.map((m) => <option value={m} key={m}>{t(m)}</option>)}</Select>
@@ -248,6 +255,12 @@ function Radiology() {
         <form id="radiology-form" onSubmit={(e) => submit(e, () => api.imaging.cancel(study.id), "Order cancelled.")}>
           <p className="text-sm text-ink-700">{t("The order stays on record as cancelled.")}</p>
         </form>
+      </Modal>
+
+      <Modal open={dialog?.kind === "images"} onClose={close} size="lg" title={t("Study images")}
+        description={study && `${study.patient_name} · ${study.modality} ${study.body_part} · ${study.accession_number}`}
+        footer={<Button variant="secondary" onClick={close}>{t("Close")}</Button>}>
+        {study && <StudyImages study={study} canUpload={isTechnician || isDoctor} />}
       </Modal>
 
       <PrintSheet open={Boolean(printing)} onClose={() => setPrinting(null)} title={t("Radiology report")}>

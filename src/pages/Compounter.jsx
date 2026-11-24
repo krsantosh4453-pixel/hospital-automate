@@ -1243,18 +1243,17 @@ function Compounder() {
 
         <SectionCard
           title={t("Patient Vitals")}
-          subtitle="Record vital signs"
-          action={
-            <button
-              onClick={() =>
-                setShowVitalsForm(true)
-              }
-              className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
-            >
-              {t("+ Record Vitals")}
-            </button>
-          }
+          subtitle="Recorded by nurses and doctors"
         >
+          {/* Prompt 5 (item 17): the Compounder role holds no clinical-record
+              permission (users/role_permissions.py; clinical vitals are Doctor
+              and Nurse only). This form kept readings in page memory, which
+              looked saved but never reached the patient's record, so it is no
+              longer offered. Letting compounders record vitals is a policy
+              decision for the hospital, not a code default. */}
+          <Alert tone="info" className="mx-5 mt-4" title={t("Vitals are not recorded here")}>
+            {t("Compounders cannot add vitals to the patient record. Ask a nurse or doctor to record them on the Nursing or Consultation page.")}
+          </Alert>
 
           <div className="overflow-x-auto">
 

@@ -173,6 +173,13 @@ class UhidSequence(models.Model):
         return f"UHID sequence {self.hospital_id}/{self.year}: {self.last_value}"
 
 
+def released_to_patient(documents):
+    """Prompt 5: a study's images reach the patient with its signed report, not before."""
+    return documents.filter(
+        models.Q(imaging_study__isnull=True) | models.Q(imaging_study__status="Reported")
+    )
+
+
 class PatientDocument(models.Model):
     patient = models.ForeignKey(
         Patient,
@@ -191,6 +198,15 @@ class PatientDocument(models.Model):
     folder = models.CharField(max_length=100, blank=True)
     file = models.FileField(upload_to="patient_documents/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    # Prompt 5 (MF-005): an image attached to an imaging study. The patient
+    # sees it only once the study's report is signed.
+    imaging_study = models.ForeignKey(
+        "laboratory.ImagingStudy",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="images",
+    )
 
     def __str__(self):
         return self.title

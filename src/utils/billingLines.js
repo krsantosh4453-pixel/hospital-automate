@@ -7,6 +7,7 @@ export const AUTOMATIC_CATEGORIES = ["consultation", "laboratory", "bed"]
 export const CATEGORY_LABELS = {
   consultation: "Consultation",
   laboratory: "Laboratory investigation",
+  imaging: "Imaging / radiology",
   bed: "Bed charge per day",
   inpatient: "Inpatient service",
   procedure: "Procedure",

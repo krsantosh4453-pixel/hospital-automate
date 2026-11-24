@@ -422,8 +422,9 @@ class ServicePriceViewSet(HospitalScopedViewSet):
         for item in items:
             kind = item.get("kind") if isinstance(item, dict) else None
             pk = item.get("id") if isinstance(item, dict) else None
-            if kind not in ("consultation", "laboratory") or not isinstance(pk, int):
-                raise ValidationError({"items": "Each item needs kind (consultation or laboratory) and a numeric id."})
+            if kind not in ("consultation", "laboratory", "imaging") or not isinstance(pk, int):
+                raise ValidationError(
+                    {"items": "Each item needs kind (consultation, laboratory or imaging) and a numeric id."})
             picked.add((kind, pk))
         return picked
 

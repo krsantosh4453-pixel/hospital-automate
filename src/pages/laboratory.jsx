@@ -32,6 +32,7 @@ import SampleLabel from "../components/laboratory/SampleLabel.jsx"
 import SampleScanDialog from "../components/laboratory/SampleScanDialog.jsx"
 import CriticalResults from "../components/laboratory/CriticalResults.jsx"
 import PatientPicker from "../components/patients/PatientPicker.jsx"
+import VisitSelect from "../components/clinical/VisitSelect.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Laboratory() {
@@ -151,6 +152,7 @@ function Laboratory() {
 
   const [formData, setFormData] = useState({
     patient: "",
+    visit: "",
     test: "",
     doctor: "",
     date: "",
@@ -265,6 +267,7 @@ function Laboratory() {
 
     setFormData({
       patient: "",
+      visit: "",
       test: "",
       doctor: "",
       date: "",
@@ -296,6 +299,8 @@ function Laboratory() {
         hospital: selectedHospital.id,
         patient: Number(formData.patient),
         doctor: formData.doctor ? Number(formData.doctor) : null,
+        // Prompt 5 (INT-002): the order belongs to its visit when one is chosen.
+        visit: formData.visit ? Number(formData.visit) : null,
         name: formData.test,
         priority: formData.priority,
       })
@@ -665,8 +670,12 @@ function Laboratory() {
             <PatientPicker hospitalId={selectedHospital.id} source="lookup" value={formData.patient}
               disabled={Boolean(selectedTest)}
               selected={selectedTest ? { id: formData.patient, name: selectedTest.patient } : null}
-              onChange={(id) => setFormData((current) => ({ ...current, patient: id }))} />
+              onChange={(id) => setFormData((current) => ({ ...current, patient: id, visit: "" }))} />
           </Field>
+          {!selectedTest && (
+            <VisitSelect hospitalId={selectedHospital.id} patientId={formData.patient}
+              value={formData.visit} onChange={(visit) => setFormData((current) => ({ ...current, visit }))} />
+          )}
           <Field label="Test" required>
             <Select name="test" value={formData.test} onChange={handleChange}>
               <option value="">{t("Select test")}</option>

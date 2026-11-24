@@ -230,7 +230,9 @@ class PatientViewSet(HospitalScopedViewSet):
         """Documents of this patient that belong to the acting hospitals."""
         rows = patient.documents.all()
         if get_linked_patient(self.request.user) and not is_active_staff(self.request.user):
-            return rows
+            from .models import released_to_patient
+
+            return released_to_patient(rows)
         return rows.filter(hospital_id__in=self.get_acting_hospital_ids())
 
     def get_object_hospital_id(self, obj):

@@ -15,6 +15,7 @@ const EMPTY = { category: "consultation", code: "", name: "", applies_to: "", un
 const APPLIES_HINT = {
   consultation: "Visit type, e.g. OPD; empty for every visit",
   laboratory: "Test name exactly as ordered, e.g. Lipid Profile",
+  imaging: "Modality and body part, e.g. X-ray Chest PA; or the modality alone, e.g. X-ray",
   bed: "Bed type, e.g. ICU; empty for every bed",
 }
 

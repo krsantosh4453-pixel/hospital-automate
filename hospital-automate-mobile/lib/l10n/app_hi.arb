@@ -1304,6 +1304,7 @@
   "vitalSpo2": "एसपीओ₂",
   "vitalSystolic": "सिस्टोलिक बीपी",
   "vitalTemperature": "तापमान",
+  "vitalUnitNotRecorded": "इकाई दर्ज नहीं",
   "vitalTooHigh": "अनुमत अधिकतम से अधिक।",
   "vitalTooPrecise": "अधिकतम 2 दशमलव स्थान।",
   "vitalWeight": "वज़न",

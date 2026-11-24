@@ -150,6 +150,10 @@ class LabTestSerializer(serializers.ModelSerializer):
     rejection_count = serializers.SerializerMethodField()
     last_rejection_reason = serializers.SerializerMethodField()
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        return check_visit_of_patient(attrs, self.instance)
+
     class Meta:
         model = LabTest
         fields = [
@@ -223,7 +227,19 @@ class LabTestSerializer(serializers.ModelSerializer):
         return value
 
 
+def check_visit_of_patient(attrs, instance=None):
+    """INT-002 (Prompt 5): an order's visit must be a visit of the same patient."""
+    visit = attrs.get("visit", getattr(instance, "visit", None))
+    patient = attrs.get("patient", getattr(instance, "patient", None))
+    if visit is not None and patient is not None and visit.patient_id != patient.pk:
+        raise serializers.ValidationError({"visit": "This visit belongs to another patient."})
+    return attrs
+
+
 class LabTestCreateSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        return check_visit_of_patient(attrs, self.instance)
+
     class Meta:
         model = LabTest
         fields = [
@@ -254,6 +270,9 @@ class ImagingStudySerializer(serializers.ModelSerializer):
             "performed_by", "technician_notes", "findings", "impression", "reported_by", "reported_at",
         ]
         extra_kwargs = {"hospital": {"required": False}}
+
+    def validate(self, attrs):
+        return check_visit_of_patient(attrs, self.instance)
 
     def validate_body_part(self, value):
         if not value.strip():

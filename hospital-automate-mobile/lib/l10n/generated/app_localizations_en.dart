@@ -4378,6 +4378,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vitalTemperature => 'Temperature';
 
   @override
+  String get vitalUnitNotRecorded => 'unit not recorded';
+
+  @override
   String get vitalTooHigh => 'Above the allowed maximum.';
 
   @override

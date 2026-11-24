@@ -13,7 +13,7 @@ from audit.services import record_audit
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import (
     get_linked_patient, get_user_roles, is_active_staff, IsAdmin, IsDoctor, IsHospitalManagerReadOnly, IsLabStaff,
-    IsNurse, IsPatientReadOnly,
+    IsNurse, IsPatientReadOnly, IsRadiologyStaff,
 )
 from . import flags
 from .models import (
@@ -603,19 +603,29 @@ class ResultVerificationViewSet(HospitalScopedViewSet):
 
 class ImagingStudyViewSet(HospitalScopedViewSet):
     """
-    Radiology / imaging (G4): Doctor orders, Lab Staff (technician) schedules and
-    performs, a Doctor reports and signs. Rows are never edited or deleted; a
-    study is cancelled instead. Patients see only signed reports.
+    Radiology / imaging (G4): Doctor orders, Radiology Staff or Lab Staff
+    (technician) schedules and performs, a Doctor reports and signs. Rows are
+    never edited or deleted; a study is cancelled instead. Patients see only
+    signed reports.
+
+    Prompt 5: signing the report charges the study from the price list
+    (billing.charges.capture_imaging_study), and images can be attached
+    before it is signed (laboratory/imaging_files.py).
     """
 
     queryset = ImagingStudy.objects.select_related("hospital", "patient", "ordered_by", "reported_by")
     serializer_class = ImagingStudySerializer
-    permission_classes = [IsDoctor | IsLabStaff | IsNurse | IsPatientReadOnly | IsHospitalManagerReadOnly]
+    permission_classes = [
+        IsDoctor | IsLabStaff | IsRadiologyStaff | IsNurse | IsPatientReadOnly | IsHospitalManagerReadOnly
+    ]
     http_method_names = ["get", "post", "head", "options"]
 
     def get_permissions(self):
         if self.action == "create":
             return [IsDoctor()]
+        if self.action == "images" and self.request.method == "POST":
+            # The technician who performs the study, or the reporting doctor.
+            return [(IsRadiologyStaff | IsLabStaff | IsDoctor)()]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -678,7 +688,7 @@ class ImagingStudyViewSet(HospitalScopedViewSet):
         self._audit(to.lower(), study)
         return Response(self.get_serializer(study).data)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff | IsRadiologyStaff])
     def schedule(self, request, pk=None):
         when = parse_datetime(str(request.data.get("scheduled_for") or ""))
         if when is None:
@@ -686,7 +696,7 @@ class ImagingStudyViewSet(HospitalScopedViewSet):
         return self._move(request, [ImagingStudy.Status.ORDERED, ImagingStudy.Status.SCHEDULED],
                           ImagingStudy.Status.SCHEDULED, scheduled_for=when)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff | IsRadiologyStaff])
     def perform(self, request, pk=None):
         return self._move(request, [ImagingStudy.Status.ORDERED, ImagingStudy.Status.SCHEDULED],
                           ImagingStudy.Status.PERFORMED, performed_at=timezone.now(), performed_by=request.user,
@@ -700,9 +710,46 @@ class ImagingStudyViewSet(HospitalScopedViewSet):
         impression = str(request.data.get("impression", "")).strip()
         if not findings or not impression:
             raise ValidationError({"impression": "Write both the findings and the impression."})
-        return self._move(request, [ImagingStudy.Status.PERFORMED], ImagingStudy.Status.REPORTED,
-                          findings=findings, impression=impression,
-                          reported_by=self._doctor_at(study.hospital), reported_at=timezone.now())
+        from billing.charges import capture_imaging_study
+
+        reporter = self._doctor_at(study.hospital)
+        with transaction.atomic():
+            # Locked so two signatures at once sign (and charge) once.
+            ImagingStudy.objects.select_for_update().filter(pk=study.pk).first()
+            response = self._move(request, [ImagingStudy.Status.PERFORMED], ImagingStudy.Status.REPORTED,
+                                  findings=findings, impression=impression,
+                                  reported_by=reporter, reported_at=timezone.now())
+            if response.status_code == status.HTTP_200_OK:
+                capture_imaging_study(ImagingStudy.objects.select_related("visit").get(pk=study.pk))
+        return response
+
+    @action(detail=True, methods=["get", "post"], url_path="images")
+    def images(self, request, pk=None):
+        """GET: the study's images. POST (multipart ``file``): attach one before the report is signed."""
+        from .imaging_files import image_payload, store_image
+
+        study = self.get_object()
+        if request.method == "GET":
+            return Response([image_payload(study, doc) for doc in study.images.order_by("uploaded_at", "pk")])
+        if study.status not in (ImagingStudy.Status.ORDERED, ImagingStudy.Status.SCHEDULED,
+                                ImagingStudy.Status.PERFORMED):
+            raise ValidationError({"detail": f"A {study.status.lower()} study takes no more images."})
+        document = store_image(study, request.FILES.get("file"), request.data.get("title", ""))
+        self._audit("image_uploaded", study, details={"document": document.pk, "size": document.file.size})
+        return Response(image_payload(study, document), status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"], url_path=r"images/(?P<doc_id>[0-9]+)")
+    def image_file(self, request, pk=None, doc_id=None):
+        """The file itself: private, never cached, audited on every read."""
+        from documents.views import _file_response
+        from rest_framework.exceptions import NotFound
+
+        study = self.get_object()
+        document = study.images.filter(pk=doc_id).first()
+        if document is None:
+            raise NotFound("Image not found.")
+        self._audit("image_read", study, details={"document": document.pk})
+        return _file_response(document, inline=True)
 
     @action(detail=True, methods=["post"], permission_classes=[IsDoctor])
     def cancel(self, request, pk=None):

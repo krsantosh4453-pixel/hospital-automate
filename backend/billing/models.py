@@ -189,6 +189,8 @@ class ServicePrice(models.Model):
     class Category(models.TextChoices):
         CONSULTATION = "consultation", "Consultation"
         LABORATORY = "laboratory", "Laboratory investigation"
+        # Prompt 5 (MF-011): X-ray and other studies, charged when the report is signed.
+        IMAGING = "imaging", "Imaging / radiology"
         BED = "bed", "Bed charge per day"
         INPATIENT = "inpatient", "Inpatient service"
         PROCEDURE = "procedure", "Procedure"

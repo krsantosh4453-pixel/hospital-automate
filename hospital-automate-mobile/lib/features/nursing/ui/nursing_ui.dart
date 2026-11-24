@@ -72,6 +72,21 @@ String wardVitalLabel(AppLocalizations t, String key) => switch (key) {
   _ => key,
 };
 
+/// Each reading of an assessment's `vitals` as "Label: value". A temperature
+/// always shows its unit; one stored without a unit (older readings) says so
+/// and is never converted or guessed (Prompt 5).
+List<String> wardVitalLines(AppLocalizations t, Map<String, String> vitals) {
+  const units = {'C': '°C', 'F': '°F'};
+  return [
+    for (final e in vitals.entries)
+      if (e.key != 'temperature_unit')
+        e.key == 'temperature'
+            ? '${wardVitalLabel(t, e.key)}: ${e.value} '
+                  '${units[vitals['temperature_unit']?.toUpperCase()] ?? '(${t.vitalUnitNotRecorded})'}'
+            : '${wardVitalLabel(t, e.key)}: ${e.value}',
+  ];
+}
+
 /// A safe sentence for a refused dose. The server answers 400 when the dose
 /// was already recorded (perhaps by another nurse) or its order is no longer
 /// in force; the raw server text is never shown.

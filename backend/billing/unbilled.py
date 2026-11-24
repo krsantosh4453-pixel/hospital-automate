@@ -26,7 +26,7 @@ from django.db import transaction
 
 from config.hospital_time import hospital_today
 
-from .charges import capture_consultation, capture_lab_test
+from .charges import capture_consultation, capture_imaging_study, capture_lab_test, imaging_price
 from .models import Invoice, InvoiceItem, ServicePrice
 from .price_list import price_for
 
@@ -51,7 +51,9 @@ def since_day(value):
 
 
 def _key(kind, pk):
-    return f"visit:{pk}:consultation" if kind == "consultation" else f"labtest:{pk}"
+    if kind == "consultation":
+        return f"visit:{pk}:consultation"
+    return f"imaging:{pk}" if kind == "imaging" else f"labtest:{pk}"
 
 
 def _parse_key(key):
@@ -62,6 +64,8 @@ def _parse_key(key):
         return "consultation", int(parts[1])
     if parts[0] == "labtest" and len(parts) == 2 and parts[1].isdigit():
         return "laboratory", int(parts[1])
+    if parts[0] == "imaging" and len(parts) == 2 and parts[1].isdigit():
+        return "imaging", int(parts[1])
     return None
 
 
@@ -84,7 +88,8 @@ def _candidates(hospital_id, since):
     from audit.models import AuditLog
 
     found = {}
-    model_kind = {"encounters.Visit": "consultation", "laboratory.LabTest": "laboratory"}
+    model_kind = {"encounters.Visit": "consultation", "laboratory.LabTest": "laboratory",
+                  "laboratory.ImagingStudy": "imaging"}
     for row in AuditLog.objects.filter(hospital_id=hospital_id, action="billing.charge.unpriced",
                                        model_name__in=list(model_kind), created_at__date__gte=since,
                                        ).values("model_name", "object_id"):
@@ -113,7 +118,7 @@ def _live_keys(keys):
 def find_unbilled(hospital_id, since):
     """Rows of uncharged work, oldest first, each saying where it came from and whether it is priced today."""
     from encounters.models import Visit
-    from laboratory.models import LabTest
+    from laboratory.models import ImagingStudy, LabTest
 
     candidates = _candidates(hospital_id, since)
     live = _live_keys(_key(kind, pk) for kind, pk in candidates)
@@ -122,6 +127,8 @@ def find_unbilled(hospital_id, since):
     test_ids = [pk for kind, pk in open_ if kind == "laboratory"]
     visits = Visit.objects.filter(hospital_id=hospital_id, status="Completed").in_bulk(visit_ids)
     tests = LabTest.objects.filter(hospital_id=hospital_id, status__in=LabTest.DONE_STATUSES).in_bulk(test_ids)
+    studies = ImagingStudy.objects.filter(hospital_id=hospital_id, status=ImagingStudy.Status.REPORTED).in_bulk(
+        [pk for kind, pk in open_ if kind == "imaging"])
 
     prices = {}
 
@@ -143,6 +150,12 @@ def find_unbilled(hospital_id, since):
             rows.append({"kind": kind, "id": pk, "patient": test.patient_id, "service": test.name,
                          "date": str((test.verified_at or test.released_at).date()) if (test.verified_at or test.released_at) else "",
                          "priced": priced(Category.LABORATORY, test.name), **source})
+        elif kind == "imaging" and pk in studies:
+            study = studies[pk]
+            rows.append({"kind": kind, "id": pk, "patient": study.patient_id,
+                         "service": f"{study.modality} {study.body_part}".strip(),
+                         "date": str(study.reported_at.date()) if study.reported_at else "",
+                         "priced": imaging_price(study) is not None, **source})
     return sorted(rows, key=lambda r: (r["date"], r["kind"], r["id"]))
 
 
@@ -153,7 +166,7 @@ def charge_unbilled(hospital_id, since, selected=None):
     charged; with ``selected`` (a set of (kind, id)) exactly those rows,
     including ones from a cancelled bill. Returns (charged, not charged).
     """
-    from laboratory.models import LabTest
+    from laboratory.models import ImagingStudy, LabTest
 
     charged, left = [], []
     for row in find_unbilled(hospital_id, since):
@@ -164,6 +177,9 @@ def charge_unbilled(hospital_id, since, selected=None):
         with transaction.atomic():
             if row["kind"] == "consultation":
                 item = capture_consultation(row["id"])
+            elif row["kind"] == "imaging":
+                study = ImagingStudy.objects.select_for_update(of=("self",)).select_related("visit").get(pk=row["id"])
+                item = capture_imaging_study(study)
             else:
                 test = LabTest.objects.select_for_update(of=("self",)).select_related("visit").get(pk=row["id"])
                 item = capture_lab_test(test)

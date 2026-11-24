@@ -83,6 +83,71 @@ class TimelineTests(TestCase):
         self.assertNotIn(("Lab", "Lipids"), found)
         self.assertFalse(any(kind == "Doctor note" for kind, _ in found))
 
+    def _as_patient(self):
+        login, _ = User.objects.get_or_create(username="asha_p5")
+        self.patient.user = login
+        self.patient.save(update_fields=["user"])
+        self.client.force_authenticate(user=login)
+        response = self.client.get(self.url())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        return response.data["events"]
+
+    # Prompt 5 (MF-008): the patient's own diagnoses, as the clinician recorded them.
+    def test_patient_sees_the_diagnoses_recorded_for_them(self):
+        events = self._as_patient()
+
+        diagnoses = [e for e in events if e["kind"] == "Diagnosis"]
+        self.assertEqual([e["title"] for e in diagnoses], ["Provisional: Hypertension (I10)"])
+        self.assertEqual(diagnoses[0]["hospital"], "A")
+
+    # Prompt 5 (MF-009): ward vitals reach the patient with units; nursing notes
+    # and the nurse's free-text assessment stay staff-only.
+    def test_patient_sees_ward_observations_with_units_but_no_nursing_notes(self):
+        from ipd.models import Admission
+        from nurses.models import NursingAssessment, NursingNote
+
+        admission = Admission.objects.create(patient=self.patient, hospital=self.hospital, reason="Fever")
+        NursingAssessment.objects.create(
+            patient=self.patient, hospital=self.hospital, admission=admission, assessment_type="Focused",
+            vitals={"temperature": "99.1", "temperature_unit": "F", "pulse": "88", "bp": "118/76"},
+            skin_condition="Private nursing assessment text")
+        NursingAssessment.objects.create(
+            patient=self.patient, hospital=self.hospital, admission=admission, assessment_type="Focused",
+            vitals={"temperature": "37.0"})
+        NursingAssessment.objects.create(patient=self.patient, hospital=self.hospital, assessment_type="Shift")
+        NursingNote.objects.create(patient=self.patient, hospital=self.hospital, note="Private nursing note")
+
+        events = self._as_patient()
+
+        ward = [e for e in events if e["kind"] == "Nursing observation"]
+        details = sorted(e["detail"] for e in ward)
+        self.assertEqual(details, ["BP 118/76 · Pulse 88 · Temp 99.1 °F", "Temp 37.0 (unit not recorded)"])
+        text = str(events)
+        self.assertNotIn("Private nursing note", text)
+        self.assertNotIn("Private nursing assessment text", text)
+
+    # Prompt 5 (MF-009): a discharge is shown only when one really happened.
+    def test_discharge_appears_only_for_a_real_inpatient_discharge(self):
+        from django.utils import timezone
+
+        from ipd.models import Admission, DischargePlan, DischargeSummary
+
+        Visit.objects.filter(patient=self.patient).update(status="Completed")
+        stay = Admission.objects.create(patient=self.patient, hospital=self.hospital, reason="Observation")
+        DischargeSummary.objects.create(admission=stay, summary="Draft, not finalized")
+        self.assertFalse(any(e["kind"] == "Discharge" for e in self._as_patient()))
+
+        stay.status = "Discharged"
+        stay.discharge_date = timezone.now()
+        stay.save(update_fields=["status", "discharge_date"])
+        DischargePlan.objects.create(admission=stay, instructions="Rest for a week")
+        events = self._as_patient()
+
+        discharges = [e for e in events if e["kind"] == "Discharge"]
+        self.assertEqual(len(discharges), 1)
+        self.assertIn("Follow-up: Rest for a week", discharges[0]["detail"])
+        self.assertNotIn("Draft, not finalized", discharges[0]["detail"])
+
     def test_receptionist_and_doctor_without_care_are_refused(self):
         receptionist = staff("rec", self.hospital, StaffRole.RECEPTIONIST)
         stranger = staff("doc2", self.hospital, StaffRole.DOCTOR)

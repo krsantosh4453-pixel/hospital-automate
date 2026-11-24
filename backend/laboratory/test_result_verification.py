@@ -133,6 +133,33 @@ class ResultVerificationTests(TestCase):
         test.refresh_from_db()
         self.assertEqual(test.status, "Verified")
 
+    # Prompt 5 (SEC-002): every non-laboratory role is refused the second check.
+    def test_no_other_staff_role_can_be_the_second_checker(self):
+        test = self.order()
+        self.enter(test)
+        roles = (StaffRole.RECEPTIONIST, StaffRole.BILLING_STAFF, StaffRole.COMPOUNDER, StaffRole.RADIOLOGY_STAFF,
+                 StaffRole.HOSPITAL_MANAGER, StaffRole.BLOOD_BANK_STAFF, StaffRole.INVENTORY_STAFF)
+        for role in roles:
+            user, _ = make_staff(f"p5_{role.lower().replace(' ', '_')}", self.hospital, role=role)
+            with self.subTest(role=role):
+                self.assertEqual(self.post(user, test, "verify_result").status_code, 403)
+        outside = Hospital.objects.create(name="Synthetic Other Lab", is_active=True)
+        stranger, _ = make_staff("p5_lab_other", outside, role=StaffRole.LAB_STAFF)
+        self.assertIn(self.post(stranger, test, "verify_result").status_code, (403, 404))
+        test.refresh_from_db()
+        self.assertEqual(test.status, "Result Entered")
+        self.assertFalse(ResultVerification.objects.exists())
+
+    # Prompt 5 (SEC-002): POLICY DECISION REQUIRED. An Admin account can be the
+    # second checker today (IsLabStaff includes Admin, as every role permission
+    # does). Whether an Admin-only account may verify is a lab-director decision;
+    # this test pins the current behaviour so a change is deliberate.
+    def test_admin_can_currently_be_the_second_checker_pending_a_policy_decision(self):
+        test = self.order()
+        self.enter(test)
+        self.assertEqual(self.post(self.admin, test, "verify_result").status_code, 200)
+        self.assertEqual(LabResult.objects.get(lab_test=test).verified_by, self.admin)
+
     def test_the_entered_result_is_never_overwritten(self):
         test = self.order()
         self.enter(test, text="Original value")

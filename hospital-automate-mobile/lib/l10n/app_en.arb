@@ -1961,6 +1961,7 @@
   "vitalSpo2": "SpO₂",
   "vitalSystolic": "Systolic BP",
   "vitalTemperature": "Temperature",
+  "vitalUnitNotRecorded": "unit not recorded",
   "vitalTooHigh": "Above the allowed maximum.",
   "vitalTooPrecise": "Use at most 2 decimal places.",
   "vitalWeight": "Weight",

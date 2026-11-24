@@ -262,14 +262,14 @@ function Navbar() {
   const location = useLocation()
   const { selectedHospital, selectHospital } = usePatient()
   const { hospitals: contextHospitals } = useHospitals()
-  const { canView } = useRole()
+  const { canView, activeRoleName } = useRole()
   const { isStaff } = useAuth()
   const { t } = useLanguage()
   const { openMobile } = useSidebar()
   const [jumpOpen, setJumpOpen] = useState(false)
 
   const hospitalsList = useMemo(() => contextHospitals || [], [contextHospitals])
-  const groups = isStaff ? visibleStaffNav(canView) : guestStaffNav()
+  const groups = isStaff ? visibleStaffNav(canView, activeRoleName) : guestStaffNav()
 
   // Select the first hospital if none is selected yet, replace a stale
   // selection that is no longer in the user's list, and refresh a saved

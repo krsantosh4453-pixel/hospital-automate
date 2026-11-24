@@ -250,6 +250,68 @@ describe("cookie session", () => {
   })
 })
 
+// Prompt 5 (SEC-001): no staff profile in browser storage on a shared PC,
+// and nothing of one person's session left for the next.
+describe("browser storage on shared computers", () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const PROFILE = {
+    user: { username: "synthetic.desk", email: "desk@example.test", phone: "9000000000", employee_id: "EMP-1" },
+    roles: ["Receptionist"],
+    hospitals: [{ id: 1, name: "Synthetic One" }],
+  }
+
+  it("keeps the staff profile out of localStorage after sign-in (TEST 16)", async () => {
+    stubServer(async () => jsonResponse(200, PROFILE))
+
+    await api.auth.staffLogin("synthetic.desk", "Synthetic-Pass-123")
+
+    expect(localStorage.getItem("user")).toBeNull()
+    expect(localStorage.getItem("roles")).toBeNull()
+    expect(localStorage.getItem("hospitals")).toBeNull()
+    const stored = Object.keys(localStorage).map((key) => localStorage.getItem(key)).join(" ")
+    expect(stored).not.toContain("desk@example.test")
+    expect(stored).not.toContain("EMP-1")
+  })
+
+  it("forgets the previous person's hospital when someone else signs in (TEST 16)", async () => {
+    localStorage.setItem("selectedHospital", JSON.stringify({ id: 9, name: "Previous user's hospital" }))
+    stubServer(async () => jsonResponse(200, PROFILE))
+
+    await api.auth.staffLogin("synthetic.desk", "Synthetic-Pass-123")
+
+    expect(localStorage.getItem("selectedHospital")).toBeNull()
+  })
+
+  it("keeps the chosen hospital when the same person signs in again", async () => {
+    localStorage.setItem("selectedHospital", JSON.stringify({ id: 1, name: "Synthetic One" }))
+    stubServer(async () => jsonResponse(200, PROFILE))
+
+    await api.auth.staffLogin("synthetic.desk", "Synthetic-Pass-123")
+
+    expect(JSON.parse(localStorage.getItem("selectedHospital")).id).toBe(1)
+  })
+
+  it("clears every user-specific key on logout (TEST 16)", async () => {
+    for (const key of ["user", "roles", "hospitals", "selectedHospital", "patient", "patientLoggedIn", "hospitalPatients"]) {
+      localStorage.setItem(key, "left by an earlier session")
+    }
+    stubServer(async () => jsonResponse(200))
+
+    await api.auth.logout()
+
+    for (const key of ["user", "roles", "hospitals", "selectedHospital", "patient", "patientLoggedIn", "hospitalPatients"]) {
+      expect(localStorage.getItem(key)).toBeNull()
+    }
+  })
+})
+
 describe("error messages from field-error bodies", () => {
   it("shows the server's sentences instead of raw JSON", async () => {
     const { parseErrorDetail } = await import("../services/api.js")

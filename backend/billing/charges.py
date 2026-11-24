@@ -4,6 +4,9 @@ BUG-07: charges captured from the work itself, priced from the price list.
 * A consultation is charged when its visit is Completed.
 * A laboratory investigation is charged when its result is verified, so a
   test that was ordered but never performed is never billed.
+* An imaging study (X-ray, CT, ...) is charged when its report is signed
+  (Prompt 5), so an ordered, performed-but-unreported or cancelled study is
+  never billed.
 * Bed days are charged on the final bill of a stay (ipd/discharge.py).
 
 Every charge has a key naming the service ("visit:12:consultation",
@@ -175,6 +178,31 @@ def capture_lab_test(lab_test):
     visit = lab_test.visit if lab_test.visit_id and lab_test.visit.patient_id == lab_test.patient_id else None
     invoice = bill_for(lab_test.patient_id, lab_test.hospital_id, visit=visit)
     item, _ = post_charge(invoice, key, price, f"Laboratory: {lab_test.name} (LAB-{lab_test.pk})")
+    return item
+
+
+def imaging_price(study):
+    """The price of a study: "<modality> <body part>" first, then the modality alone. Never a default."""
+    for name in (f"{study.modality} {study.body_part}".strip(), study.modality):
+        price = price_for(study.hospital_id, Category.IMAGING, applies_to=name)
+        if price is not None:
+            return price
+    return None
+
+
+def capture_imaging_study(study):
+    """Charge a signed imaging report once (the caller holds the study locked)."""
+    _require_transaction()
+    key = f"imaging:{study.pk}"
+    if is_charged(key):
+        return None
+    price = imaging_price(study)
+    if price is None:
+        return _unpriced(study, Category.IMAGING, f"{study.modality} {study.body_part}".strip())
+    visit = study.visit if study.visit_id and study.visit.patient_id == study.patient_id else None
+    invoice = bill_for(study.patient_id, study.hospital_id, visit=visit)
+    item, _ = post_charge(invoice, key, price,
+                          f"Imaging: {study.modality} {study.body_part} ({study.accession_number})")
     return item
 
 

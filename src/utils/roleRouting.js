@@ -8,6 +8,7 @@ export const LOGIN_ROLES = [
   "Receptionist",
   "Pharmacist",
   "Lab Staff",
+  "Radiology Staff",
   "Blood Bank Staff",
   "Billing Staff",
   "Inventory Staff",

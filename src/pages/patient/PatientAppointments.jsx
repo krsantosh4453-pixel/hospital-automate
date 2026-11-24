@@ -5,6 +5,7 @@ import api from "../../services/api.js"
 import { CalendarDays, CalendarPlus } from "lucide-react"
 import { Alert, Button, Card, EmptyState, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
 import BookAppointmentModal from "./BookAppointmentModal.jsx"
+import ManageAppointmentDialog, { canManageOnline } from "../../components/patient/ManageAppointmentDialog.jsx"
 import { UPCOMING_STATUSES } from "../../config/appointmentStatus.js"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 
@@ -20,6 +21,8 @@ function PatientAppointments() {
   const [booking, setBooking] = useState(searchParams.get("book") === "1")
   const [notice, setNotice] = useState("")
   const [reloadToken, setReloadToken] = useState(0)
+  // Prompt 5 (MF-003): { appointment, mode: "cancel" | "reschedule" }
+  const [managing, setManaging] = useState(null)
 
   useEffect(() => {
     if (!patient?.id) return
@@ -92,6 +95,17 @@ function PatientAppointments() {
           setReloadToken((n) => n + 1)
         }}
       />
+      <ManageAppointmentDialog
+        appointment={managing?.appointment}
+        mode={managing?.mode}
+        onClose={() => setManaging(null)}
+        onChanged={(appt, what) => {
+          setNotice(what === "cancelled"
+            ? t("Your appointment with {name} was cancelled.", { name: appt.doctor_name || t("the doctor") })
+            : t("Moved to {appointmentDate} at {time}.", { appointmentDate: formatDate(appt.appointment_date), time: String(appt.appointment_time).slice(0, 5) }))
+          setReloadToken((n) => n + 1)
+        }}
+      />
       {notice && <Alert tone="success">{notice}</Alert>}
 
       {error && <Alert tone="danger">{error}</Alert>}
@@ -127,7 +141,19 @@ function PatientAppointments() {
                   </p>
                   {appt.reason && <p className="mt-0.5 truncate text-[13px] text-ink-600">{appt.reason}</p>}
                 </div>
-                <StatusBadge status={appt.status} />
+                <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
+                  <StatusBadge status={appt.status} />
+                  {canManageOnline(appt) && (
+                    <span className="flex gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => setManaging({ appointment: appt, mode: "reschedule" })}>
+                        {t("Reschedule")}
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => setManaging({ appointment: appt, mode: "cancel" })}>
+                        {t("Cancel")}
+                      </Button>
+                    </span>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
