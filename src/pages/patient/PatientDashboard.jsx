@@ -8,6 +8,7 @@ import { UPCOMING_STATUSES } from "../../config/appointmentStatus.js"
 import PatientTimeline from "../../components/clinical/PatientTimeline.jsx"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 import { hasBalanceDue } from "../../utils/money.js"
+import { MyHospitalsCard } from "../../components/patient/HospitalMembership.jsx"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 // Partly dispensed prescriptions still have medicines to collect (BUG-05).
@@ -88,6 +89,9 @@ function PatientDashboard() {
         <StatTile icon={Pill} tone="accent" label="Current prescriptions" value={loading ? null : stats?.currentPrescriptions} />
         <StatTile icon={ReceiptIndianRupee} tone={stats?.unpaidBills ? "warning" : "success"} label="Bills with balance due" value={loading ? null : stats?.unpaidBills} />
       </div>
+
+      {/* Prompt 3: the patient's UHID at each hospital (or registering at one). */}
+      <MyHospitalsCard />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>

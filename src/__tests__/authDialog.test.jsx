@@ -5,7 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // Sign-in and Create Account share one dialog over the page the visitor is on.
 vi.mock("../services/api.js", () => ({
-  default: { auth: { register: vi.fn(), verifyEmailOtp: vi.fn(), requestEmailOtp: vi.fn() } },
+  default: {
+    auth: {
+      register: vi.fn(), verifyEmailOtp: vi.fn(), requestEmailOtp: vi.fn(),
+      // Prompt 3: the form loads the hospitals a patient may choose.
+      selfRegistrationHospitals: vi.fn(async () => []),
+    },
+  },
 }))
 
 import { LanguageProvider } from "../assets/context/LanguageProvider.jsx"

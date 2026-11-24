@@ -480,3 +480,43 @@ class ConcurrentWriteTests(WardMixin, TransactionTestCase):
 
         self.assertEqual(sorted(results), [201] + [400] * (THREADS - 1), results)
         self.assertEqual(Appointment.objects.filter(doctor=doctor).count(), 1)
+
+
+@unittest.skipUnless(connection.vendor == "postgresql", "needs real row locks (set TEST_DATABASE_URL)")
+class ConcurrentEnrollmentTests(TransactionTestCase):
+    """Prompt 3: the desk enrols existing patients at a hospital under parallel load."""
+
+    def setUp(self):
+        self.hospital = Hospital.objects.create(name="Synthetic Enrol Race", is_active=True, uhid_prefix="ENR")
+        self.desk, _ = make_staff("race_enrol_desk", self.hospital, role=StaffRole.RECEPTIONIST)
+
+    def make_unlinked_patient(self, index):
+        from datetime import date
+
+        return Patient.objects.create(name=f"Synthetic Enrol {index}", age=36, gender="Female",
+                                      phone=f"90011{index:05d}", date_of_birth=date(1990, 1, 1))
+
+    def link(self, phone):
+        client = APIClient()
+        client.force_authenticate(self.desk)
+        client.credentials(HTTP_X_HOSPITAL_ID=str(self.hospital.id))
+        return client.post("/api/patients/link/", {"phone": phone, "date_of_birth": "1990-01-01"},
+                           format="json").status_code
+
+    def test_parallel_enrolments_issue_distinct_uhids(self):
+        patients = [self.make_unlinked_patient(index) for index in range(THREADS)]
+
+        results = run_together(lambda i: self.link(patients[i].phone))
+
+        self.assertEqual(results, [201] * THREADS, results)
+        uhids = list(PatientHospital.objects.filter(hospital=self.hospital).values_list("uhid", flat=True))
+        self.assertEqual(len(uhids), THREADS)
+        self.assertEqual(len(set(uhids)), THREADS, uhids)
+
+    def test_parallel_enrolments_of_one_patient_make_one_membership(self):
+        patient = self.make_unlinked_patient(0)
+
+        results = run_together(lambda i: self.link(patient.phone))
+
+        self.assertEqual(sorted(results), [200] * (THREADS - 1) + [201], results)
+        self.assertEqual(PatientHospital.objects.filter(patient=patient, hospital=self.hospital).count(), 1)

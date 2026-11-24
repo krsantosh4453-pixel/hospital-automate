@@ -170,6 +170,10 @@ class ReceptionLinkTests(Fixture, TestCase):
         self.assertEqual(again.status_code, 200)
         self.assertEqual(first.json()["id"], self.patient.pk)
         self.assertTrue(first.json()["uhid"].startswith("SLG-"))
+        # Prompt 3: the reception screen tells "registered now" from "already here".
+        self.assertIs(first.json()["created"], True)
+        self.assertIs(again.json()["created"], False)
+        self.assertEqual(again.json()["uhid"], first.json()["uhid"])
         self.assertEqual(PatientHospital.objects.filter(patient=self.patient).count(), 1)
         self.assertEqual(Patient.objects.filter(phone="9000002002").count(), 1)
 

@@ -446,6 +446,13 @@ const api = {
       return data
     },
     patientMe: async () => request(`${API_BASE_URL}/auth/patient/me/`),
+    // GET /api/auth/patient/hospitals/ (public): hospitals a patient may choose
+    // at sign-up or join from the app (active, accepting self-registration).
+    selfRegistrationHospitals: async () => request(`${API_BASE_URL}/auth/patient/hospitals/`),
+    // POST /api/auth/patient/hospitals/join/ — the signed-in patient registers at
+    // a hospital and gets its UHID; repeating it returns the same registration.
+    joinHospital: async (hospitalId) =>
+      request(`${API_BASE_URL}/auth/patient/hospitals/join/`, { method: 'POST', ...jsonBody({ hospital: hospitalId }) }),
     // Family / caregiver sign-in (view-only): OTP to the family member's own mobile,
     // then pick which patient's records to open.
     requestProxyOtp: async (phone) =>
@@ -511,6 +518,15 @@ const api = {
     get: async (id) => request(`${API_BASE_URL}/patients/${id}/`),
     // POST /api/patients/{id}/allergy-status/ — "No known allergies" | "Unknown".
     // Doctors and nurses only; refused (409) while an allergy is on record.
+    // POST /api/patients/link/ {phone, date_of_birth} — the desk registers an
+    // existing patient at its hospital (both details must match; never creates
+    // a patient). Answers with the patient, its UHID here and `created`.
+    link: async (hospitalId, data) =>
+      request(`${API_BASE_URL}/patients/link/?hospital=${hospitalId}`, {
+        method: 'POST',
+        ...jsonBody(data),
+        headers: { 'Content-Type': 'application/json', 'X-Hospital-ID': String(hospitalId) },
+      }),
     setAllergyStatus: async (id, status) =>
       request(`${API_BASE_URL}/patients/${id}/allergy-status/`, { method: 'POST', ...jsonBody({ status }) }),
 

@@ -418,7 +418,9 @@ class PatientViewSet(HospitalScopedViewSet):
         membership, created = ensure_uhid(patient, Hospital.objects.get(pk=hospital_id))
         record_audit(request, "patients.link" if created else "patients.link.repeat", patient,
                      hospital=hospital_id, details={"uhid": membership.uhid})
-        data = self.get_serializer(patient).data
+        # ``created`` lets a screen tell "registered now" from "already here"
+        # (the status code says the same; clients reading only the body need it).
+        data = {**self.get_serializer(patient).data, "created": created}
         return Response(data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
     def _possible_duplicates(self, data, limit=5):

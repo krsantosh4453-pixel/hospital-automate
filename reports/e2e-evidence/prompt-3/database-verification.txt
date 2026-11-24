@@ -1,0 +1,33 @@
+# Prompt 3 database verification (e2e DB after patient-registration.spec.js, 2026-11-24 17:18)
+
+## Synthetic patients created by the spec and their hospital registrations
+id  name                         phone_last4  date_of_birth  hospital            uhid             is_active  has_login
+--  ---------------------------  -----------  -------------  ------------------  ---------------  ---------  ---------
+6   Synthetic Signup MWUMQLVG    3100         1991-04-12     Demo City Hospital  DCH-2026-000001  1          1        
+7   Synthetic Existing MWUMS2NX  1517         1988-08-08     Demo City Hospital  DCH-2026-000002  1          1        
+8   Synthetic Joiner MWUMS5Y7    5775         1993-03-03     Demo City Hospital  DCH-2026-000003  1          1        
+
+## Duplicate UHIDs within a hospital (expect none)
+(end)
+
+## Patients sharing one mobile number (expect none)
+(end)
+
+## More than one registration per patient and hospital (expect none)
+(end)
+
+## Seeded patients' registrations (pre-existing data, expect unchanged DEMO- UHIDs)
+name                        uhid           
+--------------------------  ---------------
+Demo Kiran (Ward A)         DEMO-9000003013
+Demo Meena (Ward B)         DEMO-9000003014
+Demo Portal Patient         DEMO-PORTAL    
+Demo Ravi (Cardiology OPD)  DEMO-9000003011
+Demo Sunil (Ortho OPD)      DEMO-9000003012
+
+## Audit trail for issued registrations
+action                           n
+-------------------------------  -
+patients.link                    1
+patients.link.repeat             1
+patients.self_registration.join  2

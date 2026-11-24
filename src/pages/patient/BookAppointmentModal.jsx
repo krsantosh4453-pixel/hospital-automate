@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import api from "../../services/api.js"
 import { Alert, Button, Field, Modal, Select, Textarea, Input } from "../../components/ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import { JoinHospitalForm } from "../../components/patient/HospitalMembership.jsx"
 
 /** Today's date in the browser's time zone, as YYYY-MM-DD. */
 function todayIso(offsetDays = 0) {
@@ -22,6 +23,8 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [refresh, setRefresh] = useState(0)
+  // Prompt 3: bumped after the patient registers at a hospital from here.
+  const [joined, setJoined] = useState(0)
 
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }))
 
@@ -35,7 +38,7 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
         if (data.hospitals?.length === 1) set("hospital", String(data.hospitals[0].id))
       })
       .catch((e) => setError(e.message))
-  }, [open])
+  }, [open, joined])
 
   useEffect(() => {
     if (!open || !form.hospital) return
@@ -100,7 +103,10 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
       <div className="space-y-4">
         {error && <Alert tone="danger">{error}</Alert>}
         {options.hospitals.length === 0 && !error && (
-          <Alert tone="warning">{t("You are not registered at any hospital yet. Please register at the reception first.")}</Alert>
+          <div className="space-y-3">
+            <Alert tone="warning">{t("You are not registered at any hospital yet. Register at one here, or at its reception.")}</Alert>
+            <JoinHospitalForm onJoined={() => setJoined((n) => n + 1)} />
+          </div>
         )}
         <Field label="Hospital" required>
           <Select value={form.hospital} onChange={(e) => set("hospital", e.target.value)}>

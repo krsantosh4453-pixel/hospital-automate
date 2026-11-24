@@ -1016,6 +1016,17 @@ const HI_PAGES = {
   "No drafts yet. Generate a draft from the transcript.": "अभी कोई ड्राफ्ट नहीं। ट्रांसक्रिप्ट से ड्राफ्ट बनाएँ।",
   "No family member has access to your records.": "परिवार के किसी सदस्य को आपके रिकॉर्ड की पहुँच नहीं है।",
   "No known allergies": "कोई ज्ञात एलर्जी नहीं",
+  // Prompt 3: hospital choice, UHID and enrolment.
+  "Enrol existing patient": "मौजूदा मरीज़ को जोड़ें",
+  "Find and enrol": "खोजें और जोड़ें",
+  "Patient registered": "मरीज़ पंजीकृत",
+  "Already registered": "पहले से पंजीकृत",
+  "Your hospitals": "आपके अस्पताल",
+  "Register at this hospital": "इस अस्पताल में पंजीकरण करें",
+  "Hospitals could not be loaded.": "अस्पताल लोड नहीं हो सके।",
+  "Choose the hospital where you want to be registered.": "वह अस्पताल चुनें जहाँ आप पंजीकरण कराना चाहते हैं।",
+  "You get a patient ID (UHID) at this hospital and can book appointments there.": "आपको इस अस्पताल में मरीज़ आईडी (UHID) मिलेगी और आप वहाँ अपॉइंटमेंट बुक कर सकेंगे।",
+  "You are not registered at any hospital yet. Register at one here, or at its reception.": "आप अभी किसी अस्पताल में पंजीकृत नहीं हैं। यहाँ या उसके रिसेप्शन पर पंजीकरण करें।",
   // BUG-001: allergy status in the consultation strip.
   "Allergy status unknown — ask the patient": "एलर्जी की स्थिति अज्ञात — मरीज़ से पूछें",
   "Allergies are on record elsewhere — review with the patient": "एलर्जी कहीं और दर्ज है — मरीज़ के साथ समीक्षा करें",

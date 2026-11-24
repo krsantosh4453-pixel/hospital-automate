@@ -7,7 +7,7 @@ import {
   saveSelectedLoginRole,
 } from "../utils/roleRouting.js"
 import { BrandMark } from "../components/Sidebar.jsx"
-import { Alert } from "../components/ui"
+import { Alert, Button } from "../components/ui"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 import { AuthLink, useAuthNavigate, useInSignInDialog } from "../components/auth/SignInDialog.jsx"
 
@@ -59,11 +59,29 @@ function Register() {
     gender: "Other",
     address: "",
     invite_code: "",
+    hospital: "",
   })
+  // Prompt 3: hospitals a patient may choose (GET /api/auth/patient/hospitals/).
+  // The server decides which are open; the choice gives the patient a UHID there.
+  const [hospitals, setHospitals] = useState({ state: "loading", data: [] })
+  const [hospitalsReload, setHospitalsReload] = useState(0)
+  const [registeredAt, setRegisteredAt] = useState(null)
 
   useEffect(() => {
     saveSelectedLoginRole(role)
   }, [role])
+
+  useEffect(() => {
+    let cancelled = false
+    setHospitals({ state: "loading", data: [] })
+    api.auth
+      .selfRegistrationHospitals()
+      .then((data) => !cancelled && setHospitals({ state: "loaded", data: Array.isArray(data) ? data : data?.results || [] }))
+      .catch(() => !cancelled && setHospitals({ state: "failed", data: [] }))
+    return () => {
+      cancelled = true
+    }
+  }, [hospitalsReload])
 
   const handleVerifyEmail = async (e) => {
     e.preventDefault()
@@ -113,6 +131,21 @@ function Register() {
       setError("Enter a valid 10-digit mobile number.")
       return
     }
+    if (role === "Patient") {
+      if (hospitals.state === "loading") {
+        setError("Hospitals are still loading. Please wait a moment.")
+        return
+      }
+      if (hospitals.state === "failed") {
+        setError("Hospitals could not be loaded. Try again before creating the account.")
+        return
+      }
+      // Required whenever any hospital accepts online registration.
+      if (hospitals.data.length > 0 && !form.hospital) {
+        setError("Choose the hospital where you want to be registered.")
+        return
+      }
+    }
 
     setLoading(true)
     try {
@@ -129,6 +162,7 @@ function Register() {
         payload.date_of_birth = form.date_of_birth
         payload.gender = form.gender
         payload.address = form.address
+        if (form.hospital) payload.hospital = form.hospital
       }
       if (role === "Admin") {
         payload.invite_code = form.invite_code
@@ -137,6 +171,7 @@ function Register() {
       const data = await api.auth.register(payload)
 
       if (role === "Patient" && data.patient) {
+        setRegisteredAt(data.patient.hospitals?.[0] || null)
         setPendingEmail(data.user?.email || form.email)
         setOtpMessage(data.verification?.message || data.message || "Account created.")
         setSuccess(data.message || "Patient account created.")
@@ -205,7 +240,15 @@ function Register() {
             <Alert tone="danger" className="mb-4">{error}</Alert>
           )}
           {success && (
-            <Alert tone="success" className="mb-4">{success}</Alert>
+            <Alert tone="success" className="mb-4">
+              {success}
+              {registeredAt && (
+                <span className="mt-1 block">
+                  {t("Registered at {hospital}. Your patient ID (UHID) there is", { hospital: registeredAt.name })}{" "}
+                  <strong className="tabular-nums">{registeredAt.uhid}</strong>.
+                </span>
+              )}
+            </Alert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -288,6 +331,12 @@ function Register() {
                     onChange={(e) => setField("address", e.target.value)}
                   />
                 </div>
+                <HospitalChoice
+                  hospitals={hospitals}
+                  value={form.hospital}
+                  onChange={(value) => setField("hospital", value)}
+                  onRetry={() => setHospitalsReload((n) => n + 1)}
+                />
               </>
             )}
 
@@ -397,6 +446,43 @@ function Register() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** The hospital to register at, from the server's list of open hospitals. */
+function HospitalChoice({ hospitals, value, onChange, onRetry }) {
+  const { t } = useLanguage()
+  if (hospitals.state === "loading") {
+    return <p className="text-sm text-ink-500">{t("Loading hospitals…")}</p>
+  }
+  if (hospitals.state === "failed") {
+    return (
+      <Alert tone="danger">
+        {t("Hospitals could not be loaded.")}{" "}
+        <Button size="sm" variant="secondary" onClick={onRetry}>{t("Try again")}</Button>
+      </Alert>
+    )
+  }
+  if (hospitals.data.length === 0) {
+    return <Alert tone="info">{t("No hospital accepts online registration at the moment. You can still create your account; the hospital's reception will register you there.")}</Alert>
+  }
+  return (
+    <div>
+      <label htmlFor="reg-field-hospital" className="hms-label">{t("Hospital")}</label>
+      <select
+        id="reg-field-hospital"
+        className={inputClass}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+      >
+        <option value="">{t("Select hospital")}</option>
+        {hospitals.data.map((h) => (
+          <option key={h.id} value={h.id}>{h.city ? `${h.name} (${h.city})` : h.name}</option>
+        ))}
+      </select>
+      <p className="mt-1 text-xs text-ink-500">{t("You get a patient ID (UHID) at this hospital and can book appointments there.")}</p>
     </div>
   )
 }
