@@ -509,6 +509,10 @@ const api = {
     },
 
     get: async (id) => request(`${API_BASE_URL}/patients/${id}/`),
+    // POST /api/patients/{id}/allergy-status/ — "No known allergies" | "Unknown".
+    // Doctors and nurses only; refused (409) while an allergy is on record.
+    setAllergyStatus: async (id, status) =>
+      request(`${API_BASE_URL}/patients/${id}/allergy-status/`, { method: 'POST', ...jsonBody({ status }) }),
 
     // GET /api/patients/lookup/?search= : at most 20 matches, minimal fields,
     // for staff who may not browse the list (Lab Staff placing walk-in orders).

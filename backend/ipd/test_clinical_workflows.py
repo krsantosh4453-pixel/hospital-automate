@@ -108,6 +108,48 @@ class AllergyStatusTests(Fixture, TestCase):
     def test_an_unknown_value_is_refused(self):
         self.assertEqual(self.set_status("Has allergies").status_code, 400)
 
+    # BUG-001 (E2E audit 2026-11-24): the facts the consultation strip relies on.
+
+    def test_staff_outside_doctor_and_nurse_cannot_change_allergy_facts(self):
+        for role in (StaffRole.PHARMACIST, StaffRole.LAB_STAFF, StaffRole.RECEPTIONIST):
+            user, _ = make_staff(f"cw_{role.lower().replace(' ', '_')}", self.hospital, role=role)
+            client = as_user(user, self.hospital)
+            with self.subTest(role=role):
+                self.assertEqual(self.set_status("No known allergies", user=user).status_code, 403)
+                created = client.post("/api/clinical/allergies/", {
+                    "patient": self.patient.pk, "name": "Synthetic latex"}, format="json")
+                self.assertEqual(created.status_code, 403)
+        self.assertEqual(Patient.objects.get(pk=self.patient.pk).allergy_status, "Unknown")
+        self.assertFalse(Allergy.objects.exists())
+
+    def test_the_patient_cannot_change_their_own_allergy_facts(self):
+        client = APIClient(raise_request_exception=False)
+        client.force_authenticate(self.patient_user)
+        self.assertEqual(client.post(f"/api/patients/{self.patient.pk}/allergy-status/",
+                                     {"status": "No known allergies"}, format="json").status_code, 403)
+        self.assertEqual(client.post("/api/clinical/allergies/", {
+            "patient": self.patient.pk, "name": "Synthetic"}, format="json").status_code, 403)
+        self.assertEqual(Patient.objects.get(pk=self.patient.pk).allergy_status, "Unknown")
+
+    def test_an_allergy_recorded_at_another_hospital_is_reported_not_hidden(self):
+        # The allergy list is scoped to the selected hospital; the status is
+        # not, so the strip can ask for a review instead of saying "none".
+        other = Hospital.objects.create(name="Synthetic Other Hospital", is_active=True)
+        Allergy.objects.create(patient=self.patient, hospital=other, name="Synthetic aspirin", category="Drug")
+        listed = self.doctor_client.get(f"/api/clinical/allergies/?patient={self.patient.pk}").json()
+        rows = listed["results"] if isinstance(listed, dict) else listed
+        self.assertEqual(rows, [])
+        self.assertEqual(self.status_of(), "Has allergies")
+        self.assertEqual(self.set_status("No known allergies").status_code, 409)
+
+    def test_recorded_allergies_survive_a_no_known_allergies_attempt(self):
+        self.doctor_client.post("/api/clinical/allergies/", {
+            "patient": self.patient.pk, "name": "Synthetic penicillin", "severity": "Severe",
+            "category": "Drug"}, format="json")
+        self.assertEqual(self.set_status("No known allergies").status_code, 409)
+        self.assertEqual(list(Allergy.objects.values_list("name", "severity")), [("Synthetic penicillin", "Severe")])
+        self.assertEqual(self.status_of(), "Has allergies")
+
 
 class AdmissionTests(Fixture, TestCase):
     def setUp(self):
