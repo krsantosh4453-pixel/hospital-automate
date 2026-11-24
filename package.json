@@ -5,6 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "bash scripts/dev.sh start",
+    "dev:stop": "bash scripts/dev.sh stop",
+    "dev:restart": "bash scripts/dev.sh restart",
+    "dev:status": "bash scripts/dev.sh status",
+    "dev:logs": "bash scripts/dev.sh logs",
+    "dev:setup": "bash scripts/dev.sh setup",
     "build": "vite build",
     "lint": "eslint -c eslint.config.cjs .",
     "preview": "vite preview",
