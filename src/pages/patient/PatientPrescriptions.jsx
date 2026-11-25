@@ -4,6 +4,7 @@ import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
 import { Alert, Card, EmptyState, SegmentedControl, SkeletonRows, StatusBadge, TableWrap } from "../../components/ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import { useRefreshTick } from "../../hooks/useRefreshTick.js"
 
 // Prescription.status is free text; these are the values the staff pages set.
 const FILTERS = {
@@ -21,11 +22,12 @@ function PatientPrescriptions() {
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState("all")
 
+  const refreshTick = useRefreshTick()
   useEffect(() => {
     if (!patient?.id) return
 
     const fetchPrescriptions = async () => {
-      setLoading(true)
+      if (!refreshTick) setLoading(true)
       try {
         const data = await api.clinical.prescriptions.list({ patientId: patient.id })
         setPrescriptions(data?.results || data || [])
@@ -37,7 +39,7 @@ function PatientPrescriptions() {
     }
 
     fetchPrescriptions()
-  }, [patient?.id])
+  }, [patient?.id, refreshTick])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—"

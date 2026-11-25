@@ -24,7 +24,7 @@ from datetime import timedelta
 
 from django.db import transaction
 
-from config.hospital_time import hospital_today
+from config.hospital_time import hospital_date_range, hospital_today
 
 from .charges import capture_consultation, capture_imaging_study, capture_lab_test, imaging_price
 from .models import Invoice, InvoiceItem, ServicePrice
@@ -90,14 +90,16 @@ def _candidates(hospital_id, since):
     found = {}
     model_kind = {"encounters.Visit": "consultation", "laboratory.LabTest": "laboratory",
                   "laboratory.ImagingStudy": "imaging"}
-    for row in AuditLog.objects.filter(hospital_id=hospital_id, action="billing.charge.unpriced",
-                                       model_name__in=list(model_kind), created_at__date__gte=since,
+    for row in AuditLog.objects.filter(hospital_date_range("created_at", since),
+                                       hospital_id=hospital_id, action="billing.charge.unpriced",
+                                       model_name__in=list(model_kind),
                                        ).values("model_name", "object_id"):
         if row["object_id"].isdigit():
             found[(model_kind[row["model_name"]], int(row["object_id"]))] = {"source": UNPRICED}
 
     voided = (InvoiceItem.objects.filter(invoice__hospital_id=hospital_id, invoice__status=Invoice.Status.CANCELLED,
-                                         invoice__created_at__date__gte=since, charge_key__contains=VOID_MARK)
+                                         charge_key__contains=VOID_MARK)
+              .filter(hospital_date_range("invoice__created_at", since))
               .values("charge_key", "invoice_id", "invoice__invoice_number"))
     voided = list(voided)
     reasons = _cancel_reasons({row["invoice_id"] for row in voided})

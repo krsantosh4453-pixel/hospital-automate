@@ -2,6 +2,9 @@ import { useMemo, useState, useEffect, useId } from "react"
 
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import { useAuth } from "../assets/context/AuthContext.jsx"
+import { useRole } from "../assets/context/RoleContext.jsx"
+import { opdTriagePatients } from "../utils/opdTriage.js"
+import { hospitalToday } from "../utils/hospitalDate.js"
 import api from "../services/api.js"
 import { ChartColumnIcon, ClipboardListIcon, DropletIcon, HeartPulseIcon, HospitalIcon, HouseIcon, NotebookPenIcon, PillIcon, StethoscopeIcon, UserIcon, UserRoundIcon, UsersIcon, WalletIcon } from "lucide-react"
 import { useToast } from "../components/Toast.jsx"
@@ -12,6 +15,9 @@ import { formatTemperature } from "../utils/temperature.js"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Nurses() {
+  // BUG-009: bills are read only by roles that may view Billing (a nurse may not).
+  const { canView } = useRole()
+  const canSeeBills = canView("Billing")
   const { t } = useLanguage()
   const toast = useToast()
   const [confirm, confirmDialog] = useConfirm()
@@ -54,6 +60,7 @@ function Nurses() {
   const [, setNurses] = useState([])
   const [patients, setPatients] = useState([])
   const [vitals, setVitals] = useState([])
+  const [opdPatients, setOpdPatients] = useState([])
   const [assessments, setAssessments] = useState([])
   const [notes, setNotes] = useState([])
   const [orders] = useState([])
@@ -82,7 +89,8 @@ function Nurses() {
       ["notes", api.nurses.notes.list(hospitalId)],
       ["medication schedule", api.nurses.mar.dueMedications(hospitalId)],
       ["blood requests", api.bloodbank.requests.list(hospitalId)],
-      ["bills", api.billing.invoices.list(hospitalId)],
+      ["bills", canSeeBills ? api.billing.invoices.list(hospitalId) : Promise.resolve([])],
+      ["OPD queue", api.queue.list(hospitalId)],
     ]
     const results = await Promise.allSettled(sources.map(([, promise]) => promise))
     const failed = []
@@ -107,6 +115,8 @@ function Nurses() {
     })))
 
     const admissions = value(1).filter((a) => a.status === "Admitted" || a.status === "Discharge Initiated")
+    // MF-012: today's OPD patients waiting for the doctor, for triage vitals.
+    setOpdPatients(opdTriagePatients(value(7), hospitalToday(), admissions.map((a) => ({ id: a.patient }))))
     setPatients(admissions.map((a) => ({
       id: a.patient,
       admissionId: a.id,
@@ -291,6 +301,12 @@ function Nurses() {
         selectedHospital.id
     )
   }, [patients, selectedHospital])
+
+  // Who the vitals form offers: ward patients, then today's OPD queue (MF-012).
+  const vitalsPatients = useMemo(
+    () => [...hospitalPatients, ...opdPatients.filter((p) => String(p.hospitalId) === String(selectedHospital?.id))],
+    [hospitalPatients, opdPatients, selectedHospital],
+  )
 
   const hospitalVitals = useMemo(() => {
     if (!selectedHospital) return []
@@ -501,7 +517,7 @@ function Nurses() {
     if (!selectedHospital) return
 
     const patient =
-      hospitalPatients.find(
+      vitalsPatients.find(
         (item) => String(item.id) === String(vitalForm.patientId)
       )
 
@@ -515,7 +531,8 @@ function Nurses() {
       await api.nurses.assessments.create({
         hospital: selectedHospital.id,
         patient: patient.id,
-        admission: patient.admissionId,
+        // OPD triage has no admission; the doctor reads it by patient.
+        ...(patient.admissionId ? { admission: patient.admissionId } : {}),
         assessment_type: "Focused",
         vitals: {
           temperature: vitalForm.temperature,
@@ -772,11 +789,11 @@ function Nurses() {
       label: "Discharge",
       icon: HospitalIcon,
     },
-    {
+    ...(canSeeBills ? [{
       id: "billing",
       label: "Billing",
       icon: WalletIcon,
-    },
+    }] : []),
     {
       id: "reports",
       label: "Reports",
@@ -2334,12 +2351,14 @@ function Nurses() {
                     e.target.value,
                 })
               }
-              options={hospitalPatients.map(
+              options={vitalsPatients.map(
                 (p) => p.id
               )}
-              optionLabels={hospitalPatients.map(
+              optionLabels={vitalsPatients.map(
                 (p) =>
-                  `${p.name} (${p.id})`
+                  p.ward === "OPD"
+                    ? `${p.name} (${p.id}) · ${t("OPD token #{token}", { token: p.token })}`
+                    : `${p.name} (${p.id})`
               )}
             />
 

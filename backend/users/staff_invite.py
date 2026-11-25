@@ -153,6 +153,29 @@ def _ensure_doctor_profile(user, hospital_id, name, phone, email, department, sp
     )
 
 
+def _ensure_nurse_profile(user, hospital_id, name, phone, email, department):
+    """
+    Final validation P1-2: an invited Nurse gets the Nurse record that nursing
+    notes and assessments are written under (nurses.views.recording_nurse),
+    so every record names its nurse. An unlinked record with the same email
+    is linked rather than duplicated.
+    """
+    from nurses.models import Nurse
+
+    nurse = Nurse.objects.filter(hospital_id=hospital_id, user=user).first()
+    if nurse is None and email:
+        nurse = Nurse.objects.filter(hospital_id=hospital_id, user__isnull=True, email__iexact=email).first()
+    if nurse is not None:
+        if nurse.user_id is None:
+            nurse.user = user
+            nurse.save(update_fields=["user"])
+        return nurse
+    return Nurse.objects.create(
+        user=user, hospital_id=hospital_id, name=name, phone=phone, email=email,
+        department=department.name if department else "",
+    )
+
+
 EMAIL_NOT_INVITABLE = (
     "This email cannot be used for a new staff invitation. Ask the person for another email address."
 )
@@ -237,6 +260,8 @@ class StaffInviteView(APIView):
             specialization = str(request.data.get("specialization") or "").strip()
             body["doctor_profile"] = _ensure_doctor_profile(profile.user, hospital_id, name, phone, email,
                                                             department, specialization).pk
+        if role == StaffRole.NURSE:
+            body["nurse_profile"] = _ensure_nurse_profile(profile.user, hospital_id, name, phone, email, department).pk
         return Response(body, status=status.HTTP_201_CREATED)
 
 

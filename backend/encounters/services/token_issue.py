@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from ..models import Visit, QueueToken
 from ..serializers import QueueTokenSerializer
-from config.hospital_time import hospital_today
+from config.hospital_time import hospital_today, on_hospital_day
 
 
 @transaction.atomic
@@ -76,10 +76,10 @@ def issue_queue_token_for_appointment(
         visit = (
             Visit.objects
             .filter(
+                on_hospital_day("visit_date", token_date),
                 patient=patient,
                 hospital=hospital,
                 doctor=doctor,
-                visit_date__date=token_date,
                 status="Waiting",
                 queue_tokens__isnull=True,
             )

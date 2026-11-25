@@ -5,6 +5,7 @@ import { FlaskConical, Printer } from "lucide-react"
 import { Alert, Button, Card, EmptyState, PrintSheet, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
 import { ImagingReportDocument, LabReportDocument } from "../../components/documents/ClinicalDocuments.jsx"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import { useRefreshTick } from "../../hooks/useRefreshTick.js"
 
 function PatientLabResults() {
   const { t } = useLanguage()
@@ -18,11 +19,12 @@ function PatientLabResults() {
   const [imaging, setImaging] = useState([])
   const [printingStudy, setPrintingStudy] = useState(null)
 
+  const refreshTick = useRefreshTick()
   useEffect(() => {
     if (!patient?.id) return
 
     const fetchLabTests = async () => {
-      setLoading(true)
+      if (!refreshTick) setLoading(true)
       try {
         const data = await api.laboratory.tests.list(null, patient.id)
         const patientTests = data?.results || data || []
@@ -39,7 +41,7 @@ function PatientLabResults() {
       .list()
       .then((data) => setImaging(data?.results || data || []))
       .catch(() => setImaging([]))
-  }, [patient?.id])
+  }, [patient?.id, refreshTick])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—"

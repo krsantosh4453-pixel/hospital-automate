@@ -1,6 +1,7 @@
 import logging
 
 from django.db import OperationalError, transaction
+from django.db.models import OuterRef, Subquery
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -30,7 +31,7 @@ from notifications.services import (
 from users.care_scope import doctor_hospital_ids, limit_queue_to_department
 from users.permissions import get_user_hospital_ids, get_user_roles
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import IsAdmin, IsHospitalManager, IsReceptionist, IsDoctor, IsNurse, IsPatientReadOnly
+from users.permissions import IsAdmin, IsHospitalManager, IsLabStaff, IsReceptionist, IsDoctor, IsNurse, IsPatientReadOnly, read_only
 from config.hospital_time import hospital_today
 
 
@@ -38,16 +39,55 @@ logger = logging.getLogger(__name__)
 
 # Call Next takes the first of these in queue order (a Called token is called again).
 CALLABLE_STATUSES = [QueueToken.Status.WAITING, QueueToken.Status.CALLED]
+# Called and not yet in consultation (BUG-011: at most one per doctor).
+CALLED_TOKEN_STATUSES = [QueueToken.Status.CALLED, QueueToken.Status.ACKNOWLEDGED, QueueToken.Status.READY]
 QUEUE_CHANGE_IN_PROGRESS = "Another queue change was being saved at the same moment. Check the queue, then try again."
+
+
+class LabStaffVisitLookup(read_only(IsLabStaff)):
+    """
+    P2-1 (policy decision 2026-11-25): Lab Staff list one patient's visits,
+    read-only, to link a lab order to its visit. No browsing of every visit,
+    no detail, no writes; the list leaves out clinical text (LAB_LOOKUP_FIELDS).
+    """
+
+    def has_permission(self, request, view):
+        return (getattr(view, "action", None) == "list" and bool(request.query_params.get("patient"))
+                and super().has_permission(request, view))
+
+    def has_object_permission(self, request, view, obj):
+        return False
+
+
+# What Lab Staff see of a visit: enough to pick it, nothing clinical.
+LAB_LOOKUP_FIELDS = ("id", "patient", "hospital", "doctor", "doctor_name", "visit_type", "visit_date", "status")
+VISIT_ROLES = (IsAdmin, IsHospitalManager, IsReceptionist, IsDoctor, IsNurse)
 
 
 class VisitViewSet(HospitalScopedViewSet):
     queryset = Visit.objects.select_related("patient", "doctor", "hospital").order_by("-visit_date", "-id")
     serializer_class = VisitSerializer
-    permission_classes = [IsAdmin | IsHospitalManager | IsReceptionist | IsDoctor | IsNurse]
+    permission_classes = [IsAdmin | IsHospitalManager | IsReceptionist | IsDoctor | IsNurse | LabStaffVisitLookup]
+
+    def _lab_lookup_only(self):
+        """True when the caller reads only through LabStaffVisitLookup (no full visit role)."""
+        return not any(role().has_permission(self.request, self) for role in VISIT_ROLES)
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        if self._lab_lookup_only():
+            rows = response.data.get("results") if isinstance(response.data, dict) else response.data
+            trimmed = [{key: row.get(key) for key in LAB_LOOKUP_FIELDS} for row in rows]
+            if isinstance(response.data, dict):
+                response.data["results"] = trimmed
+            else:
+                response.data = trimmed
+        return response
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().annotate(latest_token_status=Subquery(
+            QueueToken.objects.filter(visit=OuterRef("pk")).order_by("-token_date", "-token_number").values("status")[:1]
+        ))
 
         hospital_id = self.request.query_params.get("hospital")
         if hospital_id:
@@ -271,6 +311,11 @@ class QueueTokenViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if new_status == QueueToken.Status.CALLED:
+            refusal = self._already_called(token)
+            if refusal is not None:
+                return refusal
+
         # One open consultation per doctor, the rule Call Next already keeps.
         if new_status == QueueToken.Status.IN_CONSULTATION:
             serving = self._open_consultation(token.hospital_id, token.doctor_id, exclude_pk=token.pk)
@@ -294,6 +339,26 @@ class QueueTokenViewSet(HospitalScopedViewSet):
         record_audit(self.request, "encounters.queue_token.status_changed", token,
                      details={"from": old_status, "to": new_status})
         return Response(self.get_serializer(token).data)
+
+    def _already_called(self, token):
+        """
+        BUG-011: one called patient per doctor and day. A 409 while another
+        token of that doctor is Called, Acknowledged or Ready; None when free.
+        Read under the doctor lock the caller holds.
+        """
+        if token.doctor_id is None:
+            return None
+        held = (QueueToken.objects
+                .filter(hospital_id=token.hospital_id, doctor_id=token.doctor_id, token_date=token.token_date,
+                        status__in=CALLED_TOKEN_STATUSES)
+                .exclude(pk=token.pk).order_by("token_number").first())
+        if held is None:
+            return None
+        return Response(
+            {"detail": f"Token #{held.token_number} has already been called for this doctor. Start that "
+                       "consultation, or mark it skipped or no-show, before calling another patient."},
+            status=status.HTTP_409_CONFLICT,
+        )
 
     def _open_consultation(self, hospital_id, doctor_id, exclude_pk=None):
         """The doctor's token now In Consultation, if any. Read it under the doctor lock."""
@@ -551,6 +616,11 @@ class QueueTokenViewSet(HospitalScopedViewSet):
                            "Complete it before calling the next patient."},
                 status=status.HTTP_409_CONFLICT,
             )
+
+        if token.status == QueueToken.Status.WAITING:
+            refusal = self._already_called(token)
+            if refusal is not None:
+                return refusal
 
         previous = token.status
         token.status = QueueToken.Status.CALLED

@@ -23,6 +23,7 @@ function setTokens() {
 
 function clearTokens() {
   localStorage.removeItem(SESSION_KEY)
+  localStorage.removeItem('hms_account')
   for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key)
 }
 
@@ -34,6 +35,28 @@ const STAFF_PROFILE_KEYS = ['user', 'roles', 'hospitals']
 
 function forgetStaffProfile() {
   for (const key of STAFF_PROFILE_KEYS) localStorage.removeItem(key)
+}
+
+// BUG-012: which kind of account this browser session belongs to ("staff" or
+// "patient"), so start-up asks the right "who am I" endpoint first instead of
+// probing staff endpoints for every patient page load. Not sensitive: no
+// name, id or token. Cleared with the session.
+const ACCOUNT_KIND_KEY = 'hms_account'
+
+export function rememberAccountKind(kind) {
+  try {
+    if (kind === 'staff' || kind === 'patient') localStorage.setItem(ACCOUNT_KIND_KEY, kind)
+  } catch {
+    // Storage unavailable: start-up just asks both endpoints, as before.
+  }
+}
+
+export function accountKind() {
+  try {
+    return localStorage.getItem(ACCOUNT_KIND_KEY) || ''
+  } catch {
+    return ''
+  }
 }
 
 // The hospital switcher's choice belongs to the person who made it.
@@ -1538,6 +1561,10 @@ const api = {
           return request(`${API_BASE_URL}/pharmacy/${query}`)
         },
 
+        // MF-007: medicine names a doctor can prescribe here (no prices or counts).
+        formulary: async (hospitalId) =>
+          request(`${API_BASE_URL}/pharmacy/formulary/?hospital=${encodeURIComponent(hospitalId)}`),
+
         // GET /api/pharmacy/{id}/
         get: async (id) =>
           request(`${API_BASE_URL}/pharmacy/${id}/`),
@@ -2257,6 +2284,9 @@ api.billing = {
       return request(`${API_BASE_URL}/billing/invoices/${query}`)
     },
     get: async (id) => request(`${API_BASE_URL}/billing/invoices/${id}/`),
+    // Money paid back on a bill: {amount, reason, payment_method, idempotency_key}
+    refund: async (id, data) =>
+      request(`${API_BASE_URL}/billing/invoices/${id}/refund/`, { method: "POST", ...jsonBody(data) }),
     create: async (data) =>
       request(`${API_BASE_URL}/billing/invoices/`, { method: "POST", ...jsonBody(data) }),
     // A partial change (discount, lines): PUT would demand every field again.
@@ -2304,6 +2334,9 @@ api.billing = {
       if (category) params.set("category", category)
       return request(`${API_BASE_URL}/billing/price-list/?${params.toString()}`)
     },
+    // MF-007: services a doctor can order here, by name (no prices).
+    catalogue: async (hospitalId) =>
+      request(`${API_BASE_URL}/billing/price-list/catalogue/?hospital=${encodeURIComponent(hospitalId)}`),
     // data: { hospital, category, code, name, applies_to, unit_price, tax_rate, effective_from }
     create: async (data) =>
       request(`${API_BASE_URL}/billing/price-list/`, { method: "POST", ...jsonBody(data) }),

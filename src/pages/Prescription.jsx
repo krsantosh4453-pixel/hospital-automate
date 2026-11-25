@@ -5,6 +5,9 @@ import { usePatient } from "../assets/context/PatientContext.jsx"
 import { usePrescription } from "../assets/context/PrescriptionContext.jsx"
 import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
+import { useOrderingCatalogue } from "../hooks/useOrderingCatalogue.js"
+import { ownDoctorId } from "../utils/ownDoctor.js"
+import { useAuth } from "../assets/context/AuthContext.jsx"
 import MedicationSafetyDialog from "../components/prescription/MedicationSafetyDialog.jsx"
 import PatientPicker from "../components/patients/PatientPicker.jsx"
 import { FilePlus2, Hospital, Pill, Plus, RefreshCw, Trash2, X } from "lucide-react"
@@ -63,6 +66,8 @@ const formatDate = (value) => {
 // integer id as `value` so writes use stable database ids, never names.
 const mapDoctorOption = (record) => ({
   value: String(record.id),
+  id: record.id,
+  user: record.user,
   label: record.name
     ? `${record.name}${record.specialization ? ` — ${record.specialization}` : ""}`
     : `Doctor #${record.id}`,
@@ -112,6 +117,8 @@ function Prescription() {
   // Doctors write prescriptions; pharmacy and nursing staff only read them.
   const { canAdd } = useRole()
   const canWrite = canAdd("Prescriptions")
+  // MF-007: suggest the medicines this hospital keeps while typing.
+  const { medicines: formulary } = useOrderingCatalogue(canWrite ? selectedHospital?.id : null, { medicines: true })
 
   const {
     prescriptions,
@@ -135,6 +142,12 @@ function Prescription() {
   // Form + feedback state
   // ---------------------------------------------------------
   const [form, setForm] = useState(emptyForm)
+  // BUG-013: a signed-in doctor is the prescribing doctor unless changed.
+  const { user } = useAuth()
+  const ownDoctor = ownDoctorId(doctors, user)
+  useEffect(() => {
+    if (ownDoctor && !form.doctorId) setForm((current) => (current.doctorId ? current : { ...current, doctorId: ownDoctor }))
+  }, [ownDoctor, form.doctorId])
   const [saving, setSaving] = useState(false)
   // Safety check result waiting for the doctor's decision, with the payload it was run on.
   const [safetyCheck, setSafetyCheck] = useState(null)
@@ -585,7 +598,7 @@ function Prescription() {
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
                     <Field label="Name" required className="col-span-2 sm:col-span-4">
-                      <Input value={medicine.name} onChange={(e) => setMedicineField(index, "name", e.target.value)} placeholder={t("Drug and strength")} />
+                      <Input list="medicine-formulary" value={medicine.name} onChange={(e) => setMedicineField(index, "name", e.target.value)} placeholder={t("Drug and strength")} />
                     </Field>
                     <Field label="Qty" required className="sm:col-span-2">
                       <Input type="number" min="1" inputMode="numeric" value={medicine.quantity} onChange={(e) => setMedicineField(index, "quantity", e.target.value)} />
@@ -605,6 +618,13 @@ function Prescription() {
                   </div>
                 </div>
               ))}
+              <datalist id="medicine-formulary">
+                {formulary.map((item) => (
+                  <option key={item.name} value={item.name}>
+                    {[item.generic_name, item.in_stock ? t("In stock") : t("Out of stock")].filter(Boolean).join(" · ")}
+                  </option>
+                ))}
+              </datalist>
               <Button variant="subtle" size="sm" icon={Plus} onClick={addMedicineRow}>
                 {t("Add medicine")}
               </Button>

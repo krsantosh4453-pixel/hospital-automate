@@ -51,14 +51,20 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
   }, [open, form.hospital])
 
   useEffect(() => {
-    if (!open || !form.hospital || !form.doctor || !form.date) return
+    if (!open || !form.hospital || !form.doctor || !form.date) return undefined
+    // An answer for a doctor or day no longer chosen is ignored, so a slower
+    // earlier request never shows another day's times (final validation).
+    let current = true
     set("time", "")
     setLoading(true)
     api.appointments
       .bookingOptions({ hospital: form.hospital, doctor: form.doctor, date: form.date })
-      .then((data) => setOptions((prev) => ({ ...prev, slots: data.slots || [], unavailableReason: data.unavailable_reason || "" })))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+      .then((data) => current && setOptions((prev) => ({ ...prev, slots: data.slots || [], unavailableReason: data.unavailable_reason || "" })))
+      .catch((e) => current && setError(e.message))
+      .finally(() => current && setLoading(false))
+    return () => {
+      current = false
+    }
   }, [open, form.hospital, form.doctor, form.date, refresh])
 
   const freeSlots = options.slots.filter((s) => s.available)

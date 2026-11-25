@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 // F4: "Write prescription" on a consultation opens /prescription?visit=<id>
 // with that visit and its patient already chosen, even when neither is on the
 // first page of the dropdown lists.
+// The page reads the signed-in user (BUG-013 default doctor); nobody is signed in here.
+vi.mock("../assets/context/AuthContext.jsx", () => ({ useAuth: () => ({ user: null }) }))
 vi.mock("../services/api.js", () => ({
   default: {
     patients: { list: vi.fn() },

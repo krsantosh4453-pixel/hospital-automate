@@ -9,6 +9,7 @@ import PatientTimeline from "../../components/clinical/PatientTimeline.jsx"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 import { hasBalanceDue } from "../../utils/money.js"
 import { MyHospitalsCard } from "../../components/patient/HospitalMembership.jsx"
+import { useRefreshTick } from "../../hooks/useRefreshTick.js"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 // Partly dispensed prescriptions still have medicines to collect (BUG-05).
@@ -22,11 +23,12 @@ function PatientDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const refreshTick = useRefreshTick()
   useEffect(() => {
     if (!patient?.id) return
 
     const fetchData = async () => {
-      setLoading(true)
+      if (!refreshTick) setLoading(true)
       // The server returns only this patient's own records.
       const [appts, rx, bills] = await Promise.allSettled([
         api.appointments.list(),
@@ -56,7 +58,7 @@ function PatientDashboard() {
     }
 
     fetchData()
-  }, [patient?.id])
+  }, [patient?.id, refreshTick])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—"

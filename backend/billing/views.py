@@ -31,7 +31,7 @@ from . import advances, price_list
 from .charges import release_charges
 from .services import recalculate, record_payment, record_refund, refuse_unexplained_zero, waive_invoice
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import IsAdmin, IsHospitalManager, IsBillingStaff, IsReceptionist, IsPatientReadOnly
+from users.permissions import IsAdmin, IsDoctor, IsHospitalManager, IsBillingStaff, IsReceptionist, IsPatientReadOnly
 
 BILLING_ROLES = IsAdmin | IsHospitalManager | IsBillingStaff | IsReceptionist
 # BUG-07: who sets prices and approves a waiver. Billing clerks cannot.
@@ -307,6 +307,25 @@ class ServicePriceViewSet(HospitalScopedViewSet):
         if getattr(self, "action", None) in ("create", "retire", "charge_unbilled"):
             return [PRICING_ROLES()]
         return super().get_permissions()
+
+    # Charged on their own (visit completion, discharge); never ordered by name.
+    NOT_ORDERED = (ServicePrice.Category.CONSULTATION, ServicePrice.Category.BED)
+
+    @action(detail=False, methods=["get"], url_path="catalogue", permission_classes=[BILLING_ROLES | IsDoctor])
+    def catalogue(self, request):
+        """
+        MF-007: the services a doctor can order here, by name, from the prices
+        in force today. Names and categories only: no prices.
+        """
+        from config.hospital_time import hospital_today
+
+        prices = super().get_queryset()
+        if request.query_params.get("hospital"):
+            prices = prices.filter(hospital_id=request.query_params["hospital"])
+        rows = (price_list.effective_on(prices, hospital_today())
+                .exclude(category__in=self.NOT_ORDERED)
+                .values("name", "category").distinct().order_by("name", "category"))
+        return Response(list(rows))
 
     def get_queryset(self):
         from django.db.models import Q

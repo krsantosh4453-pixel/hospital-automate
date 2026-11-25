@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { useAuth } from "../../assets/context/AuthContext.jsx"
 import api from "../../services/api.js"
+import { appointmentRef } from "../../utils/appointmentRef.js"
+import { useRefreshTick } from "../../hooks/useRefreshTick.js"
 import { CalendarDays, CalendarPlus } from "lucide-react"
 import { Alert, Button, Card, EmptyState, SegmentedControl, SkeletonRows, StatusBadge } from "../../components/ui"
 import BookAppointmentModal from "./BookAppointmentModal.jsx"
@@ -23,12 +25,13 @@ function PatientAppointments() {
   const [reloadToken, setReloadToken] = useState(0)
   // Prompt 5 (MF-003): { appointment, mode: "cancel" | "reschedule" }
   const [managing, setManaging] = useState(null)
+  const refreshTick = useRefreshTick()
 
   useEffect(() => {
     if (!patient?.id) return
 
     const fetchAppointments = async () => {
-      setLoading(true)
+      if (!refreshTick) setLoading(true)
       try {
         const data = await api.appointments.list()
         const allAppointments = data?.results || data || []
@@ -44,7 +47,7 @@ function PatientAppointments() {
     }
 
     fetchAppointments()
-  }, [patient?.id, reloadToken])
+  }, [patient?.id, reloadToken, refreshTick])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—"
@@ -91,7 +94,7 @@ function PatientAppointments() {
           if (searchParams.get("book")) setSearchParams({}, { replace: true })
         }}
         onBooked={(appt) => {
-          setNotice(t("Booked with {name} on {appointmentDate} at {time}.", { name: appt.doctor_name || "the doctor", appointmentDate: formatDate(appt.appointment_date), time: String(appt.appointment_time).slice(0, 5) }))
+          setNotice(t("Booked with {name} on {appointmentDate} at {time}. Reference {ref}.", { name: appt.doctor_name || "the doctor", appointmentDate: formatDate(appt.appointment_date), time: String(appt.appointment_time).slice(0, 5), ref: appointmentRef(appt.id) }))
           setReloadToken((n) => n + 1)
         }}
       />
@@ -138,6 +141,7 @@ function PatientAppointments() {
                   <p className="text-[13px] text-ink-500 tabular-nums">
                     {formatDate(appt.appointment_date)}
                     {appt.appointment_time ? ` · ${String(appt.appointment_time).slice(0, 5)}` : ""}
+                    {appt.id ? ` · ${t("Ref")} ${appointmentRef(appt.id)}` : ""}
                   </p>
                   {appt.reason && <p className="mt-0.5 truncate text-[13px] text-ink-600">{appt.reason}</p>}
                 </div>

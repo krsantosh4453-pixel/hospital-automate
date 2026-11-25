@@ -6,6 +6,7 @@ import { Alert, Button, Card, EmptyState, PrintSheet, SegmentedControl, Skeleton
 import { InvoiceDocument } from "../../components/documents/ClinicalDocuments.jsx"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 import { hasBalanceDue, toPaise } from "../../utils/money.js"
+import { useRefreshTick } from "../../hooks/useRefreshTick.js"
 
 const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2 })
 // Money arrives as decimal strings calculated by the server.
@@ -20,11 +21,12 @@ function PatientBills() {
   const [filter, setFilter] = useState("all")
   const [printing, setPrinting] = useState(null)
 
+  const refreshTick = useRefreshTick()
   useEffect(() => {
     if (!patient?.id) return
 
     const fetchBills = async () => {
-      setLoading(true)
+      if (!refreshTick) setLoading(true)
       try {
         const data = await api.billing.invoices.list()
         const allBills = data?.results || data || []
@@ -37,7 +39,7 @@ function PatientBills() {
     }
 
     fetchBills()
-  }, [patient?.id])
+  }, [patient?.id, refreshTick])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—"

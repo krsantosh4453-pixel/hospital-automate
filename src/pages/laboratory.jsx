@@ -33,6 +33,8 @@ import SampleScanDialog from "../components/laboratory/SampleScanDialog.jsx"
 import CriticalResults from "../components/laboratory/CriticalResults.jsx"
 import PatientPicker from "../components/patients/PatientPicker.jsx"
 import VisitSelect from "../components/clinical/VisitSelect.jsx"
+import { ownDoctorId } from "../utils/ownDoctor.js"
+import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Laboratory() {
@@ -48,6 +50,7 @@ function Laboratory() {
 
   const [tests, setTests] = useState([])
   const [doctorOptions, setDoctorOptions] = useState([])
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [busyId, setBusyId] = useState(null)
@@ -486,7 +489,8 @@ function Laboratory() {
       return
     }
     setSelectedTest(null)
-    setFormData({ patient: "", test: "", doctor: "", date: "", priority: "Normal" })
+    // BUG-013: a signed-in doctor is the referring doctor unless changed.
+    setFormData({ patient: "", visit: "", test: "", doctor: ownDoctorId(doctorOptions, user), date: "", priority: "Normal" })
     setShowForm(true)
   }
 

@@ -11,7 +11,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from django.db.models.functions import ExtractHour
+from django.db.models.functions import ExtractHour, TruncDate
+
+from config.hospital_time import hospital_tz
 from django.db.models import Avg, Count, F, Q, Sum, ExpressionWrapper, DurationField
 from django.utils import timezone
 
@@ -29,6 +31,17 @@ from hospital.models import Bed, Ward, Room
 from procurement.models import PurchaseOrder, GoodsReceipt, StockTransaction
 from ai_scribe.models import ConsultationSession
 
+
+
+def _per_hospital_day(queryset, field, **aggregates):
+    """
+    Rows per hospital (IST) day, keyed "<field>__date" as before (P1-3):
+    grouping by ``<field>__date`` used the UTC date, so 00:00-05:30 IST
+    landed on the previous day.
+    """
+    rows = (queryset.annotate(_day=TruncDate(field, tzinfo=hospital_tz()))
+            .values("_day").annotate(**aggregates).order_by("_day"))
+    return [{f"{field}__date": row.pop("_day"), **row} for row in rows]
 
 class KPIService:
     """Centralized service for all hospital KPI calculations."""
@@ -304,16 +317,8 @@ class KPIService:
             avg_los_days = round(los_data["avg_los"].total_seconds() / 86400, 2)
 
         # Admission/Discharge daily trend
-        daily_admissions = (
-            admissions_in_period.values("admission_date__date")
-            .annotate(count=Count("id"))
-            .order_by("admission_date__date")
-        )
-        daily_discharges = (
-            discharges_in_period.values("discharge_date__date")
-            .annotate(count=Count("id"))
-            .order_by("discharge_date__date")
-        )
+        daily_admissions = _per_hospital_day(admissions_in_period, "admission_date", count=Count("id"))
+        daily_discharges = _per_hospital_day(discharges_in_period, "discharge_date", count=Count("id"))
 
         return {
             "total_admissions": total_admissions,
@@ -375,11 +380,7 @@ class KPIService:
             .order_by("-count")[:5]
         )
 
-        daily_volume = (
-            in_period.values("arrival_time__date")
-            .annotate(count=Count("id"))
-            .order_by("arrival_time__date")
-        )
+        daily_volume = _per_hospital_day(in_period, "arrival_time", count=Count("id"))
 
         return {
             "total": total,
@@ -494,11 +495,8 @@ class KPIService:
         )
 
         # Daily sales trend
-        daily_sales = (
-            sales_in_period.values("created_at__date")
-            .annotate(count=Count("id"), revenue=Sum("total"), quantity=Sum("quantity"))
-            .order_by("created_at__date")
-        )
+        daily_sales = _per_hospital_day(sales_in_period, "created_at", count=Count("id"), revenue=Sum("total"),
+                                        quantity=Sum("quantity"))
 
         # Inventory turnover (simplified: sales / average inventory)
         avg_inventory = med_qs.aggregate(avg=Avg("quantity"))["avg"] or 0
@@ -629,11 +627,7 @@ class KPIService:
         )
 
         # Daily revenue
-        daily_revenue = (
-            pay_in_period.values("paid_at__date")
-            .annotate(count=Count("id"), revenue=Sum("amount"))
-            .order_by("paid_at__date")
-        )
+        daily_revenue = _per_hospital_day(pay_in_period, "paid_at", count=Count("id"), revenue=Sum("amount"))
 
         # By department (via invoice items)
         # This would need a join through invoice items

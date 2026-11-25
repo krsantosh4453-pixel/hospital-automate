@@ -32,6 +32,8 @@ import PatientContextStrip from "../components/clinical/PatientContextStrip.jsx"
 import NursingObservations from "../components/clinical/NursingObservations.jsx"
 import CriticalResults from "../components/laboratory/CriticalResults.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
+import { visitStatusShown } from "../utils/visitQueueStatus.js"
+import { useOrderingCatalogue } from "../hooks/useOrderingCatalogue.js"
 
 // =========================================================
 // DOCTOR CONSULTATION
@@ -122,6 +124,7 @@ const mapVisitFromApi = (record) => ({
   visitType: record.visit_type || "OPD",
   chiefComplaint: record.chief_complaint || "",
   status: record.status || "Waiting",
+  queueStatus: record.queue_status || "",
   visitDate: record.visit_date || null,
   visitDay: formatDay(record.visit_date),
   hospitalId: record.hospital || null,
@@ -302,6 +305,8 @@ function Consultation() {
   const requestedVisitId = searchParams.get("visit") || ""
   const [selectedVisitId, setSelectedVisitId] = useState(requestedVisitId)
   const { canAdd, activeRoleName } = useRole()
+  // MF-007: suggest the hospital's orderable services while typing.
+  const { services: serviceCatalogue } = useOrderingCatalogue(selectedHospital?.id, { services: true })
   // H-14: critical lab values wait here too, where doctors work, not only on the Laboratory page.
   const [promptText, promptDialog] = usePrompt()
 
@@ -1170,7 +1175,7 @@ function Consultation() {
                               #{visit.apiId} · {visit.visitType} · {visit.visitDay}
                             </span>
                           </span>
-                          <StatusBadge status={visit.status} />
+                          <StatusBadge status={visitStatusShown(visit.status, visit.queueStatus)} />
                         </button>
                       </li>
                     )
@@ -1503,7 +1508,12 @@ function Consultation() {
                     <CardHeader title={editingOrder ? t("Edit service order") : t("Add service order")} />
                     <div className="space-y-4 px-5 py-4">
                       <Field label="Service" required>
-                        <Input value={orderForm.serviceName} onChange={(e) => setOrderForm({ ...orderForm, serviceName: e.target.value })} placeholder={t("e.g. CBC blood test")} />
+                        <Input list="service-catalogue" value={orderForm.serviceName} onChange={(e) => setOrderForm({ ...orderForm, serviceName: e.target.value })} placeholder={t("e.g. CBC blood test")} />
+                        <datalist id="service-catalogue">
+                          {serviceCatalogue.map((service) => (
+                            <option key={`${service.category}:${service.name}`} value={service.name}>{t(service.category)}</option>
+                          ))}
+                        </datalist>
                       </Field>
                       <div className="grid grid-cols-2 gap-3">
                         <Field label="Quantity">

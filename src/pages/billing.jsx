@@ -11,6 +11,7 @@ import { displayPatientId } from "../utils/patientIdentity.js"
 import AdvancePayments from "../components/billing/AdvancePayments.jsx"
 import DischargeBills from "../components/billing/DischargeBills.jsx"
 import PriceList from "../components/billing/PriceList.jsx"
+import RefundDialog from "../components/billing/RefundDialog.jsx"
 import PricedServicePicker from "../components/billing/PricedServicePicker.jsx"
 import UnbilledWork from "../components/billing/UnbilledWork.jsx"
 import { itemsData, otherLinesOf, pricedAmount } from "../utils/billingLines.js"
@@ -45,6 +46,8 @@ function Billing() {
   const [statusFilter, setStatusFilter] = useState("All Status")
 
   const [showForm, setShowForm] = useState(false)
+  // Bill being refunded (its server record), or null.
+  const [refunding, setRefunding] = useState(null)
   const [showInvoice, setShowInvoice] = useState(false)
 
   const [selectedBill, setSelectedBill] = useState(null)
@@ -980,6 +983,17 @@ function Billing() {
               onCharged={() => setBillsReloadToken((n) => n + 1)}
             />
 
+            {refunding && (
+              <RefundDialog
+                invoice={refunding}
+                onClose={() => setRefunding(null)}
+                onRefunded={(refund) => {
+                  toast.success(t("Refund of ₹{amount} recorded ({receipt}).", { amount: refund.amount, receipt: refund.receipt_number }))
+                  setBillsReloadToken((n) => n + 1)
+                }}
+              />
+            )}
+
             <PriceList
               hospitalId={selectedHospital.id}
               canManage={PRICING_ROLES.includes(activeRoleName)}
@@ -1331,6 +1345,16 @@ function Billing() {
 
                                     )}
 
+                                  {/* Money received can be paid back (with a reason). */}
+                                  {REFUND_ROLES.includes(activeRoleName) && bill.apiInvoice?.id && Number(bill.apiInvoice.total_paid) > 0 && (
+                                    <button
+                                      onClick={() => setRefunding(bill.apiInvoice)}
+                                      className="px-3 py-2 text-sm bg-amber-50 text-amber-800 rounded-lg"
+                                    >
+                                      {t("Refund")}
+                                    </button>
+                                  )}
+
 
                                   <button
 
@@ -1383,14 +1407,21 @@ function Billing() {
 
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
 
-          <div className="bg-white w-full max-w-xl rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+          {/* BUG-010: announced as a dialog with its title; Escape closes it. */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bill-form-title"
+            onKeyDown={(e) => { if (e.key === "Escape") resetForm() }}
+            className="bg-white w-full max-w-xl rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto"
+          >
 
 
             <div className="flex justify-between items-center p-6 border-b">
 
               <div>
 
-                <h2 className="text-xl font-bold text-gray-800">
+                <h2 id="bill-form-title" className="text-xl font-bold text-gray-800">
 
                   {selectedBill
                     ? t("Edit Bill")
@@ -1406,9 +1437,11 @@ function Billing() {
 
 
               <button
+                type="button"
                 onClick={
                   resetForm
                 }
+                aria-label={t("Close")}
                 className="text-2xl text-gray-500"
               >
                 ×
@@ -1483,6 +1516,8 @@ function Billing() {
 
                     name="consultation"
 
+                    aria-label={t("Doctor Consultation ₹")}
+
                     value={
                       formData.consultation
                     }
@@ -1509,6 +1544,8 @@ function Billing() {
                     inputMode="decimal"
 
                     name="laboratory"
+
+                    aria-label={t("Laboratory Charges ₹")}
 
                     value={
                       formData.laboratory
@@ -1539,6 +1576,8 @@ function Billing() {
 
                     name="pharmacy"
 
+                    aria-label={t("Pharmacy / Medicines ₹")}
+
                     value={
                       formData.pharmacy
                     }
@@ -1565,6 +1604,8 @@ function Billing() {
                     inputMode="decimal"
 
                     name="other"
+
+                    aria-label={t("Other Charges ₹")}
 
                     value={
                       formData.other
@@ -1603,13 +1644,15 @@ function Billing() {
 
               <div>
 
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="bill-discount" className="block text-sm font-medium text-gray-700 mb-1">
                   {t("Discount")}
                 </label>
 
                 <input
 
-                  type="number"
+                  id="bill-discount"
+
+                    type="number"
 
                   min="0"
 
@@ -1643,11 +1686,13 @@ function Billing() {
 
                 <div>
 
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="bill-paid" className="block text-sm font-medium text-gray-700 mb-1">
                     {t("Amount Paid")}
                   </label>
 
                   <input
+
+                    id="bill-paid"
 
                     type="number"
 
@@ -1678,11 +1723,13 @@ function Billing() {
 
                 <div>
 
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="bill-payment" className="block text-sm font-medium text-gray-700 mb-1">
                     {t("Payment Method")}
                   </label>
 
                   <select
+
+                    id="bill-payment"
 
                     name="payment"
 
