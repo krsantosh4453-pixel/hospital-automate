@@ -16,7 +16,7 @@ export const test = base.extend({
       await Promise.all(opened.map((context) => context.close()))
     },
     // Closing saves each context's trace: give that its own time, not the test's.
-    { auto: true, timeout: 60_000 },
+    { auto: true, timeout: 60000 },
   ],
 })
 
