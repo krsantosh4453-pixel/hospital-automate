@@ -11,6 +11,7 @@ import { useLanguage } from "../../assets/context/LanguageContext.jsx"
 const TONES = {
   Visit: "brand", Emergency: "danger", Admission: "warning", Discharge: "warning",
   Diagnosis: "accent", Lab: "success", Imaging: "success", Prescription: "neutral",
+  "Nursing observation": "brand",
 }
 
 const dayOf = (value) => new Date(value).toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })

@@ -1,0 +1,132 @@
+{
+  "patient": 5,
+  "doctor": 1,
+  "visit": 3,
+  "study": {
+    "id": 1,
+    "hospital": 1,
+    "patient": 5,
+    "visit": 3,
+    "accession_number": "RAD-19148845E77F",
+    "modality": "X-ray",
+    "body_part": "Chest PA",
+    "indication": "Cough for three weeks",
+    "priority": "Routine",
+    "status": "Ordered",
+    "ordered_by": 1,
+    "ordered_at": "2026-11-24T19:56:44.174501Z",
+    "scheduled_for": null,
+    "performed_at": null,
+    "performed_by": null,
+    "technician_notes": "",
+    "findings": "",
+    "impression": "",
+    "reported_by": null,
+    "reported_at": null,
+    "patient_name": "Demo Portal Patient",
+    "patient_age": 30,
+    "patient_gender": "Male",
+    "hospital_name": "Demo City Hospital",
+    "ordered_by_name": "Dr Asha Mehta",
+    "reported_by_name": ""
+  },
+  "image": 1,
+  "visitBill": {
+    "id": 1,
+    "invoice_number": "INV/26-27/000001",
+    "admission": null,
+    "prescription": null,
+    "visit": 3,
+    "is_final": false,
+    "waiver": null,
+    "patient": 5,
+    "patient_name": "Demo Portal Patient",
+    "patient_uhid": "DEMO-PORTAL",
+    "hospital": 1,
+    "hospital_name": "Demo City Hospital",
+    "discount": "0.00",
+    "tax": "0.00",
+    "total": "1101.50",
+    "status": "Unpaid",
+    "created_at": "2026-11-24T19:56:59.076711Z",
+    "items": [
+      {
+        "id": 1,
+        "invoice": 1,
+        "description": "Imaging: X-ray Chest PA (RAD-19148845E77F)",
+        "quantity": 1,
+        "unit_price": "350.75",
+        "subtotal": "350.75",
+        "tax_rate": "0.00",
+        "pharmacy_sale": null,
+        "service_price": 3,
+        "category": "imaging",
+        "charge_key": "imaging:1"
+      },
+      {
+        "id": 2,
+        "invoice": 1,
+        "description": "Laboratory: CBC (LAB-1)",
+        "quantity": 1,
+        "unit_price": "250.25",
+        "subtotal": "250.25",
+        "tax_rate": "0.00",
+        "pharmacy_sale": null,
+        "service_price": 2,
+        "category": "laboratory",
+        "charge_key": "labtest:1"
+      },
+      {
+        "id": 3,
+        "invoice": 1,
+        "description": "Consultation (OPD) · Dr Asha Mehta",
+        "quantity": 1,
+        "unit_price": "500.50",
+        "subtotal": "500.50",
+        "tax_rate": "0.00",
+        "pharmacy_sale": null,
+        "service_price": 1,
+        "category": "consultation",
+        "charge_key": "visit:3:consultation"
+      }
+    ],
+    "payments": [],
+    "total_paid": "0.00",
+    "balance_due": "1101.50",
+    "is_paid": false,
+    "subtotal": "1101.50",
+    "tax_amount": "0.00",
+    "total_amount": "1101.50"
+  },
+  "reconciliation": {
+    "visitBill": "INV/26-27/000001",
+    "lines": [
+      [
+        "consultation",
+        "500.50",
+        1
+      ],
+      [
+        "imaging",
+        "350.75",
+        1
+      ],
+      [
+        "laboratory",
+        "250.25",
+        1
+      ]
+    ],
+    "total": "1101.50",
+    "pharmacy": "4.48"
+  },
+  "storageAfterLogin": [
+    "hms_session",
+    "selectedHospital",
+    "sidebarOpen"
+  ],
+  "storageAfterLogout": [
+    "sidebarOpen"
+  ],
+  "generated": "2026-11-24T19:58:04.319Z"
+}

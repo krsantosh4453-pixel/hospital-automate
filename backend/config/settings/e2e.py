@@ -19,6 +19,11 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.environ.get("E2E_DB_PATH", str(BASE_DIR / "e2e.sqlite3")),  # noqa: F405
+        # The threaded dev server answers several browser requests at once. A
+        # deferred transaction that turns into a write while another request
+        # writes fails at once with "database is locked"; taking the write lock
+        # up front makes it wait (up to the timeout) instead.
+        "OPTIONS": {"transaction_mode": "IMMEDIATE", "timeout": 20},
     }
 }
 

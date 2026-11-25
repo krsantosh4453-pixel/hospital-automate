@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react"
-import { Link, useNavigate, useSearchParams } from "react-router-dom"
+import { startTransition, useEffect, useState, useRef } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "../assets/context/AuthContext.jsx"
 import api from "../services/api.js"
 import { usePatient } from "../assets/context/PatientContext.jsx"
@@ -15,7 +15,7 @@ import { BrandMark } from "../components/Sidebar.jsx"
 import { Alert } from "../components/ui"
 import DevLoginPanel from "../components/DevLoginPanel.jsx"
 import ProxyLoginPanel from "../components/auth/ProxyLoginPanel.jsx"
-import { useInSignInDialog } from "../components/auth/SignInDialog.jsx"
+import { AuthLink, useInSignInDialog } from "../components/auth/SignInDialog.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function PatientLogin() {
@@ -30,6 +30,19 @@ function PatientLogin() {
   const { patientLogin, staffLogin, adoptExternalSession } = useAuth()
   const { savePatient } = usePatient()
   const { switchRole } = useRole()
+
+  // React Router applies navigate() in a transition, so a separate urgent
+  // session update would first render the page under the sign-in dialog ("/")
+  // with a patient signed in, whose staff guard then replaces the URL with
+  // /patient and drops ?next=book. One transition commits both together.
+  const finishPatientSignIn = (data, to) => {
+    startTransition(() => {
+      patientLogin(data)
+      if (data.patient) savePatient(data.patient)
+      switchRole("Patient")
+      navigate(to)
+    })
+  }
 
   const [selectedRole, setSelectedRole] = useState(() => {
     const fromQuery = searchParams.get("role")
@@ -197,10 +210,7 @@ function PatientLogin() {
     setOtpLoading(true)
     try {
       const data = await api.auth.verifyPatientOtp(mobile, otp)
-      patientLogin(data)
-      if (data.patient) savePatient(data.patient)
-      switchRole("Patient")
-      navigate(afterPatientLogin)
+      finishPatientSignIn(data, afterPatientLogin)
     } catch (error) {
       setOtpError(error.message || "Invalid or expired verification code.")
     } finally {
@@ -210,10 +220,7 @@ function PatientLogin() {
 
   // Family member / caregiver signed in with view-only access to a patient.
   const handleProxySignedIn = (data) => {
-    patientLogin(data)
-    if (data.patient) savePatient(data.patient)
-    switchRole("Patient")
-    navigate("/patient")
+    finishPatientSignIn(data, "/patient")
   }
 
   const handleTokenLogin = async (e) => {
@@ -228,10 +235,7 @@ function PatientLogin() {
 
     try {
       const data = await api.auth.patientTokenLogin(cleanToken, tokenPassword)
-      patientLogin(data)
-      if (data.patient) savePatient(data.patient)
-      switchRole("Patient")
-      navigate(afterPatientLogin)
+      finishPatientSignIn(data, afterPatientLogin)
     } catch (error) {
       setTokenError(error.message || "Invalid patient credentials.")
     }
@@ -242,10 +246,7 @@ function PatientLogin() {
     setEmailError("")
     try {
       const data = await api.auth.patientEmailLogin(emailAddress.trim(), emailPassword)
-      patientLogin(data)
-      if (data.patient) savePatient(data.patient)
-      switchRole("Patient")
-      navigate(afterPatientLogin)
+      finishPatientSignIn(data, afterPatientLogin)
     } catch (error) {
       const message = error.message || "Invalid email or password."
       setEmailError(message)
@@ -783,12 +784,13 @@ function PatientLogin() {
 
           <div className="mt-6 border-t border-line pt-6 text-center">
             <p className="text-xs text-gray-500">{t("New to the Hospital Management System?")}</p>
-            <Link
-              to={`/register?role=${encodeURIComponent(selectedRole)}`}
+            {/* In the dialog this swaps the form in place; the booking hand-off rides along. */}
+            <AuthLink
+              to={`/register?role=${encodeURIComponent(selectedRole)}${searchParams.get("next") === "book" ? "&next=book" : ""}`}
               className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-line-strong bg-white text-sm font-semibold text-ink-800 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t("Create Account")}
-            </Link>
+            </AuthLink>
           </div>
 
         </div>

@@ -116,7 +116,7 @@ export default function UnbilledWork({ hospitalId, canCharge, onCharged }) {
               {rows.map((row) => (
                 <tr key={`${row.kind}-${row.id}`}>
                   <td className="tabular-nums">{row.date}</td>
-                  <td>{row.kind === "consultation" ? t("Consultation") : t("Laboratory test")} #{row.id}</td>
+                  <td>{row.kind === "consultation" ? t("Consultation") : row.kind === "imaging" ? t("Imaging study") : t("Laboratory test")} #{row.id}</td>
                   <td>
                     {row.service}
                     {row.source === "cancelled" && (

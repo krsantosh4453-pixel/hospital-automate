@@ -76,6 +76,7 @@ const HI = {
   Receptionist: "रिसेप्शनिस्ट",
   Pharmacist: "फ़ार्मासिस्ट",
   "Lab Staff": "लैब स्टाफ़",
+  "Radiology Staff": "रेडियोलॉजी स्टाफ़",
   "Blood Bank Staff": "ब्लड बैंक स्टाफ़",
   "Billing Staff": "बिलिंग स्टाफ़",
   "Inventory Staff": "भंडार स्टाफ़",

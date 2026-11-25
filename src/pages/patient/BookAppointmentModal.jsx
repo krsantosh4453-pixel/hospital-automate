@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 import api from "../../services/api.js"
 import { Alert, Button, Field, Modal, Select, Textarea, Input } from "../../components/ui"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import { JoinHospitalForm } from "../../components/patient/HospitalMembership.jsx"
+import { nextWorkingDate } from "../../utils/hospitalDate.js"
 
 /** Today's date in the browser's time zone, as YYYY-MM-DD. */
 function todayIso(offsetDays = 0) {
@@ -22,6 +24,8 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [refresh, setRefresh] = useState(0)
+  // Prompt 3: bumped after the patient registers at a hospital from here.
+  const [joined, setJoined] = useState(0)
 
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }))
 
@@ -35,7 +39,7 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
         if (data.hospitals?.length === 1) set("hospital", String(data.hospitals[0].id))
       })
       .catch((e) => setError(e.message))
-  }, [open])
+  }, [open, joined])
 
   useEffect(() => {
     if (!open || !form.hospital) return
@@ -47,14 +51,20 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
   }, [open, form.hospital])
 
   useEffect(() => {
-    if (!open || !form.hospital || !form.doctor || !form.date) return
+    if (!open || !form.hospital || !form.doctor || !form.date) return undefined
+    // An answer for a doctor or day no longer chosen is ignored, so a slower
+    // earlier request never shows another day's times (final validation).
+    let current = true
     set("time", "")
     setLoading(true)
     api.appointments
       .bookingOptions({ hospital: form.hospital, doctor: form.doctor, date: form.date })
-      .then((data) => setOptions((prev) => ({ ...prev, slots: data.slots || [] })))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+      .then((data) => current && setOptions((prev) => ({ ...prev, slots: data.slots || [], unavailableReason: data.unavailable_reason || "" })))
+      .catch((e) => current && setError(e.message))
+      .finally(() => current && setLoading(false))
+    return () => {
+      current = false
+    }
   }, [open, form.hospital, form.doctor, form.date, refresh])
 
   const freeSlots = options.slots.filter((s) => s.available)
@@ -100,7 +110,10 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
       <div className="space-y-4">
         {error && <Alert tone="danger">{error}</Alert>}
         {options.hospitals.length === 0 && !error && (
-          <Alert tone="warning">{t("You are not registered at any hospital yet. Please register at the reception first.")}</Alert>
+          <div className="space-y-3">
+            <Alert tone="warning">{t("You are not registered at any hospital yet. Register at one here, or at its reception.")}</Alert>
+            <JoinHospitalForm onJoined={() => setJoined((n) => n + 1)} />
+          </div>
         )}
         <Field label="Hospital" required>
           <Select value={form.hospital} onChange={(e) => set("hospital", e.target.value)}>
@@ -113,7 +126,16 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
           </Select>
         </Field>
         <Field label="Doctor" required>
-          <Select value={form.doctor} onChange={(e) => set("doctor", e.target.value)} disabled={!form.hospital}>
+          <Select
+            value={form.doctor}
+            onChange={(e) => {
+              set("doctor", e.target.value)
+              // Start on a day this doctor works (the server still checks every booking).
+              const chosen = options.doctors.find((d) => String(d.id) === e.target.value)
+              set("date", nextWorkingDate(form.date, chosen?.working_days, todayIso(options.window_days || 60)))
+            }}
+            disabled={!form.hospital}
+          >
             <option value="">{t("Select doctor")}</option>
             {options.doctors.map((d) => (
               <option key={d.id} value={d.id}>
@@ -132,10 +154,11 @@ function BookAppointmentModal({ open, onClose, onBooked }) {
             onChange={(e) => set("date", e.target.value)}
           />
         </Field>
+        {form.doctor && options.unavailableReason && <Alert tone="warning">{options.unavailableReason}</Alert>}
         <Field
           label="Time"
           required
-          hint={form.doctor && !loading && freeSlots.length === 0 ? t("No free time on this day. Try another date.") : undefined}
+          hint={form.doctor && !loading && freeSlots.length === 0 && !options.unavailableReason ? t("No free time on this day. Try another date.") : undefined}
         >
           <Select value={form.time} onChange={(e) => set("time", e.target.value)} disabled={!form.doctor || loading}>
             <option value="">{loading ? "Loading free times…" : "Select time"}</option>

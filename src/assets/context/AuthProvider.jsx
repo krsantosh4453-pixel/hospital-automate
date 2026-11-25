@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import api from "../../services/api.js"
+import api, { accountKind, rememberAccountKind } from "../../services/api.js"
 import { isDevelopmentAuthBypassEnabled } from "../../utils/devAuthBypass.js"
 import { AuthContext } from "./AuthContext.jsx"
 
@@ -71,6 +71,7 @@ export function AuthProvider({ children }) {
       throw new Error("Patient login did not return a valid session.")
     }
     api.auth.applySession(session)
+    rememberAccountKind("patient")
     setUser(null)
     setPatient(session.patient)
     setProxy(session.proxy || null)
@@ -82,6 +83,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const applyStaffSession = useCallback((userData) => {
+    rememberAccountKind("staff")
     setUser(userData)
     setPatient(null)
     setProxy(null)
@@ -114,22 +116,31 @@ export function AuthProvider({ children }) {
       return
     }
 
+    const asPatient = async () => {
+      const patientData = await api.auth.patientMe()
+      if (!patientData?.patient) throw new Error("Not a patient session.")
+      rememberAccountKind("patient")
+      setUser(null)
+      setPatient(patientData.patient)
+      setProxy(patientData.proxy || null)
+      setIsStaff(false)
+      setIsPatient(true)
+      setIsLoggedIn(true)
+    }
+    const asStaff = async () => applyStaffSession(await api.auth.getMe())
+
     try {
+      // BUG-012: ask the endpoint for this session's kind first; the other
+      // only if that fails (a session from before the kind was remembered).
+      const [first, second] = accountKind() === "patient" ? [asPatient, asStaff] : [asStaff, asPatient]
       try {
-        const userData = await api.auth.getMe()
-        applyStaffSession(userData)
-        return
-      } catch (staffError) {
-        const patientData = await api.auth.patientMe()
-        if (!patientData?.patient) {
-          throw staffError
+        await first()
+      } catch (firstError) {
+        try {
+          await second()
+        } catch {
+          throw firstError
         }
-        setUser(null)
-        setPatient(patientData.patient)
-        setProxy(patientData.proxy || null)
-        setIsStaff(false)
-        setIsPatient(true)
-        setIsLoggedIn(true)
       }
     } catch {
       api.auth.clearTokens()

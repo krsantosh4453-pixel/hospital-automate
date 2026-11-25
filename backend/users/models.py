@@ -14,6 +14,8 @@ class StaffRole(models.TextChoices):
     RECEPTIONIST = "Receptionist", "Receptionist"
     PHARMACIST = "Pharmacist", "Pharmacist"
     LAB_STAFF = "Lab Staff", "Lab Staff"
+    # Prompt 5 (MF-004): radiographers schedule and perform imaging studies.
+    RADIOLOGY_STAFF = "Radiology Staff", "Radiology Staff"
     BLOOD_BANK_STAFF = "Blood Bank Staff", "Blood Bank Staff"
     BILLING_STAFF = "Billing Staff", "Billing Staff"
     INVENTORY_STAFF = "Inventory Staff", "Inventory Staff"

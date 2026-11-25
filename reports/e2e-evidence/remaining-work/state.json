@@ -1,0 +1,645 @@
+{
+  "run": "FV83449",
+  "started": "2026-11-25T05:13:36.009Z",
+  "steps": {
+    "01-admin-signup": {
+      "result": "PASS",
+      "detail": "201; user admin.fv83449",
+      "at": "2026-11-25T05:13:42.616Z"
+    },
+    "02-hospital": {
+      "result": "PASS",
+      "detail": "hospital 2 \"Synthetic Final Hospital FV83449\", department, ward with 3 beds",
+      "at": "2026-11-25T05:13:53.232Z"
+    },
+    "03-prices": {
+      "result": "PASS",
+      "detail": "4 prices saved for hospital 2 through the Billing price list",
+      "at": "2026-11-25T05:14:08.910Z"
+    },
+    "04-staff": {
+      "result": "PASS",
+      "detail": "9 accounts invited, accepted the link, signed in with the right role and hospital",
+      "at": "2026-11-25T05:15:27.141Z"
+    },
+    "05-rbac": {
+      "result": "PASS",
+      "detail": "every forbidden probe answered 403",
+      "at": "2026-11-25T05:15:59.994Z"
+    },
+    "06-pharmacy-stock": {
+      "result": "PASS",
+      "detail": "Synth Paracetamol 500 FV83449: 20 units at ₹2.50 (GST 12.00%)",
+      "at": "2026-11-25T05:16:07.438Z"
+    },
+    "07-patient": {
+      "result": "PASS",
+      "detail": "{\"uhid\":\"SF3449-2026-000001\",\"missingHospital\":true,\"passwordMismatch\":true,\"duplicate\":400,\"unknownHospital\":400,\"otherPatientRecord\":404,\"uhidAgain\":\"SF3449-2026-000001\"}",
+      "at": "2026-11-25T05:17:20.481Z"
+    },
+    "08-appointments": {
+      "result": "PASS",
+      "detail": "{\"appointment\":3,\"sameSlotAgain\":409,\"secondBooking\":201,\"setAvailability\":200,\"sundaySlots\":0,\"sundayReason\":\"Synthetic Doctor doctor FV83449 does not see patients on Sundays (Mon-Sat 09:00-17:00). Choose another day.\",\"sundayBook\":400,\"foreignDoctor\":400}",
+      "at": "2026-11-25T05:17:35.624Z"
+    },
+    "09-reception": {
+      "result": "PASS",
+      "detail": "{\"vitals\":403,\"users\":403,\"lab\":403}",
+      "at": "2026-11-25T05:17:50.026Z"
+    },
+    "10-consultation": {
+      "result": "PASS",
+      "detail": "{\"visit\":3,\"allergy\":{\"unknownShown\":true,\"wrongNka\":false},\"diagnoses\":[[\"Acute pharyngitis\",\"J02.9\"]],\"notes\":1,\"vitals\":[[\"37.80\",122]]}",
+      "at": "2026-11-25T05:18:21.820Z"
+    },
+    "11-laboratory": {
+      "result": "PARTIAL",
+      "detail": "LAB-1; visit link none (expected 3; visit field shown to Lab Staff: true; visits offered: -1); self-verify 403; doctor sees Released; pharmacist 403",
+      "at": "2026-11-25T05:19:02.542Z"
+    },
+    "12-radiology": {
+      "result": "PASS",
+      "detail": "{\"study\":1,\"visit\":3,\"exeRefused\":\"file: Upload a PNG, JPEG, DICOM (.dcm) or PDF file.\",\"bigRefused\":\"file: The file is larger than 50 MB.\",\"pharmacistImage\":403,\"doctorImage\":200,\"signedAgain\":400}",
+      "at": "2026-11-25T05:19:51.348Z"
+    },
+    "13-pharmacy": {
+      "result": "PASS",
+      "detail": "{\"rx\":\"RX-0001\",\"stockAfter\":17,\"againStatus\":409,\"negative\":\"Line 1, quantity: Ensure this value is greater than or equal to 1.\",\"ledger\":[[\"OUT\",3],[\"IN\",20]],\"pageErrors\":[]}",
+      "at": "2026-11-25T05:20:24.695Z"
+    },
+    "14-complete": {
+      "result": "PASS",
+      "detail": "visit 3 → Completed",
+      "at": "2026-11-25T05:20:32.998Z"
+    },
+    "16-portal": {
+      "result": "PASS",
+      "detail": "{\"uhid\":true,\"diagnosis\":true,\"imaging\":true,\"lab\":true,\"imageFile\":200,\"prescription\":true,\"labPage\":true,\"billsPaid\":true,\"dashboardDue\":0}",
+      "at": "2026-11-25T05:24:29.561Z"
+    },
+    "17-inpatient": {
+      "result": "PASS",
+      "detail": "{\"admitted\":true,\"nursePageError\":false,\"nurseBillingTab\":false,\"doctorSeesNurse\":[[\"Synthetic Nurse nurse FV83449\",\"100.4\",\"F\",true]],\"consultationShowsUnit\":true,\"checklistTicked\":0,\"completeEnabled\":false,\"dischargeStepsText\":[\"Admissions, beds and discharges at Synthetic Final Hospital FV83449.\",\"Discharge in progress\",\"Discharges\",\"Discharges in progress\",\"A discharge completes once the checklist is ticked, the doctor has signed the summary and the final bill is paid.\",\"Discharge started\",\"Signed by Synthetic Doctor doctor FV83449\",\"Complete discharge\",\"Complete discharge\",\"Discharge checklist\",\"Final bill not created yet (Billing creates it)\"],\"nurseNameMissing\":false}",
+      "at": "2026-11-25T05:25:21.744Z"
+    },
+    "18-discharge": {
+      "result": "PASS",
+      "detail": "{\"bedChargesShown\":\"Bed charges from the price list: ₹1200.00\",\"createFinalBill\":true,\"finalBill\":[\"INV/26-27/000004\",\"1200.00\",\"Unpaid\"],\"finalBillPaid\":true,\"checklistTicked\":4,\"completeEnabled\":true,\"confirmShown\":true,\"toast\":true,\"admission\":[[3,\"Discharged\",\"2026-11-25T05:25:59.680179Z\"]],\"pageText\":[\"Admissions, beds and discharges at Synthetic Final Hospital FV83449.\",\"Discharge in progress\",\"Discharges\",\"Discharges in progress\",\"A discharge completes once the checklist is ticked, the doctor has signed the summary and the final bill is paid.\",\"No discharges in progress\"]}",
+      "at": "2026-11-25T05:26:02.691Z"
+    },
+    "18b-patient-discharge": {
+      "result": "PASS",
+      "detail": "{\"discharged\":true,\"followUp\":true,\"wardVitals\":true}",
+      "at": "2026-11-25T05:26:10.245Z"
+    },
+    "19-security": {
+      "result": "PASS",
+      "detail": "{\"storageAfterLogin\":[\"hms_account\",\"hms_session\",\"selectedHospital\",\"sidebarOpen\"],\"profileInStorage\":false,\"storageAfterLogout\":[\"sidebarOpen\"],\"anonymousPatients\":401,\"auditCount\":50,\"otherHospitalReadsPatient\":403,\"otherHospitalReadsOwnScope\":404}",
+      "at": "2026-11-25T05:26:21.304Z"
+    }
+  },
+  "facts": {
+    "run": "FV83449",
+    "admin": {
+      "username": "admin.fv83449",
+      "email": "admin.fv83449@example.test"
+    },
+    "hospital": {
+      "id": 2,
+      "name": "Synthetic Final Hospital FV83449",
+      "code": "SF3449",
+      "uhid_prefix": ""
+    },
+    "wizardStayedOnStep1": false,
+    "hospitalDetail": {
+      "id": 2,
+      "name": "Synthetic Final Hospital FV83449",
+      "code": "SF3449",
+      "uhid_prefix": "",
+      "require_verified_doctors": false,
+      "grievance_officer_name": "",
+      "grievance_officer_email": "",
+      "grievance_officer_phone": "",
+      "type": "Private",
+      "status": "Active",
+      "departments": 1,
+      "doctors": 0,
+      "nurses": 0,
+      "address": "",
+      "city": "Pune",
+      "state": "Maharashtra",
+      "phone": "",
+      "email": "",
+      "is_active": true,
+      "created_at": "2026-11-25T05:13:48.961484Z"
+    },
+    "prices": {
+      "BED-GEN": [
+        "bed",
+        "",
+        "1200.00",
+        2
+      ],
+      "CON-OPD": [
+        "consultation",
+        "",
+        "450.50",
+        2
+      ],
+      "IMG-XR-CHEST": [
+        "imaging",
+        "X-ray Chest PA",
+        "610.75",
+        2
+      ],
+      "LAB-CBC": [
+        "laboratory",
+        "Complete Blood Count",
+        "320.25",
+        2
+      ]
+    },
+    "staff": {
+      "doctor": {
+        "role": "Doctor",
+        "emailed": true,
+        "username": "doctor.fv83449",
+        "roles": [
+          "Doctor"
+        ],
+        "hospitals": [
+          2
+        ]
+      },
+      "desk": {
+        "role": "Receptionist",
+        "emailed": true,
+        "username": "desk.fv83449",
+        "roles": [
+          "Receptionist"
+        ],
+        "hospitals": [
+          2
+        ]
+      },
+      "nurse": {
+        "role": "Nurse",
+        "emailed": true,
+        "username": "nurse.fv83449",
+        "roles": [
+          "Nurse"
+        ],
+        "hospitals": [
+          2
+        ]
+      },
+      "compounder": {
+        "role": "Compounder",
+        "emailed": true,
+        "username": "compounder.fv83449",
+        "roles": [
+          "Compounder"
+        ],
+        "hospitals": [
+          2
+        ]
+      },
+      "lab": {
+        "role": "Lab Staff",
+        "emailed": true,
+        "username": "lab.fv83449",
+        "roles": [
+          "Lab Staff"
+        ],
+        "hospitals": [
+          2
+        ]
+      },
+      "labcheck": {
+        "role": "Lab Staff",
+        "emailed": true,
+        "username": "labcheck.fv83449",
+        "roles": [
+          "Lab Staff"
+        ],
+        "hospitals": [
+          2
+        ]
+      },
+      "radiology": {
+        "role": "Radiology Staff",
+        "emailed": true,
+        "username": "radiology.fv83449",
+        "roles": [
+          "Radiology Staff"
+        ],
+        "hospitals": [
+          2
+        ]
+      },
+      "pharmacist": {
+        "role": "Pharmacist",
+        "emailed": true,
+        "username": "pharmacist.fv83449",
+        "roles": [
+          "Pharmacist"
+        ],
+        "hospitals": [
+          2
+        ]
+      },
+      "billing": {
+        "role": "Billing Staff",
+        "emailed": true,
+        "username": "billing.fv83449",
+        "roles": [
+          "Billing Staff"
+        ],
+        "hospitals": [
+          2
+        ]
+      }
+    },
+    "accessMatrix": {
+      "desk": {
+        "/api/patients/": 200,
+        "/api/laboratory/": 403,
+        "/api/laboratory/imaging/": 403,
+        "/api/billing/invoices/": 200,
+        "/api/pharmacy-sales/": 403,
+        "/api/clinical/vitals/": 403,
+        "/api/nurses/assessments/": 403,
+        "/api/users/": 403
+      },
+      "nurse": {
+        "/api/patients/": 200,
+        "/api/laboratory/": 200,
+        "/api/laboratory/imaging/": 200,
+        "/api/billing/invoices/": 403,
+        "/api/pharmacy-sales/": 403,
+        "/api/clinical/vitals/": 200,
+        "/api/nurses/assessments/": 200,
+        "/api/users/": 403
+      },
+      "compounder": {
+        "/api/patients/": 403,
+        "/api/laboratory/": 403,
+        "/api/laboratory/imaging/": 403,
+        "/api/billing/invoices/": 403,
+        "/api/pharmacy-sales/": 200,
+        "/api/clinical/vitals/": 403,
+        "/api/nurses/assessments/": 403,
+        "/api/users/": 403
+      },
+      "lab": {
+        "/api/patients/": 403,
+        "/api/laboratory/": 200,
+        "/api/laboratory/imaging/": 200,
+        "/api/billing/invoices/": 403,
+        "/api/pharmacy-sales/": 403,
+        "/api/clinical/vitals/": 403,
+        "/api/nurses/assessments/": 403,
+        "/api/users/": 403
+      },
+      "radiology": {
+        "/api/patients/": 403,
+        "/api/laboratory/": 403,
+        "/api/laboratory/imaging/": 200,
+        "/api/billing/invoices/": 403,
+        "/api/pharmacy-sales/": 403,
+        "/api/clinical/vitals/": 403,
+        "/api/nurses/assessments/": 403,
+        "/api/users/": 403
+      },
+      "pharmacist": {
+        "/api/patients/": 403,
+        "/api/laboratory/": 403,
+        "/api/laboratory/imaging/": 403,
+        "/api/billing/invoices/": 403,
+        "/api/pharmacy-sales/": 200,
+        "/api/clinical/vitals/": 403,
+        "/api/nurses/assessments/": 403,
+        "/api/users/": 403
+      },
+      "billing": {
+        "/api/patients/": 200,
+        "/api/laboratory/": 403,
+        "/api/laboratory/imaging/": 403,
+        "/api/billing/invoices/": 200,
+        "/api/pharmacy-sales/": 403,
+        "/api/clinical/vitals/": 403,
+        "/api/nurses/assessments/": 403,
+        "/api/users/": 403
+      },
+      "doctor": {
+        "/api/patients/": 200,
+        "/api/laboratory/": 200,
+        "/api/laboratory/imaging/": 200,
+        "/api/billing/invoices/": 403,
+        "/api/pharmacy-sales/": 403,
+        "/api/clinical/vitals/": 200,
+        "/api/nurses/assessments/": 200,
+        "/api/users/": 403
+      },
+      "otherHospitalDoctor": {
+        "/api/patients/": 403,
+        "/api/appointments/": 403
+      }
+    },
+    "medicine": {
+      "id": 10,
+      "name": "Synth Paracetamol 500 FV83449",
+      "quantity": 20,
+      "price": "2.50",
+      "tax_rate": "12.00",
+      "hospital": 2
+    },
+    "lastOtpAt": 1795584258228,
+    "patientLoginPaths": [
+      "email refused: Email is not verified."
+    ],
+    "patient": {
+      "id": 6,
+      "phone": "9583767725",
+      "name": "Synthetic Patient FV83449",
+      "uhid": "SF3449-2026-000001",
+      "memberships": [
+        {
+          "id": 2,
+          "name": "Synthetic Final Hospital FV83449",
+          "uhid": "SF3449-2026-000001"
+        }
+      ],
+      "email": "patient.fv83449@example.test"
+    },
+    "registrationChecks": {
+      "missingHospital": true,
+      "passwordMismatch": true,
+      "duplicate": 400,
+      "unknownHospital": 400,
+      "otherPatientRecord": 404,
+      "uhidAfterRelogin": "SF3449-2026-000001"
+    },
+    "doctorId": 3,
+    "appointment": {
+      "id": 3,
+      "date": "2026-11-25",
+      "time": "11:00:00",
+      "status": "Scheduled",
+      "hospital": 2,
+      "doctor": 3
+    },
+    "bookingChecks": {
+      "sameSlotAgain": 409,
+      "secondBooking": 201,
+      "history": [
+        [
+          4,
+          "Cancelled",
+          "2026-12-02",
+          "15:30"
+        ],
+        [
+          3,
+          "Scheduled",
+          "2026-11-25",
+          "11:00"
+        ]
+      ],
+      "setAvailability": 200,
+      "sundaySlots": 0,
+      "sundayReason": "Synthetic Doctor doctor FV83449 does not see patients on Sundays (Mon-Sat 09:00-17:00). Choose another day.",
+      "sundayBook": 400,
+      "foreignDoctor": 400
+    },
+    "receptionForbidden": {
+      "vitals": 403,
+      "users": 403,
+      "lab": 403
+    },
+    "visit": {
+      "id": 3,
+      "status": "In Consultation",
+      "hospital": 2,
+      "doctor": 3
+    },
+    "consultation": {
+      "allergy": {
+        "unknownShown": true,
+        "wrongNka": false
+      },
+      "diagnoses": [
+        [
+          "Acute pharyngitis",
+          "J02.9"
+        ]
+      ],
+      "notes": 1,
+      "vitals": [
+        [
+          "37.80",
+          122
+        ]
+      ]
+    },
+    "labVisitOptions": -1,
+    "labTest": {
+      "id": 1,
+      "visit": null,
+      "visitFieldShownToLabStaff": true,
+      "selfVerify": 403,
+      "doctorSees": [
+        "Released",
+        "Hb 13.4 g/dL; WBC 9.2 x10^9/L (synthetic)"
+      ],
+      "pharmacistRead": 403
+    },
+    "study": {
+      "id": 1,
+      "accession": "RAD-8676C1EDD189",
+      "visit": 3,
+      "imageUrl": "/api/laboratory/imaging/1/images/1/",
+      "exeRefused": "file: Upload a PNG, JPEG, DICOM (.dcm) or PDF file.",
+      "bigRefused": "file: The file is larger than 50 MB.",
+      "pharmacistImage": 403,
+      "doctorImage": 200,
+      "signedAgain": 400,
+      "radiologyOrderByRadiographer": {
+        "note": "Radiology Staff cannot place orders: only doctors order (by design)"
+      }
+    },
+    "pharmacy": {
+      "rx": "RX-0001",
+      "prescription": 1,
+      "stockAfter": 17,
+      "again": 409,
+      "negative": [
+        400,
+        "Line 1, quantity: Ensure this value is greater than or equal to 1."
+      ],
+      "ledger": [
+        [
+          "OUT",
+          3
+        ],
+        [
+          "IN",
+          20
+        ]
+      ],
+      "pageErrors": []
+    },
+    "discountRefund": {
+      "visitBillAfterDiscount": [
+        "1000.00",
+        "61.25",
+        "Unpaid"
+      ],
+      "labAfterRefund": [
+        "Partially Paid",
+        "300.00",
+        "20.25"
+      ],
+      "labAfterDiscount": [
+        "Paid",
+        "300.00",
+        "300.00",
+        "0.00"
+      ]
+    },
+    "billingFinalStatuses": [
+      [
+        "INV/26-27/000003",
+        "Paid",
+        "8.40",
+        "8.40",
+        "0.00"
+      ],
+      [
+        "INV/26-27/000002",
+        "Paid",
+        "1000.00",
+        "1000.00",
+        "0.00"
+      ],
+      [
+        "INV/26-27/000001",
+        "Paid",
+        "300.00",
+        "300.00",
+        "0.00"
+      ]
+    ],
+    "portal": {
+      "uhid": true,
+      "diagnosis": true,
+      "imaging": true,
+      "lab": true,
+      "imageFile": 200,
+      "prescription": true,
+      "labPage": true,
+      "billsPaid": true,
+      "dashboardDue": 0
+    },
+    "inpatient": {
+      "admitted": true,
+      "nursePageError": false,
+      "nurseBillingTab": false,
+      "doctorSeesNurse": [
+        [
+          "Synthetic Nurse nurse FV83449",
+          "100.4",
+          "F",
+          true
+        ]
+      ],
+      "consultationShowsUnit": true,
+      "checklistTicked": 0,
+      "completeEnabled": false,
+      "dischargeStepsText": [
+        "Admissions, beds and discharges at Synthetic Final Hospital FV83449.",
+        "Discharge in progress",
+        "Discharges",
+        "Discharges in progress",
+        "A discharge completes once the checklist is ticked, the doctor has signed the summary and the final bill is paid.",
+        "Discharge started",
+        "Signed by Synthetic Doctor doctor FV83449",
+        "Complete discharge",
+        "Complete discharge",
+        "Discharge checklist",
+        "Final bill not created yet (Billing creates it)"
+      ]
+    },
+    "discharge": {
+      "bedChargesShown": "Bed charges from the price list: ₹1200.00",
+      "createFinalBill": true,
+      "finalBill": [
+        "INV/26-27/000004",
+        "1200.00",
+        "Unpaid"
+      ],
+      "finalBillPaid": true,
+      "checklistTicked": 4,
+      "completeEnabled": true,
+      "confirmShown": true,
+      "toast": true,
+      "admission": [
+        [
+          3,
+          "Discharged",
+          "2026-11-25T05:25:59.680179Z"
+        ]
+      ],
+      "pageText": [
+        "Admissions, beds and discharges at Synthetic Final Hospital FV83449.",
+        "Discharge in progress",
+        "Discharges",
+        "Discharges in progress",
+        "A discharge completes once the checklist is ticked, the doctor has signed the summary and the final bill is paid.",
+        "No discharges in progress"
+      ]
+    },
+    "patientDischargeView": {
+      "discharged": true,
+      "followUp": true,
+      "wardVitals": true
+    },
+    "security": {
+      "storageAfterLogin": [
+        "hms_account",
+        "hms_session",
+        "selectedHospital",
+        "sidebarOpen"
+      ],
+      "profileInStorage": false,
+      "storageAfterLogout": [
+        "sidebarOpen"
+      ],
+      "anonymousPatients": 401,
+      "auditActions": [
+        "notifications.notification.list",
+        "ipd.dischargesummary.list",
+        "ipd.admission.list",
+        "ipd.admission.discharged",
+        "ipd.dischargeplan.update",
+        "billing.invoice.read",
+        "billing.invoice.list",
+        "billing.payment.create",
+        "billing.invoice.final_bill",
+        "billing.charge.captured",
+        "ipd.discharge_summary.finalize",
+        "ipd.dischargesummary.create",
+        "ipd.admission.discharge_initiated",
+        "ipd.dischargeplan.create",
+        "nurses.nursingassessment.list",
+        "patients.patient.read",
+        "clinical.clinicalnote.list",
+        "clinical.vitalsign.list",
+        "clinical.diagnosis.list"
+      ],
+      "auditCount": 50,
+      "otherHospitalReadsPatient": 403,
+      "otherHospitalReadsOwnScope": 404
+    }
+  }
+}

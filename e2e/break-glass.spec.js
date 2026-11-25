@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { signInAs } from "./helpers.js"
 
 // G-8: an Orthopaedics doctor cannot open a Ward A patient of another doctor.

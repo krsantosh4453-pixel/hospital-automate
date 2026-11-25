@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from config.hospital_time import hospital_date_range
 from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError
 from users.viewsets import ReadOnlyHospitalScopedViewSet
@@ -29,10 +30,10 @@ class AuditLogViewSet(ReadOnlyHospitalScopedViewSet):
             queryset = queryset.filter(model_name__icontains=params["model"].strip())
         if params.get("user"):
             queryset = queryset.filter(user__username__icontains=params["user"].strip())
-        if params.get("from"):
-            queryset = queryset.filter(created_at__date__gte=_parse_date(params["from"], "from"))
-        if params.get("to"):
-            queryset = queryset.filter(created_at__date__lte=_parse_date(params["to"], "to"))
+        # Days are the hospital's (IST), not UTC (P1-3).
+        first = _parse_date(params["from"], "from") if params.get("from") else None
+        last = _parse_date(params["to"], "to") if params.get("to") else None
+        queryset = queryset.filter(hospital_date_range("created_at", first, last))
         return queryset.order_by("-created_at", "-id")
 
 

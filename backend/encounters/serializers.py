@@ -68,6 +68,10 @@ class VisitSerializer(serializers.ModelSerializer):
         source="hospital.name",
         read_only=True
     )
+    # BUG-011: where the patient is in the queue ("Called", "Ready", ...), so
+    # Consultation and the queue agree. From the visit's latest token; the list
+    # annotates it (VisitViewSet), single reads look it up.
+    queue_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Visit
@@ -83,8 +87,15 @@ class VisitSerializer(serializers.ModelSerializer):
             "patient_name",
             "doctor_name",
             "hospital_name",
+            "queue_status",
         ]
         read_only_fields = ["id", "visit_date"]
+
+    def get_queue_status(self, visit):
+        if hasattr(visit, "latest_token_status"):
+            return visit.latest_token_status
+        token = visit.queue_tokens.order_by("-token_date", "-token_number").values_list("status", flat=True).first()
+        return token
 
     def validate_hospital(self, value):
         """Ensure user has access to the hospital."""

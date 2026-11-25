@@ -93,6 +93,24 @@ export function defaultLines(items, medicines, today = new Date()) {
 }
 
 /**
+ * A prescription opened before the stock list loaded has no batch chosen.
+ * Once the stock is known, give each line without a batch the default one,
+ * keeping every batch and quantity the pharmacist has already set. Returns
+ * the same object when nothing changes, so a React state update is skipped.
+ */
+export function fillMissingBatches(lines, items, medicines, today = new Date()) {
+  const defaults = defaultLines(items, medicines, today)
+  const missing = items.filter((item) => !lines[item.id]?.batch && defaults[item.id]?.batch)
+  if (missing.length === 0) return lines
+  return {
+    ...lines,
+    ...Object.fromEntries(
+      missing.map((item) => [item.id, { ...defaults[item.id], ...lines[item.id], batch: defaults[item.id].batch }])
+    ),
+  }
+}
+
+/**
  * The dispense-prescription request body, or { problems } to show instead.
  * Lines with quantity 0 are left for later; anything short of the whole
  * remaining quantity is sent as a partial dispense.
@@ -106,6 +124,11 @@ export function buildDispenseRequest(prescriptionId, items, lines, medicines) {
     if (owed === 0) continue
     const line = lines[item.id] || {}
     const quantity = Number(line.quantity || 0)
+    // BUG-007: never send a negative or fractional count (it reached the server and came back raw).
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      problems.push(`${item.name}: enter a whole number of units (0 or more)`)
+      continue
+    }
     if (quantity < owed) partial = true
     if (quantity === 0) continue
     if (quantity > owed) problems.push(`${item.name}: at most ${owed}`)

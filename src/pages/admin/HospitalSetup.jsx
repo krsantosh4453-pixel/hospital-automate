@@ -268,8 +268,15 @@ function HospitalSetup() {
 
   const onHospitalCreated = async (hospital) => {
     selectHospital(hospital)
-    await refreshUser()
+    // Final validation P3-1: move on at once. The profile refresh (new
+    // membership) runs after; if it fails, the hospital is still created and
+    // selected, so the next steps must not wait on it.
     setStep(1)
+    try {
+      await refreshUser()
+    } catch {
+      // The next page load re-reads the profile.
+    }
   }
 
   const body = [

@@ -100,7 +100,14 @@ class NursingAssessmentSerializer(serializers.ModelSerializer):
         return check_ward_vitals(value)
 
 
-WARD_VITAL_KEYS = ("bp", "pulse", "respiratory_rate", "temperature", "spo2")
+WARD_VITAL_KEYS = ("bp", "pulse", "respiratory_rate", "temperature", "spo2", "temperature_unit")
+
+# Prompt 4 (BUG-005): the unit travels with the reading ("C" or "F"). The range
+# per unit is wide enough for real extremes (deep hypothermia, hyperpyrexia)
+# yet refuses a number that only makes sense in the other unit (98.6 "°C").
+# Readings sent without a unit (older ones, other clients) are kept as sent:
+# never guessed, never converted.
+TEMPERATURE_RANGES = {"C": (10, 46), "F": (50, 115)}
 
 
 def _ward_number(key, raw, whole, max_value=None):
@@ -147,11 +154,32 @@ def check_ward_vitals(value):
         elif key == "temperature":
             # DecimalField(max_digits=5, decimal_places=2) on VitalSign.
             _ward_number(key, raw, whole=False, max_value=999.99)
+        elif key == "temperature_unit":
+            continue  # checked with the reading below
         elif key == "spo2":
             _ward_number(key, raw, whole=True, max_value=100)
         else:
             _ward_number(key, raw, whole=True)
+    _check_temperature_unit(value)
     return value
+
+
+def _check_temperature_unit(value):
+    """A unit must be C or F, and the reading plausible in it."""
+    from decimal import Decimal
+
+    unit = value.get("temperature_unit")
+    if unit in (None, ""):
+        return
+    if unit not in TEMPERATURE_RANGES:
+        raise serializers.ValidationError({"temperature_unit": "Use C (Celsius) or F (Fahrenheit)."})
+    reading = value.get("temperature")
+    if reading in (None, "") or (isinstance(reading, str) and not reading.strip()):
+        return
+    low, high = TEMPERATURE_RANGES[unit]
+    if not low <= Decimal(str(reading).strip()) <= high:
+        raise serializers.ValidationError(
+            {"temperature": f"{reading} °{unit} is not a possible body temperature. Check the number and the unit."})
 
 
 class NursingNoteSerializer(serializers.ModelSerializer):

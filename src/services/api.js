@@ -23,11 +23,62 @@ function setTokens() {
 
 function clearTokens() {
   localStorage.removeItem(SESSION_KEY)
+  localStorage.removeItem('hms_account')
   for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key)
+}
+
+// Prompt 5 (SEC-001): the staff profile (name, email, phone, employee ID,
+// roles, hospitals) is read from /auth/staff/me/ on every load and never
+// kept in browser storage, where the next person at a shared PC could read it.
+// Copies written by earlier builds are removed.
+const STAFF_PROFILE_KEYS = ['user', 'roles', 'hospitals']
+
+function forgetStaffProfile() {
+  for (const key of STAFF_PROFILE_KEYS) localStorage.removeItem(key)
+}
+
+// BUG-012: which kind of account this browser session belongs to ("staff" or
+// "patient"), so start-up asks the right "who am I" endpoint first instead of
+// probing staff endpoints for every patient page load. Not sensitive: no
+// name, id or token. Cleared with the session.
+const ACCOUNT_KIND_KEY = 'hms_account'
+
+export function rememberAccountKind(kind) {
+  try {
+    if (kind === 'staff' || kind === 'patient') localStorage.setItem(ACCOUNT_KIND_KEY, kind)
+  } catch {
+    // Storage unavailable: start-up just asks both endpoints, as before.
+  }
+}
+
+export function accountKind() {
+  try {
+    return localStorage.getItem(ACCOUNT_KIND_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+// The hospital switcher's choice belongs to the person who made it.
+function forgetSelectedHospital() {
+  localStorage.removeItem('selectedHospital')
+}
+
+/** After a sign-in: keep the saved hospital only if this user is a member there. */
+function keepSelectedHospitalIfMember(hospitals) {
+  try {
+    const saved = JSON.parse(localStorage.getItem('selectedHospital') || 'null')
+    const id = saved && typeof saved === 'object' ? saved.id : saved
+    const member = Array.isArray(hospitals) && hospitals.some((h) => String(h?.id ?? h) === String(id))
+    if (id != null && !member) forgetSelectedHospital()
+  } catch {
+    forgetSelectedHospital()
+  }
 }
 
 try {
   for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key)
+  if (!localStorage.getItem('hms_dev_auth_bypass')) forgetStaffProfile()
 } catch {
   // Storage unavailable (private mode): nothing was stored either.
 }
@@ -39,11 +90,100 @@ let csrfToken = null
 // httpOnly, so the server hands the token out from /auth/csrf/.
 async function getCsrfToken(renew = false) {
   if (!csrfToken || renew) {
-    const response = await fetch(`${API_BASE_URL}/auth/csrf/`, { credentials: 'include' })
-    if (!response.ok) throw new Error(`CSRF token request failed (${response.status})`)
-    csrfToken = (await response.json()).csrfToken
+    const url = `${API_BASE_URL}/auth/csrf/`
+    const response = await sendRequest(url, { credentials: 'include' }, DEFAULT_TIMEOUT_MS)
+    if (!response.ok) throw httpError(response.status, null, url)
+    try {
+      csrfToken = (await response.json()).csrfToken
+    } catch {
+      // An HTML page here means /api is not routed to Django (wrong
+      // VITE_API_BASE_URL or proxy), not that the server is down.
+      throw apiMisrouted(url)
+    }
   }
   return csrfToken
+}
+
+const DEFAULT_TIMEOUT_MS = 8000
+// Statuses a proxy (Vite in dev, nginx in production) answers with when the
+// Django process behind it is not running, so Django never saw the request.
+const BACKEND_DOWN_STATUSES = new Set([502, 503])
+const DEV_BACKEND_HINT =
+  ' Start the Django backend (python manage.py runserver 127.0.0.1:8000) or point VITE_PROXY_TARGET at it.'
+
+// Technical detail for the developer console only; never the request body (PHI).
+function logDev(message, detail) {
+  if (import.meta.env.DEV) console.warn(`[api] ${message}`, detail)
+}
+
+/** fetch() that turns "no HTTP response arrived" into an error pages can recognise. */
+async function sendRequest(url, init, timeout) {
+  try {
+    return await fetch(url, { ...init, signal: init.signal || AbortSignal.timeout(timeout) })
+  } catch (networkError) {
+    // fetch() only rejects when no HTTP response arrived (server down, CORS
+    // blocked, timeout); its own messages ("Failed to fetch") say nothing useful.
+    logDev('no response', { url, reason: networkError.name })
+    const timedOut = networkError.name === 'TimeoutError'
+    const error = new Error(
+      timedOut
+        ? 'The server took too long to respond. Check whether the action completed before retrying.'
+        : 'Cannot reach the server. Check your connection, then try again.' +
+            (import.meta.env.DEV ? DEV_BACKEND_HINT : '')
+    )
+    error.isTimeout = timedOut
+    // Lets pages tell "server unreachable" apart from "server said no".
+    error.isNetworkError = true
+    throw error
+  }
+}
+
+// Used only when the server sent no message of its own (e.g. Django's HTML error pages).
+const STATUS_FALLBACKS = {
+  401: (status) => `Your session has ended. Please sign in again (HTTP ${status}).`,
+  403: (status) => `Not allowed (HTTP ${status}): your account cannot do this.`,
+  404: (status) =>
+    `This service was not found on the server (HTTP ${status}).` +
+      (import.meta.env.DEV ? ' Check the API path and VITE_API_BASE_URL.' : ' Please try again later.'),
+}
+
+/** Error for an HTTP response that is not OK; keeps the server's own message when it sent one. */
+function httpError(status, body, url) {
+  const fallback = `Request failed (${status})`
+  const serverText = body ? parseErrorDetail(body, status) : fallback
+  const hasServerMessage = serverText !== fallback
+  const backendDown = BACKEND_DOWN_STATUSES.has(status) && !hasServerMessage
+
+  let message = serverText
+  if (!hasServerMessage && STATUS_FALLBACKS[status]) {
+    message = STATUS_FALLBACKS[status](status)
+  } else if (backendDown) {
+    message = `The server is unavailable right now (HTTP ${status}). Please try again in a moment.` +
+      (import.meta.env.DEV ? DEV_BACKEND_HINT : '')
+  } else if (status >= 500 && !hasServerMessage) {
+    message = `The server hit an internal error (HTTP ${status}). Please try again; if it keeps happening, contact support.`
+  }
+  if (status >= 500) logDev(`HTTP ${status}`, { url })
+
+  const error = new Error(message)
+  error.status = status
+  error.body = body
+  if (backendDown) {
+    // Like a network error, nothing reached Django, so nothing was saved.
+    error.isNetworkError = true
+    error.isBackendUnavailable = true
+  }
+  return error
+}
+
+function apiMisrouted(url) {
+  logDev('non-JSON answer; is /api proxied to Django?', { url })
+  const error = new Error(
+    'The server answered in an unexpected format.' +
+      (import.meta.env.DEV ? ' Check VITE_API_BASE_URL and the Vite /api proxy.' : ' Please try again later.')
+  )
+  error.isMisrouted = true
+  return error
 }
 
 // Patient rows some pages keep in the browser (offline saves, the patient
@@ -104,7 +244,8 @@ export function parseErrorDetail(body, status) {
   if (!body) return `Request failed (${status})`
   if (typeof body === 'string') return body
   // The backend wraps errors as { error: true, message, details }.
-  const text = [body.message, body.detail, body.error].find(
+  // The rate limiter sends { error: { code, message, retry_after } }.
+  const text = [body.message, body.detail, body.error, body.error?.message].find(
     (value) => typeof value === 'string' && value.trim()
   )
   if (text) return text
@@ -162,9 +303,8 @@ async function refreshAccessToken() {
 
 function failAuthSession() {
   clearTokens()
-  localStorage.removeItem('user')
-  localStorage.removeItem('roles')
-  localStorage.removeItem('hospitals')
+  forgetStaffProfile()
+  forgetSelectedHospital()
   localStorage.removeItem('patientLoggedIn')
   localStorage.removeItem('patient')
   clearCachedPatientData()
@@ -173,29 +313,13 @@ function failAuthSession() {
 
 // Shared request helper with consistent error handling.
 async function request(url, options = {}) {
-  let response
-  const { headers: extraHeaders, _retried = false, _csrfRetried = false, timeout = 8000, ...rest } = options
+  const { headers: extraHeaders, _retried = false, _csrfRetried = false, timeout = DEFAULT_TIMEOUT_MS, ...rest } = options
   const headers = buildHeaders(extraHeaders || {}, rest.body)
   const unsafe = UNSAFE_METHODS.has(String(rest.method || 'GET').toUpperCase())
 
-  try {
-    if (unsafe) headers['X-CSRFToken'] = await getCsrfToken(_csrfRetried)
-    const timeoutSignal = rest.signal || AbortSignal.timeout(timeout)
-    response = await fetch(url, { ...rest, headers, credentials: 'include', signal: timeoutSignal })
-  } catch (networkError) {
-    // fetch() only rejects when no HTTP response arrived (server down, CORS
-    // blocked, timeout); its own messages ("Failed to fetch") say nothing useful.
-    const timedOut = networkError.name === 'TimeoutError'
-    const error = new Error(
-      timedOut
-        ? 'The server took too long to respond. Check whether the action completed before retrying.'
-        : 'Cannot reach the server. Check that the Django backend is running and the API URL is correct.'
-    )
-    error.isTimeout = timedOut
-    // Lets pages tell "server unreachable" apart from "server said no".
-    error.isNetworkError = true
-    throw error
-  }
+  // Both steps throw already-classified errors (network, HTTP, misrouted).
+  if (unsafe) headers['X-CSRFToken'] = await getCsrfToken(_csrfRetried)
+  const response = await sendRequest(url, { ...rest, headers, credentials: 'include' }, timeout)
 
   // A cached CSRF token goes stale when the CSRF cookie rotates (e.g. after
   // signing in); fetch a fresh one and retry once.
@@ -217,20 +341,13 @@ async function request(url, options = {}) {
   }
 
   if (!response.ok) {
-    let detail = `Request failed (${response.status})`
     let body = null
-
     try {
       body = await response.json()
-      detail = parseErrorDetail(body, response.status)
     } catch {
-      // Response body was not JSON — keep the default message.
+      // Not JSON (a proxy error or Django's HTML error page): httpError explains the status.
     }
-
-    const error = new Error(detail)
-    error.status = response.status
-    error.body = body
-    throw error
+    throw httpError(response.status, body, url)
   }
 
   if (response.status === 204) {
@@ -271,11 +388,7 @@ const api = {
         ...jsonBody({ username, password }),
       })
       setTokens({ access: data.access, refresh: data.refresh })
-      if (data.user) localStorage.setItem('user', JSON.stringify(data.user))
-      if (data.roles) localStorage.setItem('roles', JSON.stringify(data.roles))
-      if (data.hospitals) {
-        localStorage.setItem('hospitals', JSON.stringify(data.hospitals))
-      }
+      keepSelectedHospitalIfMember(data.hospitals)
       return data
     },
     staffLoginStartOtp: async (username, password) =>
@@ -291,11 +404,7 @@ const api = {
         ...jsonBody({ challenge, otp }),
       })
       setTokens({ access: data.access, refresh: data.refresh })
-      if (data.user) localStorage.setItem('user', JSON.stringify(data.user))
-      if (data.roles) localStorage.setItem('roles', JSON.stringify(data.roles))
-      if (data.hospitals) {
-        localStorage.setItem('hospitals', JSON.stringify(data.hospitals))
-      }
+      keepSelectedHospitalIfMember(data.hospitals)
       return data
     },
     staffOtpResend: async (challenge) =>
@@ -326,9 +435,10 @@ const api = {
         // Keep logout local even if the server call fails.
       }
       clearTokens()
-      localStorage.removeItem('user')
-      localStorage.removeItem('roles')
-      localStorage.removeItem('hospitals')
+      forgetStaffProfile()
+      forgetSelectedHospital()
+      localStorage.removeItem('patientLoggedIn')
+      localStorage.removeItem('patient')
       clearCachedPatientData()
     },
     register: async (payload) =>
@@ -379,6 +489,13 @@ const api = {
       return data
     },
     patientMe: async () => request(`${API_BASE_URL}/auth/patient/me/`),
+    // GET /api/auth/patient/hospitals/ (public): hospitals a patient may choose
+    // at sign-up or join from the app (active, accepting self-registration).
+    selfRegistrationHospitals: async () => request(`${API_BASE_URL}/auth/patient/hospitals/`),
+    // POST /api/auth/patient/hospitals/join/ — the signed-in patient registers at
+    // a hospital and gets its UHID; repeating it returns the same registration.
+    joinHospital: async (hospitalId) =>
+      request(`${API_BASE_URL}/auth/patient/hospitals/join/`, { method: 'POST', ...jsonBody({ hospital: hospitalId }) }),
     // Family / caregiver sign-in (view-only): OTP to the family member's own mobile,
     // then pick which patient's records to open.
     requestProxyOtp: async (phone) =>
@@ -442,6 +559,19 @@ const api = {
     },
 
     get: async (id) => request(`${API_BASE_URL}/patients/${id}/`),
+    // POST /api/patients/{id}/allergy-status/ — "No known allergies" | "Unknown".
+    // Doctors and nurses only; refused (409) while an allergy is on record.
+    // POST /api/patients/link/ {phone, date_of_birth} — the desk registers an
+    // existing patient at its hospital (both details must match; never creates
+    // a patient). Answers with the patient, its UHID here and `created`.
+    link: async (hospitalId, data) =>
+      request(`${API_BASE_URL}/patients/link/?hospital=${hospitalId}`, {
+        method: 'POST',
+        ...jsonBody(data),
+        headers: { 'Content-Type': 'application/json', 'X-Hospital-ID': String(hospitalId) },
+      }),
+    setAllergyStatus: async (id, status) =>
+      request(`${API_BASE_URL}/patients/${id}/allergy-status/`, { method: 'POST', ...jsonBody({ status }) }),
 
     // GET /api/patients/lookup/?search= : at most 20 matches, minimal fields,
     // for staff who may not browse the list (Lab Staff placing walk-in orders).
@@ -832,6 +962,18 @@ const api = {
         ...jsonBody(data),
       }),
 
+    // Prompt 5: a patient cancels or moves their own booking (server rules apply)
+    selfCancel: async (id, reason = '') =>
+      request(`${API_BASE_URL}/appointments/${id}/self-cancel/`, {
+        method: 'POST',
+        ...jsonBody({ reason }),
+      }),
+    selfReschedule: async (id, data) =>
+      request(`${API_BASE_URL}/appointments/${id}/self-reschedule/`, {
+        method: 'POST',
+        ...jsonBody(data),
+      }),
+
     // GET /api/appointments/ (scoped to the selected hospital)
     list: async (hospitalId) => {
       const query = hospitalId
@@ -899,6 +1041,14 @@ const api = {
   // Visits are the clinical encounter a queue token hangs off. The Queue
   // page mostly needs to read them / create them so a token has a parent.
   visits: {
+    // Prompt 5 (INT-002): one patient's visits at a hospital, to link an order to its visit.
+    forPatient: async (hospitalId, patientId) => {
+      const params = new URLSearchParams()
+      if (hospitalId) params.set('hospital', hospitalId)
+      if (patientId) params.set('patient', patientId)
+      return request(`${API_BASE_URL}/encounters/visits/?${params.toString()}`)
+    },
+
     // GET /api/encounters/visits/ (scoped to a hospital)
     list: async (hospitalId) => {
       const query = hospitalId
@@ -1410,6 +1560,10 @@ const api = {
             : ''
           return request(`${API_BASE_URL}/pharmacy/${query}`)
         },
+
+        // MF-007: medicine names a doctor can prescribe here (no prices or counts).
+        formulary: async (hospitalId) =>
+          request(`${API_BASE_URL}/pharmacy/formulary/?hospital=${encodeURIComponent(hospitalId)}`),
 
         // GET /api/pharmacy/{id}/
         get: async (id) =>
@@ -2065,6 +2219,9 @@ api.laboratory = {
       }),
     releaseResult: async (id) =>
       request(`${API_BASE_URL}/laboratory/${id}/release_result/`, { method: "POST" }),
+    // L-1: send a wrong, unreleased result back to processing with a reason.
+    rejectResult: async (id, reason) =>
+      request(`${API_BASE_URL}/laboratory/${id}/reject_result/`, { method: "POST", ...jsonBody({ reason }) }),
     cancel: async (id) =>
       request(`${API_BASE_URL}/laboratory/${id}/cancel/`, { method: "POST" }),
     // H-14: verified critical values no doctor has acknowledged yet.
@@ -2127,6 +2284,9 @@ api.billing = {
       return request(`${API_BASE_URL}/billing/invoices/${query}`)
     },
     get: async (id) => request(`${API_BASE_URL}/billing/invoices/${id}/`),
+    // Money paid back on a bill: {amount, reason, payment_method, idempotency_key}
+    refund: async (id, data) =>
+      request(`${API_BASE_URL}/billing/invoices/${id}/refund/`, { method: "POST", ...jsonBody(data) }),
     create: async (data) =>
       request(`${API_BASE_URL}/billing/invoices/`, { method: "POST", ...jsonBody(data) }),
     // A partial change (discount, lines): PUT would demand every field again.
@@ -2174,6 +2334,9 @@ api.billing = {
       if (category) params.set("category", category)
       return request(`${API_BASE_URL}/billing/price-list/?${params.toString()}`)
     },
+    // MF-007: services a doctor can order here, by name (no prices).
+    catalogue: async (hospitalId) =>
+      request(`${API_BASE_URL}/billing/price-list/catalogue/?hospital=${encodeURIComponent(hospitalId)}`),
     // data: { hospital, category, code, name, applies_to, unit_price, tax_rate, effective_from }
     create: async (data) =>
       request(`${API_BASE_URL}/billing/price-list/`, { method: "POST", ...jsonBody(data) }),
@@ -2692,6 +2855,25 @@ api.imaging = {
   // POST { findings, impression } (doctor; signs and locks the report)
   report: async (id, data) => request(`${API_BASE_URL}/laboratory/imaging/${id}/report/`, { method: "POST", ...jsonBody(data) }),
   cancel: async (id) => request(`${API_BASE_URL}/laboratory/imaging/${id}/cancel/`, { method: "POST" }),
+  // Prompt 5 (MF-005): images attached to a study, served only through the audited study endpoint.
+  images: async (id) => request(`${API_BASE_URL}/laboratory/imaging/${id}/images/`),
+  uploadImage: async (id, file, title = "") => {
+    const form = new FormData()
+    form.append("file", file)
+    if (title) form.append("title", title)
+    return request(`${API_BASE_URL}/laboratory/imaging/${id}/images/`, { method: "POST", body: form })
+  },
+  imageBlob: async (id, docId) => {
+    const response = await fetch(`${API_BASE_URL}/laboratory/imaging/${id}/images/${docId}/`, {
+      headers: buildHeaders({}), credentials: "include",
+    })
+    if (!response.ok) {
+      const error = new Error(`The image could not be opened (${response.status}).`)
+      error.status = response.status
+      throw error
+    }
+    return response.blob()
+  },
 }
 
 // Longitudinal record (B9, D12). GET /api/patients/{id}/timeline/ (audited)

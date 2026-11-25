@@ -4,7 +4,7 @@ items; totals, tax, status and balances sent by a client are ignored.
 """
 
 import uuid
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.db import transaction
 from django.db.models import Sum
@@ -16,6 +16,25 @@ ZERO = Decimal("0.00")
 
 def money(value):
     return Decimal(value or 0).quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+def received_amount(value):
+    """
+    Money that changes hands (a payment or a refund), as an exact Decimal.
+
+    BUG-002: rupees carry at most two decimal places. A finer amount such as
+    10.999 is refused rather than rounded, so what is recorded is always
+    exactly what the cashier entered.
+    """
+    try:
+        amount = Decimal(str(value).strip())
+    except (InvalidOperation, ValueError):
+        raise ValidationError({"amount": "Enter a valid amount in rupees."})
+    if not amount.is_finite():
+        raise ValidationError({"amount": "Enter a valid amount in rupees."})
+    if amount != amount.quantize(CENT):
+        raise ValidationError({"amount": "Amounts in rupees can have at most 2 decimal places."})
+    return money(amount)
 
 
 def line_subtotal(quantity, unit_price):
@@ -107,7 +126,7 @@ def record_payment(invoice, amount, method="Cash", user=None, idempotency_key=""
         existing = invoice.payments.filter(idempotency_key=idempotency_key).first()
         if existing:
             return existing, False
-    amount = money(amount)
+    amount = received_amount(amount)
     if amount <= ZERO:
         raise ValidationError({"amount": "Amount must be greater than zero."})
     if invoice.status == Invoice.Status.CANCELLED:
@@ -146,7 +165,7 @@ def record_refund(invoice, amount, reason, method="Cash", user=None, idempotency
             if existing.kind != Payment.Kind.REFUND:
                 raise ValidationError({"idempotency_key": "This key was already used for a payment on this bill."})
             return existing, False
-    amount = money(amount)
+    amount = received_amount(amount)
     if amount <= ZERO:
         raise ValidationError({"amount": "Amount must be greater than zero."})
     if not (reason or "").strip():

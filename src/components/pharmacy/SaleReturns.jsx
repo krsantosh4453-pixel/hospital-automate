@@ -43,7 +43,8 @@ export default function SaleReturns({ hospitalId, canReturn, onReturned, sales: 
 
   const needle = query.trim().toLowerCase()
   const shown = sales
-    .filter((sale) => !needle || `${sale.patient_name} ${sale.medicine_name} SALE-${sale.id}`.toLowerCase().includes(needle))
+    // SearchInput hands over the text itself (BUG-006); names may be missing on old rows.
+    .filter((sale) => !needle || `${sale.patient_name ?? ""} ${sale.medicine_name ?? ""} SALE-${sale.id}`.toLowerCase().includes(needle))
     .slice(0, 20)
 
   const open = (sale) => {
@@ -84,7 +85,7 @@ export default function SaleReturns({ hospitalId, canReturn, onReturned, sales: 
   return (
     <Card className="mt-6">
       <CardHeader title="Medicine returns" description="Medicine handed back by a patient. Only sealed, unexpired stock goes back on the shelf." />
-      <div className="px-5 pt-4"><SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Search patient, medicine or SALE-number")} /></div>
+      <div className="px-5 pt-4"><SearchInput value={query} onChange={setQuery} placeholder={t("Search patient, medicine or SALE-number")} /></div>
       {error && <Alert tone="danger" className="mx-5 mt-4">{error}</Alert>}
       {shown.length === 0 ? (
         <EmptyState compact icon={Undo2} title={t("No sales to show")} />

@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.exceptions import ValidationError
@@ -13,11 +13,12 @@ from audit.services import record_audit
 from users.viewsets import HospitalScopedViewSet
 from users.permissions import (
     get_linked_patient, get_user_roles, is_active_staff, IsAdmin, IsDoctor, IsHospitalManagerReadOnly, IsLabStaff,
-    IsNurse, IsPatientReadOnly,
+    IsNurse, IsPatientReadOnly, IsRadiologyStaff,
 )
 from . import flags
 from .models import (
     LabReferenceRange,
+    LabResultRejection,
     LabTest,
     LabVerificationPolicy,
     SampleCollection,
@@ -41,6 +42,13 @@ from .serializers import (
 class LabTestViewSet(HospitalScopedViewSet):
     queryset = LabTest.objects.select_related("hospital", "patient", "doctor", "visit").prefetch_related(
         "sample_collection", "sample_dispatch", "lab_result"
+    ).annotate(
+        # L-1, in the same query (no prefetch): see LabTestSerializer.
+        rejection_total=Count("rejections", distinct=True),
+        latest_rejection_reason=Subquery(
+            LabResultRejection.objects.filter(lab_test=OuterRef("pk")).order_by("-rejected_at", "-pk")
+            .values("reason")[:1]
+        ),
     )
     serializer_class = LabTestSerializer
     permission_classes = [IsLabStaff | IsDoctor | IsNurse | IsPatientReadOnly | IsHospitalManagerReadOnly]
@@ -344,6 +352,43 @@ class LabTestViewSet(HospitalScopedViewSet):
             {"lab_test": LabTestSerializer(lab_test).data, "lab_result": LabResultSerializer(lab_result).data}
         )
 
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
+    def reject_result(self, request, pk=None):
+        """
+        L-1: send a wrong result back before release ({reason}, required).
+        The values as entered are kept in LabResultRejection, the result is
+        removed and the test returns to Processing so it can be entered
+        again (and verified again by a different person). A released result
+        cannot be rejected here. Audited.
+        """
+        reason = str(request.data.get("reason") or "").strip()
+        if len(reason) < 5:
+            return Response({"reason": "Say why the result is rejected (at least 5 characters)."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        lab_test = self.get_object()
+        with transaction.atomic():
+            lab_test = self._locked(lab_test)
+            lab_result = LabResult.objects.select_for_update().filter(lab_test=lab_test).first()
+            if lab_result is None or lab_test.status not in ("Result Entered", "Verified"):
+                return Response({"detail": "Only an entered or verified result that is not released can be rejected."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            rejection = LabResultRejection.objects.create(
+                lab_test=lab_test, result_data=lab_result.result_data, result_text=lab_result.result_text,
+                reference_ranges=lab_result.reference_ranges, abnormal_flags=lab_result.abnormal_flags,
+                flag_details=lab_result.flag_details, entered_by=lab_result.entered_by,
+                entered_at=lab_result.entered_at, was_verified=lab_result.is_verified,
+                rejected_by=request.user, reason=reason,
+            )
+            lab_result.delete()
+            lab_test.status = "Processing"
+            lab_test.result = ""
+            lab_test.verified_at = None
+            lab_test.save(update_fields=["status", "result", "verified_at"])
+        record_audit(request, "lab.result.rejected", lab_test, hospital=lab_test.hospital_id,
+                     details={"reason": reason, "rejection": rejection.pk, "was_verified": rejection.was_verified,
+                              "entered_by": rejection.entered_by_id})
+        return Response({"lab_test": LabTestSerializer(lab_test).data, "rejection": rejection.pk})
+
     @action(detail=False, methods=["get"], url_path="critical-results",
             permission_classes=[IsLabStaff | IsDoctor | IsNurse | IsHospitalManagerReadOnly])
     def critical_results(self, request):
@@ -558,19 +603,29 @@ class ResultVerificationViewSet(HospitalScopedViewSet):
 
 class ImagingStudyViewSet(HospitalScopedViewSet):
     """
-    Radiology / imaging (G4): Doctor orders, Lab Staff (technician) schedules and
-    performs, a Doctor reports and signs. Rows are never edited or deleted; a
-    study is cancelled instead. Patients see only signed reports.
+    Radiology / imaging (G4): Doctor orders, Radiology Staff or Lab Staff
+    (technician) schedules and performs, a Doctor reports and signs. Rows are
+    never edited or deleted; a study is cancelled instead. Patients see only
+    signed reports.
+
+    Prompt 5: signing the report charges the study from the price list
+    (billing.charges.capture_imaging_study), and images can be attached
+    before it is signed (laboratory/imaging_files.py).
     """
 
     queryset = ImagingStudy.objects.select_related("hospital", "patient", "ordered_by", "reported_by")
     serializer_class = ImagingStudySerializer
-    permission_classes = [IsDoctor | IsLabStaff | IsNurse | IsPatientReadOnly | IsHospitalManagerReadOnly]
+    permission_classes = [
+        IsDoctor | IsLabStaff | IsRadiologyStaff | IsNurse | IsPatientReadOnly | IsHospitalManagerReadOnly
+    ]
     http_method_names = ["get", "post", "head", "options"]
 
     def get_permissions(self):
         if self.action == "create":
             return [IsDoctor()]
+        if self.action == "images" and self.request.method == "POST":
+            # The technician who performs the study, or the reporting doctor.
+            return [(IsRadiologyStaff | IsLabStaff | IsDoctor)()]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -633,7 +688,7 @@ class ImagingStudyViewSet(HospitalScopedViewSet):
         self._audit(to.lower(), study)
         return Response(self.get_serializer(study).data)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff | IsRadiologyStaff])
     def schedule(self, request, pk=None):
         when = parse_datetime(str(request.data.get("scheduled_for") or ""))
         if when is None:
@@ -641,7 +696,7 @@ class ImagingStudyViewSet(HospitalScopedViewSet):
         return self._move(request, [ImagingStudy.Status.ORDERED, ImagingStudy.Status.SCHEDULED],
                           ImagingStudy.Status.SCHEDULED, scheduled_for=when)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff])
+    @action(detail=True, methods=["post"], permission_classes=[IsLabStaff | IsRadiologyStaff])
     def perform(self, request, pk=None):
         return self._move(request, [ImagingStudy.Status.ORDERED, ImagingStudy.Status.SCHEDULED],
                           ImagingStudy.Status.PERFORMED, performed_at=timezone.now(), performed_by=request.user,
@@ -655,9 +710,46 @@ class ImagingStudyViewSet(HospitalScopedViewSet):
         impression = str(request.data.get("impression", "")).strip()
         if not findings or not impression:
             raise ValidationError({"impression": "Write both the findings and the impression."})
-        return self._move(request, [ImagingStudy.Status.PERFORMED], ImagingStudy.Status.REPORTED,
-                          findings=findings, impression=impression,
-                          reported_by=self._doctor_at(study.hospital), reported_at=timezone.now())
+        from billing.charges import capture_imaging_study
+
+        reporter = self._doctor_at(study.hospital)
+        with transaction.atomic():
+            # Locked so two signatures at once sign (and charge) once.
+            ImagingStudy.objects.select_for_update().filter(pk=study.pk).first()
+            response = self._move(request, [ImagingStudy.Status.PERFORMED], ImagingStudy.Status.REPORTED,
+                                  findings=findings, impression=impression,
+                                  reported_by=reporter, reported_at=timezone.now())
+            if response.status_code == status.HTTP_200_OK:
+                capture_imaging_study(ImagingStudy.objects.select_related("visit").get(pk=study.pk))
+        return response
+
+    @action(detail=True, methods=["get", "post"], url_path="images")
+    def images(self, request, pk=None):
+        """GET: the study's images. POST (multipart ``file``): attach one before the report is signed."""
+        from .imaging_files import image_payload, store_image
+
+        study = self.get_object()
+        if request.method == "GET":
+            return Response([image_payload(study, doc) for doc in study.images.order_by("uploaded_at", "pk")])
+        if study.status not in (ImagingStudy.Status.ORDERED, ImagingStudy.Status.SCHEDULED,
+                                ImagingStudy.Status.PERFORMED):
+            raise ValidationError({"detail": f"A {study.status.lower()} study takes no more images."})
+        document = store_image(study, request.FILES.get("file"), request.data.get("title", ""))
+        self._audit("image_uploaded", study, details={"document": document.pk, "size": document.file.size})
+        return Response(image_payload(study, document), status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"], url_path=r"images/(?P<doc_id>[0-9]+)")
+    def image_file(self, request, pk=None, doc_id=None):
+        """The file itself: private, never cached, audited on every read."""
+        from documents.views import _file_response
+        from rest_framework.exceptions import NotFound
+
+        study = self.get_object()
+        document = study.images.filter(pk=doc_id).first()
+        if document is None:
+            raise NotFound("Image not found.")
+        self._audit("image_read", study, details={"document": document.pk})
+        return _file_response(document, inline=True)
 
     @action(detail=True, methods=["post"], permission_classes=[IsDoctor])
     def cancel(self, request, pk=None):

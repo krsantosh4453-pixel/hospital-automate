@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { pickPatient, signInAs } from "./helpers.js"
 
 // A doctor orders a test; lab staff take it through every stage to release,
@@ -15,8 +15,8 @@ const STAGES = [
 ]
 
 test("doctor orders a test, lab releases the result, doctor reads it", async ({ browser }) => {
-  // Two sign-ins and eight stages: about 8 s normally, more on a loaded machine.
-  test.setTimeout(60000)
+  // Three sign-ins, eight stages and a rejection: allow for a loaded machine.
+  test.setTimeout(90000)
   const doctor = await (await browser.newContext()).newPage()
   await signInAs(doctor, "demo.doctor1")
   await doctor.goto("/laboratory")
@@ -54,6 +54,21 @@ test("doctor orders a test, lab releases the result, doctor reads it", async ({ 
   await signInAs(checker, "demo.admin")
   await checker.goto("/laboratory")
   const checkerRow = checker.getByRole("row", { name: new RegExp(`^${orderId} `) })
+
+  // L-1: the checker first sends a wrong entry back; the technician enters it again.
+  await checkerRow.getByRole("button", { name: "Reject Result" }).click()
+  const rejectDialog = checker.getByRole("dialog", { name: /Reject the result/ })
+  await rejectDialog.getByRole("textbox").fill("Units missing, please re-enter")
+  await rejectDialog.getByRole("button", { name: "Reject Result" }).click()
+  await expect(checkerRow.getByRole("cell").nth(4)).toContainText("Processing")
+
+  await lab.reload()
+  await row.getByRole("button", { name: "Enter Result" }).click()
+  await resultDialog.getByRole("textbox").fill(RESULT)
+  await resultDialog.getByRole("button", { name: "Save" }).click()
+  await expect(row.getByRole("cell").nth(4)).toContainText("Result Entered")
+  await checker.reload()
+
   await checkerRow.getByRole("button", { name: "Verify Result" }).click()
   await expect(checkerRow.getByRole("cell").nth(4)).toContainText("Verified")
   await checkerRow.getByRole("button", { name: "Release Result" }).click()

@@ -309,6 +309,11 @@ class IsLabStaff(RoleBasedPermission):
     required_roles = [StaffRole.LAB_STAFF, StaffRole.ADMIN]
 
 
+class IsRadiologyStaff(RoleBasedPermission):
+    """Radiology Staff (radiographer): schedule and perform imaging, attach images. Nothing else."""
+    required_roles = [StaffRole.RADIOLOGY_STAFF, StaffRole.ADMIN]
+
+
 class IsBillingStaff(RoleBasedPermission):
     """Billing Staff: Invoices, payments, insurance/financial workflows."""
     required_roles = [StaffRole.BILLING_STAFF, StaffRole.ADMIN]

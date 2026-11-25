@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
-import api from "../../services/api.js"
+import api, { accountKind } from "../../services/api.js"
 
 const HospitalsContext = createContext(null)
 
@@ -21,10 +21,16 @@ export function HospitalsProvider({ children }) {
     setError("")
     try {
       let data
-      try {
-        data = await api.hospitals.list()
-      } catch {
-        // Not staff (or not signed in yet): fall back to the public directory.
+      // BUG-012: patients and visitors read the public directory directly
+      // instead of first asking the staff-only list (403/401 on every load).
+      const staffSession = api.auth.getTokens().accessToken && accountKind() !== "patient"
+      if (staffSession) {
+        try {
+          data = await api.hospitals.list()
+        } catch {
+          data = await api.hospitals.directory()
+        }
+      } else {
         data = await api.hospitals.directory()
       }
       const results = Array.isArray(data) ? data : data?.results || []

@@ -69,6 +69,7 @@ STAFF = (
     ("demo.pharmacist", StaffRole.PHARMACIST, None),
     ("demo.compounder", StaffRole.COMPOUNDER, None),
     ("demo.lab", StaffRole.LAB_STAFF, None),
+    ("demo.radiology", StaffRole.RADIOLOGY_STAFF, None),
     ("demo.bloodbank", StaffRole.BLOOD_BANK_STAFF, None),
     ("demo.billing", StaffRole.BILLING_STAFF, None),
     ("demo.inventory", StaffRole.INVENTORY_STAFF, None),

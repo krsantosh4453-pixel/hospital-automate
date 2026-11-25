@@ -20,7 +20,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from audit.services import record_audit
-from patients.models import Patient, PatientDocument
+from patients.models import Patient, PatientDocument, released_to_patient
 from users.care_scope import limit_to_patients_in_care
 from users.permissions import (
     get_linked_patient,
@@ -135,7 +135,9 @@ def visible_documents(request):
         return documents.select_related('patient', 'hospital')
     linked_patient = get_linked_patient(request.user)
     if linked_patient:
-        return PatientDocument.objects.filter(patient=linked_patient).select_related('patient', 'hospital')
+        return released_to_patient(
+            PatientDocument.objects.filter(patient=linked_patient)
+        ).select_related('patient', 'hospital')
     return PatientDocument.objects.none()
 
 

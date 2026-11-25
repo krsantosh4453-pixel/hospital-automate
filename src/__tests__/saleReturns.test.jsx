@@ -57,6 +57,25 @@ describe("Medicine returns card", () => {
     expect(buttons("Return")).toHaveLength(1)
   })
 
+  // Prompt 4 (BUG-006): typing in the search threw "Cannot read properties of undefined (reading 'value')".
+  it("filters while typing, changing fast and clearing, without throwing", async () => {
+    api.pharmacy.sales.list.mockResolvedValue([
+      { id: 1, patient_name: "Synthetic Buyer", medicine_name: "Dolo 500", quantity: 10, returned_quantity: 0 },
+      { id: 2, patient_name: null, medicine_name: undefined, quantity: 5, returned_quantity: 0 },
+    ])
+    await render(true)
+    const search = host.querySelector("input[type=search]")
+
+    for (const value of ["D", "Do", "Dolo", "x", "", "SALE-2"]) type(search, value)
+    expect(host.textContent).not.toContain("Synthetic Buyer")
+    type(search, "dolo")
+    expect(host.textContent).toContain("Synthetic Buyer")
+    type(search, "no such medicine")
+    expect(host.textContent).toContain("No sales to show")
+    type(search, "")
+    expect(host.textContent).toContain("Synthetic Buyer")
+  })
+
   it("hides returns from roles that may not take them", async () => {
     await render(false)
     expect(buttons("Return")).toHaveLength(0)

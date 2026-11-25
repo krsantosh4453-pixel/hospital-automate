@@ -8,6 +8,7 @@ export const STAFF_ROLES = [
   "Pharmacist",
   "Compounder",
   "Lab Staff",
+  "Radiology Staff",
   "Billing Staff",
   "Inventory Staff",
   "Blood Bank Staff",

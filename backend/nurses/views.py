@@ -11,7 +11,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 
 from audit.services import record_audit
-from config.hospital_time import hospital_now, hospital_today
+from config.hospital_time import hospital_date_range, hospital_now, hospital_today, on_hospital_day
 from users.viewsets import HospitalScopedViewSet
 from .frequency import ONCE, PRN, FrequencyError, parse_frequency
 from . import scheduling
@@ -88,6 +88,19 @@ def recording_nurse(user, hospital_id, named, field):
     if named_id not in (None, "") and (own is None or str(own.pk) != str(named_id)):
         raise ValidationError({field: NOT_YOUR_PROFILE})
     return own
+
+
+
+def _parse_day(value):
+    """A YYYY-MM-DD query value as a date (400 when malformed)."""
+    from datetime import date
+
+    from rest_framework.exceptions import ValidationError
+
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        raise ValidationError({"shift_date": "Use a date like 2026-11-25."})
 
 
 class OwnNurseRecordMixin:
@@ -206,7 +219,7 @@ class CareTaskViewSet(HospitalScopedViewSet):
         # Filter by date range
         shift_date = self.request.query_params.get("shift_date")
         if shift_date:
-            qs = qs.filter(scheduled_at__date=shift_date)
+            qs = qs.filter(on_hospital_day("scheduled_at", _parse_day(shift_date)))
         return qs
 
     @action(detail=True, methods=["post"])
@@ -250,10 +263,9 @@ class CareTaskViewSet(HospitalScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        today = timezone.now().date()
         qs = self.get_queryset().filter(
+            on_hospital_day("scheduled_at", hospital_today()),
             assigned_nurse_id=nurse_id,
-            scheduled_at__date=today,
             status__in=["Pending", "In Progress"]
         ).order_by("scheduled_at")
 

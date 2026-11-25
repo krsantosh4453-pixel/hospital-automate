@@ -5,6 +5,7 @@ import { useRole } from "../assets/context/RoleContext.jsx"
 import api from "../services/api.js"
 import { useLinkedPatient } from "../utils/linkedPatient.js"
 import PatientTimeline from "../components/clinical/PatientTimeline.jsx"
+import EnrolExistingPatientDialog from "../components/patients/EnrolExistingPatientDialog.jsx"
 import Pagination from "../components/Pagination.jsx"
 import {
   Alert,
@@ -51,6 +52,10 @@ function Patients() {
   // Only the front desk registers patients; a Hospital Manager only views them.
   const { canAdd, canEdit, activeRoleName } = useRole()
   const { selectedHospital } = usePatient()
+  // Prompt 3: register an existing patient (e.g. a patient-app account) here.
+  // The server allows the front desk and administrators (POST patients/link/).
+  const canEnrolExisting = ["Receptionist", "Admin"].includes(activeRoleName)
+  const [enrolOpen, setEnrolOpen] = useState(false)
 
   // Opened from another module (e.g. the ER) with ?q=<name>&edit=<id> or &record=<id>.
   const linked = useLinkedPatient()
@@ -409,13 +414,31 @@ function Patients() {
         }
         breadcrumbs={[{ label: "Home", to: "/" }, { label: "Patients" }]}
         actions={
-          canAdd("Patients") && (
-            <Button icon={UserPlus} onClick={openAddForm} disabled={!selectedHospital}>
-              {t("Register patient")}
-            </Button>
+          (canAdd("Patients") || canEnrolExisting) && (
+            <div className="flex flex-wrap gap-2">
+              {canEnrolExisting && (
+                <Button variant="secondary" icon={Hospital} onClick={() => setEnrolOpen(true)} disabled={!selectedHospital}>
+                  {t("Enrol existing patient")}
+                </Button>
+              )}
+              {canAdd("Patients") && (
+                <Button icon={UserPlus} onClick={openAddForm} disabled={!selectedHospital}>
+                  {t("Register patient")}
+                </Button>
+              )}
+            </div>
           )
         }
       />
+
+      {enrolOpen && selectedHospital && (
+        <EnrolExistingPatientDialog
+          open
+          hospital={selectedHospital}
+          onClose={() => setEnrolOpen(false)}
+          onEnrolled={() => setReloadToken((value) => value + 1)}
+        />
+      )}
 
       {successMessage && (
         <Alert tone="success" onDismiss={() => setSuccessMessage("")}>

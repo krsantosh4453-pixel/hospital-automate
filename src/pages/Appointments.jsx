@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { Ban, CalendarDays, CalendarPlus, Clock, Eye, Hospital, Pencil, Phone, Stethoscope, Trash2 } from "lucide-react"
 import { usePatient } from "../assets/context/PatientContext.jsx"
 import api from "../services/api.js"
+import { appointmentRef } from "../utils/appointmentRef.js"
 import {
   Alert,
   Badge,
@@ -92,7 +93,7 @@ const formatTime = (value) => {
 // `apiId` keeps the real backend PK; `id` stays the pretty "A001" code.
 const mapAppointmentFromApi = (record) => ({
   apiId: record.id,
-  id: `A${String(record.id).padStart(3, "0")}`,
+  id: appointmentRef(record.id),
   patient: record.patient_name || "",
   village: record.village || "",
   contact: record.contact || "",

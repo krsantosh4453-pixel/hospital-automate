@@ -94,6 +94,28 @@ class StaffInviteTests(TestCase):
 
         self.assertFalse(Doctor.objects.exists())
 
+    # Final validation P1-2: an invited nurse's records must name the nurse.
+    def test_inviting_a_nurse_creates_their_nurse_profile(self):
+        from nurses.models import Nurse
+
+        resp = self._invite(role="Nurse", name="Synthetic Nurse Rani", email="rani@example.com",
+                            department=self.cardio.id)
+
+        nurse = Nurse.objects.get(user__email="rani@example.com")
+        self.assertEqual((nurse.hospital_id, nurse.name, nurse.department), (self.hospital.id, "Synthetic Nurse Rani", "Cardiology"))
+        self.assertEqual(resp.data["nurse_profile"], nurse.id)
+
+    def test_an_existing_unlinked_nurse_record_is_linked_not_duplicated(self):
+        from nurses.models import Nurse
+
+        existing = Nurse.objects.create(hospital=self.hospital, name="Synthetic Nurse Rani", phone="9000000009",
+                                        email="rani@example.com")
+        self._invite(role="Nurse", name="Synthetic Nurse Rani", email="rani@example.com")
+
+        self.assertEqual(Nurse.objects.count(), 1)
+        existing.refresh_from_db()
+        self.assertEqual(existing.user.email, "rani@example.com")
+
     def test_person_sets_password_once_then_link_is_dead(self):
         uid, token = self._link_parts(self._invite().data["invite_url"])
         anon = APIClient()

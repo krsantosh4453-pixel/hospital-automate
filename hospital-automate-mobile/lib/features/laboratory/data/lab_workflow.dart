@@ -61,7 +61,11 @@ enum LabStep {
   startProcessing('start_processing', {StaffRoles.labStaff, StaffRoles.admin}),
   enterResult('enter_result', {StaffRoles.labStaff, StaffRoles.admin}),
   verify('verify_result', {StaffRoles.labStaff, StaffRoles.admin}),
-  release('release_result', {StaffRoles.labStaff, StaffRoles.admin});
+  release('release_result', {StaffRoles.labStaff, StaffRoles.admin}),
+
+  /// L-1: send a wrong, unreleased result back to processing with a reason.
+  /// Not part of [nextLabStep]: offered beside verify and release.
+  reject('reject_result', {StaffRoles.labStaff, StaffRoles.admin});
 
   const LabStep(this.action, this.roles);
 
@@ -85,6 +89,10 @@ LabStep? nextLabStep(String status) => switch (status) {
   LabStatus.verified => LabStep.release,
   _ => null,
 };
+
+/// L-1: an entered or verified result that is not released may be sent back.
+bool mayRejectLabResult(String status) =>
+    status == LabStatus.resultEntered || status == LabStatus.verified;
 
 /// Position of [status] in [LabStatus.stages]; -1 when cancelled or unknown.
 int labStageIndex(String status) =>

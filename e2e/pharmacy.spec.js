@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { pickPatient, signInAs } from "./helpers.js"
 
 // The pharmacist stocks a medicine and keeps the pharmacy page open; a doctor

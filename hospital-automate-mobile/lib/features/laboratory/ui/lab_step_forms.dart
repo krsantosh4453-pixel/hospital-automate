@@ -38,6 +38,12 @@ Future<Map<String, Object?>?> askForLabStep(
       description: '${test.name} · ${test.patientName ?? ''}',
       body: const _ResultForm(),
     ),
+    LabStep.reject => showHmsModal<Map<String, Object?>>(
+      context,
+      title: title,
+      description: '${test.name} · ${test.patientName ?? ''}',
+      body: const _RejectForm(),
+    ),
     _ => _confirmStep(context, test, step),
   };
 }
@@ -283,6 +289,59 @@ class _ResultFormState extends State<_ResultForm> {
               return;
             }
             Navigator.of(context).pop({'result_text': text});
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// L-1: why the result is wrong (the server needs at least 5 characters).
+class _RejectForm extends StatefulWidget {
+  const _RejectForm();
+
+  @override
+  State<_RejectForm> createState() => _RejectFormState();
+}
+
+class _RejectFormState extends State<_RejectForm> {
+  final _reason = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.l10n;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const Key('reject-reason'),
+          controller: _reason,
+          minLines: 2,
+          maxLines: 4,
+          decoration: InputDecoration(
+            labelText: '${t.labRejectReason} *',
+            helperText: t.labRejectHelp,
+            helperMaxLines: 3,
+            errorText: _error,
+          ),
+        ),
+        _FormButtons(
+          submitLabel: t.labStepReject,
+          onSubmit: () {
+            final reason = _reason.text.trim();
+            if (reason.length < 5) {
+              setState(() => _error = t.labRejectReasonRequired);
+              return;
+            }
+            Navigator.of(context).pop({'reason': reason});
           },
         ),
       ],

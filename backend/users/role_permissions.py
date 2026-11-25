@@ -55,6 +55,9 @@ ROLE_MODULE_ACTIONS = {
         "Dashboard": V, "Pharmacy": VAE, "Prescriptions": VE, "Compounders": V, "Inventory": VE, "Reports": V,
     },
     StaffRole.LAB_STAFF: {"Dashboard": V, "Laboratory": VAE, "Reports": V},
+    # Prompt 5: imaging lives in the laboratory app, so its module is Laboratory;
+    # the imaging endpoints alone accept this role (IsRadiologyStaff).
+    StaffRole.RADIOLOGY_STAFF: {"Dashboard": V, "Laboratory": VE, "Reports": V},
     StaffRole.BLOOD_BANK_STAFF: {"Dashboard": V, "BloodBank": VAE, "Reports": V},
     StaffRole.BILLING_STAFF: {"Dashboard": V, "Billing": VAE, "Reports": V},
     StaffRole.INVENTORY_STAFF: {"Dashboard": V, "Inventory": VAE, "Reports": V},

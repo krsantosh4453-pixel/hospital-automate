@@ -3,9 +3,10 @@ from datetime import date, datetime, time, timedelta
 from django.db import IntegrityError, transaction
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+from .availability import day_off_reason, refuse_day_off, working_days_of
 from .models import Appointment, clashing_booking
 from .openapi import BOOK_SCHEMA, BOOKING_OPTIONS_SCHEMA
 from .slots import SlotFull, lock_doctor, remaining_places, slot_is_full, take_place
@@ -115,6 +116,8 @@ def _claim_place(data, instance=None):
     )
     reactivated = instance is not None and instance.status not in Appointment.ACTIVE_STATUSES
     if moved or reactivated:
+        # BUG-003: never on a day the doctor does not work (their availability text).
+        refuse_day_off(doctor, current("appointment_date"))
         data["slot_seat"] = _place_or_refuse(doctor.pk, current("appointment_date"), current("appointment_time"),
                                              exclude_pk=getattr(instance, "pk", None))
 
@@ -176,7 +179,12 @@ class AppointmentViewSet(HospitalScopedViewSet):
         if hospital_id not in allowed:
             raise PermissionDenied("You are not registered at this hospital.")
         doctors = Doctor.objects.filter(hospital_id=hospital_id).exclude(status__in=UNBOOKABLE_DOCTOR_STATUSES)
-        payload["doctors"] = list(doctors.order_by("name").values("id", "name", "specialization", "availability"))
+        payload["doctors"] = [
+            {**row, "working_days": working_days_of(doctor)}
+            for doctor in doctors.order_by("name")
+            for row in [{"id": doctor.id, "name": doctor.name, "specialization": doctor.specialization,
+                         "availability": doctor.availability}]
+        ]
 
         doctor_id, day = request.query_params.get("doctor"), request.query_params.get("date")
         if doctor_id and day:
@@ -184,6 +192,12 @@ class AppointmentViewSet(HospitalScopedViewSet):
             if doctor is None:
                 raise ValidationError({"doctor": "Choose a doctor at this hospital."})
             day = _parse_date(day)
+            reason = day_off_reason(doctor, day)
+            if reason:
+                # BUG-003: a day the doctor does not work offers no slots, and says why.
+                payload["slots"] = []
+                payload["unavailable_reason"] = reason
+                return Response(payload)
             now = _hospital_now()
             slots = _day_slots()
             remaining = remaining_places(doctor, day, slots)
@@ -233,6 +247,7 @@ class AppointmentViewSet(HospitalScopedViewSet):
             raise ValidationError({"appointment_time": "This time has already passed."})
         if day > now.date() + timedelta(days=BOOKING_WINDOW_DAYS):
             raise ValidationError({"appointment_date": f"Book at most {BOOKING_WINDOW_DAYS} days ahead."})
+        refuse_day_off(doctor, day)
 
         upcoming = Appointment.objects.filter(patient=patient, appointment_date__gte=now.date()).exclude(
             status__in=["Cancelled", "Completed"]
@@ -287,6 +302,90 @@ class AppointmentViewSet(HospitalScopedViewSet):
                 status=status.HTTP_409_CONFLICT,
             )
         return Response(self.get_serializer(earlier).data, status=status.HTTP_200_OK)
+
+    # ------------------------------------------------------------------
+    # Prompt 5 (MF-003): a signed-in patient cancels or moves their own
+    # booking. The rules are booking's: window, working days, slot list,
+    # capacity and clashes. Only a Scheduled booking that has not started
+    # can change online; once checked in, the front desk handles it.
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _own_booking(request, pk):
+        patient = get_linked_patient(request.user)
+        appointment = (
+            Appointment.objects.select_related("doctor").filter(pk=pk, patient=patient).first() if patient else None
+        )
+        if appointment is None:
+            raise NotFound("Appointment not found.")
+        return patient, appointment
+
+    @staticmethod
+    def _still_changeable(appointment):
+        if appointment.status != Appointment.Status.SCHEDULED:
+            raise ValidationError({"detail": f"A {appointment.status.lower()} appointment cannot be changed online. "
+                                             "Please contact the hospital."})
+        now = _hospital_now()
+        if (appointment.appointment_date, appointment.appointment_time) <= (now.date(), now.time()):
+            raise ValidationError({"detail": "This appointment time has already passed."})
+
+    @action(detail=True, methods=["post"], url_path="self-cancel", permission_classes=[IsLinkedPatient])
+    def self_cancel(self, request, pk=None):
+        """POST {reason?}: cancel your own upcoming booking; its place in the slot is freed."""
+        from encounters.services.visit_lifecycle import (
+            VisitTransitionError, cancel_tokens_of_appointment, recalculate_queue_of,
+        )
+
+        _, appointment = self._own_booking(request, pk)
+        reason = str(request.data.get("reason") or "").strip()[:500]
+        try:
+            with transaction.atomic():
+                appointment = Appointment.objects.select_for_update().get(pk=appointment.pk)
+                self._still_changeable(appointment)
+                cancel_tokens_of_appointment(appointment.pk, after_commit=recalculate_queue_of)
+                appointment.status = Appointment.Status.CANCELLED
+                appointment.save()
+        except VisitTransitionError as error:
+            return Response(error.as_body(), status=status.HTTP_409_CONFLICT)
+        record_audit(request, "appointments.appointment.self_cancelled", appointment,
+                     hospital=appointment.hospital_id,
+                     details={"reason": reason, "date": str(appointment.appointment_date),
+                              "time": appointment.appointment_time.strftime("%H:%M")})
+        return Response(self.get_serializer(appointment).data)
+
+    @action(detail=True, methods=["post"], url_path="self-reschedule", permission_classes=[IsLinkedPatient])
+    def self_reschedule(self, request, pk=None):
+        """POST {appointment_date, appointment_time}: move your own booking to another free slot of the same doctor."""
+        patient, appointment = self._own_booking(request, pk)
+        day = _parse_date(request.data.get("appointment_date"))
+        slot = _parse_slot(request.data.get("appointment_time"))
+        now = _hospital_now()
+        if day < now.date() or (day == now.date() and slot <= now.time()):
+            raise ValidationError({"appointment_time": "This time has already passed."})
+        if day > now.date() + timedelta(days=BOOKING_WINDOW_DAYS):
+            raise ValidationError({"appointment_date": f"Book at most {BOOKING_WINDOW_DAYS} days ahead."})
+        doctor = appointment.doctor
+        if doctor.status in UNBOOKABLE_DOCTOR_STATUSES:
+            raise ValidationError({"doctor": "This doctor is not taking bookings. Please contact the hospital."})
+        refuse_day_off(doctor, day)
+        before = f"{appointment.appointment_date} {appointment.appointment_time.strftime('%H:%M')}"
+        with transaction.atomic():
+            # The booking's lock order: doctor first, then the booking.
+            lock_doctor(doctor.pk)
+            appointment = Appointment.objects.select_for_update().get(pk=appointment.pk)
+            self._still_changeable(appointment)
+            if clashing_booking(patient, doctor, day, slot, exclude_pk=appointment.pk) is not None:
+                return Response({"error": SLOT_JUST_TAKEN}, status=status.HTTP_409_CONFLICT)
+            try:
+                place = take_place(doctor.pk, day, slot, exclude_pk=appointment.pk)
+            except SlotFull:
+                return Response({"error": SLOT_JUST_TAKEN}, status=status.HTTP_409_CONFLICT)
+            appointment.appointment_date, appointment.appointment_time, appointment.slot_seat = day, slot, place
+            appointment.save(update_fields=["appointment_date", "appointment_time", "slot_seat"])
+        record_audit(request, "appointments.appointment.self_rescheduled", appointment,
+                     hospital=appointment.hospital_id,
+                     details={"from": before, "to": f"{day} {slot.strftime('%H:%M')}"})
+        return Response(self.get_serializer(appointment).data)
 
     # ------------------------------------------------------------------
     # Staff bookings and edits take a place in the slot the same way
@@ -351,6 +450,8 @@ class AppointmentViewSet(HospitalScopedViewSet):
             if appointment_time:
                 appointment.appointment_time = appointment_time
             if appointment.status in Appointment.ACTIVE_STATUSES:
+                new_day = appointment.appointment_date
+                refuse_day_off(appointment.doctor, _parse_date(new_day) if isinstance(new_day, str) else new_day)
                 refuse_double_booking(appointment.patient, appointment.doctor, appointment.appointment_date,
                                       appointment.appointment_time, exclude_pk=appointment.pk)
                 appointment.slot_seat = _place_or_refuse(appointment.doctor_id, appointment.appointment_date,

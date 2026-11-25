@@ -41,6 +41,7 @@ String labStepLabel(AppLocalizations t, LabStep step) => switch (step) {
   LabStep.enterResult => t.labStepEnterResult,
   LabStep.verify => t.labStepVerify,
   LabStep.release => t.labStepRelease,
+  LabStep.reject => t.labStepReject,
 };
 
 String labQueueLabel(AppLocalizations t, LabQueue queue) => switch (queue) {

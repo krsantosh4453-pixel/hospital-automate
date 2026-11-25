@@ -7,6 +7,9 @@ import { Alert, Card, CardHeader, EmptyState, SkeletonRows, StatTile, StatusBadg
 import { UPCOMING_STATUSES } from "../../config/appointmentStatus.js"
 import PatientTimeline from "../../components/clinical/PatientTimeline.jsx"
 import { useLanguage } from "../../assets/context/LanguageContext.jsx"
+import { hasBalanceDue } from "../../utils/money.js"
+import { MyHospitalsCard } from "../../components/patient/HospitalMembership.jsx"
+import { useRefreshTick } from "../../hooks/useRefreshTick.js"
 
 const list = (data) => (Array.isArray(data) ? data : data?.results || [])
 // Partly dispensed prescriptions still have medicines to collect (BUG-05).
@@ -20,11 +23,12 @@ function PatientDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const refreshTick = useRefreshTick()
   useEffect(() => {
     if (!patient?.id) return
 
     const fetchData = async () => {
-      setLoading(true)
+      if (!refreshTick) setLoading(true)
       // The server returns only this patient's own records.
       const [appts, rx, bills] = await Promise.allSettled([
         api.appointments.list(),
@@ -46,7 +50,7 @@ function PatientDashboard() {
         upcomingAppointments: appts.status === "fulfilled" ? patientAppointments.filter((a) => UPCOMING_STATUSES.includes(a.status)).length : null,
         pastAppointments: appts.status === "fulfilled" ? patientAppointments.filter((a) => a.status === "Completed").length : null,
         currentPrescriptions: rx.status === "fulfilled" ? prescriptions.filter((p) => CURRENT_RX.includes(p.status)).length : null,
-        unpaidBills: bills.status === "fulfilled" ? invoices.filter((b) => b.status === "Unpaid" || b.status === "Partial").length : null,
+        unpaidBills: bills.status === "fulfilled" ? invoices.filter(hasBalanceDue).length : null,
       })
       const failed = [appts, rx, bills].find((r) => r.status === "rejected")
       setError(failed ? failed.reason?.message || "Some information could not be loaded." : null)
@@ -54,7 +58,7 @@ function PatientDashboard() {
     }
 
     fetchData()
-  }, [patient?.id])
+  }, [patient?.id, refreshTick])
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—"
@@ -87,6 +91,9 @@ function PatientDashboard() {
         <StatTile icon={Pill} tone="accent" label="Current prescriptions" value={loading ? null : stats?.currentPrescriptions} />
         <StatTile icon={ReceiptIndianRupee} tone={stats?.unpaidBills ? "warning" : "success"} label="Bills with balance due" value={loading ? null : stats?.unpaidBills} />
       </div>
+
+      {/* Prompt 3: the patient's UHID at each hospital (or registering at one). */}
+      <MyHospitalsCard />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>

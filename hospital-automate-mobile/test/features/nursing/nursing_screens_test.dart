@@ -373,7 +373,11 @@ void main() {
         '37.1',
       );
       await tapVisible(tester, find.byKey(const Key('save-ward-vitals')));
-      expect(repo.savedWardVitals.single, {'temperature': '37.1'});
+      // Prompt 5: the reading keeps its value and now carries its unit.
+      expect(repo.savedWardVitals.single, {
+        'temperature': '37.1',
+        'temperature_unit': 'C',
+      });
       expect(find.textContaining('37.1'), findsWidgets);
     });
 

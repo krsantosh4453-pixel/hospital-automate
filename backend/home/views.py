@@ -16,7 +16,7 @@ from billing.models import Invoice, Payment
 from laboratory.models import LabTest
 from users.care_scope import care_view_of
 from users.permissions import REVENUE_ROLES, get_user_hospital_ids, get_user_roles
-from config.hospital_time import hospital_today
+from config.hospital_time import hospital_today, on_hospital_day
 
 
 def _get_authorized_hospital(request):
@@ -90,7 +90,7 @@ def home_dashboard(request):
     
     # Patient stats
     total_patients = patient_qs.count()
-    today_patients = patient_qs.filter(created_at__date=today).count()
+    today_patients = patient_qs.filter(on_hospital_day("created_at", today)).count()
     
     # Doctor stats
     total_doctors = doctor_qs.count()
@@ -116,7 +116,7 @@ def home_dashboard(request):
     
     # Emergency stats
     total_emergency = emergency_qs.count()
-    today_emergency = emergency_qs.filter(arrival_time__date=today).count()
+    today_emergency = emergency_qs.filter(on_hospital_day("arrival_time", today)).count()
     active_emergency = emergency_qs.filter(status__in=["Waiting", "In Treatment"]).count()
     
     # Admission/IPD stats
@@ -139,7 +139,7 @@ def home_dashboard(request):
 
     # Money received net of refunds (refunds are Payment rows too).
     total_revenue = _net_received(payment_qs)
-    today_revenue = _net_received(payment_qs.filter(paid_at__date=today))
+    today_revenue = _net_received(payment_qs.filter(on_hospital_day("paid_at", today)))
     refunded = _sum_amount(payment_qs.filter(kind=Payment.Kind.REFUND))
     # Still owed on open bills: their totals less what was received on them.
     open_invoice_qs = invoice_qs.filter(status__in=OPEN_INVOICE_STATUSES)

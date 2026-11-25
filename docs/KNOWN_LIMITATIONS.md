@@ -37,6 +37,12 @@ The open task inventory and the order of the next phases are in [PRODUCTION_READ
 - The Billing page has a Price list panel, an Unbilled work panel and a price-list picker in Create invoice (2026-11-21). The Android app has none of these.
 - The web form no longer takes typed consultation or lab amounts, and the server refuses those two line names on a new bill. Another client could still type its own wording for a consultation, because a free-text line can't be recognised reliably.
 
+**Rejecting a lab result (L-1, 2026-11-23):**
+- Lab staff send an entered or verified result back to processing with a reason, on the web and Android. It is then entered again and verified by someone else.
+- The rejected values are kept (`LabResultRejection`) and audited.
+- A result already released to the doctor and patient cannot be rejected; an amended-report workflow is not built.
+- If the result was verified before it was rejected, the lab charge stays and is not charged again.
+
 ## Missing features (none MISSING as of 2026-11-05; J6 is PARTIAL, see below)
 
 - **Pharmacy:** drug alerts (F7) are partial: allergy, duplicate-salt and a starter list of 8 interactions, pending Pharmacy & Therapeutics approval; no licensed drug database and no dose-range checks (`CLINICAL_SAFETY_REVIEW_PACK.md` section 9).

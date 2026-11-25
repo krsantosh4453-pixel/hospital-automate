@@ -148,6 +148,11 @@ const wardVitalKeys = {
   VitalField.spo2: 'spo2',
 };
 
+/// The unit the app's temperature field asks for ([VitalField.temperature] is
+/// labelled °C). Sent with every reading (Prompt 5), so the server and the web
+/// doctor view never have to guess whether a number was °C or °F.
+const wardTemperatureUnit = 'C';
+
 /// The `vitals` JSON for an assessment, or null when blood pressure is half
 /// filled in (both numbers or neither).
 Map<String, String>? wardVitalsJson(Map<VitalField, String> values) {
@@ -163,6 +168,8 @@ Map<String, String>? wardVitalsJson(Map<VitalField, String> values) {
     if (systolic != null) 'bp': '$systolic/$diastolic',
     for (final entry in wardVitalKeys.entries)
       if (value(entry.key) != null) entry.value: value(entry.key)!,
+    if (value(VitalField.temperature) != null)
+      'temperature_unit': wardTemperatureUnit,
   };
 }
 

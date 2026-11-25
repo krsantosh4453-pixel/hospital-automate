@@ -7927,6 +7927,12 @@ abstract class AppLocalizations {
   /// **'Temperature'**
   String get vitalTemperature;
 
+  /// No description provided for @vitalUnitNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'unit not recorded'**
+  String get vitalUnitNotRecorded;
+
   /// No description provided for @vitalTooHigh.
   ///
   /// In en, this message translates to:
@@ -8238,6 +8244,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter the dose limits as numbers (hours above 0, doses 1 to 48), or leave them empty.'**
   String get prnLimitsInvalid;
+
+  /// No description provided for @labStepReject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject result'**
+  String get labStepReject;
+
+  /// No description provided for @labRejectReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Why is the result wrong?'**
+  String get labRejectReason;
+
+  /// No description provided for @labRejectHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The test goes back to processing and the result is entered again, then verified by someone else. The rejected result is kept.'**
+  String get labRejectHelp;
+
+  /// No description provided for @labRejectReasonRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Say why the result is wrong (at least 5 characters).'**
+  String get labRejectReasonRequired;
 }
 
 class _AppLocalizationsDelegate

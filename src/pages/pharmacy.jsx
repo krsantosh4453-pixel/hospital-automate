@@ -6,7 +6,7 @@ import { AlarmClockIcon, CheckIcon, HospitalIcon, PillIcon, ReceiptIcon, SearchI
 import { useToast } from "../components/Toast.jsx"
 import { Alert, Button, Card, EmptyState, Field, Input, Modal, PageHeader, PrintSheet, Select, useConfirm } from "../components/ui"
 import { Plus as PlusIcon } from "lucide-react"
-import { buildDispenseRequest, defaultLines } from "../utils/dispenseBatches.js"
+import { buildDispenseRequest, defaultLines, fillMissingBatches } from "../utils/dispenseBatches.js"
 import DispenseLine from "../components/pharmacy/DispenseLine.jsx"
 import SaleReturns from "../components/pharmacy/SaleReturns.jsx"
 import H1Register from "../components/pharmacy/H1Register.jsx"
@@ -201,6 +201,13 @@ function Pharmacy() {
         : [],
     [medicines, selectedHospital]
   )
+
+  // A prescription opened before the stock list arrived has no batch chosen:
+  // pre-select one as soon as the stock is known, keeping the pharmacist's choices.
+  useEffect(() => {
+    if (!foundPrescription) return
+    setDispenseLines((lines) => fillMissingBatches(lines, foundPrescription.medicines || [], hospitalMedicines))
+  }, [foundPrescription, hospitalMedicines])
 
   // Expiry and low-stock alerts (must follow hospitalMedicines: the hook
   // dependency arrays read it during render).

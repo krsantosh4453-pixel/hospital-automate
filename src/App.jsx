@@ -85,6 +85,7 @@ function RoutesWithSignInDialog({ children }) {
           <Route path="/staff-login" element={<SignInDialog title="Staff sign in"><StaffLogin /></SignInDialog>} />
           <Route path="/patient-login" element={<SignInDialog title="Sign in"><PatientLogin /></SignInDialog>} />
           <Route path="/login" element={<SignInDialog title="Sign in"><PatientLogin /></SignInDialog>} />
+          <Route path="/register" element={<SignInDialog title="Create an account"><Register /></SignInDialog>} />
           <Route path="*" element={null} />
         </Routes>
       )}

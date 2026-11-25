@@ -78,7 +78,7 @@ Findings are taken from the documents above. None were invented.
 
 | ID | Source | Finding | Status | Plan |
 |---|---|---|---|---|
-| L-1 | billing-pharmacy-lab report §10 | No reject/correct step for a verifier; a wrong result is cancelled and re-ordered | NOT IMPLEMENTED | A Reject action with a reason, returning the test to Processing, keeping the original and audited |
+| L-1 | billing-pharmacy-lab report §10 | No reject/correct step for a verifier; a wrong result is cancelled and re-ordered | **COMPLETE (2026-11-23)** | `POST /api/laboratory/{id}/reject_result/` {reason}. An entered or verified, unreleased result goes back to Processing; the values as entered are kept in `LabResultRejection`, and the step is audited `lab.result.rejected`. Web "Reject Result" and Android "Reject result" with a reason. A released result needs an amended report, which is not built. Tests: `laboratory/test_result_rejection.py` (6), Android `lab_screens_test.dart` (3), Playwright `laboratory.spec.js` (reject, re-enter, verify, release) |
 | L-2 | this session | Structured result entry (per parameter) exists on the web only; the Android lab form still sends free text | PARTIAL | Android `_ResultForm`: one field per configured parameter |
 | L-3 | this session | No screen to manage reference ranges (API only, Admin) | PARTIAL | Admin screen on the web |
 
@@ -350,7 +350,7 @@ Mobile was not changed in this round.
 
 ## 5. Next phases, in order
 
-1. **L-1** lab reject/correct, then **L-3** reference-range admin screen, then **L-2** Android structured entry.
+1. **L-3** reference-range admin screen, then **L-2** Android structured entry. L-1 is done (2026-11-23).
 3. Re-run Playwright E2E and the PostgreSQL row-lock suite (`REQUIRE_ROW_LOCK_TESTS=1`) on the combined changes. Add a real two-connection PRN lock test there.
 4. Documentation set listed in the brief. These already exist: `README.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/API_DOCUMENTATION.md`, `docs/DEPLOYMENT.md`. Still to do: `docs/SECURITY.md` and `docs/BACKUP_AND_RESTORE.md` (fold in `SECURITY_AUDIT.md` and `DISASTER_RECOVERY.md`), then the final report.
 

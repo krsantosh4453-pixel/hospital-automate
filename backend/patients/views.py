@@ -230,7 +230,9 @@ class PatientViewSet(HospitalScopedViewSet):
         """Documents of this patient that belong to the acting hospitals."""
         rows = patient.documents.all()
         if get_linked_patient(self.request.user) and not is_active_staff(self.request.user):
-            return rows
+            from .models import released_to_patient
+
+            return released_to_patient(rows)
         return rows.filter(hospital_id__in=self.get_acting_hospital_ids())
 
     def get_object_hospital_id(self, obj):
@@ -418,7 +420,9 @@ class PatientViewSet(HospitalScopedViewSet):
         membership, created = ensure_uhid(patient, Hospital.objects.get(pk=hospital_id))
         record_audit(request, "patients.link" if created else "patients.link.repeat", patient,
                      hospital=hospital_id, details={"uhid": membership.uhid})
-        data = self.get_serializer(patient).data
+        # ``created`` lets a screen tell "registered now" from "already here"
+        # (the status code says the same; clients reading only the body need it).
+        data = {**self.get_serializer(patient).data, "created": created}
         return Response(data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
     def _possible_duplicates(self, data, limit=5):

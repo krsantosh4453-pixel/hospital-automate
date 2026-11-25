@@ -68,7 +68,8 @@ export const STAFF_NAV = [
     id: "diagnostics",
     label: "Diagnostics & pharmacy",
     items: [
-      { to: "/laboratory", label: "Laboratory", icon: FlaskConical, module: "Laboratory" },
+      // Radiology Staff hold Laboratory (imaging lives there) but no lab-test access.
+      { to: "/laboratory", label: "Laboratory", icon: FlaskConical, module: "Laboratory", hideFor: ["Radiology Staff"] },
       { to: "/radiology", label: "Radiology", icon: ScanSearch, module: "Laboratory" },
       { to: "/pharmacy", label: "Pharmacy", icon: Pill, module: "Pharmacy" },
       { to: "/compounter", label: "Compounder", icon: Syringe, module: "Compounders" },
@@ -119,12 +120,14 @@ export const STAFF_NAV = [
 export const ADMIN_MODULES = ["Users", "Roles", "Hospitals", "Departments", "Permissions"]
 
 /** Navigation filtered to what the current role may view. */
-export function visibleStaffNav(canView) {
+export function visibleStaffNav(canView, roleName = "") {
   const hasAdminAccess = ADMIN_MODULES.some((m) => canView(m))
   return STAFF_NAV.filter((group) => !group.adminOnly || hasAdminAccess)
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => item.module === null || canView(item.module)),
+      items: group.items.filter(
+        (item) => (item.module === null || canView(item.module)) && !(item.hideFor || []).includes(roleName),
+      ),
     }))
     .filter((group) => group.items.length > 0)
 }

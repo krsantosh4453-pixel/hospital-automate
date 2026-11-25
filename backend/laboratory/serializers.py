@@ -145,6 +145,14 @@ class LabTestSerializer(serializers.ModelSerializer):
     sample_collection = SampleCollectionSerializer(read_only=True)
     sample_dispatch = SampleDispatchSerializer(read_only=True)
     lab_result = LabResultSerializer(read_only=True)
+    # L-1: how often a result was sent back, and the latest reason. The rejected
+    # values themselves stay in LabResultRejection and the audit log.
+    rejection_count = serializers.SerializerMethodField()
+    last_rejection_reason = serializers.SerializerMethodField()
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        return check_visit_of_patient(attrs, self.instance)
 
     class Meta:
         model = LabTest
@@ -171,6 +179,8 @@ class LabTestSerializer(serializers.ModelSerializer):
             "sample_collection",
             "sample_dispatch",
             "lab_result",
+            "rejection_count",
+            "last_rejection_reason",
         ]
         # status and result move only through the collect/dispatch/receive/
         # process/enter/verify/release actions.
@@ -180,6 +190,18 @@ class LabTestSerializer(serializers.ModelSerializer):
             "patient_name", "hospital_name", "doctor_name",
             "sample_collection", "sample_dispatch", "lab_result"
         ]
+
+    # The list view annotates both (no extra query); a single test read
+    # after an action falls back to one small query.
+    def get_rejection_count(self, obj) -> int:
+        total = getattr(obj, "rejection_total", None)
+        return total if total is not None else obj.rejections.count()
+
+    def get_last_rejection_reason(self, obj) -> str:
+        if hasattr(obj, "latest_rejection_reason"):
+            return obj.latest_rejection_reason or ""
+        latest = obj.rejections.order_by("-rejected_at", "-pk").values_list("reason", flat=True).first()
+        return latest or ""
 
     def validate_hospital(self, value):
         """Ensure user has access to the hospital."""
@@ -205,7 +227,19 @@ class LabTestSerializer(serializers.ModelSerializer):
         return value
 
 
+def check_visit_of_patient(attrs, instance=None):
+    """INT-002 (Prompt 5): an order's visit must be a visit of the same patient."""
+    visit = attrs.get("visit", getattr(instance, "visit", None))
+    patient = attrs.get("patient", getattr(instance, "patient", None))
+    if visit is not None and patient is not None and visit.patient_id != patient.pk:
+        raise serializers.ValidationError({"visit": "This visit belongs to another patient."})
+    return attrs
+
+
 class LabTestCreateSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        return check_visit_of_patient(attrs, self.instance)
+
     class Meta:
         model = LabTest
         fields = [
@@ -236,6 +270,9 @@ class ImagingStudySerializer(serializers.ModelSerializer):
             "performed_by", "technician_notes", "findings", "impression", "reported_by", "reported_at",
         ]
         extra_kwargs = {"hospital": {"required": False}}
+
+    def validate(self, attrs):
+        return check_visit_of_patient(attrs, self.instance)
 
     def validate_body_part(self, value):
         if not value.strip():

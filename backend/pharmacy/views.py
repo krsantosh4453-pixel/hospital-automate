@@ -27,8 +27,8 @@ from .serializers import (
     SaleSerializer,
 )
 from users.viewsets import HospitalScopedViewSet
-from users.permissions import IsAdmin, IsCompounder, IsHospitalManager, IsInventoryStaff, IsPharmacist
-from config.hospital_time import hospital_today
+from users.permissions import IsAdmin, IsCompounder, IsDoctor, IsHospitalManager, IsInventoryStaff, IsPharmacist
+from config.hospital_time import hospital_date_range, hospital_today
 
 
 class MedicineViewSet(HospitalScopedViewSet):
@@ -36,6 +36,24 @@ class MedicineViewSet(HospitalScopedViewSet):
     serializer_class = MedicineSerializer
     # Medicine stock: pharmacy (pharmacist, compounder) and the store.
     permission_classes = [IsAdmin | IsHospitalManager | IsPharmacist | IsCompounder | IsInventoryStaff]
+
+    @action(detail=False, methods=["get"], url_path="formulary",
+            permission_classes=[IsAdmin | IsHospitalManager | IsPharmacist | IsCompounder | IsInventoryStaff | IsDoctor])
+    def formulary(self, request):
+        """
+        MF-007: the medicines this hospital keeps, once per name, for a doctor
+        writing a prescription. Name, generic name and whether any is in stock:
+        no prices, batches or counts.
+        """
+        from django.db.models import Max, Sum
+
+        stock = super().get_queryset()
+        if request.query_params.get("hospital"):
+            stock = stock.filter(hospital_id=request.query_params["hospital"])
+        rows = (stock.values("name")
+                .annotate(generic=Max("generic_name"), stock=Sum("quantity")).order_by("name"))
+        return Response([{"name": row["name"], "generic_name": row["generic"] or "", "in_stock": bool(row["stock"])}
+                         for row in rows])
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -136,10 +154,18 @@ class SaleViewSet(HospitalScopedViewSet):
         # Date range filter
         date_from = self.request.query_params.get("date_from")
         date_to = self.request.query_params.get("date_to")
-        if date_from:
-            queryset = queryset.filter(created_at__date__gte=date_from)
-        if date_to:
-            queryset = queryset.filter(created_at__date__lte=date_to)
+        if date_from or date_to:
+            from datetime import date
+
+            from rest_framework.exceptions import ValidationError
+
+            try:
+                first = date.fromisoformat(date_from[:10]) if date_from else None
+                last = date.fromisoformat(date_to[:10]) if date_to else None
+            except ValueError:
+                raise ValidationError({"date_from": "Use dates like 2026-11-25."})
+            # Days are the hospital's (IST), not UTC (P1-3).
+            queryset = queryset.filter(hospital_date_range("created_at", first, last))
 
         return queryset
 

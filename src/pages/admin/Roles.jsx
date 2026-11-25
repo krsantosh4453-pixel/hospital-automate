@@ -18,6 +18,7 @@ const ROLE_DESCRIPTIONS = {
   Pharmacist: "Medicines, stock, dispensing and pharmacy sales",
   Compounder: "Medicine preparation and dispensing support",
   "Lab Staff": "Sample handling, result entry, verification and release",
+  "Radiology Staff": "Imaging schedule, studies performed and images attached",
   "Billing Staff": "Invoices, payments, refunds and insurance claims",
   "Inventory Staff": "Suppliers, purchase orders, goods receipt and stock",
   "Blood Bank Staff": "Blood inventory, requests and issue",

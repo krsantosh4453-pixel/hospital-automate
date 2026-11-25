@@ -66,6 +66,51 @@ git clone <repository-url>
 cd hospital-automate
 ```
 
+### One-command local start (recommended on macOS)
+
+After the one-time setup below (`.env` filled in, `npm install`), start everything with:
+
+```bash
+npm run dev:all          # same as: bash scripts/dev.sh start
+```
+
+It builds a Python virtualenv in `~/.local/share/hospital-automate/venv` (first run only,
+and again whenever `backend/requirements-lock.txt` changes), backs up `backend/db.sqlite3`
+and applies pending migrations, starts Django on `http://127.0.0.1:8000` and Vite on
+`http://localhost:5173`, and checks that Vite's proxy reaches Django. It never starts a second
+copy, never stops a program it did not start, and shows Django's own error if startup fails.
+
+| Command | What it does |
+|---------|--------------|
+| `npm run dev:all` | Start backend + frontend (both keep running after the terminal closes) |
+| `npm run dev:status` | Show what is running and whether `/api` reaches Django |
+| `npm run dev:logs` | Follow the Django log (`npm run dev:logs -- frontend` for Vite) |
+| `npm run dev:restart -- backend` | Restart one service (`backend`, `frontend` or `all`) |
+| `npm run dev:stop` | Stop what `dev:all` started |
+| `npm run dev:setup` | Only build the virtualenv and apply migrations |
+
+After a reboot, run `npm run dev:all` again. Optional settings: `HMS_BACKEND_PORT` (default
+8000), `HMS_DEV_HOME`, `HMS_VENV`, `HMS_BACKEND_TIMEOUT`, `HMS_SKIP_MIGRATE=1` (see the header of
+`scripts/dev.sh`).
+
+#### Troubleshooting "HTTP 502" when signing in or creating an account
+
+Vite answers `/api` with 502 when nothing is listening at `VITE_PROXY_TARGET`
+(default `http://127.0.0.1:8000`), i.e. Django is not running. Run `npm run dev:status`.
+
+- **Django seems to hang at startup (no error, 0% CPU).** This checkout is on an iCloud-synced
+  Desktop with "Optimize Mac Storage": macOS evicts files (on 2026-11-24, 97% of `backend/venv`
+  and 592 of 942 `__pycache__/*.pyc` files), and Python waits for each one to download.
+  `scripts/dev.sh` avoids this by keeping the virtualenv and Python's bytecode cache
+  (`PYTHONPYCACHEPREFIX`) in `~/.local/share/hospital-automate`. The lasting fix is to move the
+  project out of Desktop/Documents.
+- **HTTP 500 after Django starts** often means unapplied migrations; `npm run dev:setup` applies them
+  (after a backup in `~/.local/share/hospital-automate/db-backups`).
+- **Port 8000 is taken** by another program: `HMS_BACKEND_PORT=8010 npm run dev:all`
+  (restart Vite too, so its proxy follows: `npm run dev:restart -- frontend`).
+- Health checks: `curl http://127.0.0.1:8000/health/ready/` (Django directly) and
+  `curl http://localhost:5173/health/` (through the Vite proxy).
+
 ### Backend Setup
 
 ```bash

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { pickPatient, signInAs } from "./helpers.js"
 
 // seed_demo fills every bed, so the admin adds one; a doctor admits an OPD

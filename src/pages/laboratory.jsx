@@ -32,6 +32,9 @@ import SampleLabel from "../components/laboratory/SampleLabel.jsx"
 import SampleScanDialog from "../components/laboratory/SampleScanDialog.jsx"
 import CriticalResults from "../components/laboratory/CriticalResults.jsx"
 import PatientPicker from "../components/patients/PatientPicker.jsx"
+import VisitSelect from "../components/clinical/VisitSelect.jsx"
+import { ownDoctorId } from "../utils/ownDoctor.js"
+import { useAuth } from "../assets/context/AuthContext.jsx"
 import { useLanguage } from "../assets/context/LanguageContext.jsx"
 
 function Laboratory() {
@@ -47,6 +50,7 @@ function Laboratory() {
 
   const [tests, setTests] = useState([])
   const [doctorOptions, setDoctorOptions] = useState([])
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [busyId, setBusyId] = useState(null)
@@ -76,6 +80,9 @@ function Laboratory() {
     "Result Entered": ["Verify Result", "verifyResult"],
     Verified: ["Release Result", "releaseResult"],
   }
+
+  // L-1: a wrong result is sent back before release; the server keeps it.
+  const REJECTABLE = ["Result Entered", "Verified"]
 
   const rows = (data) => (Array.isArray(data) ? data : data?.results || [])
 
@@ -148,6 +155,7 @@ function Laboratory() {
 
   const [formData, setFormData] = useState({
     patient: "",
+    visit: "",
     test: "",
     doctor: "",
     date: "",
@@ -262,6 +270,7 @@ function Laboratory() {
 
     setFormData({
       patient: "",
+      visit: "",
       test: "",
       doctor: "",
       date: "",
@@ -293,6 +302,8 @@ function Laboratory() {
         hospital: selectedHospital.id,
         patient: Number(formData.patient),
         doctor: formData.doctor ? Number(formData.doctor) : null,
+        // Prompt 5 (INT-002): the order belongs to its visit when one is chosen.
+        visit: formData.visit ? Number(formData.visit) : null,
         name: formData.test,
         priority: formData.priority,
       })
@@ -444,6 +455,25 @@ function Laboratory() {
     return { result_text: resultText.trim(), result_data: resultData }
   }
 
+  const handleReject = async (test) => {
+    const reason = await promptText({
+      title: t("Reject the result for {test}?", { test: test.test }),
+      label: t("Why is it wrong? The test goes back to processing and the result is entered again."),
+      confirmLabel: t("Reject Result"),
+    })
+    if (!reason || !reason.trim()) return
+    setBusyId(test.id)
+    try {
+      await api.laboratory.tests.rejectResult(test.apiId, reason.trim())
+      toast.success(t("Result sent back. Enter the corrected result."))
+      await loadTests()
+    } catch (err) {
+      toast.error(t("Result not rejected: {reason}", { reason: err.message }))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   // Workflow stages in order, for the per-order progress indicator.
   const STAGES = ["Ordered", "Collected", "Dispatched", "Received", "Processing", "Result Entered", "Verified", "Released"]
   const stageIndex = (stage) => {
@@ -459,7 +489,8 @@ function Laboratory() {
       return
     }
     setSelectedTest(null)
-    setFormData({ patient: "", test: "", doctor: "", date: "", priority: "Normal" })
+    // BUG-013: a signed-in doctor is the referring doctor unless changed.
+    setFormData({ patient: "", visit: "", test: "", doctor: ownDoctorId(doctorOptions, user), date: "", priority: "Normal" })
     setShowForm(true)
   }
 
@@ -593,6 +624,11 @@ function Laboratory() {
                                     {step[0]}
                                   </Button>
                                 )}
+                                {REJECTABLE.includes(test.stage) && (
+                                  <Button size="sm" variant="danger-ghost" disabled={busyId === test.id} onClick={() => handleReject(test)}>
+                                    {t("Reject Result")}
+                                  </Button>
+                                )}
                                 <Button variant="ghost" size="icon-sm" icon={Eye} onClick={() => handleView(test)} aria-label={`View ${test.id}`} title={t("View")} />
                                 {test.record?.sample_collection?.sample_id && (
                                   <Button variant="ghost" size="icon-sm" icon={Tag} onClick={() => setLabelTest(test.record)} aria-label={t("Print sample label for {order}", { order: test.id })} title={t("Print sample label")} />
@@ -638,8 +674,12 @@ function Laboratory() {
             <PatientPicker hospitalId={selectedHospital.id} source="lookup" value={formData.patient}
               disabled={Boolean(selectedTest)}
               selected={selectedTest ? { id: formData.patient, name: selectedTest.patient } : null}
-              onChange={(id) => setFormData((current) => ({ ...current, patient: id }))} />
+              onChange={(id) => setFormData((current) => ({ ...current, patient: id, visit: "" }))} />
           </Field>
+          {!selectedTest && (
+            <VisitSelect hospitalId={selectedHospital.id} patientId={formData.patient}
+              value={formData.visit} onChange={(visit) => setFormData((current) => ({ ...current, visit }))} />
+          )}
           <Field label="Test" required>
             <Select name="test" value={formData.test} onChange={handleChange}>
               <option value="">{t("Select test")}</option>

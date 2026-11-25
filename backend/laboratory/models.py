@@ -226,6 +226,33 @@ class LabResult(models.Model):
         ordering = ["-entered_at"]
 
 
+class LabResultRejection(models.Model):
+    """
+    L-1: a result sent back before release because it was wrong. The values
+    as entered are kept here (the result row itself is removed so the test
+    can be entered again); who entered, who rejected, when and why.
+    """
+
+    lab_test = models.ForeignKey(LabTest, on_delete=models.CASCADE, related_name="rejections")
+    result_data = models.JSONField(default=dict, blank=True)
+    result_text = models.TextField(blank=True)
+    reference_ranges = models.JSONField(default=dict, blank=True)
+    abnormal_flags = models.JSONField(default=list, blank=True)
+    flag_details = models.JSONField(default=list, blank=True)
+    entered_by = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    entered_at = models.DateTimeField(null=True, blank=True)
+    was_verified = models.BooleanField(default=False)
+    rejected_by = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    rejected_at = models.DateTimeField(auto_now_add=True)
+    reason = models.TextField()
+
+    class Meta:
+        ordering = ["-rejected_at"]
+
+    def __str__(self):
+        return f"Rejected result for {self.lab_test}"
+
+
 class LabReferenceRange(models.Model):
     """
     H-14: a hospital's reference and critical limits for one parameter of a

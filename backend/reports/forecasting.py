@@ -18,6 +18,8 @@ from django.db.models import Avg, Count, DateTimeField, F, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
+from config.hospital_time import hospital_date_range, hospital_today, hospital_tz
+
 from appointments.models import Appointment
 from encounters.models import QueueToken
 from emergency.models import EmergencyVisit
@@ -42,15 +44,18 @@ class ForecastingService:
         """Get daily aggregated time series from a queryset."""
         if end_date is None:
             # The last complete day: a partial today would read as a sudden drop.
-            end_date = timezone.localdate() - timedelta(days=1)
+            end_date = hospital_today() - timedelta(days=1)
         if start_date is None:
             start_date = end_date - timedelta(days=days)
 
         # Timestamps are grouped by local calendar day; date fields as they are.
         is_timestamp = isinstance(queryset.model._meta.get_field(date_field), DateTimeField)
-        lookup = f"{date_field}__date" if is_timestamp else date_field
-        qs = queryset.filter(**{f"{lookup}__gte": start_date, f"{lookup}__lte": end_date})
-        day = TruncDate(date_field) if is_timestamp else F(date_field)
+        # Hospital (IST) days, not UTC ones (P1-3).
+        if is_timestamp:
+            qs = queryset.filter(hospital_date_range(date_field, start_date, end_date))
+        else:
+            qs = queryset.filter(**{f"{date_field}__gte": start_date, f"{date_field}__lte": end_date})
+        day = TruncDate(date_field, tzinfo=hospital_tz()) if is_timestamp else F(date_field)
         qs = qs.annotate(day=day).values("day")
 
         aggregate = Sum(value_field) if value_field else Count("id")

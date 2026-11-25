@@ -127,10 +127,7 @@ class _WardVitalsSectionState extends State<WardVitalsSection> {
               (
                 at: a.assessedAt,
                 by: a.nurseName,
-                values: [
-                  for (final e in a.vitals.entries)
-                    '${wardVitalLabel(t, e.key)}: ${e.value}',
-                ].join(' · '),
+                values: wardVitalLines(t, a.vitals).join(' · '),
               ),
         ];
       case VisitTarget(:final visit):

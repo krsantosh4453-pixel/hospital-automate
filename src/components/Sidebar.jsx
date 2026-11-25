@@ -138,7 +138,7 @@ function Sidebar() {
   const { isStaff } = useAuth()
   const { t } = useLanguage()
   // Visitors see the full menu; each page asks them to sign in.
-  const groups = isStaff ? visibleStaffNav(canView) : guestStaffNav()
+  const groups = isStaff ? visibleStaffNav(canView, activeRoleName) : guestStaffNav()
   const collapsed = !isSidebarOpen
 
   // Close the mobile drawer whenever the route changes.
