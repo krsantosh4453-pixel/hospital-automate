@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest"
-import { availabilityOf, defaultBatches, missingBatches, usableBatches } from "../utils/dispenseBatches.js"
+import { availabilityOf, defaultBatches, fillMissingBatches, missingBatches, usableBatches } from "../utils/dispenseBatches.js"
 
 const TODAY = new Date(2026, 10, 3)
 
@@ -105,5 +105,37 @@ describe("availabilityOf", () => {
     expect(availabilityOf({ name: "Ondansetron", quantity: 2 }, expiredOnly, TODAY)).toBe("none")
     expect(availabilityOf({ name: "Amoxicillin", quantity: 25, dispensed: 10 }, stock, TODAY)).toBe("in-stock")
     expect(availabilityOf({ name: "Amoxicillin", quantity: 5, dispensed: 5 }, stock, TODAY)).toBe("done")
+  })
+})
+
+describe("fillMissingBatches", () => {
+  const items = [
+    { id: 10, name: "Paracetamol", quantity: 10 },
+    { id: 11, name: "Amoxicillin", quantity: 5 },
+  ]
+
+  it("fills the batches a prescription opened before the stock list loaded", () => {
+    const openedEarly = { 10: { batch: "", quantity: 10, reason: "" }, 11: { batch: "", quantity: 5, reason: "" } }
+
+    expect(fillMissingBatches(openedEarly, items, stock, TODAY)).toEqual({
+      10: { batch: 1, quantity: 10, reason: "" },
+      11: { batch: 4, quantity: 5, reason: "" },
+    })
+  })
+
+  it("never replaces a batch or quantity the pharmacist chose", () => {
+    const chosen = { 10: { batch: 2, quantity: 3, reason: "" }, 11: { batch: "", quantity: 1, reason: "" } }
+
+    expect(fillMissingBatches(chosen, items, stock, TODAY)).toEqual({
+      10: { batch: 2, quantity: 3, reason: "" },
+      11: { batch: 4, quantity: 1, reason: "" },
+    })
+  })
+
+  it("returns the same object when there is nothing to fill", () => {
+    const lines = { 10: { batch: 1, quantity: 10, reason: "" }, 11: { batch: 4, quantity: 5, reason: "" } }
+
+    expect(fillMissingBatches(lines, items, [], TODAY)).toBe(lines)
+    expect(fillMissingBatches(lines, items, stock, TODAY)).toBe(lines)
   })
 })

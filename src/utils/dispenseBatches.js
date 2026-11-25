@@ -93,6 +93,24 @@ export function defaultLines(items, medicines, today = new Date()) {
 }
 
 /**
+ * A prescription opened before the stock list loaded has no batch chosen.
+ * Once the stock is known, give each line without a batch the default one,
+ * keeping every batch and quantity the pharmacist has already set. Returns
+ * the same object when nothing changes, so a React state update is skipped.
+ */
+export function fillMissingBatches(lines, items, medicines, today = new Date()) {
+  const defaults = defaultLines(items, medicines, today)
+  const missing = items.filter((item) => !lines[item.id]?.batch && defaults[item.id]?.batch)
+  if (missing.length === 0) return lines
+  return {
+    ...lines,
+    ...Object.fromEntries(
+      missing.map((item) => [item.id, { ...defaults[item.id], ...lines[item.id], batch: defaults[item.id].batch }])
+    ),
+  }
+}
+
+/**
  * The dispense-prescription request body, or { problems } to show instead.
  * Lines with quantity 0 are left for later; anything short of the whole
  * remaining quantity is sent as a partial dispense.
