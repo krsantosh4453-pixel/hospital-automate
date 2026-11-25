@@ -15,6 +15,8 @@ const escape = (text) => text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")
 
 async function session(page) {
   const csrf = (await (await page.request.get("/api/auth/csrf/")).json()).csrfToken
+  // The header picks the hospital once its list has loaded, a moment after sign-in.
+  await page.waitForFunction(() => localStorage.getItem("selectedHospital"))
   const hospital = await page.evaluate(() => JSON.parse(localStorage.getItem("selectedHospital")).id)
   const found = await (await page.request.get(`/api/patients/?hospital=${hospital}&search=${encodeURIComponent(PATIENT)}`)).json()
   const patient = (found.results || found).find((p) => p.name === PATIENT)
