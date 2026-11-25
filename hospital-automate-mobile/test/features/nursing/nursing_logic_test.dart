@@ -154,15 +154,27 @@ void main() {
       expect(wardVitalsJson({VitalField.heartRate: '80'}), {'pulse': '80'});
     });
 
-    test('a temperature is shown with its unit, an old one says it has none', () {
-      final t = AppLocalizationsEn();
-      expect(
-        wardVitalLines(t, {'temperature': '37.2', 'temperature_unit': 'C', 'pulse': '80'}),
-        ['Temperature: 37.2 °C', 'Pulse: 80'],
-      );
-      expect(wardVitalLines(t, {'temperature': '99.1', 'temperature_unit': 'F'}), ['Temperature: 99.1 °F']);
-      expect(wardVitalLines(t, {'temperature': '98.6'}), ['Temperature: 98.6 (unit not recorded)']);
-    });
+    test(
+      'a temperature is shown with its unit, an old one says it has none',
+      () {
+        final t = AppLocalizationsEn();
+        expect(
+          wardVitalLines(t, {
+            'temperature': '37.2',
+            'temperature_unit': 'C',
+            'pulse': '80',
+          }),
+          ['Temperature: 37.2 °C', 'Pulse: 80'],
+        );
+        expect(
+          wardVitalLines(t, {'temperature': '99.1', 'temperature_unit': 'F'}),
+          ['Temperature: 99.1 °F'],
+        );
+        expect(wardVitalLines(t, {'temperature': '98.6'}), [
+          'Temperature: 98.6 (unit not recorded)',
+        ]);
+      },
+    );
 
     test('decimal temperatures pass through unchanged (finding 7)', () {
       for (final typed in ['37.1', '36.9', '38.5', '37']) {

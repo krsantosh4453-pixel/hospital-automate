@@ -1,3 +1,4 @@
+/* global Buffer */
 import { expect, test } from "@playwright/test"
 import { E2E_PASSWORD, pickPatient, signInAs } from "./helpers.js"
 
