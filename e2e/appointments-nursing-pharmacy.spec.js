@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { E2E_PASSWORD, signInAs } from "./helpers.js"
 
 // Prompt 4 (E2E audit BUG-003, BUG-005/INT-001, BUG-006, BUG-007), against the

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { signInAs, uniqueName } from "./helpers.js"
 
 test("store adds a supplier and an item, raises a purchase order and receives it into stock", async ({ page }) => {

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { pickPatient, signInAs } from "./helpers.js"
 
 // A doctor orders a test; lab staff take it through every stage to release,

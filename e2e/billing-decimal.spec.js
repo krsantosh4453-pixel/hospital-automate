@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { E2E_PASSWORD, pickPatient, signInAs } from "./helpers.js"
 
 // BUG-002 (E2E audit 2026-11-24): a bill with paise (₹33.60) could not be

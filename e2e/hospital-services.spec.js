@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { signInAs } from "./helpers.js"
 
 // J5/J6: a theatre is booked and run, an ambulance call is dispatched and

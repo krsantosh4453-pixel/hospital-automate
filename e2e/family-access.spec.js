@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { E2E_PASSWORD, readOtp, uniqueName, uniquePhone } from "./helpers.js"
 
 const PATIENT_EMAIL = "demo.patient@example.test"

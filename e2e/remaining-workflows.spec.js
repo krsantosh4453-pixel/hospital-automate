@@ -1,5 +1,5 @@
 /* global Buffer */
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 import { E2E_PASSWORD, pickPatient, signInAs } from "./helpers.js"
 
 // Prompt 5 against the isolated e2e backend (config.settings.e2e, seed_demo):
@@ -45,7 +45,9 @@ test("setup: prices on the list, an open visit for the patient", async ({ page }
   ]) {
     const added = await api(page, "post", "/api/billing/price-list/", {
       hospital: 1, category, code, name: code, applies_to, unit_price, tax_rate: "0" })
-    expect(added.status, JSON.stringify(added.body)).toBe(201)
+    // A retry of this serial group runs setup again: the price from the first try stays.
+    const alreadyPriced = added.status === 400 && /already has a price/.test(JSON.stringify(added.body))
+    expect(alreadyPriced || added.status === 201, JSON.stringify(added.body)).toBe(true)
   }
 
   // The admin looks the patient up (a doctor lists only patients in their care).
