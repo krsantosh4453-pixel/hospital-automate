@@ -1,0 +1,73 @@
+Prompt 6 database verification: run FV55750 (e2e backend, config.settings.e2e)
+Read-only sqlite3 queries on backend/e2e.sqlite3 right after the run (2026-11-25 ~02:55 IST).
+That throwaway database was re-created by the next Playwright run; this is the captured output.
+
+hospital (id, name, code, is_active, allow_patient_self_registration):
+2|Synthetic Final Hospital FV55750|SF5750|1|1
+
+staff memberships at hospital 2 (role, count):
+Admin|1
+Billing Staff|1
+Compounder|1
+Doctor|1
+Lab Staff|2
+Nurse|1
+Pharmacist|1
+Radiology Staff|1
+Receptionist|1
+
+patient and UHID (patient id, name, uhid, active):
+6|Synthetic Patient FV55750|SF5750-2026-000001|1
+
+appointments (id, status, date, time):
+3|Completed|2026-11-25|09:00:00
+4|Cancelled|2026-12-02|15:30:00      (booked, moved 15:00 -> 15:30 by the patient, then cancelled)
+
+visit (id, status, type):
+3|Completed|OPD
+
+diagnoses (name, icd10, visit):
+Acute pharyngitis|J02.9|3
+
+lab tests (id, name, status, visit_id):
+1|Complete Blood Count|Released|          <- ordered by Lab Staff: no visit link
+
+imaging (id, status, visit_id, ordered_by, reported_by):
+1|Reported|3|3|3
+
+image documents (id, imaging_study_id, folder):
+1|1|imaging
+
+invoices (id, number, status, total, tax, discount, visit, admission, prescription, is_final):
+1|INV/26-27/000001|Paid|320.25|0|0||||0
+2|INV/26-27/000002|Paid|1061.25|0|0|3|||0
+3|INV/26-27/000003|Paid|7.5|0|0|||1|0
+4|INV/26-27/000004|Paid|1200|0|0||3||1
+
+invoice lines (invoice, category, unit_price, qty, subtotal, charge_key):
+1|laboratory|320.25|1|320.25|labtest:1
+2|imaging|610.75|1|610.75|imaging:1
+2|consultation|450.5|1|450.5|visit:3:consultation
+3|pharmacy|2.5|3|7.5|
+4|bed|1200|1|1200|admission:3:bed:4
+
+payments (invoice, kind, amount, receipt):
+1|payment|320.25|RCPT-863A46559C78
+2|payment|1061.25|RCPT-B320A4BE10A5
+3|payment|7.49|RCPT-BA6B5CA3BD54
+3|payment|0.01|RCPT-8529BDAF151D
+4|payment|1200|RCPT-CCA391AB569B
+
+pharmacy stock (id, name, quantity): 20 received, 3 dispensed
+10|Synth Paracetamol 500 FV55750|17
+
+admission (id, status, discharge_date):
+3|Discharge Initiated|            <- browser "Complete discharge" did not complete (see discharge-replay.txt)
+
+nursing assessment (id, nurse_id, vitals):
+1||{"temperature": "100.4", "temperature_unit": "F", "bp": "118/76", "pulse": "92", "spo2": "97", "respiratory_rate": "18"}
+nurse profiles at hospital 2: 0        <- the invited Nurse has no Nurse record, so nurse_id is empty
+
+audit log rows at hospital 2: 217 (top actions: notifications.notification.list 33, billing.invoice.list 16,
+ipd.admission.list 15, billing.invoice.read 14, laboratory.labtest.list 10, users.staff.invited 9,
+encounters.visit.list 9, ..., billing.payment.create 5, ipd.discharge_summary.finalize, ipd.dischargeplan.update)

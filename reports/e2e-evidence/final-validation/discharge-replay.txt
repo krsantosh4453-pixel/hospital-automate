@@ -1,0 +1,20 @@
+Prompt 6: discharge completion replayed on the server.
+
+Context: in the browser, the inpatient discharge reached "Ready to complete"
+(checklist 4/4 ticked, summary signed, final bill INV/26-27/000004 ₹1200.00 paid),
+but clicking "Complete discharge" sent no POST .../complete_discharge/ request
+(Playwright trace of run FV54204 step 18; last requests were the four
+PATCH /api/ipd/discharge-plans/1/ ticks and readiness reads), and the step
+timed out. The admission stayed "Discharge Initiated".
+
+Replay: a copy of that run's throwaway e2e database (scratch copy, not the
+project database), the same doctor account, DRF APIClient, real view code:
+
+readiness: ready=True, blockers=[], checklist all done, summary_finalized=True,
+           final_invoice INV/26-27/000004 status Paid, balance_due 0.00
+POST /api/ipd/admissions/3/complete_discharge/ -> 200 in 0.01s
+admission: Discharged, discharge_date 2026-11-24 21:11:29 UTC
+
+Conclusion: the server workflow completes correctly; the browser step that
+should send it did not, within the test. Not verified end to end in the UI;
+needs a manual check of the "Complete discharge" button and its confirmation.
